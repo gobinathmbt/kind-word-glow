@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +10,9 @@ import {
   X,
   ZoomIn,
   Video,
+  HardHat,
 } from "lucide-react";
+import BayBookingDialog from "./BayBookingDialog";
 
 interface WorkshopFieldCardProps {
   field: any;
@@ -29,6 +31,8 @@ interface WorkshopFieldCardProps {
   onDeleteField: (field: any, categoryId: string | null, sectionId: string) => void;
   onOpenMediaViewer: (field: any, selectedMediaId: string) => void;
   isWorkshopField: boolean;
+  vehicleType: string;
+  vehicleStockId: number;
 }
 
 const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
@@ -48,7 +52,11 @@ const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
   onDeleteField,
   onOpenMediaViewer,
   isWorkshopField,
+  vehicleType,
+  vehicleStockId,
 }) => {
+  const [bayBookingDialogOpen, setBayBookingDialogOpen] = useState(false);
+  
   const quote = getQuote(field.field_id);
   const hasQuote = !!quote;
   const quoteApproved = quote?.supplier_responses.some(
@@ -56,6 +64,10 @@ const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
   );
   const hasWorkSubmitted = quote?.status === "work_review";
   const hasCompletedWork = quote?.status === "completed_jobs";
+
+  const handleBayBookingClick = () => {
+    setBayBookingDialogOpen(true);
+  };
 
   return (
     <div className={`rounded-lg p-4 ${getFieldBorderColor(field)}`}>
@@ -97,8 +109,10 @@ const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
               </Button>
               <Button
                 size="sm"
-                onClick={() => {/* TODO: Open bay booking dialog */}}
+                variant="outline"
+                onClick={handleBayBookingClick}
               >
+                <HardHat className="h-3 w-3 mr-1" />
                 Request For Bay
               </Button>
             </>
@@ -205,6 +219,16 @@ const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
           })}
         </div>
       )}
+
+      <BayBookingDialog
+        open={bayBookingDialogOpen}
+        onOpenChange={setBayBookingDialogOpen}
+        field={field}
+        categoryId={categoryId}
+        sectionId={sectionId}
+        vehicleType={vehicleType}
+        vehicleStockId={vehicleStockId}
+      />
     </div>
   );
 };
