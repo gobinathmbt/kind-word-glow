@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Env_Configuration = require('../config/env');
 const Conversation = require('../models/Conversation');
-const Message = require('../models/Message');
 const User = require('../models/User');
 const BayBooking = require('../models/BayBooking');
 
@@ -87,7 +86,7 @@ const getOrCreateBayConversation = async (bookingId) => {
 // Mark bay messages as read
 const markBayMessagesAsRead = async (conversationId, userId) => {
   try {
-    await Message.updateMany(
+    await Conversation.updateMany(
       {
         conversation_id: conversationId,
         sender_id: { $ne: userId },
@@ -171,7 +170,7 @@ const initializeBayChatHandlers = (io) => {
         }
 
         // Create message
-        const newMessage = new Message({
+        const newMessage = new Conversation({
           conversation_id: conversationId,
           sender_id: socket.user.id,
           message,

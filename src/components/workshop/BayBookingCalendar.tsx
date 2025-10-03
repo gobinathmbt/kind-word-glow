@@ -6,12 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Calendar as CalendarIcon, Clock, Save, HardHat } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Save, HardHat, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bayBookingServices } from "@/api/services";
 import { toast } from "sonner";
 import DateTimePicker from "@/components/workshop/CommentSheetTabs/DateTimePicker";
-import { format, parseISO, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
+import { format, parseISO, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay } from "date-fns";
 
 interface BayBookingCalendarProps {
   bay: any;
@@ -20,6 +20,13 @@ interface BayBookingCalendarProps {
   vehicleStockId: number;
   onBack: () => void;
   onSuccess: () => void;
+}
+
+interface BookingSlot {
+  booking: any;
+  startTime: string;
+  endTime: string;
+  rowSpan: number;
 }
 
 const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
@@ -36,6 +43,8 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
   const [bookingEndTime, setBookingEndTime] = useState("");
   const [bookingDescription, setBookingDescription] = useState("");
   const [allowOverlap, setAllowOverlap] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showBookingDialog, setShowBookingDialog] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -82,6 +91,7 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
       toast.success("Bay booking created successfully");
       queryClient.invalidateQueries({ queryKey: ["field-bay-booking"] });
       queryClient.invalidateQueries({ queryKey: ["bay-booking-calendar"] });
+      setShowBookingDialog(false);
       onSuccess();
     },
     onError: (error: any) => {
@@ -122,13 +132,13 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      booking_request: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      booking_accepted: "bg-green-100 text-green-800 border-green-200",
-      booking_rejected: "bg-red-100 text-red-800 border-red-200",
-      work_in_progress: "bg-blue-100 text-blue-800 border-blue-200",
-      work_review: "bg-purple-100 text-purple-800 border-purple-200",
-      completed_jobs: "bg-gray-100 text-gray-800 border-gray-200",
-      rework: "bg-orange-100 text-orange-800 border-orange-200",
+      booking_request: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 cursor-pointer",
+      booking_accepted: "bg-green-100 text-green-800 border-green-200 hover:bg-green-200 cursor-pointer",
+      booking_rejected: "bg-red-100 text-red-800 border-red-200 hover:bg-red-200 cursor-pointer",
+      work_in_progress: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 cursor-pointer",
+      work_review: "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200 cursor-pointer",
+      completed_jobs: "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200 cursor-pointer",
+      rework: "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200 cursor-pointer",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
   };
@@ -162,33 +172,67 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
   const timeSlots = generateTimeSlots();
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Get bookings for a specific date and time
-  const getBookingForSlot = (date: Date, time: string) => {
+  // Calculate row span for merged booking slots
+  const getBookingSlotsForDay = (date: Date): BookingSlot[] => {
     if (!calendarData?.bookings) return [];
 
     const dateStr = format(date, "yyyy-MM-dd");
-    return calendarData.bookings.filter((booking: any) => {
+    const dayBookings = calendarData.bookings.filter((booking: any) => {
       const bookingDate = format(parseISO(booking.booking_date), "yyyy-MM-dd");
-      return (
-        bookingDate === dateStr &&
-        booking.booking_start_time <= time &&
-        booking.booking_end_time > time
-      );
+      return bookingDate === dateStr;
     });
+
+    const bookingSlots: BookingSlot[] = [];
+
+    dayBookings.forEach((booking: any) => {
+      const startIndex = timeSlots.findIndex(slot => slot === booking.booking_start_time);
+      const endIndex = timeSlots.findIndex(slot => slot === booking.booking_end_time);
+      
+      if (startIndex !== -1 && endIndex !== -1) {
+        bookingSlots.push({
+          booking,
+          startTime: booking.booking_start_time,
+          endTime: booking.booking_end_time,
+          rowSpan: endIndex - startIndex
+        });
+      }
+    });
+
+    return bookingSlots;
+  };
+
+  // Check if a time slot is part of a booking
+  const getBookingForTimeSlot = (date: Date, time: string): BookingSlot | null => {
+    const bookingSlots = getBookingSlotsForDay(date);
+    return bookingSlots.find(slot => 
+      time >= slot.startTime && time < slot.endTime
+    ) || null;
+  };
+
+  // Check if a time slot is the start of a booking
+  const isBookingStart = (date: Date, time: string): boolean => {
+    const bookingSlot = getBookingForTimeSlot(date, time);
+    return bookingSlot ? bookingSlot.startTime === time : false;
+  };
+
+  const handleSlotClick = (date: Date, time: string) => {
+    const bookingSlot = getBookingForTimeSlot(date, time);
+    if (bookingSlot) {
+      setSelectedBooking(bookingSlot.booking);
+    } else {
+      // Open booking dialog for available slot
+      const selectedDateTime = new Date(date);
+      const [hours, minutes] = time.split(':').map(Number);
+      selectedDateTime.setHours(hours, minutes, 0, 0);
+      setBookingStartTime(selectedDateTime.toISOString());
+      setShowBookingDialog(true);
+    }
   };
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="mb-3"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Bay Selection
-        </Button>
+      {/* Fixed Header */}
+      <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 sticky top-0 z-10">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HardHat className="h-5 w-5" />
@@ -200,6 +244,7 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
         </DialogHeader>
       </div>
 
+      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Existing Booking Warning */}
         {existingBooking && (
@@ -211,66 +256,6 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
             </CardContent>
           </Card>
         )}
-
-        {/* Booking Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Booking Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DateTimePicker
-                label="Start Date & Time"
-                value={bookingStartTime}
-                onChange={setBookingStartTime}
-                placeholder="Select start time"
-                required
-              />
-
-              <DateTimePicker
-                label="End Date & Time"
-                value={bookingEndTime}
-                onChange={setBookingEndTime}
-                placeholder="Select end time"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="description">Work Description</Label>
-              <Textarea
-                id="description"
-                value={bookingDescription}
-                onChange={(e) => setBookingDescription(e.target.value)}
-                placeholder="Describe the work to be done..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="allow_overlap"
-                checked={allowOverlap}
-                onCheckedChange={(checked) => setAllowOverlap(checked as boolean)}
-              />
-              <Label
-                htmlFor="allow_overlap"
-                className="text-sm font-normal cursor-pointer"
-              >
-                Allow overlapping bookings (multiple works on same vehicle)
-              </Label>
-            </div>
-
-            <Button
-              onClick={handleSubmitBooking}
-              disabled={createBookingMutation.isPending || !bookingStartTime || !bookingEndTime}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {createBookingMutation.isPending ? "Creating..." : "Create Booking"}
-            </Button>
-          </CardContent>
-        </Card>
 
         {/* Calendar View */}
         <Card>
@@ -289,6 +274,9 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
                 </Button>
               </div>
             </div>
+            <p className="text-sm text-muted-foreground">
+              {format(weekStart, "MMM dd")} - {format(weekEnd, "MMM dd, yyyy")}
+            </p>
           </CardHeader>
           <CardContent>
             {calendarLoading ? (
@@ -299,12 +287,14 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
               <div className="overflow-x-auto">
                 <div className="min-w-[800px]">
                   {/* Header */}
-                  <div className="grid grid-cols-8 border-b bg-muted/50">
+                  <div className="grid grid-cols-8 border-b bg-muted/50 sticky top-0 z-5">
                     <div className="p-3 font-semibold border-r">Time</div>
                     {weekDays.map((day) => (
                       <div
                         key={day.toISOString()}
-                        className="p-3 text-center font-semibold border-r last:border-r-0"
+                        className={`p-3 text-center font-semibold border-r last:border-r-0 ${
+                          isSameDay(day, new Date()) ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                        }`}
                       >
                         <div>{format(day, "EEE")}</div>
                         <div className="text-sm text-muted-foreground">
@@ -315,42 +305,53 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
                   </div>
 
                   {/* Time slots */}
-                  {timeSlots.map((time) => (
-                    <div key={time} className="grid grid-cols-8 border-b hover:bg-muted/20">
-                      <div className="p-3 font-medium border-r text-sm">{time}</div>
-                      {weekDays.map((day) => {
-                        const bookingsInSlot = getBookingForSlot(day, time);
-                        return (
-                          <div
-                            key={`${day.toISOString()}-${time}`}
-                            className="p-2 border-r last:border-r-0"
-                          >
-                            {bookingsInSlot.length > 0 ? (
-                              <div className="space-y-1">
-                                {bookingsInSlot.map((booking: any, idx: number) => (
+                  <div className="max-h-96 overflow-y-auto">
+                    {timeSlots.map((time, timeIndex) => (
+                      <div key={time} className="grid grid-cols-8 border-b hover:bg-muted/20">
+                        <div className="p-3 font-medium border-r text-sm bg-muted/30 sticky left-0">
+                          {time}
+                        </div>
+                        {weekDays.map((day) => {
+                          const bookingSlot = getBookingForTimeSlot(day, time);
+                          const isStart = isBookingStart(day, time);
+                          
+                          return (
+                            <div
+                              key={`${day.toISOString()}-${time}`}
+                              className="p-1 border-r last:border-r-0 min-h-16"
+                              onClick={() => handleSlotClick(day, time)}
+                            >
+                              {bookingSlot ? (
+                                isStart && (
                                   <div
-                                    key={booking._id}
-                                    className={`text-xs p-2 rounded-md border ${getStatusColor(booking.status)}`}
+                                    className={`h-full p-2 rounded-md border ${getStatusColor(bookingSlot.booking.status)}`}
+                                    style={{ gridRow: `span ${bookingSlot.rowSpan}` }}
                                   >
-                                    <div className="font-medium truncate">
-                                      {booking.field_name}
+                                    <div className="font-medium text-xs truncate">
+                                      {bookingSlot.booking.field_name}
                                     </div>
                                     <div className="text-xs truncate">
-                                      Stock: {booking.vehicle_stock_id}
+                                      Stock: {bookingSlot.booking.vehicle_stock_id}
                                     </div>
+                                    <div className="text-xs text-muted-foreground truncate">
+                                      {bookingSlot.startTime} - {bookingSlot.endTime}
+                                    </div>
+                                    <Badge variant="secondary" className="text-xs mt-1">
+                                      {bookingSlot.booking.status.replace(/_/g, ' ')}
+                                    </Badge>
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                                Available
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                                )
+                              ) : (
+                                <div className="h-full flex items-center justify-center text-xs text-muted-foreground hover:bg-green-50 hover:text-green-700 cursor-pointer rounded-md border border-dashed border-transparent hover:border-green-200 transition-colors">
+                                  Available
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -379,10 +380,175 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
               <Badge className="bg-gray-100 text-gray-800 border-gray-200">
                 Completed
               </Badge>
+              <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                Rework
+              </Badge>
+              <Badge className="bg-red-100 text-red-800 border-red-200">
+                Rejected
+              </Badge>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Fixed Footer */}
+      <div className="border-t bg-background p-4 sticky bottom-0 z-10">
+        <div className="flex justify-between items-center">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Bay Selection
+          </Button>
+          <Button onClick={() => setShowBookingDialog(true)}>
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            New Booking
+          </Button>
+        </div>
+      </div>
+
+      {/* Booking Details Dialog */}
+      {showBookingDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <DialogTitle>Create New Booking</DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowBookingDialog(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <DateTimePicker
+                  label="Start Date & Time"
+                  value={bookingStartTime}
+                  onChange={setBookingStartTime}
+                  placeholder="Select start time"
+                  required
+                />
+
+                <DateTimePicker
+                  label="End Date & Time"
+                  value={bookingEndTime}
+                  onChange={setBookingEndTime}
+                  placeholder="Select end time"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Work Description</Label>
+                <Textarea
+                  id="description"
+                  value={bookingDescription}
+                  onChange={(e) => setBookingDescription(e.target.value)}
+                  placeholder="Describe the work to be done..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="allow_overlap"
+                  checked={allowOverlap}
+                  onCheckedChange={(checked) => setAllowOverlap(checked as boolean)}
+                />
+                <Label
+                  htmlFor="allow_overlap"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Allow overlapping bookings (multiple works on same vehicle)
+                </Label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBookingDialog(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitBooking}
+                  disabled={createBookingMutation.isPending || !bookingStartTime || !bookingEndTime}
+                  className="flex-1"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {createBookingMutation.isPending ? "Creating..." : "Create Booking"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Details View Dialog */}
+      {selectedBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <DialogTitle>Booking Details</DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedBooking(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Field Name</Label>
+                  <p className="text-sm">{selectedBooking.field_name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Stock ID</Label>
+                  <p className="text-sm">{selectedBooking.vehicle_stock_id}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Booking Date</Label>
+                  <p className="text-sm">
+                    {format(parseISO(selectedBooking.booking_date), "MMM dd, yyyy")}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Time Slot</Label>
+                  <p className="text-sm">
+                    {selectedBooking.booking_start_time} - {selectedBooking.booking_end_time}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Badge className={`mt-1 ${getStatusColor(selectedBooking.status)}`}>
+                    {selectedBooking.status.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+                {selectedBooking.booking_description && (
+                  <div className="col-span-2">
+                    <Label className="text-sm font-medium">Description</Label>
+                    <p className="text-sm mt-1">{selectedBooking.booking_description}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="pt-4">
+                <Button
+                  onClick={() => setSelectedBooking(null)}
+                  className="w-full"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

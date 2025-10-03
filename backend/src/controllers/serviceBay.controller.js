@@ -549,25 +549,37 @@ const removeBayHoliday = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getBaysDropdown = async (req, res) => {
   try {
-    const { dealership_id } = req.query;
-    
+    const { is_primary_admin, company_id, dealership_ids } = req.user;
+
     let filter = {
-      company_id: req.user.company_id,
+      company_id,
       is_active: true
     };
 
-    if (dealership_id) {
-      filter.dealership_id = dealership_id;
+    if (!is_primary_admin) {
+      const allowedDealershipIds = dealership_ids.map(d => d._id);
+      filter.dealership_id = { $in: allowedDealershipIds };
     }
 
     const bays = await ServiceBay.find(filter)
-      .select('bay_name dealership_id bay_timings')
+      .select('bay_name dealership_id bay_timings bay_users primary_admin bay_description')
       .populate('dealership_id', 'dealership_name')
+      .populate('primary_admin', 'email first_name last_name')
+      .populate('bay_users', 'email first_name last_name')
       .lean();
+
+    const transformedBays = bays.map(bay => ({
+      ...bay,
+      user_count: bay.bay_users ? bay.bay_users.length : 0,
+      primary_admin_email: bay.primary_admin ? bay.primary_admin.email : 'N/A',
+      primary_admin_name: bay.primary_admin
+        ? `${bay.primary_admin.first_name || ''} ${bay.primary_admin.last_name || ''}`.trim()
+        : 'N/A'
+    }));
 
     res.status(200).json({
       success: true,
-      data: bays
+      data: transformedBays
     });
   } catch (error) {
     console.error('Get bays dropdown error:', error);

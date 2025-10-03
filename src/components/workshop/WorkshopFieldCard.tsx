@@ -109,7 +109,6 @@ const WorkshopFieldCard: React.FC<WorkshopFieldCardProps> = ({
               </Button>
               <Button
                 size="sm"
-                variant="outline"
                 onClick={handleBayBookingClick}
               >
                 <HardHat className="h-3 w-3 mr-1" />

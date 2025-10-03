@@ -163,18 +163,22 @@ const getBayCalendar = async (req, res) => {
       });
     }
 
-    // Find bays where user is a bay user
+    // Base filter
     let bayFilter = {
       company_id: req.user.company_id,
-      bay_users: req.user.id,
       is_active: true
     };
+
+    if (req.user.role === "company_admin") {
+      bayFilter.bay_users = req.user.id; 
+    }
 
     if (bay_id) {
       bayFilter._id = bay_id;
     }
 
-    const userBays = await ServiceBay.find(bayFilter).select('_id bay_name bay_timings bay_holidays');
+    const userBays = await ServiceBay.find(bayFilter)
+      .select('_id bay_name bay_timings bay_holidays ');
 
     if (userBays.length === 0) {
       return res.status(403).json({

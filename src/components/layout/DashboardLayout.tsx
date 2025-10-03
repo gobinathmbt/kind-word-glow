@@ -402,6 +402,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   const getFilteredNavigationItems = (): NavigationItem[] => {
+    console.log(userModule)
     const allNavigationItems = getNavigationItems();
 
     if (user?.role === "master_admin") {

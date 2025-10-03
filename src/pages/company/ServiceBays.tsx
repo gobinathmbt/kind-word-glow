@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,13 +18,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Edit, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Clock,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { serviceBayServices, dealershipServices, companyServices } from "@/api/services";
+import {
+  serviceBayServices,
+  dealershipServices,
+  companyServices,
+} from "@/api/services";
 import { useAuth } from "@/auth/AuthContext";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import ReactSelect from "react-select";
+import apiClient from "@/api/axios";
+
+const daysOfWeek = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+];
 
 const ServiceBays = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,6 +60,8 @@ const ServiceBays = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedBay, setSelectedBay] = useState<any>(null);
+  const [showTimings, setShowTimings] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   const { completeUser } = useAuth();
 
@@ -46,34 +71,97 @@ const ServiceBays = () => {
     dealership_id: "",
     bay_users: [] as string[],
     primary_admin: "",
-    bay_timings: [
-      { day_of_week: "monday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-      { day_of_week: "tuesday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-      { day_of_week: "wednesday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-      { day_of_week: "thursday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-      { day_of_week: "friday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-      { day_of_week: "saturday", start_time: "09:00", end_time: "14:00", is_working_day: true },
-      { day_of_week: "sunday", start_time: "09:00", end_time: "18:00", is_working_day: false },
-    ],
+    bay_timings: daysOfWeek.map((day) => ({
+      day_of_week: day.value,
+      start_time: "09:00",
+      end_time: "18:00",
+      is_working_day: true,
+    })),
   });
 
-  // Fetch dealerships
+  // Fetch user info to check if primary admin
+  const { data: userInfo } = useQuery({
+    queryKey: ["user-info"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/auth/me");
+      return response.data.user;
+    },
+  });
+
+  const isPrimaryAdmin = userInfo?.is_primary_admin || false;
+
+  // Fetch dealerships based on user role
   const { data: dealerships } = useQuery({
-    queryKey: ["dealerships-dropdown"],
+    queryKey: ["dealerships-dropdown", isPrimaryAdmin],
     queryFn: async () => {
       const response = await dealershipServices.getDealershipsDropdown();
+
+      // If not primary admin, filter to only show dealerships user has access to
+      if (!isPrimaryAdmin && completeUser?.dealership_ids) {
+        const userDealershipIds = completeUser.dealership_ids.map((d: any) =>
+          typeof d === "object" ? d._id : d
+        );
+        return response.data.data.filter((dealership: any) =>
+          userDealershipIds.includes(dealership._id)
+        );
+      }
+
       return response.data.data;
     },
+    enabled: !!completeUser,
   });
 
-  // Fetch company admin users
-  const { data: companyUsers } = useQuery({
-    queryKey: ["company-admin-users"],
+  // Fetch company admin users based on selected dealership
+  const {
+    data: companyUsers,
+    refetch: refetchUsers,
+    isFetching: isFetchingUsers,
+  } = useQuery({
+    queryKey: ["company-admin-users", formData.dealership_id],
     queryFn: async () => {
-      const response = await companyServices.getUsers({ role: "company_admin" });
-      return response.data.data;
+      if (!formData.dealership_id) return [];
+
+      const response = await companyServices.getUsers({
+        role: "company_admin",
+        dealership_id: formData.dealership_id,
+      });
+
+      // Filter to only include users with company_admin role
+      const filteredUsers = response.data.data.filter(
+        (user: any) => user.role === "company_admin"
+      );
+
+      return filteredUsers;
     },
+    enabled: !!formData.dealership_id,
   });
+  // Reset users when dealership changes
+  useEffect(() => {
+    if (formData.dealership_id) {
+      setFormData((prev) => ({
+        ...prev,
+        bay_users: [],
+        primary_admin: "",
+      }));
+      refetchUsers();
+    }
+  }, [formData.dealership_id, refetchUsers]);
+
+  // Auto-select dealership if non-primary admin has only one dealership
+  useEffect(() => {
+    if (dealerships && dealerships.length > 0) {
+      if (
+        !isPrimaryAdmin &&
+        dealerships.length === 1 &&
+        !formData.dealership_id
+      ) {
+        setFormData((prev) => ({
+          ...prev,
+          dealership_id: dealerships[0]._id,
+        }));
+      }
+    }
+  }, [dealerships, isPrimaryAdmin, formData.dealership_id]);
 
   // Fetch all bays when pagination is disabled
   const fetchAllBays = async () => {
@@ -199,7 +287,9 @@ const ServiceBays = () => {
       refetch();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create service bay");
+      toast.error(
+        error.response?.data?.message || "Failed to create service bay"
+      );
     },
   });
 
@@ -217,45 +307,32 @@ const ServiceBays = () => {
       refetch();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update service bay");
-    },
-  });
-
-  // Delete bay mutation
-  const deleteBayMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await serviceBayServices.deleteServiceBay(id);
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success("Service bay deleted successfully");
-      refetch();
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to delete service bay");
-    },
-  });
-
-  // Toggle status mutation
-  const toggleStatusMutation = useMutation({
-    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const response = await serviceBayServices.toggleServiceBayStatus(id, { is_active });
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success("Status updated successfully");
-      refetch();
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update status");
+      toast.error(
+        error.response?.data?.message || "Failed to update service bay"
+      );
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.bay_name || !formData.dealership_id || !formData.primary_admin) {
+    if (
+      !formData.bay_name ||
+      !formData.dealership_id ||
+      !formData.primary_admin
+    ) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    // Validate timings
+    const invalidTimings = formData.bay_timings.filter(
+      (timing) =>
+        timing.is_working_day && (!timing.start_time || !timing.end_time)
+    );
+
+    if (invalidTimings.length > 0) {
+      toast.error("Please provide timings for all working days");
       return;
     }
 
@@ -265,25 +342,74 @@ const ServiceBays = () => {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.bay_name || !formData.dealership_id || !formData.primary_admin) {
+    if (
+      !formData.bay_name ||
+      !formData.dealership_id ||
+      !formData.primary_admin
+    ) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    // Validate timings
+    const invalidTimings = formData.bay_timings.filter(
+      (timing) =>
+        timing.is_working_day && (!timing.start_time || !timing.end_time)
+    );
+
+    if (invalidTimings.length > 0) {
+      toast.error("Please provide timings for all working days");
       return;
     }
 
     updateBayMutation.mutate({ id: selectedBay._id, data: formData });
   };
 
-  const handleEdit = (bay: any) => {
+  const handleEdit = async (bay: any) => {
     setSelectedBay(bay);
+    setIsLoadingUsers(true);
+
+    const dealershipId = bay.dealership_id?._id || bay.dealership_id;
+    const bayUsers = bay.bay_users?.map((u: any) => u._id || u) || [];
+    const primaryAdmin = bay.primary_admin?._id || bay.primary_admin;
+
+    // Set form data with dealership first to trigger users query
     setFormData({
       bay_name: bay.bay_name,
       bay_description: bay.bay_description || "",
-      dealership_id: bay.dealership_id?._id || bay.dealership_id,
-      bay_users: bay.bay_users?.map((u: any) => u._id || u) || [],
-      primary_admin: bay.primary_admin?._id || bay.primary_admin,
-      bay_timings: bay.bay_timings || formData.bay_timings,
+      dealership_id: dealershipId,
+      bay_users: [], // Temporarily empty
+      primary_admin: "", // Temporarily empty
+      bay_timings:
+        bay.bay_timings ||
+        daysOfWeek.map((day) => ({
+          day_of_week: day.value,
+          start_time: "09:00",
+          end_time: "18:00",
+          is_working_day: true,
+        })),
     });
+
     setIsEditDialogOpen(true);
+
+    // Wait for users to be fetched, then populate
+    try {
+      await refetchUsers();
+
+      // Now set the users after a small delay to ensure data is loaded
+      setTimeout(() => {
+        setFormData((prev) => ({
+          ...prev,
+          bay_users: bayUsers,
+          primary_admin: primaryAdmin,
+        }));
+        setIsLoadingUsers(false);
+      }, 100);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setIsLoadingUsers(false);
+      toast.error("Failed to load users");
+    }
   };
 
   const handleDelete = (bayId: string) => {
@@ -296,24 +422,82 @@ const ServiceBays = () => {
     toggleStatusMutation.mutate({ id: bayId, is_active: !currentStatus });
   };
 
+  const handleTimingChange = (index: number, field: string, value: any) => {
+    const updatedTimings = [...formData.bay_timings];
+    updatedTimings[index] = {
+      ...updatedTimings[index],
+      [field]: value,
+    };
+
+    // If marking as non-working day, clear timings
+    if (field === "is_working_day" && !value) {
+      updatedTimings[index].start_time = "";
+      updatedTimings[index].end_time = "";
+    }
+
+    setFormData({
+      ...formData,
+      bay_timings: updatedTimings,
+    });
+  };
+
   const resetForm = () => {
     setFormData({
       bay_name: "",
       bay_description: "",
-      dealership_id: "",
+      dealership_id:
+        !isPrimaryAdmin && dealerships?.length === 1 ? dealerships[0]._id : "",
       bay_users: [],
       primary_admin: "",
-      bay_timings: [
-        { day_of_week: "monday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-        { day_of_week: "tuesday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-        { day_of_week: "wednesday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-        { day_of_week: "thursday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-        { day_of_week: "friday", start_time: "09:00", end_time: "18:00", is_working_day: true },
-        { day_of_week: "saturday", start_time: "09:00", end_time: "14:00", is_working_day: true },
-        { day_of_week: "sunday", start_time: "09:00", end_time: "18:00", is_working_day: false },
-      ],
+      bay_timings: daysOfWeek.map((day) => ({
+        day_of_week: day.value,
+        start_time: "09:00",
+        end_time: "18:00",
+        is_working_day: true,
+      })),
     });
+    setShowTimings(false);
   };
+
+  // Delete bay mutation
+  const deleteBayMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await serviceBayServices.deleteServiceBay(id);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Service bay deleted successfully");
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to delete service bay"
+      );
+    },
+  });
+
+  // Toggle status mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({
+      id,
+      is_active,
+    }: {
+      id: string;
+      is_active: boolean;
+    }) => {
+      const response = await serviceBayServices.toggleServiceBayStatus(id, {
+        is_active,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Status updated successfully");
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update status");
+    },
+  });
 
   const handleRefresh = () => {
     refetch();
@@ -362,7 +546,8 @@ const ServiceBays = () => {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add Service Bay",
       onClick: () => setIsDialogOpen(true),
-      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+      className:
+        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
     },
   ];
 
@@ -414,12 +599,19 @@ const ServiceBays = () => {
           <TableCell>
             <div className="font-medium">{bay.bay_name}</div>
             {bay.bay_description && (
-              <div className="text-sm text-muted-foreground">{bay.bay_description}</div>
+              <div className="text-sm text-muted-foreground">
+                {bay.bay_description}
+              </div>
             )}
           </TableCell>
           <TableCell>{bay.dealership_id?.dealership_name || "N/A"}</TableCell>
           <TableCell>
-            {bay.primary_admin?.first_name} {bay.primary_admin?.last_name}
+            <div>
+              {bay.primary_admin?.first_name} {bay.primary_admin?.last_name}
+              <Badge variant="outline" className="ml-2 text-xs">
+                Company Admin
+              </Badge>
+            </div>
           </TableCell>
           <TableCell>
             <Badge variant="outline">{bay.bay_users?.length || 0} users</Badge>
@@ -428,7 +620,9 @@ const ServiceBays = () => {
             <div className="flex items-center gap-2">
               <Switch
                 checked={bay.is_active}
-                onCheckedChange={() => handleToggleStatus(bay._id, bay.is_active)}
+                onCheckedChange={() =>
+                  handleToggleStatus(bay._id, bay.is_active)
+                }
               />
               <span className="text-sm">
                 {bay.is_active ? "Active" : "Inactive"}
@@ -437,7 +631,11 @@ const ServiceBays = () => {
           </TableCell>
           <TableCell>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => handleEdit(bay)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEdit(bay)}
+              >
                 <Edit className="h-3 w-3" />
               </Button>
               <Button
@@ -452,6 +650,236 @@ const ServiceBays = () => {
         </TableRow>
       ))}
     </>
+  );
+
+  const renderTimingsForm = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-lg font-semibold">Bay Timings</Label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowTimings(!showTimings)}
+        >
+          <Clock className="h-4 w-4 mr-2" />
+          {showTimings ? "Hide Timings" : "Show Timings"}
+        </Button>
+      </div>
+
+      {showTimings && (
+        <div className="grid gap-4 p-4 border rounded-lg">
+          {formData.bay_timings.map((timing, index) => (
+            <div
+              key={timing.day_of_week}
+              className="grid grid-cols-12 gap-4 items-center"
+            >
+              <div className="col-span-3">
+                <Label className="font-medium capitalize">
+                  {timing.day_of_week}
+                </Label>
+              </div>
+              <div className="col-span-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={timing.is_working_day}
+                    onCheckedChange={(checked) =>
+                      handleTimingChange(index, "is_working_day", checked)
+                    }
+                  />
+                  <Label className="text-sm">
+                    {timing.is_working_day ? "Working" : "Holiday"}
+                  </Label>
+                </div>
+              </div>
+              <div className="col-span-3">
+                <Input
+                  type="time"
+                  value={timing.start_time}
+                  onChange={(e) =>
+                    handleTimingChange(index, "start_time", e.target.value)
+                  }
+                  disabled={!timing.is_working_day}
+                  required={timing.is_working_day}
+                />
+              </div>
+              <div className="col-span-3">
+                <Input
+                  type="time"
+                  value={timing.end_time}
+                  onChange={(e) =>
+                    handleTimingChange(index, "end_time", e.target.value)
+                  }
+                  disabled={!timing.is_working_day}
+                  required={timing.is_working_day}
+                />
+              </div>
+              <div className="col-span-1 text-sm text-muted-foreground">
+                {timing.is_working_day
+                  ? `${timing.start_time} - ${timing.end_time}`
+                  : "Holiday"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderDealershipSelect = (isEditMode: boolean = false) => (
+    <div>
+      <Label htmlFor={isEditMode ? "edit_dealership_id" : "dealership_id"}>
+        Dealership *
+      </Label>
+      <Select
+        value={formData.dealership_id}
+        onValueChange={(value) =>
+          setFormData({ ...formData, dealership_id: value })
+        }
+        disabled={!isPrimaryAdmin && dealerships?.length === 1}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select dealership" />
+        </SelectTrigger>
+        <SelectContent>
+          {dealerships?.map((d: any) => (
+            <SelectItem key={d._id} value={d._id}>
+              {d.dealership_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {!isPrimaryAdmin && (
+        <p className="text-sm text-muted-foreground mt-1">
+          {dealerships?.length === 1
+            ? "Your assigned dealership is automatically selected"
+            : "You can only assign bays to dealerships you have access to"}
+        </p>
+      )}
+    </div>
+  );
+
+  const renderUserSelects = (isEditMode: boolean = false) => (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <Label htmlFor={isEditMode ? "edit_primary_admin" : "primary_admin"}>
+          Primary Admin *{" "}
+          <Badge variant="outline" className="ml-2">
+            Company Admin Only
+          </Badge>
+        </Label>
+
+        {(isFetchingUsers || isLoadingUsers) && formData.dealership_id ? (
+          <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+            <span className="text-sm text-muted-foreground">
+              Loading admins...
+            </span>
+          </div>
+        ) : (
+          <>
+            <Select
+              value={formData.primary_admin}
+              onValueChange={(value) =>
+                setFormData({ ...formData, primary_admin: value })
+              }
+              disabled={
+                !formData.dealership_id || isFetchingUsers || isLoadingUsers
+              }
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    formData.dealership_id
+                      ? "Select primary admin"
+                      : "Select dealership first"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {companyUsers?.map((u: any) => (
+                  <SelectItem key={u._id} value={u._id}>
+                    {u.first_name} {u.last_name} ({u.username})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!formData.dealership_id && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Please select a dealership first to see available company admins
+              </p>
+            )}
+            {formData.dealership_id &&
+              companyUsers?.length === 0 &&
+              !isFetchingUsers &&
+              !isLoadingUsers && (
+                <p className="text-sm text-amber-600 mt-1">
+                  No company admins available for this dealership
+                </p>
+              )}
+          </>
+        )}
+      </div>
+
+      <div>
+        <Label>
+          Bay Users{" "}
+          <Badge variant="outline" className="ml-2">
+            Company Admin Only
+          </Badge>
+        </Label>
+
+        {(isFetchingUsers || isLoadingUsers) && formData.dealership_id ? (
+          <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+            <span className="text-sm text-muted-foreground">
+              Loading users...
+            </span>
+          </div>
+        ) : (
+          <>
+            <ReactSelect
+              isMulti
+              value={companyUsers
+                ?.filter((u: any) => formData.bay_users.includes(u._id))
+                .map((u: any) => ({
+                  value: u._id,
+                  label: `${u.first_name} ${u.last_name} (${u.username})`,
+                }))}
+              onChange={(selected) =>
+                setFormData({
+                  ...formData,
+                  bay_users: selected.map((s: any) => s.value),
+                })
+              }
+              options={companyUsers?.map((u: any) => ({
+                value: u._id,
+                label: `${u.first_name} ${u.last_name} (${u.username})`,
+              }))}
+              placeholder={
+                formData.dealership_id
+                  ? "Select bay users"
+                  : "Select dealership first"
+              }
+              isDisabled={
+                !formData.dealership_id || isFetchingUsers || isLoadingUsers
+              }
+              isLoading={isFetchingUsers || isLoadingUsers}
+              className="react-select-container"
+              classNamePrefix="react-select"
+            />
+            {formData.dealership_id &&
+              companyUsers?.length === 0 &&
+              !isFetchingUsers &&
+              !isLoadingUsers && (
+                <p className="text-sm text-amber-600 mt-1">
+                  No company admins available for this dealership
+                </p>
+              )}
+          </>
+        )}
+      </div>
+    </div>
   );
 
   return (
@@ -482,22 +910,26 @@ const ServiceBays = () => {
 
       {/* Create Bay Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Service Bay</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="bay_name">Bay Name *</Label>
-              <Input
-                id="bay_name"
-                value={formData.bay_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, bay_name: e.target.value })
-                }
-                placeholder="Enter bay name"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="bay_name">Bay Name *</Label>
+                <Input
+                  id="bay_name"
+                  value={formData.bay_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bay_name: e.target.value })
+                  }
+                  placeholder="Enter bay name"
+                  required
+                />
+              </div>
+
+              {renderDealershipSelect()}
             </div>
 
             <div>
@@ -512,73 +944,9 @@ const ServiceBays = () => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="dealership_id">Dealership *</Label>
-              <Select
-                value={formData.dealership_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, dealership_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select dealership" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dealerships?.map((d: any) => (
-                    <SelectItem key={d._id} value={d._id}>
-                      {d.dealership_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderTimingsForm()}
 
-            <div>
-              <Label htmlFor="primary_admin">Primary Admin *</Label>
-              <Select
-                value={formData.primary_admin}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, primary_admin: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select primary admin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companyUsers?.map((u: any) => (
-                    <SelectItem key={u._id} value={u._id}>
-                      {u.first_name} {u.last_name} ({u.username})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Bay Users</Label>
-              <ReactSelect
-                isMulti
-                value={companyUsers
-                  ?.filter((u: any) => formData.bay_users.includes(u._id))
-                  .map((u: any) => ({
-                    value: u._id,
-                    label: `${u.first_name} ${u.last_name} (${u.username})`,
-                  }))}
-                onChange={(selected) =>
-                  setFormData({
-                    ...formData,
-                    bay_users: selected.map((s: any) => s.value),
-                  })
-                }
-                options={companyUsers?.map((u: any) => ({
-                  value: u._id,
-                  label: `${u.first_name} ${u.last_name} (${u.username})`,
-                }))}
-                placeholder="Select bay users"
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
+            {renderUserSelects()}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button
@@ -601,22 +969,26 @@ const ServiceBays = () => {
 
       {/* Edit Bay Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Service Bay</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div>
-              <Label htmlFor="edit_bay_name">Bay Name *</Label>
-              <Input
-                id="edit_bay_name"
-                value={formData.bay_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, bay_name: e.target.value })
-                }
-                placeholder="Enter bay name"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_bay_name">Bay Name *</Label>
+                <Input
+                  id="edit_bay_name"
+                  value={formData.bay_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bay_name: e.target.value })
+                  }
+                  placeholder="Enter bay name"
+                  required
+                />
+              </div>
+
+              {renderDealershipSelect(true)}
             </div>
 
             <div>
@@ -631,73 +1003,9 @@ const ServiceBays = () => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="edit_dealership_id">Dealership *</Label>
-              <Select
-                value={formData.dealership_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, dealership_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select dealership" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dealerships?.map((d: any) => (
-                    <SelectItem key={d._id} value={d._id}>
-                      {d.dealership_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderTimingsForm()}
 
-            <div>
-              <Label htmlFor="edit_primary_admin">Primary Admin *</Label>
-              <Select
-                value={formData.primary_admin}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, primary_admin: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select primary admin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companyUsers?.map((u: any) => (
-                    <SelectItem key={u._id} value={u._id}>
-                      {u.first_name} {u.last_name} ({u.username})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Bay Users</Label>
-              <ReactSelect
-                isMulti
-                value={companyUsers
-                  ?.filter((u: any) => formData.bay_users.includes(u._id))
-                  .map((u: any) => ({
-                    value: u._id,
-                    label: `${u.first_name} ${u.last_name} (${u.username})`,
-                  }))}
-                onChange={(selected) =>
-                  setFormData({
-                    ...formData,
-                    bay_users: selected.map((s: any) => s.value),
-                  })
-                }
-                options={companyUsers?.map((u: any) => ({
-                  value: u._id,
-                  label: `${u.first_name} ${u.last_name} (${u.username})`,
-                }))}
-                placeholder="Select bay users"
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
+            {renderUserSelects(true)}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button
