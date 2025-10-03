@@ -214,6 +214,7 @@ const WorkshopConfig = () => {
 
                   <WorkshopResultsSection
                     vehicleType={vehicleType!}
+                    vehicleStockId={vehicle?.stock_id || 0}
                     resultData={resultData}
                     getStatus={getStatus}
                     getQuote={getQuote}

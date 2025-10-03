@@ -13,6 +13,7 @@ import WorkshopFieldCard from "./WorkshopFieldCard";
 
 interface WorkshopResultsSectionProps {
   vehicleType: string;
+  vehicleStockId: number;
   resultData: any[];
   getStatus: (fieldId: string) => string | null;
   getQuote: (fieldId: string) => any;
@@ -31,6 +32,7 @@ interface WorkshopResultsSectionProps {
 
 const WorkshopResultsSection: React.FC<WorkshopResultsSectionProps> = ({
   vehicleType,
+  vehicleStockId,
   resultData,
   getStatus,
   getQuote,
@@ -93,6 +95,8 @@ const WorkshopResultsSection: React.FC<WorkshopResultsSectionProps> = ({
                               <WorkshopFieldCard
                                 key={fieldIndex}
                                 field={field}
+                                vehicleType={vehicleType}
+                                vehicleStockId={vehicleStockId}
                                 categoryId={category.category_id}
                                 sectionId={section.section_id}
                                 getStatus={getStatus}
@@ -168,6 +172,8 @@ const WorkshopResultsSection: React.FC<WorkshopResultsSectionProps> = ({
                                   <WorkshopFieldCard
                                     key={fieldIndex}
                                     field={field}
+                                    vehicleType={vehicleType}
+                                    vehicleStockId={vehicleStockId}
                                     categoryId={item.category_id}
                                     sectionId={section.section_id}
                                     getStatus={getStatus}
@@ -218,6 +224,8 @@ const WorkshopResultsSection: React.FC<WorkshopResultsSectionProps> = ({
                     <WorkshopFieldCard
                       key={fieldIndex}
                       field={field}
+                      vehicleType={vehicleType}
+                      vehicleStockId={vehicleStockId}
                       categoryId={null}
                       sectionId={item.section_id}
                       getStatus={getStatus}

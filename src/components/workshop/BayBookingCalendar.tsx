@@ -115,7 +115,6 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
       booking_description: bookingDescription,
       images: field.images || [],
       videos: field.videos || [],
-      allow_overlap: allowOverlap,
     };
 
     createBookingMutation.mutate(bookingData);

@@ -63,37 +63,42 @@ const createBayBooking = async (req, res) => {
     const bookingDateObj = new Date(booking_date);
     bookingDateObj.setHours(0, 0, 0, 0);
 
-    const overlappingBooking = await BayBooking.findOne({
-      bay_id,
-      booking_date: bookingDateObj,
-      status: { $nin: ['booking_rejected', 'completed_jobs'] },
-      $or: [
-        {
-          $and: [
-            { booking_start_time: { $lte: booking_start_time } },
-            { booking_end_time: { $gt: booking_start_time } }
-          ]
-        },
-        {
-          $and: [
-            { booking_start_time: { $lt: booking_end_time } },
-            { booking_end_time: { $gte: booking_end_time } }
-          ]
-        },
-        {
-          $and: [
-            { booking_start_time: { $gte: booking_start_time } },
-            { booking_end_time: { $lte: booking_end_time } }
-          ]
-        }
-      ]
-    });
-
-    if (overlappingBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'This time slot is already booked'
+    // Check for overlapping bookings unless allow_overlap is explicitly true
+    const { allow_overlap } = req.body;
+    
+    if (!allow_overlap) {
+      const overlappingBooking = await BayBooking.findOne({
+        bay_id,
+        booking_date: bookingDateObj,
+        status: { $nin: ['booking_rejected', 'completed_jobs'] },
+        $or: [
+          {
+            $and: [
+              { booking_start_time: { $lte: booking_start_time } },
+              { booking_end_time: { $gt: booking_start_time } }
+            ]
+          },
+          {
+            $and: [
+              { booking_start_time: { $lt: booking_end_time } },
+              { booking_end_time: { $gte: booking_end_time } }
+            ]
+          },
+          {
+            $and: [
+              { booking_start_time: { $gte: booking_start_time } },
+              { booking_end_time: { $lte: booking_end_time } }
+            ]
+          }
+        ]
       });
+
+      if (overlappingBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'This time slot is already booked. Enable "Allow overlapping bookings" if you want to book multiple works at the same time.'
+        });
+      }
     }
 
     const booking = new BayBooking({
