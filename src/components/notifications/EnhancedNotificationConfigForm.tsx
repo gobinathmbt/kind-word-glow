@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { dealershipServices, notificationConfigServices } from "@/api/services";
 import { Button } from "@/components/ui/button";
@@ -1171,35 +1171,35 @@ const customSelectStyles = {
                 <Variable className="h-5 w-5" />
                 Message Template
               </CardTitle>
-              <CardDescription>
-                Define the notification message and available variables
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="message_title">Title *</Label>
-                <Input
-                  id="message_title"
-                  value={formData.message_template.title}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      message_template: {
-                        ...prev.message_template,
-                        title: e.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="Enter notification title"
-                  required
-                  ref={setTitleInputRef}
-                />
+                <Label htmlFor="title">Title *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="title"
+                    ref={setTitleInputRef}
+                    value={formData.message_template.title}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        message_template: {
+                          ...prev.message_template,
+                          title: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Enter notification title"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message_body">Body *</Label>
+                <Label htmlFor="body">Message Body *</Label>
                 <Textarea
-                  id="message_body"
+                  id="body"
+                  ref={setBodyTextareaRef}
                   value={formData.message_template.body}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -1210,10 +1210,9 @@ const customSelectStyles = {
                       },
                     }))
                   }
-                  placeholder="Enter notification body"
-                  rows={4}
+                  placeholder="Enter notification message"
                   required
-                  ref={setBodyTextareaRef}
+                  rows={4}
                 />
               </div>
 
@@ -1221,7 +1220,7 @@ const customSelectStyles = {
                 <Label htmlFor="action_url">Action URL (Optional)</Label>
                 <Input
                   id="action_url"
-                  value={formData.message_template.action_url || ""}
+                  value={formData.message_template.action_url}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -1237,71 +1236,45 @@ const customSelectStyles = {
 
               {/* Available Variables */}
               {availableVariables.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Available Variables</Label>
-                    <span className="text-sm text-muted-foreground">
-                      Click to copy variables
-                    </span>
-                  </div>
-
-                  <ScrollArea className="h-48 border rounded-lg">
-                    <div className="p-4 space-y-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">
+                      Available Variables
+                    </CardTitle>
+                    <CardDescription>
+                      Click to copy variables to clipboard, then paste them into your message template at the desired position
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Group variables by category */}
                       {['data', 'user', 'system'].map((category) => {
-                        const categoryVars = availableVariables.filter(
-                          (v) => v.category === category
-                        );
-                        if (categoryVars.length === 0) return null;
-
+                        const categoryVariables = availableVariables.filter(v => v.category === category);
+                        if (categoryVariables.length === 0) return null;
+                        
                         return (
                           <div key={category} className="space-y-2">
                             <h4 className="text-sm font-medium text-muted-foreground">
                               {getCategoryLabel(category)}
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {categoryVars.map((variable) => (
-                                <div
-                                  key={variable.variable}
-                                  className={`flex items-center justify-between p-2 border rounded-md cursor-pointer hover:bg-accent transition-colors ${
-                                    copiedVariable === variable.variable
-                                      ? "bg-green-50 border-green-200"
-                                      : ""
-                                  }`}
-                                  onClick={() =>
-                                    copyToClipboard(
-                                      variable.variable,
-                                      variable.variable
-                                    )
-                                  }
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <code className="text-xs bg-primary/10 px-1.5 py-0.5 rounded">
-                                        {variable.variable}
-                                      </code>
-                                      {copiedVariable === variable.variable && (
-                                        <Check className="h-3 w-3 text-green-600" />
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1 truncate">
-                                      {variable.description}
-                                    </p>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="ml-2 h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      copyToClipboard(
-                                        variable.variable,
-                                        variable.variable
-                                      );
-                                    }}
+                            <div className="flex flex-wrap gap-2">
+                              {categoryVariables.map((variable) => (
+                                <div key={variable.variable} className="relative">
+                                  <Badge
+                                    variant="outline"
+                                    className={`cursor-pointer hover:bg-muted transition-all duration-200 ${getCategoryColor(category)} ${
+                                      copiedVariable === variable.variable ? 'ring-2 ring-green-500' : ''
+                                    }`}
+                                    onClick={() => copyToClipboard(variable.variable, variable.variable)}
+                                    title={variable.description}
                                   >
-                                    <Copy className="h-3 w-3" />
-                                  </Button>
+                                    {copiedVariable === variable.variable ? (
+                                      <Check className="h-3 w-3 mr-1 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-3 w-3 mr-1" />
+                                    )}
+                                    {variable.name}
+                                  </Badge>
                                 </div>
                               ))}
                             </div>
@@ -1309,9 +1282,39 @@ const customSelectStyles = {
                         );
                       })}
                     </div>
-                  </ScrollArea>
-                </div>
+
+                    <Separator className="my-4" />
+                    
+                  </CardContent>
+                </Card>
               )}
+
+              {/* Preview Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Message Preview</CardTitle>
+                  <CardDescription>
+                    Preview how your notification will look (variables shown as placeholders)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg p-4 bg-muted/20">
+                    <div className="font-medium text-sm mb-2">
+                      {formData.message_template.title || "Notification Title"}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {formData.message_template.body || "Notification message body will appear here..."}
+                    </div>
+                    {formData.message_template.action_url && (
+                      <div className="mt-2">
+                        <Button size="sm" variant="outline" disabled>
+                          View Details
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>

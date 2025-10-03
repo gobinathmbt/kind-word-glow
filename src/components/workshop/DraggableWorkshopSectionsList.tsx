@@ -59,62 +59,56 @@ function SortableSection({
       style={style}
       className="border rounded-lg bg-white shadow-sm"
     >
-      {section.fields && section.fields.length > 0 && (
-        <>
-          <div className="flex items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-3 flex-1">
-              <div
-                {...attributes}
-                {...listeners}
-                className="cursor-grab hover:cursor-grabbing"
-              >
-                <GripVertical className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-base">
-                  {section.section_name}
-                </h4>
-                {section.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {section.description}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline">
-                  {section.fields?.length || 0} fields
-                </Badge>
-              </div>
-            </div>
-            {section.fields && section.fields.length > 0 && (
-              <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    {isOpen ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-              </Collapsible>
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-3 flex-1">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab hover:cursor-grabbing"
+          >
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-base">{section.section_name}</h4>
+            {section.description && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {section.description}
+              </p>
             )}
           </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline">
+              {section.fields?.length || 0} fields
+            </Badge>
+          </div>
+        </div>
+        {section.fields && section.fields.length > 0 && (
+          <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm">
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+          </Collapsible>
+        )}
+      </div>
 
-          {section.fields && section.fields.length > 0 && (
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-              <CollapsibleContent>
-                <div className="p-4">
-                  <DraggableWorkshopFieldsList
-                    fields={section.fields}
-                    onUpdateOrder={handleFieldsOrderUpdate}
-                    getFieldBorderColor={getFieldBorderColor}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-        </>
+      {section.fields && section.fields.length > 0 && (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleContent>
+            <div className="p-4">
+              <DraggableWorkshopFieldsList
+                fields={section.fields}
+                onUpdateOrder={handleFieldsOrderUpdate}
+                getFieldBorderColor={getFieldBorderColor}
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );

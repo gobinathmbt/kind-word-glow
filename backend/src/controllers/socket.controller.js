@@ -35,21 +35,10 @@ const {
   getConnectedNotificationUsers
 } = require("../handlers/notification.handler");
 
-// Import bay chat handlers
-const {
-  initializeBayChatHandlers,
-  bayChatAuthMiddleware,
-  bayChatConnectedUsers,
-  getOrCreateBayConversation,
-  markBayMessagesAsRead,
-  emitBayChatUserStatus
-} = require("../handlers/bayChat.handler");
-
 let mainIO;
 let chatIO;
 let metaIO;
 let notificationIO;
-let bayChatIO;
 
 const initializeSocket = (server) => {
   console.log("Initializing Multi-namespace Socket.io...");
@@ -86,9 +75,6 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace
   notificationIO = mainIO.of("/notifications");
 
-  // Initialize Bay Chat namespace
-  bayChatIO = mainIO.of("/bay-chat");
-
   console.log(
     `Multi-namespace Socket.io server initialized with CORS origin: ${
       Env_Configuration.FRONTEND_URL || "http://localhost:8080"
@@ -97,7 +83,6 @@ const initializeSocket = (server) => {
   console.log("Chat namespace: /chat");
   console.log("Metadata namespace: /metadata");
   console.log("Notification namespace: /notifications");
-  console.log("Bay Chat namespace: /bay-chat");
 
   // Set up Chat namespace authentication middleware
   chatIO.use(chatAuthMiddleware);
@@ -108,9 +93,6 @@ const initializeSocket = (server) => {
   // Set up Notification namespace authentication middleware
   notificationIO.use(notificationAuthMiddleware);
 
-  // Set up Bay Chat namespace authentication middleware
-  bayChatIO.use(bayChatAuthMiddleware);
-
   // Initialize Chat namespace handlers
   initializeChatHandlers(chatIO);
 
@@ -120,10 +102,7 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace handlers
   initializeNotificationHandlers(notificationIO);
 
-  // Initialize Bay Chat namespace handlers
-  initializeBayChatHandlers(bayChatIO);
-
-  return { mainIO, chatIO, metaIO, notificationIO, bayChatIO };
+  return { mainIO, chatIO, metaIO, notificationIO };
 };
 
 // Getter functions for socket instances
@@ -153,13 +132,6 @@ const getNotificationSocketIO = () => {
     throw new Error("Notification Socket.io not initialized");
   }
   return notificationIO;
-};
-
-const getBayChatSocketIO = () => {
-  if (!bayChatIO) {
-    throw new Error("Bay Chat Socket.io not initialized");
-  }
-  return bayChatIO;
 };
 
 // Legacy support
@@ -193,10 +165,6 @@ const getConnectedUsers = () => {
       ...data,
     })),
     notifications: getConnectedNotificationUsers(),
-    bayChat: Array.from(bayChatConnectedUsers.entries()).map(([key, data]) => ({
-      key,
-      ...data,
-    })),
   };
 };
 
@@ -207,20 +175,15 @@ module.exports = {
   getChatSocketIO,
   getMetaSocketIO,
   getNotificationSocketIO,
-  getBayChatSocketIO,
   getActiveOperations,
   getConnectedUsers,
   connectedUsers,
   metaConnectedUsers,
   notificationConnectedUsers,
-  bayChatConnectedUsers,
   // Export helper functions for external use if needed
   getOrCreateConversation,
   markMessagesAsRead,
   emitChatUserStatus,
-  getOrCreateBayConversation,
-  markBayMessagesAsRead,
-  emitBayChatUserStatus,
   convertToType,
   createOrUpdateEntry,
   processBatchWithSocket,

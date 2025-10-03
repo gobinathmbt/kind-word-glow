@@ -1002,70 +1002,6 @@ export const workshopServices = {
     apiClient.get(`/api/workshop-report/report/${reportId}`),
 };
 
-// Service Bay Services
-export const serviceBayServices = {
-  getServiceBays: (params?: any) => 
-    apiClient.get("/api/service-bay", { params }),
-  
-  getServiceBay: (id: string) => 
-    apiClient.get(`/api/service-bay/${id}`),
-  
-  createServiceBay: (data: any) => 
-    apiClient.post("/api/service-bay", data),
-  
-  updateServiceBay: (id: string, data: any) => 
-    apiClient.put(`/api/service-bay/${id}`, data),
-  
-  deleteServiceBay: (id: string) => 
-    apiClient.delete(`/api/service-bay/${id}`),
-  
-  toggleServiceBayStatus: (id: string, data: any) => 
-    apiClient.patch(`/api/service-bay/${id}/status`, data),
-  
-  addBayHoliday: (id: string, data: any) => 
-    apiClient.post(`/api/service-bay/${id}/holiday`, data),
-  
-  removeBayHoliday: (id: string, holidayId: string) => 
-    apiClient.delete(`/api/service-bay/${id}/holiday/${holidayId}`),
-  
-  getBaysDropdown: (dealershipId?: string) => 
-    apiClient.get("/api/service-bay/dropdown", { 
-      params: dealershipId ? { dealership_id: dealershipId } : {} 
-    }),
-};
-
-// Bay Booking Services
-export const bayBookingServices = {
-  createBayBooking: (data: any) => 
-    apiClient.post("/api/bay-booking", data),
-  
-  getBayCalendar: (startDate: string, endDate: string, bayId?: string) => 
-    apiClient.get("/api/bay-booking/calendar", { 
-      params: { start_date: startDate, end_date: endDate, bay_id: bayId } 
-    }),
-  
-  getBookingForField: (vehicleType: string, vehicleStockId: number, fieldId: string) => 
-    apiClient.get(`/api/bay-booking/field/${vehicleType}/${vehicleStockId}/${fieldId}`),
-  
-  acceptBayBooking: (id: string) => 
-    apiClient.post(`/api/bay-booking/${id}/accept`),
-  
-  rejectBayBooking: (id: string, reason: string) => 
-    apiClient.post(`/api/bay-booking/${id}/reject`, { reason }),
-  
-  startWork: (id: string) => 
-    apiClient.post(`/api/bay-booking/${id}/start-work`),
-  
-  submitWork: (id: string, data: any) => 
-    apiClient.post(`/api/bay-booking/${id}/submit-work`, data),
-  
-  acceptWork: (id: string) => 
-    apiClient.post(`/api/bay-booking/${id}/accept-work`),
-  
-  requestRework: (id: string, reason: string) => 
-    apiClient.post(`/api/bay-booking/${id}/request-rework`, { reason }),
-};
-
 // Supplier Auth Services
 export const supplierAuthServices = {
   login: (email: string, password: string) =>
@@ -1271,6 +1207,37 @@ export const integrationServices = {
     apiClient.patch(`/api/integrations/${id}/status`, data),
 };
 
+export const serviceBayServices = {
+  getServiceBays: (params?: any) => 
+    apiClient.get("/api/service-bay", { params }),
+  
+  getServiceBay: (id: string) => 
+    apiClient.get(`/api/service-bay/${id}`),
+  
+  createServiceBay: (data: any) => 
+    apiClient.post("/api/service-bay", data),
+  
+  updateServiceBay: (id: string, data: any) => 
+    apiClient.put(`/api/service-bay/${id}`, data),
+  
+  deleteServiceBay: (id: string) => 
+    apiClient.delete(`/api/service-bay/${id}`),
+  
+  toggleServiceBayStatus: (id: string, data: any) => 
+    apiClient.patch(`/api/service-bay/${id}/status`, data),
+  
+  addBayHoliday: (id: string, data: any) => 
+    apiClient.post(`/api/service-bay/${id}/holiday`, data),
+  
+  removeBayHoliday: (id: string, holidayId: string) => 
+    apiClient.delete(`/api/service-bay/${id}/holiday/${holidayId}`),
+  
+  getBaysDropdown: (dealershipId?: string) => 
+    apiClient.get("/api/service-bay/dropdown", { 
+      params: dealershipId ? { dealership_id: dealershipId } : {} 
+    }),
+};
+
 export default {
   auth: authServices,
   subscription: subscriptionServices,
@@ -1292,4 +1259,5 @@ export default {
   masterVehicle: masterVehicleServices,
   adPublishing: adPublishingServices,
   commonVehicle:commonVehicleServices,
+  serviceBayServices:serviceBayServices,
 };

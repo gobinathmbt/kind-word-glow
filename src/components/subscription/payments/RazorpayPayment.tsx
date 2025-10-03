@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +54,16 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
     phone: userProfile?.phone || "",
   });
 
+  // Auto-close when payment screen opens
+  const [paymentScreenOpened, setPaymentScreenOpened] = useState(false);
+
+  useEffect(() => {
+    if (paymentScreenOpened) {
+      // Close the subscription/checkout screen when payment screen opens
+      onClose();
+    }
+  }, [paymentScreenOpened, onClose]);
+
   const createSubscription = async (paymentMethod: string, orderId?: string) => {
     try {
       const response = await subscriptionServices.createSubscription({
@@ -89,9 +99,13 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       // Create subscription first to get order ID
       const subscription = await createSubscription("razorpay");
 
+      // Convert amount properly - Razorpay expects amount in paise (smallest currency unit)
+      // If pricing.total_amount is in INR, multiply by 100 to convert to paise
+      const amountInPaise = Math.round(pricing.total_amount * 75);
+
       const options = {
         key: "rzp_test_z6CO9LKvjNQKsS", // Replace with your Razorpay key
-        amount: pricing.total_amount * 100, // Convert to paise
+        amount: amountInPaise, // Already converted to paise
         currency: "INR",
         name: "Subscription Service",
         description: `${mode === "upgrade" ? "Upgrade" : mode === "renewal" ? "Renewal" : "New"} Subscription`,
@@ -110,7 +124,7 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
 
             toast.success("Payment successful! Your subscription is now active.");
             onSuccess?.();
-            onClose();
+            // No need to call onClose here as it's already closed when payment screen opened
           } catch (error) {
             console.error("Payment verification error:", error);
             toast.error("Payment completed but verification failed. Please contact support.");
@@ -133,19 +147,30 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
         modal: {
           ondismiss: function () {
             setIsProcessing(false);
+            setPaymentScreenOpened(false);
             toast.info("Payment cancelled by user");
           },
         },
       };
 
       const razorpay = new (RazorpayInstance as any)(options);
+      
+      // Set flag that payment screen is opening
+      setPaymentScreenOpened(true);
+      
+      // This will trigger the useEffect and close the parent modal
       razorpay.open();
+      
     } catch (error) {
       console.error("Error with Razorpay payment:", error);
       toast.error("Failed to initialize payment. Please try again.");
       setIsProcessing(false);
+      setPaymentScreenOpened(false);
     }
   };
+
+  // Format amount for display (in INR)
+  const displayAmount = pricing.total_amount.toFixed(2);
 
   return (
     <div className="space-y-4">
@@ -202,10 +227,10 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       <div className="bg-muted p-4 rounded-lg">
         <div className="flex justify-between items-center">
           <span className="font-semibold">Total Amount:</span>
-          <span className="text-2xl font-bold">₹{(pricing.total_amount * 75).toFixed(0)}</span>
+          <span className="text-2xl font-bold">₹{displayAmount}</span>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Approximately ${pricing.total_amount} USD
+          Payment processed in Indian Rupees (INR)
         </p>
       </div>
 
@@ -221,7 +246,7 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
             Processing Payment...
           </>
         ) : (
-          `Pay ₹${(pricing.total_amount * 75).toFixed(0)} with Razorpay`
+          `Pay ₹${displayAmount} with Razorpay`
         )}
       </Button>
 

@@ -74,7 +74,6 @@ function SortableCategory({
 
   return (
     <div ref={setNodeRef} style={style}>
-      {category.sections && category.sections.length > 0 && (
       <Card className="shadow-md">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -134,7 +133,6 @@ function SortableCategory({
           </Collapsible>
         )}
       </Card>
-         )}
     </div>
   );
 }
