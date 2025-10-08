@@ -2,7 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
@@ -64,7 +70,10 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
     }
   }, [paymentScreenOpened, onClose]);
 
-  const createSubscription = async (paymentMethod: string, orderId?: string) => {
+  const createSubscription = async (
+    paymentMethod: string,
+    orderId?: string
+  ) => {
     try {
       const response = await subscriptionServices.createSubscription({
         ...subscriptionData,
@@ -83,7 +92,9 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
 
   const handleRazorpayPayment = async () => {
     if (!billingInfo.email || !billingInfo.name || !billingInfo.phone) {
-      toast.error("Please fill in all required information");
+      toast.error("Please fill in all required fields", {
+        position: "top-right",
+      });
       return;
     }
 
@@ -108,12 +119,18 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
         amount: amountInPaise, // Already converted to paise
         currency: "INR",
         name: "Subscription Service",
-        description: `${mode === "upgrade" ? "Upgrade" : mode === "renewal" ? "Renewal" : "New"} Subscription`,
+        description: `${
+          mode === "upgrade"
+            ? "Upgrade"
+            : mode === "renewal"
+            ? "Renewal"
+            : "New"
+        } Subscription`,
         order_id: subscription.razorpay_order_id,
         handler: async function (response: any) {
           try {
             setIsProcessing(true);
-            
+
             // Verify payment and update subscription
             await subscriptionServices.updatePaymentStatus(subscription._id, {
               payment_status: "completed",
@@ -122,12 +139,16 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
               razorpay_signature: response.razorpay_signature,
             });
 
-            toast.success("Payment successful! Your subscription is now active.");
+            toast.success(
+              "Payment successful! Your subscription is now active."
+            );
             onSuccess?.();
             // No need to call onClose here as it's already closed when payment screen opened
           } catch (error) {
             console.error("Payment verification error:", error);
-            toast.error("Payment completed but verification failed. Please contact support.");
+            toast.error(
+              "Payment completed but verification failed. Please contact support."
+            );
           } finally {
             setIsProcessing(false);
           }
@@ -154,13 +175,12 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       };
 
       const razorpay = new (RazorpayInstance as any)(options);
-      
+
       // Set flag that payment screen is opening
       setPaymentScreenOpened(true);
-      
+
       // This will trigger the useEffect and close the parent modal
       razorpay.open();
-      
     } catch (error) {
       console.error("Error with Razorpay payment:", error);
       toast.error("Failed to initialize payment. Please try again.");
@@ -193,7 +213,9 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
               <Input
                 id="name"
                 value={billingInfo.name}
-                onChange={(e) => setBillingInfo({ ...billingInfo, name: e.target.value })}
+                onChange={(e) =>
+                  setBillingInfo({ ...billingInfo, name: e.target.value })
+                }
                 placeholder="John Doe"
                 required
               />
@@ -204,7 +226,9 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
                 id="email"
                 type="email"
                 value={billingInfo.email}
-                onChange={(e) => setBillingInfo({ ...billingInfo, email: e.target.value })}
+                onChange={(e) =>
+                  setBillingInfo({ ...billingInfo, email: e.target.value })
+                }
                 placeholder="john@example.com"
                 required
               />
@@ -215,7 +239,9 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
                 id="phone"
                 type="tel"
                 value={billingInfo.phone}
-                onChange={(e) => setBillingInfo({ ...billingInfo, phone: e.target.value })}
+                onChange={(e) =>
+                  setBillingInfo({ ...billingInfo, phone: e.target.value })
+                }
                 placeholder="+91 9876543210"
                 required
               />
@@ -251,7 +277,8 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       </Button>
 
       <p className="text-xs text-center text-muted-foreground">
-        Your payment is secured by Razorpay. We support UPI, Cards, Net Banking, and Wallets.
+        Your payment is secured by Razorpay. We support UPI, Cards, Net Banking,
+        and Wallets.
       </p>
     </div>
   );

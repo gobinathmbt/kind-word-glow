@@ -55,8 +55,6 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
   open,
   onOpenChange,
   onFieldCreated,
-  vehicleType,
-  categoryId,
   dropdowns = [],
   s3Config,
   editMode = false,
@@ -75,7 +73,6 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
     },
   });
 
-  // Field value states for different types
   const [fieldValue, setFieldValue] = useState<any>("");
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -232,7 +229,7 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
           ? existingField.created_at
           : new Date().toISOString(),
         updated_at: editMode ? new Date().toISOString() : undefined,
-        // Preserve existing field properties for edit mode
+
         ...(editMode && {
           categoryId: existingField.categoryId,
           sectionId: existingField.sectionId,
@@ -241,7 +238,6 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
 
       await onFieldCreated(fieldData);
 
-      // Reset form only if not in edit mode or after successful edit
       if (!editMode) {
         resetForm();
       }
@@ -527,7 +523,6 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
             />
           </div>
 
-          {/* Image upload for all field types */}
           <div>
             <Label htmlFor="images">Images</Label>
             <Input

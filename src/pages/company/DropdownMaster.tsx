@@ -41,6 +41,7 @@ import { dealershipServices, dropdownServices } from "@/api/services";
 import ValueManagementDialog from "../../components/dropdown/ValueManagementDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
+import { formatApiNames } from "@/utils/GlobalUtils";
 
 const DropdownMaster = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -371,7 +372,7 @@ const DropdownMaster = () => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Primary";
+    return dealership ? formatApiNames(dealership.dealership_name) : "Primary";
   };
   // Add dealership column to table header
   const renderTableHeader = () => (

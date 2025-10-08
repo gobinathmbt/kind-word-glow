@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Card,
@@ -22,7 +22,6 @@ import {
 import {
   Cloud,
   Link,
-  CreditCard,
   Save,
   TestTube,
   Loader2,
@@ -32,6 +31,7 @@ import {
   AlertTriangle,
   TrendingUp,
   History,
+  Grid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { companyServices } from "@/api/services";
@@ -43,6 +43,7 @@ import apiClient from "@/api/axios";
 const CompanySettings = () => {
   const [loading, setLoading] = useState(false);
   const [showSubscriptionHistory, setShowSubscriptionHistory] = useState(false);
+  const [showActiveModules, setShowActiveModules] = useState(false);
   const [s3Config, setS3Config] = useState({
     bucket: "",
     access_key: "",
@@ -333,29 +334,17 @@ const CompanySettings = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4">
-                      <Label className="text-sm font-medium">
-                        Active Modules
-                      </Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {companySubscription?.module_access?.map(
-                          (module, index) => (
-                            <Badge
-                              key={index}
-                              variant="outline"
-                              className="capitalize"
-                            >
-                              {module.replace("_", " ")}
-                            </Badge>
-                          )
-                        )}
-                      </div>
-                    </div>
-
                     <div className="mt-6 flex gap-4">
                       <Button onClick={handleUpgradeClick} variant="outline">
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Upgrade Plan
+                      </Button>
+                      <Button
+                        onClick={() => setShowActiveModules(true)}
+                        variant="outline"
+                      >
+                        <Grid className="mr-2 h-4 w-4" />
+                        Active Modules
                       </Button>
                       <Button
                         onClick={() => setShowSubscriptionHistory(true)}
@@ -391,6 +380,13 @@ const CompanySettings = () => {
                     <div className="mt-4 flex gap-4">
                       <Button onClick={() => setShowSubscriptionModal(true)}>
                         Set Up Subscription
+                      </Button>
+                      <Button
+                        onClick={() => setShowActiveModules(true)}
+                        variant="outline"
+                      >
+                        <Grid className="mr-2 h-4 w-4" />
+                        Active Modules
                       </Button>
                       <Button
                         onClick={() => setShowSubscriptionHistory(true)}
@@ -650,6 +646,39 @@ const CompanySettings = () => {
             </DialogHeader>
             <div className="flex-1 overflow-hidden p-6 pt-2">
               <SubscriptionHistoryTable />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Active Modules Dialog */}
+        <Dialog open={showActiveModules} onOpenChange={setShowActiveModules}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Grid className="h-5 w-5" />
+                Active Modules
+              </DialogTitle>
+            </DialogHeader>
+            <div className="overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {companySubscription?.module_access?.map((module, index) => (
+                  <Card key={index} className="bg-muted/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="font-medium capitalize">
+                          {module.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {(!companySubscription?.module_access || companySubscription.module_access.length === 0) && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No active modules found
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

@@ -8,6 +8,7 @@ const {
   deleteServiceBay,
   toggleServiceBayStatus,
   addBayHoliday,
+  getHolidays,
   removeBayHoliday,
   getBaysDropdown
 } = require('../controllers/serviceBay.controller');
@@ -21,6 +22,7 @@ router.use(companyScopeCheck);
 // Routes accessible by both super admin and admin (for dropdown and holidays)
 router.get('/dropdown', authorize('company_super_admin', 'company_admin'), getBaysDropdown);
 router.post('/:id/holiday', authorize('company_super_admin', 'company_admin'), addBayHoliday);
+router.get('/bay-holiday', authorize('company_super_admin', 'company_admin'), getHolidays);
 router.delete('/:id/holiday/:holidayId', authorize('company_super_admin', 'company_admin'), removeBayHoliday);
 
 // Routes accessible only by super admin

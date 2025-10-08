@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +19,10 @@ import {
   Paperclip,
   X,
   Download,
-  MoreHorizontal,
   Clock,
   CheckCheck,
   MessageSquare,
   Smile,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { socketService } from "@/lib/socket";
@@ -56,49 +53,116 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
   const [conversation, setConversation] = useState<any>(null);
   const [loadingConversation, setLoadingConversation] = useState(true);
   const [s3Uploader, setS3Uploader] = useState<S3Uploader | null>(null);
+  const [isBayQuote, setIsBayQuote] = useState(false);
+  const [canSendMessage, setCanSendMessage] = useState(true);
 
-  const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Extract user information based on different payload structures
   const currentUser = JSON.parse(
     sessionStorage.getItem("user") ||
       sessionStorage.getItem("supplier_user") ||
       "{}"
   );
   const supplier_user = sessionStorage.getItem("supplier_user");
-  const currentUserType =
-    currentUser.role === "supplier" ? "supplier" : "company";
 
-  // Extract other user information based on different payload structures
+  const currentUserType =
+    currentUser.role === "supplier"
+      ? "supplier"
+      : currentUser.role === "company_admin"
+      ? "bay_user"
+      : "company";
+
+  const quoteType = quote?.quote_type || "supplier";
+  const isQuoteBay = quoteType === "bay";
+
   let otherUser: any = null;
   let quoteId: string = "";
   let companyId: string = "";
   let supplierId: string = "";
+  let bayUserId: string = "";
 
-  if (quote?.approved_supplier) {
-    // Structure from QuotesByStatus
-    otherUser = quote.approved_supplier;
+  if (isQuoteBay) {
+
     quoteId = quote._id;
-    companyId = quote.company_id._id || quote.company_id;
-    supplierId = quote.approved_supplier._id;
-  } else if (quote?.supplier_id) {
-    // Structure from WorkshopConfig
-    otherUser = quote.supplier_id;
-    quoteId = quote._id;
-    companyId =
-      currentUserType === "company" ? currentUser.company_id : quote.company_id;
-    supplierId = quote.supplier_id._id || quote.supplier_id;
+    companyId = quote.company_id?._id || quote.company_id;
+    bayUserId = quote.bay_user_id?._id || quote.bay_user_id;
+    supplierId = bayUserId; 
+
+    if (currentUser.role === "company_super_admin") {
+
+      otherUser = {
+        _id: bayUserId,
+        name:
+          quote.bay_user_id?.username ||
+          `${quote.bay_user_id?.first_name || ""} ${
+            quote.bay_user_id?.last_name || ""
+          }`.trim() ||
+          "Bay User",
+        username: quote.bay_user_id?.username,
+        first_name: quote.bay_user_id?.first_name,
+        last_name: quote.bay_user_id?.last_name,
+        supplier_shop_name: quote.bay_id?.bay_name || "Bay",
+      };
+    } else if (currentUser.role === "company_admin") {
+
+      otherUser = {
+        _id: companyId,
+        name:
+          quote.company_id?.company_name ||
+          currentUser.company_name ||
+          "Company",
+        company_name:
+          quote.company_id?.company_name || currentUser.company_name,
+      };
+    }
+  } else {
+
+    if (quote?.approved_supplier) {
+      otherUser = quote.approved_supplier;
+      quoteId = quote._id;
+      companyId = quote.company_id._id || quote.company_id;
+      supplierId = quote.approved_supplier._id;
+    } else if (quote?.supplier_id) {
+      otherUser = quote.supplier_id;
+      quoteId = quote._id;
+      companyId =
+        currentUserType === "company"
+          ? currentUser.company_id
+          : quote.company_id;
+      supplierId = quote.supplier_id._id || quote.supplier_id;
+    }
   }
 
-  // Load S3 configuration
+  useEffect(() => {
+    if (isQuoteBay) {
+      setIsBayQuote(true);
+
+      if (currentUser.role === "company_admin") {
+
+        const canSend = bayUserId === currentUser.id;
+        setCanSendMessage(canSend);
+        if (!canSend) {
+          toast.error("You are not assigned to this bay quote");
+        }
+      } else if (currentUser.role === "company_super_admin") {
+        setCanSendMessage(true);
+      } else {
+        setCanSendMessage(false);
+      }
+    } else {
+      setIsBayQuote(false);
+      setCanSendMessage(true);
+    }
+  }, [isQuoteBay, bayUserId, currentUser.id, currentUser.role]);
+
+
   useEffect(() => {
     const loadS3Config = async () => {
       try {
-        let response;
+        let response: any;
         if (supplier_user) {
           response = await supplierDashboardServices.getsupplierS3Config();
         } else {
@@ -127,30 +191,64 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
     }
   }, [open]);
 
-  // Socket connection and event handlers
   useEffect(() => {
     if (open && quoteId) {
       const connectSocket = async () => {
         try {
           await socketService.connect();
 
-          // Get conversation data
+          socketService.off("conversation_data");
+          socketService.off("new_message");
+          socketService.off("user_typing");
+          socketService.off("user_status_change");
+          socketService.off("user_status");
+          socketService.off("error");
+
           setLoadingConversation(true);
           socketService.getConversation(quoteId, supplierId, companyId);
 
-          // Join conversation
           socketService.joinConversation(quoteId, supplierId, companyId);
 
-          // Get other user status
-          socketService.getUserStatus("supplier", supplierId);
+          const statusUserType =
+            isBayQuote && currentUser.role === "company_super_admin"
+              ? "bay_user"
+              : isBayQuote && currentUser.role === "company_admin"
+              ? "company"
+              : "supplier";
 
-          // Set up event listeners using refs to latest callbacks
-          socketService.onConversationData((data) =>
-            handleConversationDataRef.current(data)
+          socketService.getUserStatus(
+            statusUserType,
+            otherUser?._id || supplierId
           );
-          socketService.onNewMessage((data) =>
-            handleNewMessageRef.current(data)
-          );
+
+          socketService.onConversationData((data) => {
+            handleConversationDataRef.current(data);
+          });
+
+          socketService.onNewMessage((data) => {
+            setConversation((prev: any) => {
+              if (!prev) return { messages: [data.message] };
+              const messageExists = prev.messages.some(
+                (msg: any) =>
+                  msg._id === data.message._id ||
+                  (msg.content === data.message.content &&
+                    msg.sender_id === data.message.sender_id &&
+                    Math.abs(
+                      new Date(msg.created_at).getTime() -
+                        new Date(data.message.created_at).getTime()
+                    ) < 1000)
+              );
+              if (messageExists) {
+                return prev;
+              }
+              return {
+                ...prev,
+                messages: [...prev.messages, data.message],
+              };
+            });
+            scrollToBottom();
+          });
+
           socketService.onUserTyping((data) => handleTypingRef.current(data));
           socketService.onUserStatusChange((data) =>
             handleUserStatusChangeRef.current(data)
@@ -168,7 +266,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
 
       connectSocket();
 
-      // Cleanup function - properly remove all listeners
       return () => {
         if (quoteId) {
           socketService.off("conversation_data");
@@ -181,16 +278,34 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
         }
       };
     }
-  }, [open, quoteId, companyId, supplierId]);
+  }, [open, quoteId, companyId, supplierId, isBayQuote, currentUser.role]);
+
   const handleConversationData = useCallback((data: any) => {
     setConversation(data.conversation);
     setLoadingConversation(false);
+    setIsBayQuote(data.is_bay_quote || false);
     scrollToBottom();
   }, []);
 
   const handleNewMessage = useCallback((data: any) => {
     setConversation((prev: any) => {
-      if (!prev) return prev;
+      if (!prev) return { messages: [data.message] };
+
+      const messageExists = prev.messages.some(
+        (msg: any) =>
+          msg._id === data.message._id ||
+          (msg.content === data.message.content &&
+            msg.sender_id === data.message.sender_id &&
+            Math.abs(
+              new Date(msg.created_at).getTime() -
+                new Date(data.message.created_at).getTime()
+            ) < 1000)
+      );
+
+      if (messageExists) {
+        return prev;
+      }
+
       return {
         ...prev,
         messages: [...prev.messages, data.message],
@@ -201,7 +316,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
 
   const handleTyping = useCallback(
     (data: any) => {
-      if (data.user_id !== currentUser._id) {
+      if (data.user_id !== currentUser.id) {
         setIsTyping(data.typing);
         setTypingUser(data.user_name);
         if (data.typing) {
@@ -209,7 +324,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
         }
       }
     },
-    [currentUser._id]
+    [currentUser.id]
   );
 
   const handleUserStatusChange = useCallback(
@@ -240,7 +355,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
     toast.error(error.message || "Socket error occurred");
   }, []);
 
-  // Auto scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -249,11 +363,10 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
     scrollToBottom();
   }, [conversation?.messages, isTyping]);
 
-  // Handle typing indicators
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
 
-    if (!typing) {
+    if (!typing && canSendMessage) {
       socketService.startTyping(quote._id);
       setTyping(true);
     }
@@ -268,12 +381,10 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
     }, 1000);
   };
 
-  // Handle file selection with validation
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("File size must be less than 10MB");
       return;
@@ -281,7 +392,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
 
     setSelectedFile(file);
 
-    // Create preview for images and videos
     if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
       const reader = new FileReader();
       reader.onload = (e) => setFilePreview(e.target?.result as string);
@@ -306,6 +416,13 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
   };
 
   const handleSendMessage = async () => {
+    if (!canSendMessage) {
+      toast.error(
+        "You don't have permission to send messages in this conversation"
+      );
+      return;
+    }
+
     if (!newMessage.trim() && !selectedFile) {
       toast.error("Please enter a message or select a file");
       return;
@@ -317,7 +434,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
       let messageType = "text";
       let fileData = null;
 
-      // Handle file upload using S3Uploader
       if (selectedFile && s3Uploader) {
         if (selectedFile.type.startsWith("image/")) {
           messageType = "image";
@@ -327,7 +443,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
           messageType = "file";
         }
 
-        // Upload to S3
         const uploadResult = await s3Uploader.uploadFile(
           selectedFile,
           messageType === "image"
@@ -346,10 +461,8 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
         };
       }
 
-      // Send via socket - include the already uploaded file data
       socketService.sendMessage(quoteId, newMessage, messageType, fileData);
 
-      // Reset form
       setNewMessage("");
       removeSelectedFile();
       socketService.stopTyping(quoteId);
@@ -439,9 +552,42 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
     }
   };
 
+  const isMessageFromCurrentUser = (message: any) => {
+    const currentUserId = currentUser.id || currentUser._id;
+
+    if (!currentUserId || !message.sender_id) return false;
+
+    if (currentUser.role === "supplier") {
+      return (
+        message.sender_type === "supplier" &&
+        message.sender_id === currentUserId
+      );
+    }
+
+    if (isBayQuote) {
+      if (currentUser.role === "company_admin") {
+
+        return (
+          message.sender_type === "supplier" &&
+          message.sender_id === currentUserId
+        );
+      } else if (currentUser.role === "company_super_admin") {
+        return (
+          message.sender_type === "company" &&
+          message.sender_id === currentUserId
+        );
+      }
+    } else {
+
+      return (
+        message.sender_type === "company" && message.sender_id === currentUserId
+      );
+    }
+
+    return false;
+  };
   const messages = conversation?.messages || [];
 
-  // Create refs to store the callback functions
   const handleConversationDataRef = useRef(handleConversationData);
   const handleNewMessageRef = useRef(handleNewMessage);
   const handleTypingRef = useRef(handleTyping);
@@ -449,7 +595,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
   const handleUserStatusRef = useRef(handleUserStatus);
   const handleSocketErrorRef = useRef(handleSocketError);
 
-  // Update the refs when callbacks change
   useEffect(() => {
     handleConversationDataRef.current = handleConversationData;
     handleNewMessageRef.current = handleNewMessage;
@@ -476,7 +621,10 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={otherUser?.avatar} />
                   <AvatarFallback>
-                    {otherUser?.name?.charAt(0) || "S"}
+                    {otherUser?.name?.charAt(0) ||
+                      otherUser?.username?.charAt(0) ||
+                      otherUser?.company_name?.charAt(0) ||
+                      "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div
@@ -488,9 +636,17 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">
-                    {otherUser?.supplier_shop_name ||
-                      otherUser?.name ||
-                      "Supplier"}
+                    {isBayQuote
+                      ? currentUser.role === "company_super_admin"
+                        ? otherUser?.supplier_shop_name ||
+                          otherUser?.name ||
+                          "Bay User"
+                        : otherUser?.company_name ||
+                          otherUser?.name ||
+                          "Company"
+                      : otherUser?.supplier_shop_name ||
+                        otherUser?.name ||
+                        "Supplier"}
                   </span>
                   <Badge variant="outline" className="text-xs">
                     {userStatus?.online
@@ -499,9 +655,15 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
                           userStatus?.lastSeen || new Date()
                         )} ago`}
                   </Badge>
+                  {isBayQuote && (
+                    <Badge variant="secondary" className="text-xs">
+                      Bay Quote
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {quote?.field_name} • Vehicle #{quote?.vehicle_stock_id}
+                  {isBayQuote && ` • ${quote?.bay_id?.bay_name || "Bay"}`}
                 </p>
               </div>
             </DialogTitle>
@@ -509,7 +671,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
         </DialogHeader>
 
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Messages Area */}
+
           <ScrollArea className="flex-1 px-6 py-4">
             <div className="space-y-4">
               {loadingConversation ? (
@@ -517,61 +679,63 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 </div>
               ) : messages.length > 0 ? (
-                messages.map((message: any, index: number) => (
-                  <div
-                    key={message._id || index}
-                    className={`flex ${
-                      message.sender_type === currentUser.type
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
+                messages.map((message: any, index: number) => {
+                  const isFromCurrentUser = isMessageFromCurrentUser(message);
+                  return (
                     <div
-                      className={`flex items-start gap-2 max-w-[75%] ${
-                        message.sender_type === currentUser.type
-                          ? "flex-row-reverse"
-                          : ""
+                      key={
+                        message._id ||
+                        `msg-${index}-${message.sender_id}-${message.created_at}`
+                      }
+                      className={`flex ${
+                        isFromCurrentUser ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback>
-                          {message.sender_name?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1">
-                        <div
-                          className={`rounded-2xl p-3 ${
-                            message.sender_type === currentUser.type
-                              ? "bg-primary text-primary-foreground ml-8"
-                              : "bg-muted mr-8"
-                          }`}
-                        >
-                          {renderMessageContent(message)}
-                        </div>
-                        <div
-                          className={`flex items-center gap-2 text-xs ${
-                            message.sender_type === currentUser.type
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
-                        >
-                          <span className="text-muted-foreground">
-                            {format(new Date(message.created_at), "HH:mm")}
-                          </span>
-                          {message.sender_type === currentUser.type && (
-                            <CheckCheck
-                              className={`h-3 w-3 ${
-                                message.is_read
-                                  ? "text-blue-400"
-                                  : "text-muted-foreground"
-                              }`}
-                            />
-                          )}
+                      <div
+                        className={`flex items-start gap-2 max-w-[75%] ${
+                          isFromCurrentUser ? "flex-row-reverse" : ""
+                        }`}
+                      >
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                          <AvatarFallback>
+                            {message.sender_name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <div
+                            className={`rounded-2xl p-3 ${
+                              isFromCurrentUser
+                                ? "bg-primary text-primary-foreground ml-8"
+                                : "bg-muted mr-8"
+                            }`}
+                          >
+                            {renderMessageContent(message)}
+                          </div>
+                          <div
+                            className={`flex items-center gap-2 text-xs ${
+                              isFromCurrentUser
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <span className="text-muted-foreground">
+                              {format(new Date(message.created_at), "HH:mm")}
+                            </span>
+                            {isFromCurrentUser && (
+                              <CheckCheck
+                                className={`h-3 w-3 ${
+                                  message.is_read
+                                    ? "text-blue-400"
+                                    : "text-muted-foreground"
+                                }`}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
@@ -580,7 +744,11 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
                   <h3 className="font-semibold mb-2">No messages yet</h3>
                   <p className="text-muted-foreground text-sm">
                     Start the conversation with{" "}
-                    {otherUser?.supplier_shop_name || "the supplier"}
+                    {isBayQuote
+                      ? currentUser.role === "company_super_admin"
+                        ? otherUser?.supplier_shop_name || "the bay user"
+                        : otherUser?.company_name || "the company"
+                      : otherUser?.supplier_shop_name || "the supplier"}
                   </p>
                 </div>
               )}
@@ -610,8 +778,17 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
             </div>
           </ScrollArea>
 
-          {/* File Preview */}
-          {selectedFile && (
+          {isBayQuote && !canSendMessage && (
+            <div className="px-6 py-3 border-t bg-muted/50">
+              <div className="text-sm text-muted-foreground text-center">
+                <Clock className="h-4 w-4 inline-block mr-2" />
+                You cannot send messages in this conversation as you are not the
+                assigned bay user.
+              </div>
+            </div>
+          )}
+
+          {selectedFile && canSendMessage && (
             <div className="px-6 py-3 border-t">
               <Card>
                 <CardContent className="p-3">
@@ -646,71 +823,72 @@ const ChatModal: React.FC<ChatModalProps> = ({ open, onOpenChange, quote }) => {
             </div>
           )}
 
-          {/* Input Area */}
-          <div className="p-6 border-t">
-            <div className="flex gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+          {canSendMessage && (
+            <div className="p-6 border-t">
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-
-              <div className="relative flex-1">
-                <Textarea
-                  ref={textareaRef}
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
-                  className="min-h-12 resize-none pr-12"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                />
-                <div className="absolute right-2 bottom-2 flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    type="button"
-                  >
-                    <Smile className="h-4 w-4" />
-                  </Button>
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+
+                <div className="relative flex-1">
+                  <Textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your message..."
+                    className="min-h-12 resize-none pr-12"
+                    disabled={uploading}
+                  />
+                  <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      type="button"
+                    >
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
+
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={uploading || (!newMessage.trim() && !selectedFile)}
+                  size="icon"
+                >
+                  {uploading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
 
-              <Button
-                onClick={handleSendMessage}
-                disabled={uploading || (!newMessage.trim() && !selectedFile)}
-                size="icon"
-              >
-                {uploading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-16 right-6 z-50">
+                  <EmojiPicker
+                    onEmojiClick={handleEmojiSelect}
+                    width={300}
+                    height={400}
+                  />
+                </div>
+              )}
             </div>
-
-            {showEmojiPicker && (
-              <div className="absolute bottom-16 right-6 z-50">
-                <EmojiPicker
-                  onEmojiClick={handleEmojiSelect}
-                  width={300}
-                  height={400}
-                />
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -381,10 +381,22 @@ const getSubscriptionStatus = async (req, res) => {
 const getSubscriptionHistory = async (req, res) => {
   try {
     const companyId = req.user.company_id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    // Get total count for pagination info
+    const totalSubscriptions = await Subscription.countDocuments({
+      company_id: companyId
+    });
+
+    // Get paginated subscriptions
     const subscriptions = await Subscription.find({
       company_id: companyId
-    }).sort({ created_at: -1 });
+    })
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(limit);
 
     const history = subscriptions.map(sub => ({
       ...sub.toObject(),
@@ -392,9 +404,22 @@ const getSubscriptionHistory = async (req, res) => {
       days_remaining: sub.days_remaining
     }));
 
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalSubscriptions / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
     res.status(200).json({
       success: true,
-      data: history
+      data: history,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalItems: totalSubscriptions,
+        itemsPerPage: limit,
+        hasNextPage: hasNextPage,
+        hasPrevPage: hasPrevPage
+      }
     });
   } catch (error) {
     console.error('Get subscription history error:', error);

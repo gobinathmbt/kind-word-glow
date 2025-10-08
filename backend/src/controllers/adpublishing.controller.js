@@ -1,4 +1,4 @@
-const Vehicle = require('../models/AdvertiseVehicle');
+const AdVehicle = require('../models/AdvertiseVehicle');
 const { logEvent } = require('./logs.controller');
 
 // @desc    Get all advertisement vehicles
@@ -43,12 +43,12 @@ const getAdVehicles = async (req, res) => {
 
     // Use parallel execution for count and data retrieval
     const [adVehicles, total] = await Promise.all([
-      Vehicle.find(filter)
+      AdVehicle.find(filter)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
         .lean(), // Use lean for faster queries
-      Vehicle.countDocuments(filter),
+      AdVehicle.countDocuments(filter),
     ]);
 
     res.status(200).json({
@@ -77,7 +77,7 @@ const getAdVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getAdVehicle = async (req, res) => {
   try {
-    const adVehicle = await Vehicle.findOne({
+    const adVehicle = await AdVehicle.findOne({
       vehicle_stock_id: req.params.id,
       company_id: req.user.company_id,
       vehicle_type: 'advertisement'
@@ -154,7 +154,7 @@ const createAdVehicle = async (req, res) => {
     }
 
     // Generate new vehicle stock ID
-    const lastVehicle = await Vehicle.findOne({
+    const lastVehicle = await AdVehicle.findOne({
       company_id: req.user.company_id,
       vehicle_type: vehicle_type,
     })
@@ -164,7 +164,7 @@ const createAdVehicle = async (req, res) => {
     const nextStockId = lastVehicle ? lastVehicle.vehicle_stock_id + 1 : 1;
 
     // Check if VIN or plate number already exists for this company
-    const existingVehicle = await Vehicle.findOne({
+    const existingVehicle = await AdVehicle.findOne({
       company_id: req.user.company_id,
       $or: [{ vin }, { plate_no }],
     });
@@ -225,7 +225,7 @@ const createAdVehicle = async (req, res) => {
       },
     ];
 
-    const newVehicle = new Vehicle(vehicleData);
+    const newVehicle = new AdVehicle(vehicleData);
     await newVehicle.save();
 
     // Log the event
@@ -249,7 +249,7 @@ const createAdVehicle = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Vehicle stock created successfully",
+      message: "AdVehicle stock created successfully",
       data: newVehicle,
     });
   } catch (error) {
@@ -266,7 +266,7 @@ const createAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateAdVehicle = async (req, res) => {
   try {
-    const adVehicle = await Vehicle.findOneAndUpdate(
+    const adVehicle = await AdVehicle.findOneAndUpdate(
       {
         vehicle_stock_id: req.params.id,
         company_id: req.user.company_id,
@@ -313,7 +313,7 @@ const updateAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteAdVehicle = async (req, res) => {
   try {
-    const adVehicle = await Vehicle.findOneAndDelete({
+    const adVehicle = await AdVehicle.findOneAndDelete({
       vehicle_stock_id: req.params.id,
       company_id: req.user.company_id,
       vehicle_type: 'advertisement'
@@ -355,7 +355,7 @@ const deleteAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const publishAdVehicle = async (req, res) => {
   try {
-    const adVehicle = await Vehicle.findOneAndUpdate(
+    const adVehicle = await AdVehicle.findOneAndUpdate(
       {
         vehicle_stock_id: req.params.id,
         company_id: req.user.company_id,

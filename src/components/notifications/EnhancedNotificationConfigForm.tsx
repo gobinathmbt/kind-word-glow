@@ -111,7 +111,6 @@ const EnhancedNotificationConfigForm: React.FC<
   EnhancedNotificationConfigFormProps
 > = ({ schemas, users, dealerships = [], editData, onSuccess }) => {
 
-  console.log("Schemas:", schemas); // Debugging line
   const { toast } = useToast();
 
   // Form state

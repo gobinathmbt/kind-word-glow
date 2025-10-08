@@ -5,7 +5,16 @@ const {
   getWorkshopVehicleDetails,
   createQuote,
   getQuotesForField,
-  approveSupplierQuote
+  approveSupplierQuote,
+  createBayQuote,
+  updateBayQuote,
+  getBayQuoteForField,
+  getBayCalendar,
+  acceptBayQuote,
+  rejectBayQuote,
+  startBayWork,
+  submitBayWork,
+  rebookBayQuote,
 } = require('../controllers/workshop.controller');
 
 const router = express.Router();
@@ -21,6 +30,23 @@ router.get('/vehicle/:vehicleId/:vehicleType', getWorkshopVehicleDetails);
 router.post('/quote', createQuote);
 router.get('/quotes/:vehicle_type/:vehicle_stock_id/:field_id', getQuotesForField);
 router.post('/quote/:quoteId/approve/:supplierId', approveSupplierQuote);
+
+// Bay quote routes
+router.post('/bay-quote', createBayQuote);
+router.put('/bay-quote/:quoteId', updateBayQuote);
+router.get('/bay-quote/:vehicle_type/:vehicle_stock_id/:field_id', getBayQuoteForField);
+router.get('/bay-calendar', getBayCalendar);
+router.post('/bay-quote/:quoteId/accept', acceptBayQuote);
+router.post('/bay-quote/:quoteId/reject', rejectBayQuote);
+router.post('/bay-quote/:quoteId/start-work', startBayWork);
+router.post('/bay-quote/:quoteId/submit-work', submitBayWork);
+router.put('/bay-quote/:quoteId/rebook', rebookBayQuote);
+
+// Manual completion routes
+router.post('/manual-quote', require('../controllers/workshop.controller').createManualQuote);
+router.post('/manual-bay-quote', require('../controllers/workshop.controller').createManualBayQuote);
+router.post('/manual-quote/:quoteId/complete', require('../controllers/workshop.controller').completeManualQuote);
+
 router.post('/quote/:quoteId/accept-work', async (req, res) => {
   try {
     const { quoteId } = req.params;

@@ -39,7 +39,6 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("received");
 
-  // Fetch quotes for the field
   const { data: quotesData, isLoading } = useQuery({
     queryKey: [
       "field-quotes",
@@ -59,7 +58,6 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
     enabled: open && !!field,
   });
 
-  // Approve quote mutation
   const approveQuoteMutation = useMutation({
     mutationFn: async ({
       quoteId,
@@ -90,7 +88,6 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
 
   const quote = quotesData?.data;
 
-  // Filter responses by status
   const getFilteredResponses = (status: string) => {
     if (!quote) return [];
 
@@ -113,7 +110,7 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
         );
 
       case "pending":
-        // Get suppliers who haven't responded yet
+
         const respondedSupplierIds =
           quote.supplier_responses?.map(
             (response: any) => response.supplier_id._id || response.supplier_id
@@ -331,7 +328,7 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
             </div>
           ) : quote ? (
             <div className="flex-1 min-h-0 flex flex-col">
-              {/* Quote Details */}
+
               <Card className="flex-shrink-0 mb-4">
                 <CardHeader>
                   <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -349,16 +346,16 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
                 </CardContent>
               </Card>
 
-              {/* Tabbed Content */}
+
               <div className="flex-1 min-h-0 flex flex-col">
                 <Tabs
                   value={activeTab}
                   onValueChange={setActiveTab}
                   className="flex-1 min-h-0 flex flex-col"
                 >
-                  {/* Responsive TabsList */}
+
                   <div className="flex-shrink-0">
-                    {/* Desktop and Large Tablet Layout */}
+
                     <TabsList className="hidden lg:grid lg:grid-cols-4 w-full">
                       <TabsTrigger
                         value="approved"
@@ -408,7 +405,6 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
                       </TabsTrigger>
                     </TabsList>
 
-                    {/* Mobile and Small Tablet Layout - Stacked */}
                     <div className="lg:hidden">
                       <TabsList className="grid grid-cols-2 w-full mb-2">
                         <TabsTrigger
@@ -601,7 +597,6 @@ const ReceivedQuotesModal: React.FC<ReceivedQuotesModalProps> = ({
           )}
         </div>
 
-        {/* Footer - Always visible */}
         <div className="flex justify-end pt-4 border-t bg-background flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close

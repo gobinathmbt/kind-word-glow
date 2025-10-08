@@ -7,7 +7,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -306,8 +305,7 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
   const [selectedReport, setSelectedReport] = useState<WorkshopReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("work_details");
-  
-  // Media viewer states
+
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [currentMediaId, setCurrentMediaId] = useState<string>("");
 
@@ -323,8 +321,7 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
       const response = await workshopServices.getWorkshopReports(vehicleId, vehicleType);
       if (response.data.success) {
         setReports(response.data.data.reports);
-        
-        // Auto-select report based on vehicle type and stage
+
         if (vehicleType === "inspection" && stageName) {
           const stageReport = response.data.data.reports.find(
             (report: WorkshopReport) => report.stage_name === stageName
@@ -344,13 +341,11 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
     }
   };
 
-  // Prepare media items from all sources for MediaViewer
   const prepareAllMediaItems = (): MediaItem[] => {
     if (!selectedReport) return [];
 
     const allMedia: MediaItem[] = [];
 
-    // Add media from quotes data
     selectedReport.quotes_data.forEach((quote) => {
       // Field images
       quote.field_images?.forEach((url, imgIndex) => {
@@ -363,7 +358,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
         });
       });
 
-      // Field videos
       quote.field_videos?.forEach((url, videoIndex) => {
         allMedia.push({
           id: `field-video-${quote.field_id}-${videoIndex}`,
@@ -374,7 +368,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
         });
       });
 
-      // Work images from main work_details
       quote.work_details?.work_images?.forEach((img, imgIndex) => {
         allMedia.push({
           id: `work-main-${quote.field_id}-${img._id}`,
@@ -385,9 +378,8 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
         });
       });
 
-      // Work entry media
       quote.work_details?.work_entries?.forEach((entry, entryIndex) => {
-        // Entry images
+
         entry.images?.forEach((img, imgIndex) => {
           allMedia.push({
             id: `entry-img-${entry.id}-${img._id}`,
@@ -398,7 +390,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
           });
         });
 
-        // Entry videos
         entry.videos?.forEach((video, videoIndex) => {
           allMedia.push({
             id: `entry-video-${entry.id}-${video._id}`,
@@ -411,7 +402,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
       });
     });
 
-    // Add communication media
     selectedReport.communications.forEach((comm) => {
       comm.messages?.forEach((msg, msgIndex) => {
         if (msg.message_type === 'image' && msg.file_url) {
@@ -426,7 +416,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
       });
     });
 
-    // Add attachment media
     selectedReport.attachments?.forEach((attachment, index) => {
       if (attachment.type.includes('image')) {
         allMedia.push({
@@ -450,7 +439,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
     return allMedia;
   };
 
-  // Handle opening media viewer
   const handleOpenMediaViewer = (mediaId: string) => {
     setCurrentMediaId(mediaId);
     setMediaViewerOpen(true);
@@ -490,7 +478,7 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
           </DialogHeader>
 
           <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] overflow-hidden">
-            {/* Report Selection Sidebar - Hidden on mobile, collapsible on tablet */}
+
             {vehicleType === "inspection" && reports.length > 1 && (
               <div className="hidden lg:block lg:w-64 flex-shrink-0 border-r bg-gray-50/50">
                 <div className="p-4">
@@ -515,7 +503,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
               </div>
             )}
 
-            {/* Main Report Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
@@ -526,7 +513,7 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
                 </div>
               ) : selectedReport ? (
                 <div className="h-full flex flex-col">
-                  {/* Summary Cards - Responsive grid */}
+
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6 pb-2 sm:pb-4 bg-gray-50/30">
                     <Card>
                       <CardContent className="p-3 sm:p-4">
@@ -588,14 +575,13 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
                     </Card>
                   </div>
 
-                  {/* Main Content Tabs */}
                   <Tabs 
                     defaultValue="work_details" 
                     className="flex-1 flex flex-col overflow-hidden px-3 sm:px-6 pb-4 sm:pb-6" 
                     value={activeTab} 
                     onValueChange={setActiveTab}
                   >
-                    {/* Responsive tab list - scrollable on mobile */}
+
                     <div className="border-b overflow-x-auto">
                       <TabsList className="grid w-max grid-cols-6 h-auto p-0 bg-transparent">
                         <TabsTrigger value="work_details" className="text-xs sm:text-sm px-3 py-2">
@@ -619,7 +605,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
                       </TabsList>
                     </div>
                     
-                    {/* Tab content with proper scrolling */}
                     <div className="flex-1 overflow-hidden mt-4">
                       <ScrollArea className="h-full">
                         <TabsContent value="work_details" className="h-full m-0">
@@ -683,7 +668,6 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Media Viewer */}
       <MediaViewer
         media={prepareAllMediaItems()}
         currentMediaId={currentMediaId}

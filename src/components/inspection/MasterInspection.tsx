@@ -67,7 +67,6 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<any>(null);
-  console.log(config)
   const [dropdowns, setDropdowns] = useState<any>(null);
   const [vehicle, setVehicle] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});

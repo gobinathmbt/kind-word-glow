@@ -79,10 +79,10 @@ async function migrate() {
   console.log("Starting migration...");
 
   const source = new MongoClient(
-    "mongodb+srv://srinivasan:yG1DtYmc6q41KSi7@qrsclusterlearning.wtihbgw.mongodb.net/vehicle-platform"
+    "mongodb+srv://srinivasan:yG1DtYmc6q41KSi7@qrsclusterlearning.wtihbgw.mongodb.net"
   );
   const target = new MongoClient(
-    "mongodb+srv://qrstestuser:BmRM7oG5i4F7@qrsdevmongo.wbo17ev.mongodb.net/vehicle-platform"
+    "mongodb+srv://qrstestuser:BmRM7oG5i4F7@qrsdevmongo.wbo17ev.mongodb.net"
   );
 
   try {
@@ -90,8 +90,9 @@ async function migrate() {
     await target.connect();
     console.log("Connected to both databases");
 
-    const srcDB = source.db("vehicle-platform");
-    const tgtDB = target.db("vehicle-platform");
+    // const srcDB = source.db("vehicle-platform");
+    // const tgtDB = target.db("vehicle-platform");
+    // const tgtDB = target.db("vehicle-platform-test");
 
     // Get all collections in source
     const collections = await srcDB.listCollections().toArray();

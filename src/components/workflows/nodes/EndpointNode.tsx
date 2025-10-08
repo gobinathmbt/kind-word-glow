@@ -1,32 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Globe, Copy, Settings, CheckCircle2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState, useEffect } from "react";
+import { Handle, Position } from "@xyflow/react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Globe, Copy, Settings, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/auth/AuthContext";
+import { BASE_URL } from "@/lib/config";
 
 const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [config, setConfig] = useState(data.config || {});
   const { toast } = useToast();
 
-    const { completeUser } = useAuth();
-
+  const { completeUser } = useAuth();
   // Generate endpoint URL based on company ID
   useEffect(() => {
     const companyId = completeUser?.company_id?._id;
     if (companyId && !config.endpoint_url) {
       const endpointId = `${companyId}_${Date.now()}`;
-      setConfig(prev => ({
+      setConfig((prev) => ({
         ...prev,
-        endpoint_url: `/api/workflow-execute/${endpointId}`,
+        endpoint_url: `${BASE_URL}/api/workflow-execute/${endpointId}`,
         endpoint_id: endpointId,
-        method: 'POST'
+        method: "POST",
       }));
     }
   }, []);
@@ -67,16 +73,18 @@ const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
           <div className="text-xs text-muted-foreground">
             Vehicle inbound webhook endpoint
           </div>
-          
+
           {config.endpoint_url && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">POST</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  POST
+                </Badge>
                 <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
                   {config.endpoint_url}
                 </code>
                 <Button
-                  variant="ghost" 
+                  variant="ghost"
                   size="sm"
                   onClick={copyEndpoint}
                   className="h-6 w-6 p-0"
@@ -107,7 +115,7 @@ const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                   <Label htmlFor="endpoint_url">Endpoint URL</Label>
                   <Input
                     id="endpoint_url"
-                    value={config.endpoint_url || ''}
+                    value={config.endpoint_url || ""}
                     disabled
                     className="font-mono text-xs"
                   />
@@ -115,13 +123,18 @@ const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                     Auto-generated based on company ID
                   </p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="description">Description</Label>
                   <Input
                     id="description"
-                    value={config.description || ''}
-                    onChange={(e) => setConfig(prev => ({ ...prev, description: e.target.value }))}
+                    value={config.description || ""}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
                     placeholder="Describe this endpoint..."
                   />
                 </div>
@@ -130,7 +143,10 @@ const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                   <Button onClick={handleConfigSave} className="flex-1">
                     Save Configuration
                   </Button>
-                  <Button variant="outline" onClick={() => setIsConfigOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsConfigOpen(false)}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -138,7 +154,7 @@ const EndpointNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
             </DialogContent>
           </Dialog>
         </CardContent>
-        
+
         <Handle
           type="source"
           position={Position.Right}

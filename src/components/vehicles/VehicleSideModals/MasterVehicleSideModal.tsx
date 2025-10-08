@@ -20,14 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Car,
-  X,
-  Wrench,
-  ClipboardList,
-  Calculator,
-  FileText,
-} from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -364,7 +357,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto">
+        <SheetContent
+          onCloseClick={onClose}
+          className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
+        >
           <SheetHeader className="pb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -381,9 +377,6 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                   </SheetDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
             </div>
 
             {/* Action Buttons */}

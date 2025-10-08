@@ -171,7 +171,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
   onSuccess,
   existingQuote,
 }) => {
-  const [currentStep, setCurrentStep] = useState(1); // 1 for quote details, 2 for supplier selection
+  const [currentStep, setCurrentStep] = useState(1); 
   const [quoteAmount, setQuoteAmount] = useState(
     existingQuote?.quote_amount?.toString() || ""
   );
@@ -184,7 +184,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
-  // Get supplier tags for filtering
   const { data: supplierTags } = useQuery({
     queryKey: ["supplier-tags"],
     queryFn: async () => {
@@ -195,7 +194,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
     },
   });
 
-  // Search suppliers
   const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers-search", searchTags, searchText],
     queryFn: async () => {
@@ -203,7 +201,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
         tags: searchTags,
         search: searchText,
       });
-      // Filter out suppliers already in the quote if updating
+
       let filteredSuppliers = response.data?.data || [];
       if (existingQuote) {
         const existingSupplierIds = existingQuote.selected_suppliers.map(
@@ -218,7 +216,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
     enabled: currentStep === 2,
   });
 
-  // Create quote mutation
   const createQuoteMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await workshopServices.createQuote(data);
@@ -303,7 +300,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   };
 
-  // Pagination logic
   const totalPages = Math.ceil((suppliers?.length || 0) / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedSuppliers =
@@ -337,7 +333,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
 
         {currentStep === 1 && (
           <div className="space-y-6">
-            {/* Field Info */}
+
             <div className="bg-muted/50 p-4 rounded-lg">
               <h3 className="font-medium mb-2">Field Details</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -398,7 +394,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
             </div>
 
-            {/* Quote Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="quoteAmount">Expected Estimation *</Label>
@@ -424,7 +419,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-end gap-3">
               <Button
                 type="button"
@@ -447,7 +441,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
 
         {currentStep === 2 && (
           <div className="space-y-6">
-            {/* Quote Summary */}
+
             <div className="bg-muted/50 p-3 rounded-lg">
               <div className="flex justify-between items-center">
                 <div>
@@ -467,7 +461,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
             </div>
 
-            {/* Search and Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -510,7 +503,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
             </div>
 
-            {/* Suppliers Table */}
             <div className="border rounded-lg">
               {suppliersLoading ? (
                 <div className="p-8 text-center">
@@ -573,7 +565,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
                     </TableBody>
                   </Table>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="flex justify-between items-center p-4 border-t">
                       <div className="text-sm text-muted-foreground">
@@ -662,7 +653,6 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex justify-between">
               <Button type="button" variant="outline" onClick={handleBack}>
                 <ChevronLeft className="h-4 w-4 mr-1" />

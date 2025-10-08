@@ -240,10 +240,6 @@ const WorkflowManagement = () => {
     switch (type) {
       case 'vehicle_inbound':
         return 'Vehicle Inbound';
-      case 'vehicle_property_trigger':
-        return 'Property Trigger';
-      case 'email_automation':
-        return 'Email Automation';
       default:
         return type;
     }
@@ -629,8 +625,6 @@ const WorkflowManagement = () => {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="vehicle_inbound">Vehicle Inbound</SelectItem>
-                  <SelectItem value="vehicle_property_trigger">Property Trigger</SelectItem>
-                  <SelectItem value="email_automation">Email Automation</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -9,34 +9,39 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, FileText, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Eye, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { subscriptionServices } from "@/api/services";
-import InvoiceViewModal from "./InvoiceViewModal";
+import InvoiceViewModal from "@/components/subscription/InvoiceViewModal";
 
 const SubscriptionHistoryTable: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 10;
 
-  // Load subscription history with invoices
+  // Load subscription history with pagination
   const {
-    data: subscriptionData,
+    data: subscriptionResponse,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["subscription-history"],
+    queryKey: ["subscription-history", currentPage],
     queryFn: async () => {
       try {
-        const response = await subscriptionServices.getSubscriptionHistory();
-        return response.data.data || [];
+        const response = await subscriptionServices.getSubscriptionHistory(currentPage, limit);
+        return response.data;
       } catch (error) {
         console.error("Failed to fetch subscription history:", error);
         throw error;
       }
     },
   });
+
+  const subscriptionData = subscriptionResponse?.data || [];
+  const pagination = subscriptionResponse?.pagination;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -122,6 +127,18 @@ const SubscriptionHistoryTable: React.FC = () => {
     setShowInvoiceModal(true);
   };
 
+  const handleNextPage = () => {
+    if (pagination?.hasNextPage) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (pagination?.hasPrevPage) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -168,11 +185,10 @@ const SubscriptionHistoryTable: React.FC = () => {
         <CardContent>
           <div className="overflow-x-auto">
             <div className="max-h-[60vh] overflow-y-auto">
-              {" "}
-              {/* 👈 Add this wrapper */}
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>S.No</TableHead>
                     <TableHead>Period</TableHead>
                     <TableHead>Users</TableHead>
                     <TableHead>Modules</TableHead>
@@ -182,8 +198,11 @@ const SubscriptionHistoryTable: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subscriptionData?.map((subscription: any) => (
+                  {subscriptionData?.map((subscription: any, idx: number) => (
                     <TableRow key={subscription._id}>
+                      <TableCell>
+                        {(currentPage - 1) * limit + idx + 1}
+                      </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div className="font-medium">
@@ -251,6 +270,40 @@ const SubscriptionHistoryTable: React.FC = () => {
                 </TableBody>
               </Table>
             </div>
+            
+            {/* Pagination Controls */}
+            {pagination && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * limit + 1} to {Math.min(currentPage * limit, pagination.totalItems)} of {pagination.totalItems} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={!pagination.hasPrevPage}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="text-sm">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={!pagination.hasNextPage}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

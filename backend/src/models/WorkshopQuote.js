@@ -121,6 +121,12 @@ const WorkEntrySchema = new mongoose.Schema({
 });
 
 const WorkshopQuoteSchema = new mongoose.Schema({
+  quote_type: {
+    type: String,
+    enum: ["supplier", "bay", "manual"],
+    required: true,
+    default: "supplier",
+  },
   vehicle_type: {
     type: String,
     enum: ["inspection", "tradein"],
@@ -156,11 +162,43 @@ const WorkshopQuoteSchema = new mongoose.Schema({
   quote_description: {
     type: String,
   },
+  // For supplier quotes
   selected_suppliers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: "Supplier",
   }],
   supplier_responses: [QuoteResponseSchema],
+  approved_supplier: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Supplier",
+  },
+  // For bay quotes
+  bay_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ServiceBay",
+  },
+  bay_user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Bay primary admin acts as supplier
+  },
+  booking_date: {
+    type: Date,
+  },
+  booking_start_time: {
+    type: String, // Format: "HH:mm"
+  },
+  booking_end_time: {
+    type: String, // Format: "HH:mm"
+  },
+  booking_description: String,
+  accepted_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  accepted_at: {
+    type: Date,
+  },
+  rejected_reason: String,
   status: {
     type: String,
     enum: [
@@ -171,12 +209,12 @@ const WorkshopQuoteSchema = new mongoose.Schema({
       "work_review",
       "completed_jobs",
       "rework",
+      "booking_request", // Bay specific
+      "booking_accepted", // Bay specific
+      "booking_rejected", // Bay specific
+      "manual_completion_in_progress", // Manual specific
     ],
     default: "quote_request",
-  },
-  approved_supplier: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Supplier",
   },
   approved_at: {
     type: Date,
@@ -285,9 +323,10 @@ const WorkshopQuoteSchema = new mongoose.Schema({
   },
 });
 
-// Compound index for unique combination
+// Compound index - allow both supplier and bay quotes for same field
 WorkshopQuoteSchema.index(
   {
+    quote_type: 1,
     vehicle_type: 1,
     company_id: 1,
     vehicle_stock_id: 1,

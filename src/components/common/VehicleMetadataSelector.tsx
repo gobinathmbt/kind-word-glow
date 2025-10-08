@@ -44,6 +44,14 @@ interface EditableFields {
   body?: boolean;
 }
 
+interface ValidationErrors {
+  make?: string;
+  model?: string;
+  variant?: string;
+  year?: string;
+  body?: string;
+}
+
 interface VehicleMetadataSelectorProps {
   // Selected values (display names)
   selectedMake?: string;
@@ -58,6 +66,10 @@ interface VehicleMetadataSelectorProps {
   onVariantChange: (displayName: string) => void;
   onYearChange: (displayName: string) => void;
   onBodyChange: (displayName: string) => void;
+
+  // Validation props
+  errors?: ValidationErrors;
+  onErrorsChange?: any;
 
   // Edit mode props
   isEdit?: boolean;
@@ -129,6 +141,8 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
   onVariantChange,
   onYearChange,
   onBodyChange,
+  errors: externalErrors = {},
+  onErrorsChange,
   isEdit = false,
   editableFields = {
     make: true,
@@ -169,10 +183,54 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     body: "",
   });
 
+  // Internal errors state
+  const [internalErrors, setInternalErrors] = useState<ValidationErrors>({});
+  
+  // Use external errors if provided, otherwise use internal
+  const activeErrors = Object.keys(externalErrors).length > 0 ? externalErrors : internalErrors;
+
   // State for AddEntryDialog
   const [showAddEntryDialog, setShowAddEntryDialog] = useState(false);
   const [addingEntry, setAddingEntry] = useState(false);
   const [defaultEntryType, setDefaultEntryType] = useState<string>("");
+
+  // Validation function
+  const validateField = (fieldName: keyof ValidationErrors, value: string | undefined, isRequired: boolean) => {
+    if (isRequired && !value) {
+      const fieldLabels = {
+        make: makeProps.label || "Make",
+        model: modelProps.label || "Model",
+        variant: variantProps.label || "Variant",
+        year: yearProps.label || "Year",
+        body: bodyProps.label || "Body Type",
+      };
+      return `${fieldLabels[fieldName]} is required`;
+    }
+    return "";
+  };
+
+  // Clear error for a field
+  const clearFieldError = (fieldName: keyof ValidationErrors) => {
+    const newErrors = { ...activeErrors };
+    delete newErrors[fieldName];
+    
+    if (onErrorsChange) {
+      onErrorsChange(newErrors);
+    } else {
+      setInternalErrors(newErrors);
+    }
+  };
+
+  // Set error for a field
+  const setFieldError = (fieldName: keyof ValidationErrors, error: string) => {
+    const newErrors = { ...activeErrors, [fieldName]: error };
+    
+    if (onErrorsChange) {
+      onErrorsChange(newErrors);
+    } else {
+      setInternalErrors(newErrors);
+    }
+  };
 
   // Reset dependent fields when parent field changes (only in non-edit mode)
   useEffect(() => {
@@ -491,52 +549,19 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     return options.find(opt => opt.value === value) || null;
   };
 
-  // Auto-select if only one option is available (for create mode)
-  // useEffect(() => {
-  //   if (!isEdit && allMakes?.data?.data?.length === 1 && !selectedMake) {
-  //     const singleMake = allMakes.data.data[0];
-  //     onMakeChange(singleMake.displayName);
-  //   }
-  // }, [allMakes, selectedMake, isEdit, onMakeChange]);
-
-  // useEffect(() => {
-  //   if (!isEdit && allModels?.data?.data?.length === 1 && !selectedModel && selectedMake) {
-  //     const singleModel = allModels.data.data[0];
-  //     onModelChange(singleModel.displayName);
-  //   }
-  // }, [allModels, selectedModel, selectedMake, isEdit, onModelChange]);
-
-  // useEffect(() => {
-  //   if (!isEdit && allVariants?.data?.data?.length === 1 && !selectedVariant && selectedModel) {
-  //     const singleVariant = allVariants.data.data[0];
-  //     onVariantChange(singleVariant.displayName);
-  //   }
-  // }, [allVariants, selectedVariant, selectedModel, isEdit, onVariantChange]);
-
-  // useEffect(() => {
-  //   if (!isEdit && allYears?.data?.data?.length === 1 && !selectedYear && (selectedModel || selectedVariant)) {
-  //     const singleYear = allYears.data.data[0];
-  //     const yearValue = singleYear.year ? singleYear.year.toString() : singleYear.displayName;
-  //     onYearChange(yearValue);
-  //   }
-  // }, [allYears, selectedYear, selectedModel, selectedVariant, isEdit, onYearChange]);
-
-  // useEffect(() => {
-  //   if (!isEdit && allBodies?.data?.data?.length === 1 && !selectedBody) {
-  //     const singleBody = allBodies.data.data[0];
-  //     onBodyChange(singleBody.displayName);
-  //   }
-  // }, [allBodies, selectedBody, isEdit, onBodyChange]);
-
   // Custom styles for react-select to match shadcn/ui
-  const customSelectStyles = {
+  const customSelectStyles = (hasError: boolean) => ({
     control: (base: any, state: any) => ({
       ...base,
       minHeight: '40px',
-      borderColor: state.isFocused ? 'hsl(var(--ring))' : 'hsl(var(--input))',
+      borderColor: hasError 
+        ? 'rgb(239 68 68)' 
+        : state.isFocused 
+        ? 'hsl(var(--ring))' 
+        : 'hsl(var(--input))',
       boxShadow: state.isFocused ? '0 0 0 2px hsl(var(--ring))' : 'none',
       '&:hover': {
-        borderColor: 'hsl(var(--input))',
+        borderColor: hasError ? 'rgb(239 68 68)' : 'hsl(var(--input))',
       },
       backgroundColor: state.isDisabled ? 'hsl(var(--muted))' : 'transparent',
       cursor: state.isDisabled ? 'not-allowed' : 'default',
@@ -566,10 +591,10 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       ...base,
       color: 'hsl(var(--foreground))',
     }),
-  };
+  });
 
   const renderReactSelect = (
-    fieldKey: string,
+    fieldKey: keyof ValidationErrors,
     label: string,
     value: string | undefined,
     onChange: (displayName: string) => void,
@@ -598,13 +623,34 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     // In edit mode, check if field is editable
     // In create mode, always allow clearing
     const isFieldDisabled = disabled || (isEdit && !isEditableField) || (!isEdit && disabledCondition);
-    const isClearable = isEdit ? isEditableField : true; // Always clearable in create mode
+    const isClearable = isEdit ? isEditableField : true;
+
+    const fieldError = activeErrors[fieldKey];
+    const hasError = !!fieldError;
+
+    const handleChange = (option: SelectOption | null) => {
+      const newValue = option ? option.value : "";
+      onChange(newValue);
+      
+      // Clear error when value changes
+      if (fieldError) {
+        clearFieldError(fieldKey);
+      }
+      
+      // Validate if required
+      if (isRequired) {
+        const error = validateField(fieldKey, newValue, isRequired);
+        if (error) {
+          setFieldError(fieldKey, error);
+        }
+      }
+    };
 
     return (
       <div className={`space-y-2 ${fieldClassName} ${layout === 'horizontal' ? 'flex-1 min-w-0' : ''}`}>
         {showLabels && (
           <Label htmlFor={fieldKey} className={isRequired ? "required" : ""}>
-            {finalLabel}{isRequired && " *"}
+            {finalLabel}{isRequired && <span className="text-red-500"> *</span>}
           </Label>
         )}
         <div className="flex items-center gap-2">
@@ -617,21 +663,21 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
               </span>
             </div>
           ) : (
-            <Select
-              id={fieldKey}
-              value={selectedOption}
-              onChange={(option: SelectOption | null) => {
-                onChange(option ? option.value : "");
-              }}
-              options={selectOptions}
-              isClearable={isClearable}
-              isDisabled={isFieldDisabled}
-              placeholder={finalPlaceholder}
-              styles={customSelectStyles}
-              className="w-full react-select-container"
-              classNamePrefix="react-select"
-              noOptionsMessage={() => `No ${label.toLowerCase()} available`}
-            />
+            <div className="w-full">
+              <Select
+                id={fieldKey}
+                value={selectedOption}
+                onChange={handleChange}
+                options={selectOptions}
+                isClearable={isClearable}
+                isDisabled={isFieldDisabled}
+                placeholder={finalPlaceholder}
+                styles={customSelectStyles(hasError)}
+                className="w-full react-select-container"
+                classNamePrefix="react-select"
+                noOptionsMessage={() => `No ${label.toLowerCase()} available`}
+              />
+            </div>
           )}
           {showPlusButton && onPlusClick && (
             <Button
@@ -647,6 +693,9 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
             </Button>
           )}
         </div>
+        {hasError && (
+          <p className="text-sm text-red-500">{fieldError}</p>
+        )}
       </div>
     );
   };
@@ -654,7 +703,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
   // Field configuration mapping
   const fieldConfigs = {
     make: {
-      key: "make",
+      key: "make" as keyof ValidationErrors,
       label: "Make",
       value: selectedMake,
       onChange: (displayName: string) => {
@@ -677,7 +726,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       isEditable: editableFields.make !== false,
     },
     model: {
-      key: "model",
+      key: "model" as keyof ValidationErrors,
       label: "Model",
       value: selectedModel,
       onChange: (displayName: string) => {
@@ -699,7 +748,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       isEditable: editableFields.model !== false,
     },
     variant: {
-      key: "variant",
+      key: "variant" as keyof ValidationErrors,
       label: "Variant",
       value: selectedVariant,
       onChange: onVariantChange,
@@ -715,7 +764,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       isEditable: editableFields.variant !== false,
     },
     year: {
-      key: "year",
+      key: "year" as keyof ValidationErrors,
       label: "Year",
       value: selectedYear,
       onChange: onYearChange,
@@ -731,7 +780,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       isEditable: editableFields.year !== false,
     },
     body: {
-      key: "body",
+      key: "body" as keyof ValidationErrors,
       label: "Body Type",
       value: selectedBody,
       onChange: onBodyChange,
@@ -754,20 +803,24 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       .filter(fieldKey => fieldConfigs[fieldKey].show)
       .map(fieldKey => {
         const config = fieldConfigs[fieldKey];
-        return renderReactSelect(
-          config.key,
-          config.label,
-          config.value,
-          config.onChange,
-          config.options,
-          config.isLoading,
-          config.placeholder,
-          config.disabledCondition,
-          config.error,
-          config.fieldProps,
-          config.showPlusButton,
-          config.onPlusClick,
-          config.isEditable
+        return (
+          <React.Fragment key={config.key}>
+            {renderReactSelect(
+              config.key,
+              config.label,
+              config.value,
+              config.onChange,
+              config.options,
+              config.isLoading,
+              config.placeholder,
+              config.disabledCondition,
+              config.error,
+              config.fieldProps,
+              config.showPlusButton,
+              config.onPlusClick,
+              config.isEditable
+            )}
+          </React.Fragment>
         );
       });
   };

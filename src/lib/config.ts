@@ -1,20 +1,22 @@
 // config.ts
 
-type ServerEnv = "PROD" | "TEST" | "LOCAL";
+type ServerEnv = "PROD" | "TEST" |"DEV" | "LOCAL";
 
 const server: ServerEnv = "LOCAL";
 
 // Frontend URL map
 const FRONTEND_URLS: Record<ServerEnv, string> = {
   PROD: "https://dev.autoerp.io",
-  TEST: "http://dev.autoerp.io",
+  DEV: "http://dev.autoerp.io",
+  TEST: "http://test.autoerp.io",
   LOCAL: "http://localhost:8080",
 };
 
 // Backend URL map
 const BACKEND_URLS: Record<ServerEnv, string> = {
   PROD: "https://dev-backend.autoerp.io",
-  TEST: "https://dev-backend.autoerp.io",
+  DEV: "https://dev-backend.autoerp.io",
+  TEST: "https://test-backend.autoerp.io",
   LOCAL: "http://localhost:5000",
 };
 

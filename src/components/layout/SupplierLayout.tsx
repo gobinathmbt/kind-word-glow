@@ -312,7 +312,7 @@ const SupplierLayout: React.FC<SupplierLayoutProps> = ({
 
           {/* Page Content with Scroll */}
           <main className="flex-1 overflow-y-auto">
-            <div className="p-4 lg:p-6 h-full">
+            <div className=" h-full">
               {children}
             </div>
           </main>

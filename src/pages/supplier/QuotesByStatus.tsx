@@ -5,18 +5,9 @@ import {
   supplierDashboardServices,
   supplierAuthServices,
 } from "@/api/services";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Search,
   Eye,
   Car,
   Building2,
@@ -35,10 +25,15 @@ import {
   DollarSign,
   XCircle,
   MessageSquare,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
 } from "lucide-react";
 import CommentSheetModal from "@/components/workshop/CommentSheetModal";
 import SupplierQuoteDetailsModal from "@/components/supplier/SupplierQuoteDetailsModal";
 import ChatModal from "@/components/workshop/ChatModal";
+import DataTableLayout from "@/components/common/DataTableLayout";
 
 const QuotesByStatus = () => {
   const { status } = useParams();
@@ -47,6 +42,10 @@ const QuotesByStatus = () => {
   const [supplierUser, setSupplierUser] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [paginationEnabled, setPaginationEnabled] = useState(true);
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [commentSheetOpen, setCommentSheetOpen] = useState(false);
   const [workMode, setWorkMode] = useState("");
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
@@ -69,21 +68,103 @@ const QuotesByStatus = () => {
     setSupplierUser(JSON.parse(user));
   }, [navigate]);
 
-  const { data: quotesData, isLoading } = useQuery({
-    queryKey: ["supplier-quotes", status, page, search],
+  // Fetch all quotes when pagination is disabled
+  const fetchAllQuotes = async () => {
+    try {
+      let allData = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await supplierDashboardServices.getQuotesByStatus(
+          status!,
+          {
+            page: currentPage,
+            limit: 100,
+            search,
+          }
+        );
+
+        allData = [...allData, ...response.data.data];
+
+        if (response.data.data.length < 100) {
+          hasMore = false;
+        } else {
+          currentPage++;
+        }
+      }
+
+      return {
+        data: allData,
+        total: allData.length,
+      };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const {
+    data: quotesData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: paginationEnabled
+      ? ["supplier-quotes", status, page, search, rowsPerPage]
+      : ["supplier-quotes-all", status, search],
     queryFn: async () => {
+      if (!paginationEnabled) {
+        return await fetchAllQuotes();
+      }
+
       const response = await supplierDashboardServices.getQuotesByStatus(
         status!,
         {
           page,
-          limit: 20,
+          limit: rowsPerPage,
           search,
         }
       );
       return response.data;
     },
     enabled: !!status && !!supplierUser,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
+
+  const quotes = quotesData?.data || [];
+
+  // Sort quotes when not using pagination
+  const sortedQuotes = React.useMemo(() => {
+    if (!sortField) return quotes;
+
+    return [...quotes].sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      // Handle nested properties
+      if (sortField === "vehicle_name") {
+        aValue = `${a.vehicle?.year} ${a.vehicle?.make} ${a.vehicle?.model}`;
+        bValue = `${b.vehicle?.year} ${b.vehicle?.make} ${b.vehicle?.model}`;
+      } else if (sortField === "company_name") {
+        aValue = a.company_id?.company_name || "";
+        bValue = b.company_id?.company_name || "";
+      } else if (sortField === "created_at") {
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+      }
+
+      if (typeof aValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [quotes, sortField, sortOrder]);
 
   // Start work mutation
   const startWorkMutation = useMutation({
@@ -110,12 +191,14 @@ const QuotesByStatus = () => {
       );
       return response.data;
     },
-    onSuccess: () => {
-      toast.success("Work submitted for review");
+    onSuccess: (data) => {
+      toast.success(data?.message || "Work submitted for review");
       queryClient.invalidateQueries({ queryKey: ["supplier-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["supplier-stats"] });
-      setCommentSheetOpen(false);
-      setSelectedQuote(null);
+      if (data.draft_status === false) {
+        setCommentSheetOpen(false);
+        setSelectedQuote(null);
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to submit work");
@@ -168,14 +251,30 @@ const QuotesByStatus = () => {
     return variants[status] || "outline";
   };
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1" />;
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ArrowDown className="h-3 w-3 ml-1" />
+    );
+  };
+
   const handleStartWork = (quote: any) => {
     startWorkMutation.mutate(quote._id);
   };
 
   const handleMessaging = (quote: any) => {
-    setSelectedField({
-      quote,
-    });
+    setSelectedField({ quote });
     setMessagingModalOpen(true);
   };
 
@@ -204,17 +303,87 @@ const QuotesByStatus = () => {
     setQuoteDetailsOpen(true);
   };
 
-  // Check if supplier has already responded to a quote
   const hasResponded = (quote: any) => {
     return quote.supplier_responses && quote.supplier_responses.length > 0;
   };
 
-  // Check if supplier has marked as not interested
   const isNotInterested = (quote: any) => {
     return quote.supplier_responses.some(
       (response: any) => response.status === "not_interested"
     );
   };
+
+  const handleRowsPerPageChange = (value: string) => {
+    setRowsPerPage(Number(value));
+    setPage(1);
+  };
+
+  const handlePaginationToggle = (checked: boolean) => {
+    setPaginationEnabled(checked);
+    setPage(1);
+    setTimeout(() => {
+      refetch();
+    }, 100);
+  };
+
+  const handleRefresh = () => {
+    refetch();
+    toast.success("Data refreshed");
+  };
+
+  // Calculate stats
+  const totalQuotes = quotesData?.total || 0;
+  const quoteRequestCount = quotes.filter(
+    (q: any) => q.status === "quote_request"
+  ).length;
+  const quoteSentCount = quotes.filter(
+    (q: any) => q.status === "quote_sent"
+  ).length;
+  const approvedCount = quotes.filter(
+    (q: any) => q.status === "quote_approved"
+  ).length;
+
+  const statChips = [
+    {
+      label: "Total",
+      value: totalQuotes,
+      variant: "outline" as const,
+      bgColor: "bg-gray-100",
+    },
+    {
+      label: "Requests",
+      value: quoteRequestCount,
+      variant: "secondary" as const,
+      bgColor: "bg-yellow-100",
+      textColor: "text-yellow-800",
+      hoverColor: "hover:bg-yellow-100",
+    },
+    {
+      label: "Sent",
+      value: quoteSentCount,
+      variant: "outline" as const,
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-800",
+      hoverColor: "hover:bg-blue-100",
+    },
+    {
+      label: "Approved",
+      value: approvedCount,
+      variant: "default" as const,
+      bgColor: "bg-green-100",
+      textColor: "text-green-800",
+      hoverColor: "hover:bg-green-100",
+    },
+  ];
+
+  const actionButtons = [
+    {
+      icon: <Search className="h-4 w-4" />,
+      tooltip: "Search Quotes",
+      onClick: () => {},
+      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+    },
+  ];
 
   const renderActionButtons = (quote: any) => {
     const responded = hasResponded(quote);
@@ -223,16 +392,18 @@ const QuotesByStatus = () => {
     switch (status) {
       case "quote_request":
         return (
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
               onClick={() => handleNotInterested(quote)}
               disabled={notInterestedMutation.isPending || responded}
-              className={`${notInterested ? "bg-gray-100 text-gray-400" : ""} text-xs`}
+              className={`${
+                notInterested ? "bg-gray-100 text-gray-400" : ""
+              } text-xs`}
             >
               <XCircle className="h-3 w-3 mr-1" />
-              {notInterested ? "Not Interested" : "Not Interested"}
+              Not Interested
             </Button>
             <Button
               size="sm"
@@ -242,7 +413,7 @@ const QuotesByStatus = () => {
               className="text-xs"
             >
               <Eye className="h-3 w-3 mr-1" />
-              View Details
+              View
             </Button>
           </div>
         );
@@ -252,16 +423,15 @@ const QuotesByStatus = () => {
             size="sm"
             variant="outline"
             onClick={() => handleViewDetails(quote)}
-            disabled={notInterested}
             className="text-xs"
           >
             <Eye className="h-3 w-3 mr-1" />
-            View Details
+            View
           </Button>
         );
       default:
         return (
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -269,7 +439,7 @@ const QuotesByStatus = () => {
               className="text-xs"
             >
               <Eye className="h-3 w-3 mr-1" />
-              View Details
+              View
             </Button>
             <Button
               size="sm"
@@ -285,89 +455,135 @@ const QuotesByStatus = () => {
     }
   };
 
-  // Mobile Card Component
-  const QuoteCard = ({ quote }: { quote: any }) => {
-    const responded = hasResponded(quote);
-    const notInterested = isNotInterested(quote);
+  const renderTableHeader = () => (
+    <TableRow>
+      <TableHead className="bg-muted/50">S.No</TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("vehicle_name")}
+      >
+        <div className="flex items-center">
+          Vehicle
+          {getSortIcon("vehicle_name")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("field_name")}
+      >
+        <div className="flex items-center">
+          Field
+          {getSortIcon("field_name")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("company_name")}
+      >
+        <div className="flex items-center">
+          Company
+          {getSortIcon("company_name")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("quote_amount")}
+      >
+        <div className="flex items-center">
+          Amount
+          {getSortIcon("quote_amount")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("created_at")}
+      >
+        <div className="flex items-center">
+          Date
+          {getSortIcon("created_at")}
+        </div>
+      </TableHead>
+      <TableHead className="bg-muted/50">Status</TableHead>
+      <TableHead className="bg-muted/50">Actions</TableHead>
+    </TableRow>
+  );
 
-    return (
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <div className="space-y-3">
-            {/* Vehicle Info */}
+  const renderTableBody = () => (
+    <>
+      {sortedQuotes.map((quote: any, index: number) => (
+        <TableRow key={quote._id}>
+          <TableCell>
+            {paginationEnabled
+              ? (page - 1) * rowsPerPage + index + 1
+              : index + 1}
+          </TableCell>
+          <TableCell>
             <div className="flex items-center gap-3">
-              {quote.vehicle?.vehicle_hero_image && (
-                <img
-                  src={quote.vehicle.vehicle_hero_image}
-                  alt="Vehicle"
-                  className="w-16 h-12 object-cover rounded border flex-shrink-0"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">
-                  {quote.vehicle?.name ||
-                    `${quote.vehicle?.year} ${quote.vehicle?.make} ${quote.vehicle?.model}`}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Stock: {quote.vehicle_stock_id}
-                </div>
-              </div>
-            </div>
-
-            {/* Field and Company */}
-            <div className="grid grid-cols-1 gap-2">
-              <div>
-                <div className="text-xs text-muted-foreground">Field</div>
-                <div className="font-medium text-sm">{quote.field_name}</div>
-                <div className="text-xs text-muted-foreground">
-                  ID: {quote.field_id}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-xs text-muted-foreground">Company</div>
-                <div className="flex items-center gap-1">
-                  <Building2 className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-sm">{quote.company_id?.company_name}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Amount and Date */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">${quote.quote_amount}</span>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {new Date(quote.created_at).toLocaleDateString()}
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Badge variant={getStatusBadgeVariant(quote.status)}>
-                  {quote.status.replace("_", " ")}
-                </Badge>
-                {responded && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {notInterested ? "Not Interested" : "Response Submitted"}
-                  </div>
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                {quote.vehicle?.vehicle_hero_image ? (
+                  <img
+                    src={quote.vehicle.vehicle_hero_image}
+                    alt="Vehicle"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Car className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
+              <div>
+                <p className="font-medium">
+                  {quote.vehicle?.name ||
+                    `${quote.vehicle?.year} ${quote.vehicle?.make} ${quote.vehicle?.model}`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Stock: {quote.vehicle_stock_id}
+                </p>
+              </div>
             </div>
-
-            {/* Actions */}
-            <div className="pt-2 border-t">
-              {renderActionButtons(quote)}
+          </TableCell>
+          <TableCell>
+            <div>
+              <p className="font-medium">{quote.field_name}</p>
+              <p className="text-sm text-muted-foreground">
+                ID: {quote.field_id}
+              </p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span>{quote.company_id?.company_name}</span>
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-1">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span>${quote.quote_amount}</span>
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              {new Date(quote.created_at).toLocaleDateString()}
+            </div>
+          </TableCell>
+          <TableCell>
+            <Badge variant={getStatusBadgeVariant(quote.status)}>
+              {quote.status.replace("_", " ")}
+            </Badge>
+            {hasResponded(quote) && (
+              <div className="text-xs text-muted-foreground mt-1">
+                {isNotInterested(quote)
+                  ? "Not Interested"
+                  : "Response Submitted"}
+              </div>
+            )}
+          </TableCell>
+          <TableCell>{renderActionButtons(quote)}</TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
 
   if (!supplierUser) {
     return (
@@ -378,186 +594,31 @@ const QuotesByStatus = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <Card className="flex-1 flex flex-col">
-        <CardHeader className="flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <Badge variant={getStatusBadgeVariant(status!)}>
-                {getStatusTitle(status!)}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                ({quotesData?.total || 0} total)
-              </span>
-            </CardTitle>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search quotes..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex-1 overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : quotesData?.data?.length > 0 ? (
-            <div className="h-full flex flex-col">
-              {/* Desktop Table View */}
-              <div className="hidden md:block flex-1 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Field</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {quotesData.data.map((quote: any) => (
-                      <TableRow key={quote._id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {quote.vehicle?.vehicle_hero_image && (
-                              <img
-                                src={quote.vehicle.vehicle_hero_image}
-                                alt="Vehicle"
-                                className="w-12 h-8 object-cover rounded border"
-                              />
-                            )}
-                            <div>
-                              <div className="font-medium">
-                                {quote.vehicle?.name ||
-                                  `${quote.vehicle?.year} ${quote.vehicle?.make} ${quote.vehicle?.model}`}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Stock: {quote.vehicle_stock_id}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="font-medium">
-                            {quote.field_name}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            ID: {quote.field_id}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span>{quote.company_id?.company_name}</span>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            <span>${quote.quote_amount}</span>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(quote.created_at).toLocaleDateString()}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge
-                            variant={getStatusBadgeVariant(quote.status)}
-                          >
-                            {quote.status.replace("_", " ")}
-                          </Badge>
-                          {hasResponded(quote) && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {isNotInterested(quote)
-                                ? "Not Interested"
-                                : "Response Submitted"}
-                            </div>
-                          )}
-                        </TableCell>
-
-                        <TableCell>{renderActionButtons(quote)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden flex-1 overflow-auto">
-                {quotesData.data.map((quote: any) => (
-                  <QuoteCard key={quote._id} quote={quote} />
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {quotesData.pagination &&
-                quotesData.pagination.total_pages > 1 && (
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 gap-4 pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {(page - 1) * 20 + 1} to{" "}
-                      {Math.min(page * 20, quotesData.total)} of{" "}
-                      {quotesData.total} quotes
-                    </div>
-                    <div className="flex gap-2 justify-center sm:justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => p + 1)}
-                        disabled={page >= quotesData.pagination.total_pages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center py-16">
-                <Car className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No {getStatusTitle(status!).toLowerCase()}
-                </h3>
-                <p className="text-muted-foreground">
-                  {search
-                    ? "No quotes match your search criteria"
-                    : `You don't have any ${getStatusTitle(
-                        status!
-                      ).toLowerCase()} at the moment`}
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <>
+      <DataTableLayout
+        title={getStatusTitle(status!)}
+        data={sortedQuotes}
+        isLoading={isLoading}
+        totalCount={quotesData?.total || 0}
+        statChips={statChips}
+        actionButtons={actionButtons}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        paginationEnabled={paginationEnabled}
+        onPageChange={setPage}
+        onRowsPerPageChange={handleRowsPerPageChange}
+        onPaginationToggle={handlePaginationToggle}
+        sortField={sortField}
+        sortOrder={sortOrder}
+        onSort={handleSort}
+        getSortIcon={getSortIcon}
+        renderTableHeader={renderTableHeader}
+        renderTableBody={renderTableBody}
+        onRefresh={handleRefresh}
+        cookieName={`supplier_quotes_${status}_pagination`}
+        cookieMaxAge={60 * 60 * 24 * 30}
+        disableDashboardLayout={true}
+      />
 
       {/* Modals */}
       <CommentSheetModal
@@ -629,8 +690,8 @@ const QuotesByStatus = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
-export default QuotesByStatus;  
+export default QuotesByStatus;

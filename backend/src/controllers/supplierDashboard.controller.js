@@ -273,6 +273,7 @@ const submitWork = async (req, res) => {
       invoice_pdf_url,
       invoice_pdf_key,
       work_images,
+      save_as_draft,
     } = req.body;
 
     const finalStatus =
@@ -291,23 +292,24 @@ const submitWork = async (req, res) => {
     }
 
     // Calculate total amount if not provided
-    const calculatedTotal = total_amount || (final_price || 0) + (gst_amount || 0);
+    const calculatedTotal =
+      total_amount || (final_price || 0) + (gst_amount || 0);
 
-    // Update quote with comment sheet
-    quote.status = "work_review";
-    quote.work_submitted_at = new Date();
-    
-    // Update comment_sheet with new structure
+    // Update comment sheet
     quote.comment_sheet = {
       work_entries: work_entries || [],
       warranty_months,
       maintenance_recommendations,
-      next_service_due: next_service_due ? new Date(next_service_due) : null,
+      next_service_due: next_service_due
+        ? new Date(next_service_due)
+        : null,
       supplier_comments,
       company_feedback,
       customer_satisfaction,
       technician_company_assigned,
-      work_completion_date: work_completion_date ? new Date(work_completion_date) : null,
+      work_completion_date: work_completion_date
+        ? new Date(work_completion_date)
+        : null,
       total_amount: calculatedTotal,
       quote_difference,
       final_price: final_price || 0,
@@ -319,29 +321,40 @@ const submitWork = async (req, res) => {
       submitted_at: new Date(),
     };
 
+    // Only update status if NOT saving as draft
+    if (!save_as_draft) {
+      quote.status = "work_review";
+      quote.work_submitted_at = new Date();
+    }
+
     await quote.save();
 
-    // Log the event
-    await logEvent({
-      event_type: "workshop_operation",
-      event_action: "work_submitted",
-      event_description: `Supplier submitted work for review on ${quote.field_name}`,
-      user_id: supplierId,
-      company_id: quote.company_id,
-      user_role: "supplier",
-      metadata: {
-        quote_id: quote._id,
-        vehicle_stock_id: quote.vehicle_stock_id,
-        field_id: quote.field_id,
-        final_price,
-        total_amount: calculatedTotal,
-        work_entries_count: work_entries ? work_entries.length : 0,
-      },
-    });
+    // Log only if actual submission (not draft)
+    if (!save_as_draft) {
+      await logEvent({
+        event_type: "workshop_operation",
+        event_action: "work_submitted",
+        event_description: `Supplier submitted work for review on ${quote.field_name}`,
+        user_id: supplierId,
+        company_id: quote.company_id,
+        user_role: "supplier",
+        metadata: {
+          quote_id: quote._id,
+          vehicle_stock_id: quote.vehicle_stock_id,
+          field_id: quote.field_id,
+          final_price,
+          total_amount: calculatedTotal,
+          work_entries_count: work_entries ? work_entries.length : 0,
+        },
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: "Work submitted for review successfully",
+      message: save_as_draft
+        ? "Work draft saved successfully"
+        : "Work submitted for review successfully",
+        draft_status:save_as_draft,
       data: quote,
     });
   } catch (error) {

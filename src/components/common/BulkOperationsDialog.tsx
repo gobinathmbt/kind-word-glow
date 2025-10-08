@@ -45,6 +45,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { dealershipServices, commonVehicleServices } from "@/api/services";
 import { toast } from "sonner";
+import { formatApiNames } from "@/utils/GlobalUtils";
 
 interface BulkOperationsDialogProps {
   isOpen: boolean;
@@ -218,7 +219,7 @@ const BulkOperationsDialog: React.FC<BulkOperationsDialogProps> = ({
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Unknown";
+       return dealership ? formatApiNames(dealership.dealership_name) : "Unknown";
   };
 
   const getStatusColor = (status: string) => {

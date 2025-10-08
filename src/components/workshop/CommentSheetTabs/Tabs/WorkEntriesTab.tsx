@@ -64,7 +64,7 @@ const WorkEntriesTab: React.FC<WorkEntriesTabProps> = ({
       labor_hours: "",
       technician: formData.technician_company_assigned,
       completed: false,
-      entry_date_time: new Date().toISOString().split("T")[0],
+      entry_date_time: "",
       estimated_time: "",
       invoices: [],
       pdfs: [],

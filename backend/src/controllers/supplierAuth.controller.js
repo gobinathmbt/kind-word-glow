@@ -61,6 +61,7 @@ const supplierLogin = async (req, res) => {
           company_id: supplier.company_id._id,
           company_name: supplier.company_id.company_name,
           type: "supplier",
+          role: "supplier",
         },
         token,
       },

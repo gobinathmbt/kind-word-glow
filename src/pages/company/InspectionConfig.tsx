@@ -62,6 +62,7 @@ import { Calculator } from "lucide-react";
 import CalculationSettingsDialog from "@/components/inspection/CalculationSettingsDialog";
 import { useAuth } from "@/auth/AuthContext";
 import DataTableLayout from "@/components/common/DataTableLayout";
+import { formatApiNames } from "@/utils/GlobalUtils";
 
 const InspectionConfig = () => {
   const { completeUser } = useAuth();
@@ -850,7 +851,7 @@ const InspectionConfig = () => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Primary";
+    return dealership ? formatApiNames(dealership.dealership_name) : "Primary";
   };
 
   const handleOpenCalculationSettings = (category: any) => {

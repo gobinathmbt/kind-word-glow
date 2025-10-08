@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, TrendingUp, Shield, FileText, MessageSquare, CheckCircle, RefreshCw, Eye } from "lucide-react";
+import {
+  Wrench,
+  TrendingUp,
+  Shield,
+  FileText,
+  MessageSquare,
+  CheckCircle,
+  RefreshCw,
+  Eye,
+} from "lucide-react";
 import { workshopServices } from "@/api/services";
 import { toast } from "sonner";
 
@@ -30,7 +45,12 @@ interface WorkEntry {
   invoices: Array<{ url: string; key: string; description: string }>;
   pdfs: Array<{ url: string; key: string; description: string }>;
   videos: Array<{ url: string; key: string; description: string }>;
-  warranties: Array<{ part: string; months: string; supplier: string; document?: { url: string; key: string; description: string } }>;
+  warranties: Array<{
+    part: string;
+    months: string;
+    supplier: string;
+    document?: { url: string; key: string; description: string };
+  }>;
   documents: Array<{ url: string; key: string; description: string }>;
   images: Array<{ url: string; key: string; description: string }>;
   persons: Array<{ name: string; role: string; contact: string }>;
@@ -60,8 +80,8 @@ export interface FormData {
 interface CommentSheetModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  quote?: any; // Optional for company_review and company_view modes
-  field?: any; // Required for company_review and company_view modes
+  quote?: any; 
+  field?: any; 
   workMode?: any;
   mode: "supplier_submit" | "company_review" | "company_view";
   onSubmit?: (data: any) => void;
@@ -84,8 +104,8 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [reworkReason, setReworkReason] = useState("");
+  const [isDraftSubmission, setIsDraftSubmission] = useState(false);
 
-  // Fetch quote data for company_review and company_view modes
   const { data: fetchedQuote, isLoading: isFetchingQuote } = useQuery({
     queryKey: [
       "field-work-details",
@@ -102,14 +122,13 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
       );
       return response.data.data;
     },
-    enabled: open && !!field && (mode === "company_review" || mode === "company_view"),
+    enabled:
+      open && !!field && (mode === "company_review" || mode === "company_view"),
   });
 
-  // Use either prop quote or fetched quote
   const quote = mode === "supplier_submit" ? propQuote : fetchedQuote;
   const isLoading = mode === "supplier_submit" ? false : isFetchingQuote;
 
-  // Accept work mutation (for company_review mode)
   const acceptWorkMutation = useMutation({
     mutationFn: async () => {
       const response = await workshopServices.acceptWork(quote._id);
@@ -122,7 +141,6 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
     onError: () => toast.error("Failed to accept work"),
   });
 
-  // Request rework mutation (for company_review mode)
   const requestReworkMutation = useMutation({
     mutationFn: async (reason: string) => {
       const response = await workshopServices.requestRework(quote._id, reason);
@@ -161,8 +179,14 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
         company_feedback: sheet.company_feedback || "",
         customer_satisfaction: sheet.customer_satisfaction || "",
         workMode: sheet.workMode || workMode,
-        technician_company_assigned: sheet.technician_company_assigned || quote?.supplier_responses?.[0]?.supplier_id?.name || "",
-        work_completion_date: sheet.work_completion_date || quote?.supplier_responses?.[0]?.estimated_time || "",
+        technician_company_assigned:
+          sheet.technician_company_assigned ||
+          quote?.supplier_responses?.[0]?.supplier_id?.name ||
+          "",
+        work_completion_date:
+          sheet.work_completion_date ||
+          quote?.supplier_responses?.[0]?.estimated_time ||
+          "",
       });
     }
   }, [quote, workMode]);
@@ -186,7 +210,7 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
     return total - quoteAmount;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, saveAsDraft: boolean = false) => {
     e.preventDefault();
 
     if (mode === "supplier_submit") {
@@ -200,10 +224,16 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
         total_amount: calculateGrandTotal(),
         quote_difference: getQuoteDifference(),
         workMode: workMode,
+        save_as_draft: saveAsDraft,
       };
 
       onSubmit?.(submitData);
     }
+  };
+
+  const handleSaveAsDraft = (e: React.FormEvent) => {
+    setIsDraftSubmission(true);
+    handleSubmit(e, true);
   };
 
   const handleAcceptWork = () => {
@@ -218,13 +248,17 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
     requestReworkMutation.mutate(reworkReason);
   };
 
-  const isReadOnly = mode === "company_view" || (mode === "company_review" && activeTab !== "rework");
+  const isReadOnly =
+    mode === "company_view" ||
+    (mode === "company_review" && activeTab !== "rework");
   const showReworkTab = mode === "company_review";
 
   const getModalTitle = () => {
     switch (mode) {
       case "supplier_submit":
-        return `${workMode === "submit" ? "Submit Work Details" : "Update Work Details"}`;
+        return `${
+          workMode === "submit" ? "Submit Work Details" : "Update Work Details"
+        }`;
       case "company_review":
         return "Review Work Submission";
       case "company_view":
@@ -239,11 +273,15 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
       case "supplier_submit":
         return <Wrench className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
       case "company_review":
-        return <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />;
+        return (
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+        );
       case "company_view":
         return <Eye className="h-5 w-5 text-gray-600 dark:text-gray-400" />;
       default:
-        return <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
+        return (
+          <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        );
     }
   };
 
@@ -283,41 +321,66 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
               {getModalIcon()}
             </div>
             <div>
-              <div className="text-lg font-bold">
-                {getModalTitle()}
-              </div>
+              <div className="text-lg font-bold">{getModalTitle()}</div>
               <div className="text-xs text-muted-foreground font-normal">
-                {quote?.field_name || field?.field_name} • Stock ID: {quote?.vehicle_stock_id || field?.vehicle_stock_id}
+                {quote?.field_name || field?.field_name} • Stock ID:{" "}
+                {quote?.vehicle_stock_id || field?.vehicle_stock_id}
               </div>
             </div>
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className={`grid w-full ${showReworkTab ? 'grid-cols-6' : 'grid-cols-5'} bg-muted/50 p-0.5 rounded-lg mb-3 h-12 flex-shrink-0`}>
-              <TabsTrigger value="summary" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="h-full flex flex-col"
+          >
+            <TabsList
+              className={`grid w-full ${
+                showReworkTab ? "grid-cols-6" : "grid-cols-5"
+              } bg-muted/50 p-0.5 rounded-lg mb-3 h-12 flex-shrink-0`}
+            >
+              <TabsTrigger
+                value="summary"
+                className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+              >
                 <TrendingUp className="h-3 w-3" />
                 <span className="hidden sm:inline">Summary</span>
               </TabsTrigger>
-              <TabsTrigger value="work-entries" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+              <TabsTrigger
+                value="work-entries"
+                className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+              >
                 <Wrench className="h-3 w-3" />
                 <span className="hidden sm:inline">Work</span>
               </TabsTrigger>
-              <TabsTrigger value="quality-warranty" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+              <TabsTrigger
+                value="quality-warranty"
+                className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+              >
                 <Shield className="h-3 w-3" />
                 <span className="hidden sm:inline">Quality</span>
               </TabsTrigger>
-              <TabsTrigger value="documentation" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+              <TabsTrigger
+                value="documentation"
+                className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+              >
                 <FileText className="h-3 w-3" />
                 <span className="hidden sm:inline">Docs</span>
               </TabsTrigger>
-              <TabsTrigger value="comments" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+              <TabsTrigger
+                value="comments"
+                className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+              >
                 <MessageSquare className="h-3 w-3" />
                 <span className="hidden sm:inline">Notes</span>
               </TabsTrigger>
               {showReworkTab && (
-                <TabsTrigger value="rework" className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2">
+                <TabsTrigger
+                  value="rework"
+                  className="flex items-center gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-2"
+                >
                   <RefreshCw className="h-3 w-3" />
                   <span className="hidden sm:inline">Review</span>
                 </TabsTrigger>
@@ -334,7 +397,10 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
                   <WorkEntriesTab {...commonProps} />
                 </TabsContent>
 
-                <TabsContent value="quality-warranty" className="space-y-3 mt-0">
+                <TabsContent
+                  value="quality-warranty"
+                  className="space-y-3 mt-0"
+                >
                   <QualityWarrantyTab {...commonProps} />
                 </TabsContent>
 
@@ -350,7 +416,9 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
                   <TabsContent value="rework" className="space-y-4 mt-0">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Work Review & Actions</CardTitle>
+                        <CardTitle className="text-lg">
+                          Work Review & Actions
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
@@ -364,19 +432,24 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
                             className="min-h-[100px]"
                           />
                         </div>
-                        
+
                         <div className="flex gap-3 pt-4">
                           <Button
                             type="button"
                             onClick={handleRequestRework}
-                            disabled={!reworkReason.trim() || requestReworkMutation.isPending}
+                            disabled={
+                              !reworkReason.trim() ||
+                              requestReworkMutation.isPending
+                            }
                             variant="outline"
                             className="flex-1"
                           >
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            {requestReworkMutation.isPending ? "Requesting..." : "Request Rework"}
+                            {requestReworkMutation.isPending
+                              ? "Requesting..."
+                              : "Request Rework"}
                           </Button>
-                          
+
                           <Button
                             type="button"
                             onClick={handleAcceptWork}
@@ -384,7 +457,9 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
                             className="flex-1 bg-green-600 hover:bg-green-700"
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
-                            {acceptWorkMutation.isPending ? "Accepting..." : "Accept Work"}
+                            {acceptWorkMutation.isPending
+                              ? "Accepting..."
+                              : "Accept Work"}
                           </Button>
                         </div>
                       </CardContent>
@@ -405,7 +480,10 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
               </div>
             )}
             <div className="hidden md:block">
-              Total: <span className="font-bold text-green-600">${calculateGrandTotal().toFixed(2)}</span>
+              Total:{" "}
+              <span className="font-bold text-green-600">
+                ${calculateGrandTotal().toFixed(2)}
+              </span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -419,21 +497,45 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
             </Button>
 
             {mode === "supplier_submit" && (
-              <Button 
-                type="submit" 
-                onClick={handleSubmit}
-                disabled={loading || uploading}
-                className="min-w-[120px] h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                    Processing...
-                  </div>
-                ) : (
-                  `${workMode === "submit" ? "Submit Work" : "Update Work"}`
+              <>
+                {workMode === "submit" && (
+                  <Button
+                    type="button"
+                    onClick={handleSaveAsDraft}
+                    disabled={loading || uploading}
+                    variant="outline"
+                    className="min-w-[120px] h-9 text-sm"
+                  >
+                    {loading && isDraftSubmission ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                        Saving Draft...
+                      </div>
+                    ) : (
+                      "Save as Draft"
+                    )}
+                  </Button>
                 )}
-              </Button>
+
+                <Button
+                  type="submit"
+                  onClick={(e) => {
+                    setIsDraftSubmission(false);
+                    handleSubmit(e, false);
+                  }}
+                  disabled={loading || uploading}
+                  className="min-w-[120px] h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm"
+                >
+                  {loading && !isDraftSubmission ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    `${workMode === "submit" ? "Submit Work" : "Update Work"}`
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </DialogFooter>

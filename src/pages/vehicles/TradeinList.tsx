@@ -28,6 +28,8 @@ import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { MoveHorizontal } from "lucide-react";
 import BulkOperationsDialog from "@/components/common/BulkOperationsDialog";
+import { formatApiNames } from "@/utils/GlobalUtils";
+
 
 const TradeinList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -234,7 +236,9 @@ const TradeinList = () => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Unknown";
+   return dealership
+    ? formatApiNames(dealership.dealership_name)
+    : "Unknown";
   };
 
   const handleRowsPerPageChange = (value: string) => {

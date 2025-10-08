@@ -446,12 +446,12 @@ const toggleServiceBayStatus = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const addBayHoliday = async (req, res) => {
   try {
-    const { date, reason } = req.body;
+    const { date, start_time, end_time, reason } = req.body;
 
-    if (!date) {
+    if (!date || !start_time || !end_time) {
       return res.status(400).json({
         success: false,
-        message: 'Date is required'
+        message: 'Date, start time, and end time are required'
       });
     }
 
@@ -468,27 +468,46 @@ const addBayHoliday = async (req, res) => {
       });
     }
 
-    // Check if holiday already exists for this date
-    const holidayDate = new Date(date);
-    holidayDate.setHours(0, 0, 0, 0);
-    
-    const existingHolidayIndex = bay.bay_holidays.findIndex(h => {
-      const hDate = new Date(h.date);
-      hDate.setHours(0, 0, 0, 0);
-      return hDate.getTime() === holidayDate.getTime();
+    // Create full datetime objects
+    const holidayStart = new Date(date);
+    const [startHours, startMinutes] = start_time.split(':').map(Number);
+    holidayStart.setHours(startHours, startMinutes, 0, 0);
+
+    const holidayEnd = new Date(date);
+    const [endHours, endMinutes] = end_time.split(':').map(Number);
+    holidayEnd.setHours(endHours, endMinutes, 0, 0);
+
+    // Check if holiday overlaps with existing holidays
+    const existingHoliday = bay.bay_holidays.find(h => {
+      const existingStart = new Date(h.date);
+      const [existingStartHours, existingStartMinutes] = h.start_time.split(':').map(Number);
+      existingStart.setHours(existingStartHours, existingStartMinutes, 0, 0);
+
+      const existingEnd = new Date(h.date);
+      const [existingEndHours, existingEndMinutes] = h.end_time.split(':').map(Number);
+      existingEnd.setHours(existingEndHours, existingEndMinutes, 0, 0);
+
+      return (
+        holidayStart < existingEnd &&
+        holidayEnd > existingStart
+      );
     });
 
-    if (existingHolidayIndex !== -1) {
-      bay.bay_holidays[existingHolidayIndex].reason = reason || '';
-      bay.bay_holidays[existingHolidayIndex].marked_by = req.user.id;
-      bay.bay_holidays[existingHolidayIndex].marked_at = new Date();
-    } else {
-      bay.bay_holidays.push({
-        date: holidayDate,
-        reason: reason || '',
-        marked_by: req.user.id
+    if (existingHoliday) {
+      return res.status(400).json({
+        success: false,
+        message: 'Holiday already exists for this time period'
       });
     }
+
+    // Add new holiday
+    bay.bay_holidays.push({
+      date: new Date(date),
+      start_time,
+      end_time,
+      reason: reason || '',
+      marked_by: req.user.id
+    });
 
     await bay.save();
 
@@ -502,6 +521,76 @@ const addBayHoliday = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding holiday'
+    });
+  }
+};
+
+const getHolidays = async (req, res) => {
+  try {
+    const { start_date, end_date, bay_id } = req.query;
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date and end date are required",
+      });
+    }
+
+    const ServiceBay = require("../models/ServiceBay");
+
+    // Build bay filter (same logic as getBayCalendar)
+    let bayFilter = {
+      company_id: req.user.company_id,
+      is_active: true,
+    };
+
+    if (req.user.role === "company_admin") {
+      bayFilter.bay_users = req.user.id;
+    }
+
+    if (bay_id) {
+      bayFilter._id = bay_id;
+    }
+
+    // Get bays accessible by the user
+    const userBays = await ServiceBay.find(bayFilter)
+      .select("_id bay_name bay_holidays")
+      .lean();
+
+    if (userBays.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not assigned to any bays",
+      });
+    }
+
+    // Convert range to Date objects
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+
+    // Filter holidays in date range
+    const holidaysInRange = userBays.map((bay) => {
+      const filteredHolidays = (bay.bay_holidays || []).filter((h) => {
+        const holidayDate = new Date(h.date);
+        return holidayDate >= startDate && holidayDate <= endDate;
+      });
+
+      return {
+        bay_id: bay._id,
+        bay_name: bay.bay_name,
+        holidays: filteredHolidays,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: holidaysInRange,
+    });
+  } catch (error) {
+    console.error("Error fetching holidays:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving bay holidays",
     });
   }
 };
@@ -598,6 +687,7 @@ module.exports = {
   deleteServiceBay,
   toggleServiceBayStatus,
   addBayHoliday,
+  getHolidays,
   removeBayHoliday,
   getBaysDropdown
 };

@@ -13,7 +13,6 @@ const InspectionCalculations: React.FC<InspectionCalculationsProps> = ({
   calculations,
   vehicleType,
 }) => {
-  console.log("Calculations Component Rendered", calculations, config);
 
   let activeCalcs: any[] = [];
 

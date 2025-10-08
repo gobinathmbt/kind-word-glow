@@ -102,6 +102,13 @@ const VehicleSchema = new mongoose.Schema({
     },
   ],
 
+  vehicle_odometer: [
+    {
+      reading: Number,
+      reading_date: Date,
+    },
+  ],
+
   // Vehicle Source - Fixed to be an array as per the original schema
   vehicle_source: [
     {

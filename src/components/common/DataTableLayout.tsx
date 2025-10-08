@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableHeader } from "@/components/ui/table";
+
 import {
   Pagination,
   PaginationContent,
@@ -87,6 +88,7 @@ interface DataTableLayoutProps {
   onRefresh: () => void;
   cookieName?: string;
   cookieMaxAge?: number;
+  disableDashboardLayout?: boolean;
 }
 
 const setCookie = (name: string, value: string, days: number = 30) => {
@@ -140,6 +142,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
   onRefresh,
   cookieName = "pagination_enabled",
   cookieMaxAge = 60 * 60 * 24 * 30,
+  disableDashboardLayout=false,
 }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
@@ -181,7 +184,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
           <PaginationLink
             onClick={() => onPageChange(1)}
             isActive={page === 1}
-            className="cursor-pointer"
+            className={`cursor-pointer ${page === 1 ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
           >
             1
           </PaginationLink>
@@ -207,7 +210,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
             <PaginationLink
               onClick={() => onPageChange(i)}
               isActive={page === i}
-              className="cursor-pointer"
+              className={`cursor-pointer ${page === i ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
             >
               {i}
             </PaginationLink>
@@ -230,7 +233,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
           <PaginationLink
             onClick={() => onPageChange(totalPages)}
             isActive={page === totalPages}
-            className="cursor-pointer"
+            className={`cursor-pointer ${page === totalPages ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
           >
             {totalPages}
           </PaginationLink>
@@ -257,9 +260,9 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
   const primaryButton = actionButtons.length > 0 ? actionButtons[0] : null;
   const secondaryButtons = actionButtons.slice(1);
 
-  return (
-    <DashboardLayout title={title}>
-      <div className="flex flex-col h-full">
+
+   const content = (
+        <div className="flex flex-col h-full">
         {/* Fixed Header - Responsive */}
         <div className="bg-white border-b border-gray-200 p-3 sm:p-4 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
@@ -591,7 +594,19 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                       />
                     </PaginationItem>
 
-                    {getPaginationItems()}
+                    {/* Always show page 1 when there's only one page */}
+                    {totalPages === 1 ? (
+                      <PaginationItem>
+                        <PaginationLink
+                          isActive={true}
+                          className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          1
+                        </PaginationLink>
+                      </PaginationItem>
+                    ) : (
+                      getPaginationItems()
+                    )}
 
                     <PaginationItem>
                       <PaginationNext
@@ -640,6 +655,14 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
           </div>
         </div>
       </div>
+   )
+
+  if (disableDashboardLayout) {
+    return content;
+  }
+  return (
+     <DashboardLayout title={title}>
+      {content}
     </DashboardLayout>
   );
 };

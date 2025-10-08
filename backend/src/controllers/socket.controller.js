@@ -35,6 +35,8 @@ const {
   getConnectedNotificationUsers
 } = require("../handlers/notification.handler");
 
+
+
 let mainIO;
 let chatIO;
 let metaIO;
@@ -75,6 +77,7 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace
   notificationIO = mainIO.of("/notifications");
 
+
   console.log(
     `Multi-namespace Socket.io server initialized with CORS origin: ${
       Env_Configuration.FRONTEND_URL || "http://localhost:8080"
@@ -102,7 +105,8 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace handlers
   initializeNotificationHandlers(notificationIO);
 
-  return { mainIO, chatIO, metaIO, notificationIO };
+
+  return { mainIO, chatIO, metaIO, notificationIO, };
 };
 
 // Getter functions for socket instances
@@ -133,6 +137,8 @@ const getNotificationSocketIO = () => {
   }
   return notificationIO;
 };
+
+
 
 // Legacy support
 const getIO = () => {

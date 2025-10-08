@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Calculator, User, Calendar } from "lucide-react";
 import { FormData } from "../../CommentSheetModal";
-import DateTimePicker from "../DateTimePicker";
+import DateTimePicker from "@/components/workshop/CommentSheetTabs/DateTimePicker";
 
 interface ProgressSummaryTabProps {
   formData: FormData;

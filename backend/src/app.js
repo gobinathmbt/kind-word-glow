@@ -45,7 +45,7 @@ const notificationConfigRoutes = require("./routes/notificationConfig.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const integrationRoutes = require("./routes/integration.routes");
 const serviceBayRoutes = require("./routes/serviceBay.routes");
-
+// Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
 const notificationMiddleware = require("./middleware/notificationMiddleware");
@@ -158,7 +158,7 @@ app.use("/api/notification-config", notificationConfigRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/service-bay", serviceBayRoutes);
-
+// Bay booking now handled through /api/workshop/bay-quote routes
 
 app.get("/api/health", async (req, res) => {
   try {

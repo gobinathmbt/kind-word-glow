@@ -25,7 +25,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import DraggableWorkshopSectionsList from "./DraggableWorkshopSectionsList";
+import DraggableWorkshopSectionsList from "@/components/workshop/DraggableWorkshopSectionsList";
 
 interface SortableCategoryProps {
   category: any;
@@ -74,6 +74,7 @@ function SortableCategory({
 
   return (
     <div ref={setNodeRef} style={style}>
+      {category.sections && category.sections.length > 0 && (
       <Card className="shadow-md">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -133,6 +134,7 @@ function SortableCategory({
           </Collapsible>
         )}
       </Card>
+         )}
     </div>
   );
 }

@@ -58,6 +58,9 @@ const CreateVehicleInspectModal = ({
   const [s3Config, setS3Config] = useState<S3Config | null>(null);
   const [s3Uploader, setS3Uploader] = useState<S3Uploader | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [metadataErrors, setMetadataErrors] = useState<Record<string, string>>(
+    {}
+  );
 
   const { completeUser } = useAuth();
 
@@ -217,7 +220,11 @@ const CreateVehicleInspectModal = ({
 
     // Clear error when field is filled
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 
@@ -246,22 +253,31 @@ const CreateVehicleInspectModal = ({
     if (!formData.status) newErrors.status = "Status is required";
     if (!formData.purchase_type)
       newErrors.purchase_type = "Purchase type is required";
-    if (!selectedMake) newErrors.make = "Make is required";
-    if (!selectedModel) newErrors.model = "Model is required";
-    if (!selectedYear) newErrors.year = "Year is required";
     if (!formData.vin) newErrors.vin = "VIN is required";
     if (!formData.plate_no)
       newErrors.plate_no = "Registration number is required";
 
+    // Validate metadata fields
+    const newMetadataErrors: Record<string, string> = {};
+    if (!selectedMake) newMetadataErrors.make = "Make is required";
+    if (!selectedModel) newMetadataErrors.model = "Model is required";
+    if (!selectedYear) newMetadataErrors.year = "Year is required";
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setMetadataErrors(newMetadataErrors);
+
+    return (
+      Object.keys(newErrors).length === 0 &&
+      Object.keys(newMetadataErrors).length === 0
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) {
-      toast.error("Please fill in all required fields");
+      toast.error("Please fill in all required fields", {
+        position: "top-right",
+      });
       return;
     }
 
@@ -322,6 +338,7 @@ const CreateVehicleInspectModal = ({
       setHeroImage(null);
       setHeroImagePreview("");
       setErrors({});
+      setMetadataErrors({});
     } catch (error: any) {
       console.error("Create vehicle stock error:", error);
       const errorMessage =
@@ -454,6 +471,8 @@ const CreateVehicleInspectModal = ({
               onVariantChange={setSelectedVariant}
               onYearChange={setSelectedYear}
               onBodyChange={setSelectedBody}
+              errors={metadataErrors}
+              onErrorsChange={setMetadataErrors}
               layout="stacked"
               showLabels={true}
               makeProps={{
@@ -473,19 +492,12 @@ const CreateVehicleInspectModal = ({
                 placeholder: "Select body style (optional)",
               }}
             />
-            {(errors.make || errors.model || errors.year) && (
-              <div className="text-red-500 text-sm">
-                {errors.make && <p>{errors.make}</p>}
-                {errors.model && <p>{errors.model}</p>}
-                {errors.year && <p>{errors.year}</p>}
-              </div>
-            )}
           </div>
 
           {/* Status - Fourth Field */}
           <div className="space-y-2">
             <Label htmlFor="status" className="required">
-              Status
+              Status <span className="text-red-500">*</span>
             </Label>
             <Select
               value={formData.status}
@@ -515,7 +527,7 @@ const CreateVehicleInspectModal = ({
           {/* Purchase Type - Fifth Field */}
           <div className="space-y-2">
             <Label htmlFor="purchase_type" className="required">
-              Purchase Type
+              Purchase Type <span className="text-red-500">*</span>
             </Label>
             <Select
               value={formData.purchase_type}
@@ -552,7 +564,7 @@ const CreateVehicleInspectModal = ({
           {/* VIN - Sixth Field */}
           <div className="space-y-2">
             <Label htmlFor="vin" className="required">
-              VIN *
+              VIN<span className="text-red-500">*</span>
             </Label>
             <Input
               id="vin"
@@ -567,7 +579,7 @@ const CreateVehicleInspectModal = ({
           {/* Registration No - Seventh Field */}
           <div className="space-y-2">
             <Label htmlFor="plate_no" className="required">
-              Registration No *
+              Registration No <span className="text-red-500">*</span>
             </Label>
             <Input
               id="plate_no"

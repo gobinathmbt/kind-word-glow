@@ -25,6 +25,14 @@ const BayHolidaySchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  start_time: {
+    type: String,
+    required: true
+  },
+  end_time: {
+    type: String,
+    required: true
+  },
   reason: {
     type: String,
     default: ''

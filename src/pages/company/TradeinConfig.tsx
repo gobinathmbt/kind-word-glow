@@ -55,6 +55,7 @@ import { Calculator } from "lucide-react";
 import CalculationSettingsDialog from "@/components/inspection/CalculationSettingsDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
+import { formatApiNames } from "@/utils/GlobalUtils";
 
 const TradeinConfig = () => {
   const [selectedConfig, setSelectedConfig] = useState<any>(null);
@@ -330,7 +331,7 @@ const TradeinConfig = () => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Primary";
+    return dealership ? formatApiNames(dealership.dealership_name)  : "Primary";
   };
 
   const getSortIcon = (field: any) => {

@@ -37,6 +37,8 @@ import {
   Tag,
   DollarSign,
   Plug,
+  HardHat,
+  CalendarCheck,
 } from "lucide-react";
 import { authServices, subscriptionServices } from "@/api/services";
 import { Badge } from "../ui/badge";
@@ -252,7 +254,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           path: "/company/users",
           module: "vehicle_user",
         },
-          {
+        {
           icon: Wrench,
           label: "Service Bay",
           path: "/company/service-bays",
@@ -386,6 +388,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         path: "/vehicles/tradein",
         module: "vehicle_tradein",
       },
+
+           {
+          icon: HardHat,
+          label: "Worker Bay",
+          module: "vehicle_bay",
+          children: [
+            { icon: CalendarCheck, label: "Bay Calendar",   path: "/company/bay-calendar", },
+          ],
+        },
+
     ];
   };
 

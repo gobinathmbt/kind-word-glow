@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
+import { formatApiNames } from "@/utils/GlobalUtils";
 
 const Workshop = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -173,7 +174,7 @@ const Workshop = () => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? dealership.dealership_name : "Unknown";
+    return dealership ? formatApiNames(dealership.dealership_name)  : "Unknown";
   };
 
   const handleClearFilters = () => {

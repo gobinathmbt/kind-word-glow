@@ -1,4 +1,4 @@
-// chat.handler.js - Chat namespace socket handlers
+// chat.handler.js - Chat namespace socket handlers with Bay Quote Support
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Supplier = require("../models/Supplier");
@@ -9,34 +9,36 @@ const Env_Configuration = require("../config/env");
 const connectedUsers = new Map();
 
 // Helper function to get or create conversation
-const getOrCreateConversation = async (quoteId, companyId, supplierId) => {
+// Helper function to get or create conversation
+const getOrCreateConversation = async (quoteId, companyId, supplierId, isBayQuote = false, bayUserId = null) => {
   try {
-    // Check if conversation already exists
+    // Check if conversation already exists - FIRST try to find it
     let conversation = await Conversation.findOne({
       quote_id: quoteId,
       company_id: companyId,
       supplier_id: supplierId,
     })
       .populate("company_id", "company_name")
-      .populate("supplier_id", "name supplier_shop_name");
+      .populate("supplier_id", "name supplier_shop_name username first_name last_name");
 
     if (conversation) {
       return conversation;
     }
 
-    // Get quote details for metadata
+    // If not found, try to create with error handling for duplicates
     const quote = await WorkshopQuote.findById(quoteId)
       .populate("vehicle")
-      .populate("company_id");
+      .populate("company_id")
+      .populate("bay_user_id", "username first_name last_name email");
 
-    // Create new conversation
-    conversation = new Conversation({
+    const conversationData = {
       quote_id: quoteId,
       company_id: companyId,
       supplier_id: supplierId,
       metadata: {
         vehicle_stock_id: quote.vehicle_stock_id,
         field_name: quote.field_name,
+        quote_type: quote.quote_type,
         vehicle_info: quote.vehicle
           ? {
               make: quote.vehicle.make,
@@ -47,16 +49,42 @@ const getOrCreateConversation = async (quoteId, companyId, supplierId) => {
             }
           : {},
       },
-    });
+    };
 
-    await conversation.save();
+    // Add bay-specific metadata if it's a bay quote
+    if (isBayQuote && bayUserId) {
+      conversationData.metadata.is_bay_quote = true;
+      conversationData.metadata.bay_user_id = bayUserId;
+    }
 
-    // Update WorkshopQuote with conversation reference
-    await WorkshopQuote.findByIdAndUpdate(quoteId, {
-      conversation_id: conversation._id,
-    });
-
-    return conversation;
+    try {
+      conversation = new Conversation(conversationData);
+      await conversation.save();
+      
+      // Update WorkshopQuote with conversation reference
+      await WorkshopQuote.findByIdAndUpdate(quoteId, {
+        conversation_id: conversation._id,
+      });
+      
+      return conversation;
+    } catch (createError) {
+      // If duplicate key error, try to find the conversation again
+      if (createError.code === 11000 || createError.message.includes('duplicate key')) {
+        console.log('Duplicate conversation detected, retrying find...');
+        conversation = await Conversation.findOne({
+          quote_id: quoteId,
+          company_id: companyId,
+          supplier_id: supplierId,
+        })
+          .populate("company_id", "company_name")
+          .populate("supplier_id", "name supplier_shop_name username first_name last_name");
+        
+        if (conversation) {
+          return conversation;
+        }
+      }
+      throw createError;
+    }
   } catch (error) {
     throw new Error(`Failed to get or create conversation: ${error.message}`);
   }
@@ -98,7 +126,7 @@ const emitChatUserStatus = (user, isOnline, chatIO) => {
     namespace: "chat",
   };
 
-  if (user.type === "company") {
+  if (user.type === "company" || user.type === "bay_user") {
     chatIO
       .to(`chat_company_${user.company_id}`)
       .emit("user_status_change", statusData);
@@ -135,9 +163,14 @@ const chatAuthMiddleware = async (socket, next) => {
       if (!user) {
         return next(new Error("User not found"));
       }
+      
+      // Determine if this is a bay user (company_admin) or regular company user
+      const userType = decoded.role === "company_admin" ? "bay_user" : "company";
+      
       socket.user = {
         ...user.toObject(),
-        type: "company",
+        type: userType,
+        original_role: decoded.role,
         _id: user._id.toString(),
         company_id: user.company_id.toString(),
       };
@@ -158,6 +191,29 @@ const chatAuthMiddleware = async (socket, next) => {
     console.error("Chat socket authentication error:", error);
     next(new Error("Authentication error: Invalid token"));
   }
+};
+
+// Helper function to validate bay quote access
+const validateBayQuoteAccess = async (quote, userId, userType) => {
+  if (quote.quote_type !== "bay") {
+    return { allowed: true };
+  }
+
+  // For bay quotes, only the bay_user_id (company_admin) and company_super_admin can chat
+  if (userType === "bay_user") {
+    // Check if this bay user is assigned to this quote
+    if (quote.bay_user_id && quote.bay_user_id.toString() === userId) {
+      return { allowed: true, isBayUser: true };
+    }
+    return { allowed: false, message: "You are not assigned to this bay quote" };
+  }
+
+  if (userType === "company") {
+    // Company super admin can always chat
+    return { allowed: true, isBayUser: false };
+  }
+
+  return { allowed: false, message: "Access denied for this quote type" };
 };
 
 // Initialize Chat namespace handlers
@@ -184,7 +240,7 @@ const initializeChatHandlers = (chatIO) => {
     socket.join(userRoom);
 
     // Join user to company/supplier room for notifications
-    if (socket.user.type === "company") {
+    if (socket.user.type === "company" || socket.user.type === "bay_user") {
       socket.join(`chat_company_${socket.user.company_id}`);
     } else {
       socket.join(`chat_supplier_${socket.user._id}`);
@@ -197,6 +253,7 @@ const initializeChatHandlers = (chatIO) => {
         id: socket.user._id,
         name: socket.user.username || socket.user.name,
         type: socket.user.type,
+        original_role: socket.user.original_role,
       },
       namespace: "chat",
     });
@@ -209,31 +266,58 @@ const initializeChatHandlers = (chatIO) => {
       try {
         const { quote_id } = data;
 
-        let companyId, supplierId;
+        // Get quote to determine type
+        const quote = await WorkshopQuote.findById(quote_id);
+        if (!quote) {
+          socket.emit("error", { message: "Quote not found" });
+          return;
+        }
 
-        if (socket.user.type === "company") {
-          companyId = socket.user.company_id;
-          supplierId = data.supplier_id;
+        let companyId, supplierId, isBayQuote = false, bayUserId = null;
+
+        if (quote.quote_type === "bay") {
+          isBayQuote = true;
+          companyId = quote.company_id;
+          
+          // For bay quotes, the bay_user_id acts as the supplier
+          supplierId = quote.bay_user_id;
+          bayUserId = quote.bay_user_id;
+
+          // Validate access
+          const access = await validateBayQuoteAccess(quote, socket.user._id, socket.user.type);
+          if (!access.allowed) {
+            socket.emit("error", { message: access.message });
+            return;
+          }
         } else {
-          companyId = data.company_id;
-          supplierId = socket.user._id;
+          // Regular supplier quote
+          if (socket.user.type === "company") {
+            companyId = socket.user.company_id;
+            supplierId = data.supplier_id;
+          } else {
+            companyId = data.company_id;
+            supplierId = socket.user._id;
+          }
         }
 
         const conversation = await getOrCreateConversation(
           quote_id,
           companyId,
-          supplierId
+          supplierId,
+          isBayQuote,
+          bayUserId
         );
 
         // Populate messages
         await conversation.populate(
           "messages.sender_id",
-          "name email supplier_shop_name"
+          "name email supplier_shop_name username first_name last_name"
         );
 
         socket.emit("conversation_data", {
           conversation: conversation.toObject(),
           quote_id,
+          is_bay_quote: isBayQuote,
         });
       } catch (error) {
         console.error("Get conversation error:", error);
@@ -251,15 +335,41 @@ const initializeChatHandlers = (chatIO) => {
           supplier_id,
           company_id
         );
-        let companyId =
-          socket.user.type === "company" ? socket.user.company_id : company_id;
-        let supplierId =
-          socket.user.type === "supplier" ? socket.user._id : supplier_id;
+
+        // Get quote to determine type
+        const quote = await WorkshopQuote.findById(quote_id);
+        if (!quote) {
+          socket.emit("error", { message: "Quote not found" });
+          return;
+        }
+
+        let companyId, supplierId, isBayQuote = false, bayUserId = null;
+
+        if (quote.quote_type === "bay") {
+          isBayQuote = true;
+          companyId = quote.company_id;
+          supplierId = quote.bay_user_id;
+          bayUserId = quote.bay_user_id;
+
+          // Validate access
+          const access = await validateBayQuoteAccess(quote, socket.user._id, socket.user.type);
+          if (!access.allowed) {
+            socket.emit("error", { message: access.message });
+            return;
+          }
+        } else {
+          companyId =
+            socket.user.type === "company" ? socket.user.company_id : company_id;
+          supplierId =
+            socket.user.type === "supplier" ? socket.user._id : supplier_id;
+        }
 
         const conversation = await getOrCreateConversation(
           quote_id,
           companyId,
-          supplierId
+          supplierId,
+          isBayQuote,
+          bayUserId
         );
 
         if (conversation) {
@@ -269,7 +379,7 @@ const initializeChatHandlers = (chatIO) => {
           // Mark messages as read
           await markMessagesAsRead(
             conversation._id,
-            socket.user.type,
+            socket.user.type === "bay_user" ? "supplier" : socket.user.type,
             socket.user._id
           );
 
@@ -284,12 +394,13 @@ const initializeChatHandlers = (chatIO) => {
           // Populate messages before sending
           await conversation.populate(
             "messages.sender_id",
-            "name email supplier_shop_name"
+            "name email supplier_shop_name username first_name last_name"
           );
 
           socket.emit("joined_conversation", {
             quote_id,
             conversation: conversation.toObject(),
+            is_bay_quote: isBayQuote,
           });
 
           console.log(
@@ -330,6 +441,22 @@ const initializeChatHandlers = (chatIO) => {
           return;
         }
 
+        // Get quote to validate access
+        const quote = await WorkshopQuote.findById(quote_id);
+        if (!quote) {
+          socket.emit("error", { message: "Quote not found" });
+          return;
+        }
+
+        // Validate bay quote access
+        if (quote.quote_type === "bay") {
+          const access = await validateBayQuoteAccess(quote, socket.user._id, socket.user.type);
+          if (!access.allowed) {
+            socket.emit("error", { message: access.message });
+            return;
+          }
+        }
+
         const conversation = await Conversation.findOne({
           quote_id,
           $or: [
@@ -350,11 +477,18 @@ const initializeChatHandlers = (chatIO) => {
         let fileType = file_data ? file_data.type : null;
         let fileName = file_data ? file_data.name : null;
 
+        // Determine sender type for bay quotes
+        let senderType = socket.user.type;
+        if (quote.quote_type === "bay" && socket.user.type === "bay_user") {
+          senderType = "supplier"; // Bay user acts as supplier in conversation
+        }
+
         // Create new message
         const newMessage = {
           sender_id: socket.user._id,
-          sender_type: socket.user.type,
-          sender_name: socket.user.username || socket.user.name,
+          sender_type: senderType,
+          sender_name: socket.user.username || socket.user.name || 
+                      `${socket.user.first_name || ""} ${socket.user.last_name || ""}`.trim(),
           message_type,
           content: content || fileName || "",
           file_url: fileUrl,
@@ -369,8 +503,8 @@ const initializeChatHandlers = (chatIO) => {
         // Add message to conversation
         conversation.messages.push(newMessage);
 
-        // Update unread counts
-        if (socket.user.type === "company") {
+        // Update unread counts based on sender type
+        if (senderType === "company") {
           conversation.unread_count_supplier += 1;
         } else {
           conversation.unread_count_company += 1;
@@ -396,12 +530,12 @@ const initializeChatHandlers = (chatIO) => {
 
         // Notify the other party
         const targetUserId =
-          socket.user.type === "company"
+          senderType === "company"
             ? `supplier_${conversation.supplier_id}`
             : `company_${conversation.company_id._id}`;
 
         const targetRoom =
-          socket.user.type === "company"
+          senderType === "company"
             ? `supplier_${conversation.supplier_id}`
             : `company_${conversation.company_id._id}`;
 
@@ -411,10 +545,10 @@ const initializeChatHandlers = (chatIO) => {
           last_message: savedMessage.content,
           last_message_at: savedMessage.created_at,
           unread_count:
-            socket.user.type === "company"
+            senderType === "company"
               ? conversation.unread_count_supplier
               : conversation.unread_count_company,
-          sender_type: socket.user.type,
+          sender_type: senderType,
         });
 
         // Send push notification
@@ -469,13 +603,15 @@ const initializeChatHandlers = (chatIO) => {
         });
 
         if (conversation) {
+          const userType = socket.user.type === "bay_user" ? "supplier" : socket.user.type;
+          
           await markMessagesAsRead(
             conversation._id,
-            socket.user.type,
+            userType,
             socket.user._id
           );
 
-          if (socket.user.type === "company") {
+          if (userType === "company") {
             conversation.unread_count_company = 0;
           } else {
             conversation.unread_count_supplier = 0;
@@ -487,7 +623,7 @@ const initializeChatHandlers = (chatIO) => {
           // Emit to other users in conversation
           socket.to(`conversation_${quote_id}`).emit("messages_marked_read", {
             quote_id,
-            marked_by: socket.user.type,
+            marked_by: userType,
             marked_by_id: socket.user._id,
           });
         }
