@@ -28,6 +28,7 @@ import { companyServices } from '@/api/services';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import CurrencyManagementDialog from '@/components/cost-config/CurrencyManagementDialog';
+import CostSetterDialog from '@/components/cost-config/CostSetterDialog';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
@@ -103,6 +104,7 @@ const CostConfiguration = () => {
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCurrencyDialogOpen, setIsCurrencyDialogOpen] = useState(false);
+  const [isCostSetterDialogOpen, setIsCostSetterDialogOpen] = useState(false);
   const [editingCostType, setEditingCostType] = useState<CostType | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Unassigned']));
   const [dropdownData, setDropdownData] = useState<any>({});
@@ -331,6 +333,13 @@ const CostConfiguration = () => {
                 >
                   <DollarSign className="h-4 w-4 mr-2" />
                   Manage Currencies
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCostSetterDialogOpen(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Cost Setter
                 </Button>
                 <Button onClick={() => {
                   resetForm();
@@ -590,6 +599,12 @@ const CostConfiguration = () => {
       <CurrencyManagementDialog
         open={isCurrencyDialogOpen}
         onOpenChange={setIsCurrencyDialogOpen}
+      />
+
+      {/* Cost Setter Dialog */}
+      <CostSetterDialog
+        open={isCostSetterDialogOpen}
+        onOpenChange={setIsCostSetterDialogOpen}
       />
     </DashboardLayout>
   );

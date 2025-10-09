@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
-const CurrencySchema = new mongoose.Schema({
-  company_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company',
-    required: true
-  },
+const CurrencyItemSchema = new mongoose.Schema({
   currency_name: {
     type: String,
     required: true,
@@ -41,6 +36,24 @@ const CurrencySchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  created_at: {
+    type: Date,
+    default: Date.now
+  },
+  updated_at: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const CurrencySchema = new mongoose.Schema({
+  company_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+    unique: true
+  },
+  currencies: [CurrencyItemSchema],
   created_by: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -64,7 +77,5 @@ CurrencySchema.pre('save', function(next) {
 
 // Index for efficient queries
 CurrencySchema.index({ company_id: 1 });
-CurrencySchema.index({ currency_code: 1, company_id: 1 });
-CurrencySchema.index({ is_active: 1 });
 
 module.exports = mongoose.model('Currency', CurrencySchema);

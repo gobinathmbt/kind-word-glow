@@ -532,6 +532,16 @@ export const companyServices = {
   
   reorderCostTypes: (data: any) =>
     apiClient.put("/api/company/cost-configuration/cost-types/reorder", data),
+
+  // Cost Setter Services
+  getCostSetter: () =>
+    apiClient.get("/api/company/cost-setter"),
+  
+  updateCostSetter: (data: any) =>
+    apiClient.put("/api/company/cost-setter", data),
+  
+  deleteCostSetter: (vehiclePurchaseType: string) =>
+    apiClient.delete(`/api/company/cost-setter/${vehiclePurchaseType}`),
 };
 
 // Dealership Services

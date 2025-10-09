@@ -41,6 +41,25 @@ const CostTypeSchema = new mongoose.Schema({
   }
 });
 
+const CostSetterSchema = new mongoose.Schema({
+  vehicle_purchase_type: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  enabled_cost_types: [{
+    type: mongoose.Schema.Types.ObjectId
+  }],
+  created_at: {
+    type: Date,
+    default: Date.now
+  },
+  updated_at: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const CostConfigurationSchema = new mongoose.Schema({
   company_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -49,6 +68,7 @@ const CostConfigurationSchema = new mongoose.Schema({
     unique: true
   },
   cost_types: [CostTypeSchema],
+  cost_setter: [CostSetterSchema],
   created_by: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

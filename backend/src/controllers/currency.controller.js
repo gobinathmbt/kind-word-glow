@@ -6,39 +6,45 @@ const { logEvent } = require('./logs.controller');
 // @access  Private (Company Super Admin)
 const getCurrencies = async (req, res) => {
   try {
-    const { page = 1, limit = 100, search, status } = req.query;
+    const { search } = req.query;
     
-    const query = { company_id: req.user.company_id };
+    let currencyDoc = await Currency.findOne({ 
+      company_id: req.user.company_id 
+    });
     
+    if (!currencyDoc) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 100,
+          total_records: 0,
+          total_pages: 0
+        }
+      });
+    }
+    
+    let currencies = currencyDoc.currencies || [];
+    
+    // Apply search filter
     if (search) {
-      query.$or = [
-        { currency_name: { $regex: search, $options: 'i' } },
-        { currency_code: { $regex: search, $options: 'i' } },
-        { country: { $regex: search, $options: 'i' } }
-      ];
+      const searchLower = search.toLowerCase();
+      currencies = currencies.filter((currency) => 
+        currency.currency_name?.toLowerCase().includes(searchLower) ||
+        currency.currency_code?.toLowerCase().includes(searchLower) ||
+        currency.country?.toLowerCase().includes(searchLower)
+      );
     }
-    
-    if (status && status !== 'all') {
-      query.is_active = status === 'active';
-    }
-    
-    const skip = (page - 1) * limit;
-    
-    const currencies = await Currency.find(query)
-      .sort({ created_at: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-    
-    const total = await Currency.countDocuments(query);
     
     res.status(200).json({
       success: true,
       data: currencies,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total_records: total,
-        total_pages: Math.ceil(total / limit)
+        page: 1,
+        limit: 100,
+        total_records: currencies.length,
+        total_pages: 1
       }
     });
   } catch (error) {
@@ -55,10 +61,18 @@ const getCurrencies = async (req, res) => {
 // @access  Private (Company Super Admin)
 const getCurrency = async (req, res) => {
   try {
-    const currency = await Currency.findOne({
-      _id: req.params.id,
+    const currencyDoc = await Currency.findOne({
       company_id: req.user.company_id
     });
+    
+    if (!currencyDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Currency document not found'
+      });
+    }
+    
+    const currency = currencyDoc.currencies.id(req.params.id);
     
     if (!currency) {
       return res.status(404).json({
@@ -87,11 +101,23 @@ const createCurrency = async (req, res) => {
   try {
     const { currency_name, currency_code, symbol, country, exchange_rate, symbol_position } = req.body;
     
-    // Check if currency code already exists for this company
-    const existingCurrency = await Currency.findOne({
-      company_id: req.user.company_id,
-      currency_code: currency_code.toUpperCase()
+    let currencyDoc = await Currency.findOne({
+      company_id: req.user.company_id
     });
+    
+    if (!currencyDoc) {
+      // Create new currency document for company
+      currencyDoc = await Currency.create({
+        company_id: req.user.company_id,
+        currencies: [],
+        created_by: req.user.id
+      });
+    }
+    
+    // Check if currency code already exists
+    const existingCurrency = currencyDoc.currencies.find(
+      (c) => c.currency_code === currency_code.toUpperCase()
+    );
     
     if (existingCurrency) {
       return res.status(400).json({
@@ -100,22 +126,25 @@ const createCurrency = async (req, res) => {
       });
     }
     
-    const currency = await Currency.create({
-      company_id: req.user.company_id,
+    const newCurrency = {
       currency_name,
       currency_code: currency_code.toUpperCase(),
       symbol,
       country,
       exchange_rate: exchange_rate || 1,
       symbol_position: symbol_position || 'before',
-      created_by: req.user.id
-    });
+    };
+    
+    currencyDoc.currencies.push(newCurrency);
+    await currencyDoc.save();
+    
+    const addedCurrency = currencyDoc.currencies[currencyDoc.currencies.length - 1];
     
     await logEvent(
       req.user.company_id,
       'create',
       'currency',
-      currency._id,
+      currencyDoc._id,
       req.user.id,
       null,
       { currency_name, currency_code }
@@ -123,7 +152,7 @@ const createCurrency = async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: currency,
+      data: addedCurrency,
       message: 'Currency created successfully'
     });
   } catch (error) {
@@ -142,10 +171,18 @@ const updateCurrency = async (req, res) => {
   try {
     const { currency_name, currency_code, symbol, country, exchange_rate, symbol_position, is_active } = req.body;
     
-    const currency = await Currency.findOne({
-      _id: req.params.id,
+    const currencyDoc = await Currency.findOne({
       company_id: req.user.company_id
     });
+    
+    if (!currencyDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Currency document not found'
+      });
+    }
+    
+    const currency = currencyDoc.currencies.id(req.params.id);
     
     if (!currency) {
       return res.status(404).json({
@@ -158,11 +195,9 @@ const updateCurrency = async (req, res) => {
     
     // Check if currency code is being changed and if it already exists
     if (currency_code && currency_code.toUpperCase() !== currency.currency_code) {
-      const existingCurrency = await Currency.findOne({
-        company_id: req.user.company_id,
-        currency_code: currency_code.toUpperCase(),
-        _id: { $ne: req.params.id }
-      });
+      const existingCurrency = currencyDoc.currencies.find(
+        (c) => c.currency_code === currency_code.toUpperCase() && c._id.toString() !== req.params.id
+      );
       
       if (existingCurrency) {
         return res.status(400).json({
@@ -180,13 +215,15 @@ const updateCurrency = async (req, res) => {
     if (symbol_position) currency.symbol_position = symbol_position;
     if (is_active !== undefined) currency.is_active = is_active;
     
-    await currency.save();
+    currency.updated_at = new Date();
+    
+    await currencyDoc.save();
     
     await logEvent(
       req.user.company_id,
       'update',
       'currency',
-      currency._id,
+      currencyDoc._id,
       req.user.id,
       oldData,
       currency.toObject()
@@ -211,10 +248,18 @@ const updateCurrency = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteCurrency = async (req, res) => {
   try {
-    const currency = await Currency.findOne({
-      _id: req.params.id,
+    const currencyDoc = await Currency.findOne({
       company_id: req.user.company_id
     });
+    
+    if (!currencyDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Currency document not found'
+      });
+    }
+    
+    const currency = currencyDoc.currencies.id(req.params.id);
     
     if (!currency) {
       return res.status(404).json({
@@ -225,13 +270,14 @@ const deleteCurrency = async (req, res) => {
     
     const oldData = currency.toObject();
     
-    await Currency.deleteOne({ _id: req.params.id });
+    currency.deleteOne();
+    await currencyDoc.save();
     
     await logEvent(
       req.user.company_id,
       'delete',
       'currency',
-      currency._id,
+      currencyDoc._id,
       req.user.id,
       oldData,
       null
