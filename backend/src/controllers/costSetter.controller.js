@@ -1,5 +1,28 @@
 const CostConfiguration = require('../models/CostConfiguration');
+const Currency = require('../models/Currency');
 const { logEvent } = require('./logs.controller');
+
+// Helper function to populate currency data
+const populateCurrencyData = async (costConfig, companyId) => {
+  const currencyDoc = await Currency.findOne({ company_id: companyId });
+  
+  if (currencyDoc && costConfig.cost_types) {
+    costConfig.cost_types = costConfig.cost_types.map(ct => {
+      const ctObj = ct.toObject ? ct.toObject() : ct;
+      if (ctObj.currency_id && currencyDoc.currencies) {
+        const currency = currencyDoc.currencies.find(
+          c => c._id.toString() === ctObj.currency_id.toString()
+        );
+        if (currency) {
+          ctObj.currency_id = currency;
+        }
+      }
+      return ctObj;
+    });
+  }
+  
+  return costConfig;
+};
 
 // @desc    Get cost setter configuration
 // @route   GET /api/company/cost-configuration/cost-setter
@@ -8,7 +31,7 @@ const getCostSetter = async (req, res) => {
   try {
     let costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
-    }).populate('cost_types.currency_id');
+    }).lean();
     
     if (!costConfig) {
       costConfig = await CostConfiguration.create({
@@ -17,7 +40,11 @@ const getCostSetter = async (req, res) => {
         cost_setter: [],
         created_by: req.user.id
       });
+      costConfig = costConfig.toObject();
     }
+    
+    // Populate currency data
+    costConfig = await populateCurrencyData(costConfig, req.user.company_id);
     
     res.status(200).json({
       success: true,
@@ -82,7 +109,9 @@ const updateCostSetter = async (req, res) => {
     }
     
     await costConfig.save();
-    await costConfig.populate('cost_types.currency_id');
+    
+    // Populate currency data
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
     
     await logEvent(
       req.user.company_id,
@@ -96,7 +125,7 @@ const updateCostSetter = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: costConfig,
+      data: responseConfig,
       message: 'Cost setter updated successfully'
     });
   } catch (error) {

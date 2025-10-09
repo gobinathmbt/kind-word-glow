@@ -1,5 +1,28 @@
 const CostConfiguration = require('../models/CostConfiguration');
+const Currency = require('../models/Currency');
 const { logEvent } = require('./logs.controller');
+
+// Helper function to populate currency data
+const populateCurrencyData = async (costConfig, companyId) => {
+  const currencyDoc = await Currency.findOne({ company_id: companyId });
+  
+  if (currencyDoc && costConfig.cost_types) {
+    costConfig.cost_types = costConfig.cost_types.map(ct => {
+      const ctObj = ct.toObject ? ct.toObject() : ct;
+      if (ctObj.currency_id && currencyDoc.currencies) {
+        const currency = currencyDoc.currencies.find(
+          c => c._id.toString() === ctObj.currency_id.toString()
+        );
+        if (currency) {
+          ctObj.currency_id = currency;
+        }
+      }
+      return ctObj;
+    });
+  }
+  
+  return costConfig;
+};
 
 // @desc    Get cost configuration for company
 // @route   GET /api/company/cost-configuration
@@ -8,7 +31,7 @@ const getCostConfiguration = async (req, res) => {
   try {
     let costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
-    }).populate('cost_types.currency_id');
+    }).lean();
     
     if (!costConfig) {
       // Create default configuration if doesn't exist
@@ -17,7 +40,11 @@ const getCostConfiguration = async (req, res) => {
         cost_types: [],
         created_by: req.user.id
       });
+      costConfig = costConfig.toObject();
     }
+    
+    // Populate currency data
+    costConfig = await populateCurrencyData(costConfig, req.user.company_id);
     
     res.status(200).json({
       success: true,
@@ -69,8 +96,8 @@ const addCostType = async (req, res) => {
     costConfig.cost_types.push(newCostType);
     await costConfig.save();
     
-    // Populate and return
-    await costConfig.populate('cost_types.currency_id');
+    // Populate currency data
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
     
     await logEvent(
       req.user.company_id,
@@ -84,7 +111,7 @@ const addCostType = async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: costConfig,
+      data: responseConfig,
       message: 'Cost type added successfully'
     });
   } catch (error) {
@@ -138,7 +165,9 @@ const updateCostType = async (req, res) => {
     costConfig.cost_types[costTypeIndex].updated_at = new Date();
     
     await costConfig.save();
-    await costConfig.populate('cost_types.currency_id');
+    
+    // Populate currency data
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
     
     await logEvent(
       req.user.company_id,
@@ -152,7 +181,7 @@ const updateCostType = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: costConfig,
+      data: responseConfig,
       message: 'Cost type updated successfully'
     });
   } catch (error) {
@@ -197,7 +226,9 @@ const deleteCostType = async (req, res) => {
     
     costConfig.cost_types.splice(costTypeIndex, 1);
     await costConfig.save();
-    await costConfig.populate('cost_types.currency_id');
+    
+    // Populate currency data
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
     
     await logEvent(
       req.user.company_id,
@@ -211,7 +242,7 @@ const deleteCostType = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: costConfig,
+      data: responseConfig,
       message: 'Cost type deleted successfully'
     });
   } catch (error) {
@@ -251,7 +282,9 @@ const reorderCostTypes = async (req, res) => {
     });
     
     await costConfig.save();
-    await costConfig.populate('cost_types.currency_id');
+    
+    // Populate currency data
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
     
     await logEvent(
       req.user.company_id,
@@ -265,7 +298,7 @@ const reorderCostTypes = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: costConfig,
+      data: responseConfig,
       message: 'Cost types reordered successfully'
     });
   } catch (error) {
