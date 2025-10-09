@@ -50,6 +50,7 @@ interface BayBookingCalendarProps {
   vehicleStockId: string;
   onBack: () => void;
   onSuccess: () => void;
+  isManual?: boolean;
 }
 
 interface CalendarEvent {
@@ -524,6 +525,7 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
   vehicleStockId,
   onBack,
   onSuccess,
+  isManual = false,
 }) => {
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());

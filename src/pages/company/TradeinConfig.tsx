@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Plus,
   Settings,
@@ -771,35 +772,65 @@ const TradeinConfig = () => {
             </p>
           </TableCell>
           <TableCell onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditConfigClick(config)}
-                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                title="Configure Sections & Fields"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditBasicInfoClick(config)}
-                className="text-green-600 hover:text-green-800 hover:bg-green-100"
-                title="Edit Basic Info"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDeleteConfig(config)}
-                className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                title="Delete Configuration"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+           <div className="flex items-center space-x-2">
+  {/* Configure Sections & Fields */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleEditConfigClick(config)}
+          className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Configure Sections & Fields</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Edit Basic Info */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleEditBasicInfoClick(config)}
+          className="text-green-600 hover:text-green-800 hover:bg-green-100"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit Basic Info</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Delete Configuration */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleDeleteConfig(config)}
+          className="text-red-600 hover:text-red-800 hover:bg-red-100"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Delete Configuration</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
+
           </TableCell>
         </TableRow>
       ))}

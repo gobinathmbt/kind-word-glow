@@ -61,7 +61,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import NotificationSideModal from "@/components/notifications/NotificationSideModal";
-import logo from '@/assests/logo/android-chrome-512x512.png'
+import logo from "@/assests/logo/android-chrome-512x512.png";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -267,6 +267,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           module: "vehicle_permission",
         },
         {
+          icon: DollarSign,
+          label: "Cost Configuration",
+          path: "/company/cost-configuration",
+          module: "vehicle_cost_module",
+        },
+        {
           icon: Database,
           label: "Dropdown Master",
           path: "/company/dropdown-master",
@@ -389,15 +395,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         module: "vehicle_tradein",
       },
 
-           {
-          icon: HardHat,
-          label: "Worker Bay",
-          module: "vehicle_bay",
-          children: [
-            { icon: CalendarCheck, label: "Bay Calendar",   path: "/company/bay-calendar", },
-          ],
-        },
-
+      {
+        icon: HardHat,
+        label: "Worker Bay",
+        module: "vehicle_bay",
+        children: [
+          {
+            icon: CalendarCheck,
+            label: "Bay Calendar",
+            path: "/company/bay-calendar",
+          },
+        ],
+      },
     ];
   };
 
@@ -724,7 +733,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         >
           {!isSidebarCollapsed && (
             <>
-             <img src={logo} className="h-6 w-6 text-primary" />
+              <img src={logo} className="h-6 w-6 text-primary" />
               <span className="text-lg font-bold">Auto Erp</span>
             </>
           )}

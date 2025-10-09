@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -631,21 +632,41 @@ const ServiceBays = () => {
           </TableCell>
           <TableCell>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleEdit(bay)}
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleDelete(bay._id)}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleEdit(bay)}
+        >
+          <Edit className="h-3 w-3" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit Bay</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => handleDelete(bay._id)}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Delete Bay</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
+
           </TableCell>
         </TableRow>
       ))}

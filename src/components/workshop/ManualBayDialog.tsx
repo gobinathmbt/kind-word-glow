@@ -47,7 +47,13 @@ const ManualBayDialog: React.FC<ManualBayDialogProps> = ({
 
   const handleBaySuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
-    onSuccess(null);
+    const quoteData = {
+      ...field,
+      manual_quote_amount: parseFloat(quoteAmount),
+      manual_quote_description: description,
+      is_manual: true,
+    };
+    onSuccess(quoteData);
     handleClose();
   };
 
@@ -72,6 +78,7 @@ const ManualBayDialog: React.FC<ManualBayDialogProps> = ({
         vehicleType={vehicleType}
         vehicleStockId={vehicleStockId}
         onSuccess={handleBaySuccess}
+        isManual={true}
       />
     );
   }

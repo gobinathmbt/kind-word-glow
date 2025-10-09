@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -417,13 +418,23 @@ const Workshop = () => {
               <Link
                 to={`/company/workshop-config/${vehicle.vehicle_stock_id}/${vehicle.vehicle_type}`}
               >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
+               <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>View Dealership</p>
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+
               </Link>
             </TableCell>
           </TableRow>

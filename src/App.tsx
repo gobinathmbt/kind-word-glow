@@ -42,6 +42,7 @@ import InspectionConfig from "./pages/company/InspectionConfig";
 import TradeinConfig from "./pages/company/TradeinConfig";
 import UserPermissions from './pages/company/UserPermissions';
 import Integration from './pages/company/Integration';
+import CostConfiguration from './pages/company/CostConfiguration';
 
 // Vehicle Pages
 import InspectionList from "./pages/vehicles/InspectionList";
@@ -175,6 +176,11 @@ const App = () => {
       <Route path="/company/permissions" element={
         <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="vehicle_permission">
           <UserPermissions />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/cost-configuration" element={
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="vehicle_cost_module">
+          <CostConfiguration />
         </ProtectedRoute>
       } />
       <Route path="/company/settings" element={

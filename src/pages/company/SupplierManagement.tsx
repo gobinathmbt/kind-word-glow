@@ -4,6 +4,7 @@ import { supplierServices, companyServices } from "@/api/services";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Table,
   TableBody,
@@ -541,15 +542,25 @@ const SupplierManagement = () => {
             </div>
           </TableCell>
           <TableCell>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditSupplier(supplier)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
+           <div className="flex items-center gap-2">
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleEditSupplier(supplier)}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit Supplier</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
+
           </TableCell>
         </TableRow>
       ))}

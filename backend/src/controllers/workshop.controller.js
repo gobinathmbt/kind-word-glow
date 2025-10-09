@@ -1305,7 +1305,7 @@ const createManualQuote = async (req, res) => {
   }
 };
 
-// @desc    Create manual bay quote
+// @desc    Create manual bay quote (create booking with manual status)
 // @route   POST /api/workshop/manual-bay-quote
 // @access  Private (Company Admin/Super Admin)
 const createManualBayQuote = async (req, res) => {
@@ -1325,6 +1325,8 @@ const createManualBayQuote = async (req, res) => {
       images,
       videos,
     } = req.body;
+    
+    // For manual bay, we use the bay booking creation logic but set quote_type as manual
 
     if (
       !vehicle_type ||

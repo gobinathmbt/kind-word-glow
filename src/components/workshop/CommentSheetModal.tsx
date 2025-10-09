@@ -214,7 +214,7 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
     e.preventDefault();
 
     if (mode === "supplier_submit") {
-      if (formData.work_entries.length === 0) {
+      if (!saveAsDraft && formData.work_entries.length === 0) {
         alert("Please add at least one work entry");
         return;
       }

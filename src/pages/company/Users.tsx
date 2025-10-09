@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -582,37 +583,63 @@ const CompanyUsers = () => {
               : "Never"}
           </TableCell>
           <TableCell>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openEditDialog(user)}
-                title="Edit User"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => sendWelcomeEmail(user._id)}
-                title="Send Welcome Email"
-              >
-                <Mail className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  openDeleteDialog(
-                    user._id,
-                    `${user.first_name} ${user.last_name}`
-                  )
-                }
-                title="Delete User"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+        <div className="flex items-center space-x-2">
+  {/* Edit User */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => openEditDialog(user)}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit User</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Send Welcome Email */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => sendWelcomeEmail(user._id)}
+        >
+          <Mail className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Send Welcome Email</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Delete User */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            openDeleteDialog(user._id, `${user.first_name} ${user.last_name}`)
+          }
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Delete User</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
           </TableCell>
         </TableRow>
       ))}

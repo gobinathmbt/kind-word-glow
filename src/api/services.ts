@@ -500,6 +500,38 @@ export const companyServices = {
 
   testWebhook: (data: any) =>
     apiClient.post("/api/company/settings/test-webhook", data),
+
+  // Currency Services
+  getCurrencies: (params?: any) =>
+    apiClient.get("/api/company/currencies", { params }),
+  
+  getCurrency: (id: string) =>
+    apiClient.get(`/api/company/currencies/${id}`),
+  
+  createCurrency: (data: any) =>
+    apiClient.post("/api/company/currencies", data),
+  
+  updateCurrency: (id: string, data: any) =>
+    apiClient.put(`/api/company/currencies/${id}`, data),
+  
+  deleteCurrency: (id: string) =>
+    apiClient.delete(`/api/company/currencies/${id}`),
+
+  // Cost Configuration Services
+  getCostConfiguration: () =>
+    apiClient.get("/api/company/cost-configuration"),
+  
+  addCostType: (data: any) =>
+    apiClient.post("/api/company/cost-configuration/cost-types", data),
+  
+  updateCostType: (costTypeId: string, data: any) =>
+    apiClient.put(`/api/company/cost-configuration/cost-types/${costTypeId}`, data),
+  
+  deleteCostType: (costTypeId: string) =>
+    apiClient.delete(`/api/company/cost-configuration/cost-types/${costTypeId}`),
+  
+  reorderCostTypes: (data: any) =>
+    apiClient.put("/api/company/cost-configuration/cost-types/reorder", data),
 };
 
 // Dealership Services

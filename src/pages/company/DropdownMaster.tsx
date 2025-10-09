@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -505,41 +506,71 @@ const DropdownMaster = () => {
             </div>
           </TableCell>
           <TableCell>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedDropdown(dropdown);
-                  setIsValueDialogOpen(true);
-                }}
-                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                title="Manage Values"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setEditDropdown(dropdown);
-                  setIsEditDialogOpen(true);
-                }}
-                className="text-green-600 hover:text-green-800 hover:bg-green-100"
-                title="Edit Dropdown"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => confirmDeleteDropdown(dropdown._id)}
-                className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                title="Delete Dropdown"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+           <div className="flex items-center space-x-2">
+  {/* Manage Values */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSelectedDropdown(dropdown);
+            setIsValueDialogOpen(true);
+          }}
+          className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Manage Values</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Edit Dropdown */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setEditDropdown(dropdown);
+            setIsEditDialogOpen(true);
+          }}
+          className="text-green-600 hover:text-green-800 hover:bg-green-100"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit Dropdown</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* Delete Dropdown */}
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => confirmDeleteDropdown(dropdown._id)}
+          className="text-red-600 hover:text-red-800 hover:bg-red-100"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Delete Dropdown</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
+
           </TableCell>
         </TableRow>
       ))}

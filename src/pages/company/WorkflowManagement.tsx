@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { workflowServices } from '@/api/services';
 import WorkflowBuilder from '@/components/workflows/WorkflowBuilder';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTableLayout from '@/components/common/DataTableLayout';
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -466,38 +467,68 @@ const WorkflowManagement = () => {
             </div>
           </TableCell>
           <TableCell>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEditWorkflow(workflow)}
-                className="h-8 w-8 p-0"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleToggleStatus(workflow._id, workflow.status)}
-                disabled={toggleStatusMutation.isPending}
-                className="h-8 w-8 p-0"
-              >
-                {workflow.status === 'active' ? (
-                  <Pause className="h-4 w-4" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteWorkflow(workflow._id, workflow.name)}
-                disabled={deleteWorkflowMutation.isPending}
-                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+           <div className="flex items-center gap-2">
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleEditWorkflow(workflow)}
+          className="h-8 w-8 p-0"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Edit Workflow</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleToggleStatus(workflow._id, workflow.status)}
+          disabled={toggleStatusMutation.isPending}
+          className="h-8 w-8 p-0"
+        >
+          {workflow.status === 'active' ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{workflow.status === 'active' ? 'Pause Workflow' : 'Play Workflow'}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDeleteWorkflow(workflow._id, workflow.name)}
+          disabled={deleteWorkflowMutation.isPending}
+          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Delete Workflow</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</div>
+
           </TableCell>
         </TableRow>
       ))}

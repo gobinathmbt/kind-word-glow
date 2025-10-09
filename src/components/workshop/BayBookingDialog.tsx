@@ -36,6 +36,7 @@ interface BayBookingDialogProps {
   vehicleType: string;
   vehicleStockId: string;
   onSuccess: () => void;
+  isManual?: boolean;
 }
 
 const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
@@ -45,6 +46,7 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
   vehicleType,
   vehicleStockId,
   onSuccess,
+  isManual = false,
 }) => {
   const [selectedBay, setSelectedBay] = useState<any>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -132,6 +134,7 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
             vehicleStockId={vehicleStockId}
             onBack={handleBack}
             onSuccess={handleBookingComplete}
+            isManual={isManual}
           />
         </DialogContent>
       </Dialog>
