@@ -19,13 +19,16 @@ interface CostCalculationDialogProps {
   open: boolean;
   onClose: () => void;
   vehicle: any;
+  completeUser: any;
 }
 
 const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
   open,
   onClose,
   vehicle,
+  completeUser,
 }) => {
+  console.log(completeUser)
   const queryClient = useQueryClient();
   const [costData, setCostData] = useState<any>({});
   const [editingCost, setEditingCost] = useState<any>(null);

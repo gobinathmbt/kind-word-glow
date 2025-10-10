@@ -424,6 +424,7 @@ const VehiclePricingList = () => {
       />
 
       <CostCalculationDialog
+      completeUser={completeUser}
         open={costCalculationOpen}
         onClose={() => {
           setCostCalculationOpen(false);
