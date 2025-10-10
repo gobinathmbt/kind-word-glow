@@ -205,7 +205,7 @@ const CostEditDialog: React.FC<CostEditDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={handleSave} className="bg-[hsl(var(--primary))]">
+          <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700">
             Save
           </Button>
         </div>

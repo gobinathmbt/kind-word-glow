@@ -1,14 +1,19 @@
 import React, { useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Loader2, Save } from "lucide-react";
 import { formatApiNames } from "@/utils/GlobalUtils";
 
 interface CostSummaryProps {
   costData: any;
   sections: any[];
+  onCancel: () => void;
+  onSave: () => void;
+  isSaving: boolean;
 }
 
-const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections }) => {
+const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, onCancel, onSave, isSaving }) => {
   const summary = useMemo(() => {
     const expenseSummary: any = {};
     const marginSummary: any = {};
@@ -77,27 +82,33 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections }) => {
             <div className="space-y-1.5 text-sm">
               {Object.entries(summary.expenseSummary).map(([key, value]: any) => (
                 <div key={key} className="flex justify-between">
-                  <span className="text-muted-foreground">{key}</span>
-                  <span>{value.toFixed(2)} Incl</span>
+                  <span className="text-muted-foreground text-xs">{key}</span>
+                  <span className={`text-xs ${value < 0 ? 'text-red-500' : ''}`}>
+                    {value.toFixed(2)} Incl
+                  </span>
                 </div>
               ))}
               <Separator />
               <div className="flex justify-between font-semibold">
-                <span>Total Expenses</span>
-                <span>{summary.totalExpenses.toFixed(2)} Incl</span>
+                <span className="text-xs">Total Expenses</span>
+                <span className={`text-xs ${summary.totalExpenses < 0 ? 'text-red-500' : ''}`}>
+                  {summary.totalExpenses.toFixed(2)} Incl
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Exact Expenses</span>
-                <span>0 Incl</span>
+                <span className="text-muted-foreground text-xs">Exact Expenses</span>
+                <span className="text-xs">0 Incl</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Estimated Expenses</span>
-                <span>0 Incl</span>
+                <span className="text-muted-foreground text-xs">Estimated Expenses</span>
+                <span className="text-xs">0 Incl</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
-                <span>Total Costs</span>
-                <span>{summary.totalCosts.toFixed(2)} Incl</span>
+                <span className="text-xs">Total Costs</span>
+                <span className={`text-xs ${summary.totalCosts < 0 ? 'text-red-500' : ''}`}>
+                  {summary.totalCosts.toFixed(2)} Incl
+                </span>
               </div>
             </div>
           </div>
@@ -109,38 +120,66 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections }) => {
             <h4 className="font-medium text-sm">Margin Summary</h4>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Retail Price</span>
-                <span>{summary.retailPrice.toFixed(2)} Incl</span>
+                <span className="text-muted-foreground text-xs">Retail Price</span>
+                <span className={`text-xs ${summary.retailPrice < 0 ? 'text-red-500' : ''}`}>
+                  {summary.retailPrice.toFixed(2)} Incl
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Gross Profit</span>
-                <span>{summary.grossProfit.toFixed(2)} Incl</span>
+                <span className="text-muted-foreground text-xs">Gross Profit</span>
+                <span className={`text-xs ${summary.grossProfit < 0 ? 'text-red-500' : ''}`}>
+                  {summary.grossProfit.toFixed(2)} Incl
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">GST Payable</span>
-                <span>{summary.totalGST.toFixed(2)}</span>
+                <span className="text-muted-foreground text-xs">GST Payable</span>
+                <span className={`text-xs ${summary.totalGST < 0 ? 'text-red-500' : ''}`}>
+                  {summary.totalGST.toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Appraisal</span>
-                <span>0 Incl</span>
+                <span className="text-muted-foreground text-xs">Appraisal</span>
+                <span className="text-xs">0 Incl</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
-                <span>Net Profit</span>
-                <span>{summary.netProfit.toFixed(2)} Excl</span>
+                <span className="text-xs">Net Profit</span>
+                <span className={`text-xs ${summary.netProfit < 0 ? 'text-red-500' : ''}`}>
+                  {summary.netProfit.toFixed(2)} Excl
+                </span>
               </div>
               <div className="flex justify-between font-semibold">
-                <span>Net Margin</span>
-                <span>{summary.netMargin}%</span>
+                <span className="text-xs">Net Margin</span>
+                <span className={`text-xs ${parseFloat(summary.netMargin) < 0 ? 'text-red-500' : ''}`}>
+                  {summary.netMargin}%
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">After Sales</span>
-                <span>0.00</span>
+                <span className="text-muted-foreground text-xs">After Sales</span>
+                <span className="text-xs">0.00</span>
               </div>
             </div>
           </div>
         </div>
       </ScrollArea>
+      
+      {/* Action Buttons */}
+      <div className="p-4 border-t flex justify-end gap-2 bg-card">
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          onClick={onSave}
+          disabled={isSaving}
+          className="bg-purple-600 hover:bg-purple-700"
+        >
+          {isSaving && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+          <Save className="mr-2 h-4 w-4" />
+          Save
+        </Button>
+      </div>
     </div>
   );
 };
