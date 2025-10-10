@@ -526,6 +526,9 @@ export const companyServices = {
   
   updateCostType: (costTypeId: string, data: any) =>
     apiClient.put(`/api/company/cost-configuration/cost-types/${costTypeId}`, data),
+
+  getCostConfigurationByVehicleType: (vehiclePurchaseType: string) =>
+    apiClient.get(`/api/company/cost-configuration/vehicle-type/${vehiclePurchaseType}`),
   
   deleteCostType: (costTypeId: string) =>
     apiClient.delete(`/api/company/cost-configuration/cost-types/${costTypeId}`),
@@ -644,7 +647,7 @@ export const configServices = {
     return response.data;
   },
 
-  // Category services
+  // Inspection Category services
   addInspectionCategory: (configId: string, categoryData: any) =>
     apiClient.post(
       `/api/config/inspection/${configId}/categories`,
@@ -660,52 +663,6 @@ export const configServices = {
   addInspectionField: (configId: string, sectionId: string, data: any) =>
     apiClient.post(
       `/api/config/inspection/${configId}/sections/${sectionId}/fields`,
-      data
-    ),
-
-  // Trade-in Config
-  getTradeinConfigs: (params?: any) =>
-    apiClient.get("/api/config/tradein", { params }),
-
-  getTradeinConfigDetails: (id: string) =>
-    apiClient.get(`/api/config/tradein/${id}`),
-
-  createTradeinConfig: (data: any) =>
-    apiClient.post("/api/config/tradein", data),
-
-  updateTradeinConfig: (id: string, data: any) =>
-    apiClient.put(`/api/config/tradein/${id}`, data),
-
-  deleteTradeinConfig: (id: string) =>
-    apiClient.delete(`/api/config/tradein/${id}`),
-
-  addTradeinSection: (configId: string, data: any) =>
-    apiClient.post(`/api/config/tradein/${configId}/sections`, data),
-
-  addTradeinField: (configId: string, sectionId: string, data: any) =>
-    apiClient.post(
-      `/api/config/tradein/${configId}/sections/${sectionId}/fields`,
-      data
-    ),
-
-  updateTradeinField: (configId: string, fieldId: string, data: any) =>
-    apiClient.put(
-      `/api/config/update/tradein/${configId}/fields/${fieldId}`,
-      data
-    ),
-
-  deleteTradeinField: (configId: string, fieldId: string) =>
-    apiClient.delete(`/api/config/tradein/${configId}/fields/${fieldId}`),
-
-  deleteTradeinSection: (configId: string, sectionId: string) =>
-    apiClient.delete(`/api/config/tradein/${configId}/sections/${sectionId}`),
-
-  updateTradeinSectionsOrder: (configId: string, data: any) =>
-    apiClient.put(`/api/config/tradein/${configId}/sections/reorder`, data),
-
-  updateTradeinFieldsOrder: (configId: string, sectionId: string, data: any) =>
-    apiClient.put(
-      `/api/config/tradein/${configId}/sections/${sectionId}/fields/reorder`,
       data
     ),
 
@@ -730,6 +687,95 @@ export const configServices = {
       { is_active: isActive }
     );
   },
+
+  // Trade-in Config
+  getTradeinConfigs: (params?: any) =>
+    apiClient.get("/api/config/tradein", { params }),
+
+  getTradeinConfigDetails: (id: string) =>
+    apiClient.get(`/api/config/tradein/${id}`),
+
+  createTradeinConfig: (data: any) =>
+    apiClient.post("/api/config/tradein", data),
+
+  updateTradeinConfig: (id: string, data: any) =>
+    apiClient.put(`/api/config/tradein/${id}`, data),
+
+  deleteTradeinConfig: (id: string) =>
+    apiClient.delete(`/api/config/tradein/${id}`),
+
+  // Trade-in Category services (NEW - Added to match inspection pattern)
+  addTradeinCategory: (configId: string, categoryData: any) =>
+    apiClient.post(
+      `/api/config/tradein/${configId}/categories`,
+      categoryData
+    ),
+
+  updateTradeinCategory: async (
+    configId: string,
+    categoryId: string,
+    categoryData: any
+  ) => {
+    return await apiClient.put(
+      `/api/config/tradein/${configId}/categories/${categoryId}`,
+      categoryData
+    );
+  },
+
+  toggleTradeinCategoryStatus: async (
+    configId: string,
+    categoryId: string,
+    isActive: boolean
+  ) => {
+    return await apiClient.patch(
+      `/api/config/tradein/${configId}/categories/${categoryId}/toggle`,
+      { is_active: isActive }
+    );
+  },
+
+  // Trade-in Section services (Updated to include categoryId)
+  addTradeinSection: (configId: string, categoryId: string, data: any) =>
+    apiClient.post(
+      `/api/config/tradein/${configId}/categories/${categoryId}/sections`,
+      data
+    ),
+
+  updateTradeinSectionsOrder: (configId: string, categoryId: string, data: any) =>
+    apiClient.put(
+      `/api/config/tradein/${configId}/categories/${categoryId}/sections/reorder`,
+      data
+    ),
+
+  addTradeinField: (configId: string, sectionId: string, data: any) =>
+    apiClient.post(
+      `/api/config/tradein/${configId}/sections/${sectionId}/fields`,
+      data
+    ),
+
+  updateTradeinField: (configId: string, fieldId: string, data: any) =>
+    apiClient.put(
+      `/api/config/update/tradein/${configId}/fields/${fieldId}`,
+      data
+    ),
+
+  deleteTradeinField: (configId: string, fieldId: string) =>
+    apiClient.delete(`/api/config/tradein/${configId}/fields/${fieldId}`),
+
+  deleteTradeinSection: (configId: string, sectionId: string) =>
+    apiClient.delete(`/api/config/tradein/${configId}/sections/${sectionId}`),
+
+  updateTradeinFieldsOrder: (configId: string, sectionId: string, data: any) =>
+    apiClient.put(
+      `/api/config/tradein/${configId}/sections/${sectionId}/fields/reorder`,
+      data
+    ),
+
+  saveTradeinConfig: async (id: string, data: any) => {
+    const response = await apiClient.put(`/api/config/tradein/${id}`, data);
+    return response.data;
+  },
+
+  
 
   // Inspection Calculation services
   addInspectionCalculation: async (
@@ -777,44 +823,50 @@ export const configServices = {
     );
   },
 
-  // Trade-in Calculation services
-  addTradeinCalculation: async (configId: string, calculationData: any) => {
+  // Trade-in Calculation services (Updated to include categoryId)
+  addTradeinCalculation: async (
+    configId: string,
+    categoryId: string,
+    calculationData: any
+  ) => {
     return await apiClient.post(
-      `/api/config/tradein/${configId}/calculations`,
+      `/api/config/tradein/${configId}/categories/${categoryId}/calculations`,
       calculationData
     );
   },
 
   updateTradeinCalculationFormula: async (
     configId: string,
+    categoryId: string,
     calculationId: string,
     formula: any
   ) => {
     return await apiClient.put(
-      `/api/config/tradein/${configId}/calculations/${calculationId}/formula`,
+      `/api/config/tradein/${configId}/categories/${categoryId}/calculations/${calculationId}/formula`,
       { formula }
     );
   },
 
-  deleteTradeinCalculation: async (configId: string, calculationId: string) => {
-    return await apiClient.delete(
-      `/api/config/tradein/${configId}/calculations/${calculationId}`
-    );
-  },
+  deleteTradeinCalculation: async (
+  configId: string,
+  categoryId: string,
+  calculationId: string
+) => {
+  return await apiClient.delete(
+    `/api/config/tradein/${configId}/categories/${categoryId}/calculations/${calculationId}`
+  );
+},
 
   toggleTradeinCalculationStatus: async (
     configId: string,
+    categoryId: string,
     calculationId: string,
     isActive: boolean
   ) => {
     return await apiClient.patch(
-      `/api/config/tradein/${configId}/calculations/${calculationId}/toggle`,
+      `/api/config/tradein/${configId}/categories/${categoryId}/calculations/${calculationId}/toggle`,
       { is_active: isActive }
     );
-  },
-  saveTradeinConfig: async (id: string, data: any) => {
-    const response = await apiClient.put(`/api/config/tradein/${id}`, data);
-    return response.data;
   },
 
   // S3 Configuration
@@ -1316,6 +1368,9 @@ export const commonVehicleServices = {
 
   togglePricingReady: (vehicleId: string, data: any) =>
     apiClient.patch(`/api/common-vehicle/pricing-ready/${vehicleId}`, data),
+    
+  saveVehicleCostDetails: (vehicleId: string, vehicleType: string, data: any) =>
+    apiClient.put(`/api/common-vehicle/${vehicleId}/${vehicleType}/cost-details`, data),
 };
 
 // Integration Services

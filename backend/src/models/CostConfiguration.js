@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Update the CostTypeSchema
 const CostTypeSchema = new mongoose.Schema({
   cost_type: {
     type: String,
@@ -24,6 +25,10 @@ const CostTypeSchema = new mongoose.Schema({
     trim: true
   },
   change_currency: {
+    type: Boolean,
+    default: false
+  },
+  fx_rate: { // Add this field
     type: Boolean,
     default: false
   },

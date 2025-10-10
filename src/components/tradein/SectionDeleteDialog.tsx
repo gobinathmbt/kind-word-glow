@@ -19,7 +19,7 @@ interface SectionDeleteDialogProps {
   isLoading?: boolean;
 }
 
-export const SectionDeleteDialog: React.FC<SectionDeleteDialogProps> = ({
+  const SectionDeleteDialog: React.FC<SectionDeleteDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
@@ -60,3 +60,5 @@ export const SectionDeleteDialog: React.FC<SectionDeleteDialogProps> = ({
     </Dialog>
   );
 };
+
+export default SectionDeleteDialog;

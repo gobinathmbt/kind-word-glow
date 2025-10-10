@@ -57,6 +57,13 @@ const MasterVehicleSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  
+  // Cost Details for Pricing Calculation
+  cost_details: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  
   // Optional Basic Fields
   variant: String,
   model_no: String,

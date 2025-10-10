@@ -269,6 +269,7 @@ const getPricingReadyVehicles = async (req, res) => {
       dealership_id: 1,
       vehicle_hero_image: 1,
       is_pricing_ready: 1,
+      cost_details: 1,
       created_at: 1,
       dealership_id: 1,
     };
@@ -390,9 +391,76 @@ const togglePricingReady = async (req, res) => {
   }
 };
 
+// @desc    Save vehicle cost details
+// @route   PUT /api/common-vehicle/:vehicleId/:vehicleType/cost-details
+// @access  Private (Company Admin/Super Admin)
+const saveVehicleCostDetails = async (req, res) => {
+  try {
+    const { vehicleId, vehicleType } = req.params;
+    const { cost_details } = req.body;
+
+    if (!vehicleId || !vehicleType) {
+      return res.status(400).json({
+        success: false,
+        message: "Vehicle ID and vehicle type are required",
+      });
+    }
+
+    // Get the correct model based on vehicle type
+    const VehicleModel = getVehicleModel(vehicleType);
+
+    // Find and update vehicle
+    const vehicle = await VehicleModel.findOneAndUpdate(
+      {
+        _id: vehicleId,
+        company_id: req.user.company_id,
+      },
+      {
+        cost_details: cost_details,
+        updated_at: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "save_cost_details",
+      event_description: `Saved cost details for vehicle ${vehicleId}`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_id: vehicleId,
+        vehicle_type: vehicleType,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Cost details saved successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Save vehicle cost details error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error saving vehicle cost details",
+    });
+  }
+};
+
 module.exports = {
   updateVehicleDealership,
   getVehiclesForBulkOperations,
   getPricingReadyVehicles,
   togglePricingReady,
+  saveVehicleCostDetails,
 };

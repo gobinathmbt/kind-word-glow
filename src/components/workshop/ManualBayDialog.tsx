@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HardHat } from "lucide-react";
 import { toast } from "sonner";
-import { workshopServices } from "@/api/services";
-import BayBookingDialog from "./BayBookingDialog";
+import BayBookingDialog from "@/components/workshop/BayBookingDialog";
 
 interface ManualBayDialogProps {
   open: boolean;
@@ -79,6 +78,7 @@ const ManualBayDialog: React.FC<ManualBayDialogProps> = ({
         vehicleStockId={vehicleStockId}
         onSuccess={handleBaySuccess}
         isManual={true}
+        manualQuoteAmount={parseFloat(quoteAmount)}
       />
     );
   }

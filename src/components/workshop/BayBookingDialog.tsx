@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { serviceBayServices } from "@/api/services";
-import BayBookingCalendar from "./BayBookingCalendar";
+import BayBookingCalendar from "@/components/workshop/BayBookingCalendar";
 
 interface BayBookingDialogProps {
   open: boolean;
@@ -37,6 +37,7 @@ interface BayBookingDialogProps {
   vehicleStockId: string;
   onSuccess: () => void;
   isManual?: boolean;
+  manualQuoteAmount?: number;
 }
 
 const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
@@ -47,6 +48,7 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
   vehicleStockId,
   onSuccess,
   isManual = false,
+  manualQuoteAmount,
 }) => {
   const [selectedBay, setSelectedBay] = useState<any>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -96,7 +98,7 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
   };
 
   const handleBookingComplete = () => {
-   onSuccess() 
+    onSuccess();
   };
 
   const getWorkingDaysCount = (bayTimings: any[]) => {
@@ -135,6 +137,7 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
             onBack={handleBack}
             onSuccess={handleBookingComplete}
             isManual={isManual}
+            manualQuoteAmount={manualQuoteAmount}
           />
         </DialogContent>
       </Dialog>
@@ -160,7 +163,6 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
           </div>
         ) : baysData && baysData.length > 0 ? (
           <div className="space-y-6 py-4">
-
             <div className="space-y-3">
               <Label htmlFor="bay-select" className="text-base font-semibold">
                 Choose a Bay
@@ -213,7 +215,6 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-
                     <div className="flex items-center gap-3 p-3 bg-background rounded-lg">
                       <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
                         <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -228,7 +229,6 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
                         </p>
                       </div>
                     </div>
-
 
                     {selectedBayDetails.bay_timings && (
                       <div className="flex items-center gap-3 p-3 bg-background rounded-lg">
@@ -345,7 +345,6 @@ const BayBookingDialog: React.FC<BayBookingDialogProps> = ({
                 </CardContent>
               </Card>
             )}
-
           </div>
         ) : (
           <div className="py-12 text-center">

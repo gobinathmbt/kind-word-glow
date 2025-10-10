@@ -5,7 +5,8 @@ const {
   addCostType,
   updateCostType,
   deleteCostType,
-  reorderCostTypes
+  reorderCostTypes,
+  getCostConfigurationByVehicleType
 } = require('../controllers/costConfiguration.controller');
 
 const router = express.Router();
@@ -20,5 +21,7 @@ router.post('/cost-types', addCostType);
 router.put('/cost-types/:costTypeId', updateCostType);
 router.delete('/cost-types/:costTypeId', deleteCostType);
 router.put('/cost-types/reorder', reorderCostTypes);
+
+router.get('/vehicle-type/:vehiclePurchaseType', getCostConfigurationByVehicleType);
 
 module.exports = router;

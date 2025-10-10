@@ -5,6 +5,7 @@ const {
   getVehiclesForBulkOperations,
   getPricingReadyVehicles,
   togglePricingReady,
+  saveVehicleCostDetails,
 } = require('../controllers/commonvehicle.controller');
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.get('/bulk-operations', getVehiclesForBulkOperations);
 // Pricing routes
 router.get('/pricing-ready', getPricingReadyVehicles);
 router.patch('/pricing-ready/:vehicleId', togglePricingReady);
+router.put('/:vehicleId/:vehicleType/cost-details', saveVehicleCostDetails);
 
 module.exports = router;

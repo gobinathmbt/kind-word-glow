@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Calculator, User, Calendar } from "lucide-react";
-import { FormData } from "../../CommentSheetModal";
+import { FormData } from "@/components/workshop/CommentSheetModal";
 import DateTimePicker from "@/components/workshop/CommentSheetTabs/DateTimePicker";
 
 interface ProgressSummaryTabProps {
@@ -27,7 +27,6 @@ const ProgressSummaryTab: React.FC<ProgressSummaryTabProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      {/* Work Progress Summary */}
       <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -112,12 +111,10 @@ const ProgressSummaryTab: React.FC<ProgressSummaryTabProps> = ({
                 disabled={isReadOnly}
               />
             </div>
-            
           </div>
         </CardContent>
       </Card>
 
-      {/* Cost Breakdown */}
       <Card className="border-2 border-green-200 dark:border-green-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -183,7 +180,8 @@ const ProgressSummaryTab: React.FC<ProgressSummaryTabProps> = ({
               </div>
               <div className="text-center sm:text-right">
                 <div className="text-sm font-medium text-muted-foreground mb-1">
-                  Original Quote: ${quote?.quote_amount || 0}
+                  Original Quote: $
+                  {quote?.quote_amount || quote?.manual_quote_amount || 0}
                 </div>
                 <div
                   className={`text-sm font-bold ${
@@ -201,7 +199,6 @@ const ProgressSummaryTab: React.FC<ProgressSummaryTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Quote Information */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quote Information</CardTitle>
@@ -218,7 +215,9 @@ const ProgressSummaryTab: React.FC<ProgressSummaryTabProps> = ({
               <Label className="text-muted-foreground text-xs">
                 Original Quote
               </Label>
-              <p className="font-medium mt-1">${quote?.quote_amount}</p>
+              <p className="font-medium mt-1">
+                ${quote?.quote_amount || quote?.manual_quote_amount || 0}
+              </p>
             </div>
             <div className="p-3 bg-muted/50 rounded-lg">
               <Label className="text-muted-foreground text-xs">

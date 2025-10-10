@@ -22,7 +22,11 @@ import {
   Menu,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { bayQuoteServices, serviceBayServices } from "@/api/services";
+import {
+  bayQuoteServices,
+  serviceBayServices,
+  workshopServices,
+} from "@/api/services";
 import { toast } from "sonner";
 import DateTimePicker from "@/components/workshop/CommentSheetTabs/DateTimePicker";
 import {
@@ -51,6 +55,7 @@ interface BayBookingCalendarProps {
   onBack: () => void;
   onSuccess: () => void;
   isManual?: boolean;
+  manualQuoteAmount?: number;
 }
 
 interface CalendarEvent {
@@ -188,10 +193,10 @@ const CalendarView: React.FC<{
 
   const CustomToolbar = ({ label }: any) => (
     <div
-  className={`flex items-center justify-between border-b bg-white sticky top-0 z-10 flex-wrap gap-1 transition-all duration-200 ${
-    existingBooking ? "md:pb-20 h-16" : "p-3 md:pt-4 h-24"
-  }`}
->
+      className={`flex items-center justify-between border-b bg-white sticky top-0 z-10 flex-wrap gap-1 transition-all duration-200 ${
+        existingBooking ? "md:pb-20 h-16" : "p-3 md:pt-4 h-24"
+      }`}
+    >
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Button
           variant="outline"
@@ -526,13 +531,16 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
   onBack,
   onSuccess,
   isManual = false,
+  manualQuoteAmount,
 }) => {
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookingStartTime, setBookingStartTime] = useState("");
   const [bookingEndTime, setBookingEndTime] = useState("");
   const [bookingDescription, setBookingDescription] = useState("");
-  const [quoteAmount, setQuoteAmount] = useState("");
+  const [quoteAmount, setQuoteAmount] = useState(
+    isManual && manualQuoteAmount ? manualQuoteAmount.toString() : ""
+  );
   const [allowOverlap, setAllowOverlap] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [selectedHoliday, setSelectedHoliday] = useState<any>(null);
@@ -750,11 +758,20 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
 
   const createBookingMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await bayQuoteServices.createBayQuote(data);
-      return response.data;
+      if (isManual) {
+        const response = await workshopServices.createManualBayQuote(data);
+        return response.data;
+      } else {
+        const response = await bayQuoteServices.createBayQuote(data);
+        return response.data;
+      }
     },
     onSuccess: () => {
-      toast.success("Bay booking created successfully");
+      toast.success(
+        isManual
+          ? "Manual bay booking created successfully"
+          : "Bay booking created successfully"
+      );
       queryClient.invalidateQueries({ queryKey: ["field-bay-booking"] });
       queryClient.invalidateQueries({ queryKey: ["bay-booking-calendar"] });
       setShowBookingDialog(false);
@@ -762,7 +779,12 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create booking");
+      toast.error(
+        error.response?.data?.message ||
+          (isManual
+            ? "Failed to create manual booking"
+            : "Failed to create booking")
+      );
     },
   });
 
@@ -1121,12 +1143,12 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
       <div className="flex-1 min-h-0">
         <Card className="h-full border-0 rounded-none">
           <CardContent
-  className={`h-full transition-all duration-200 ${
-    existingBooking
-      ? "p-2 sm:p-3 md:p-4 lg:p-7" 
-      : "p-2 sm:p-4 md:p-6 lg:p-12" 
-  }`}
->
+            className={`h-full transition-all duration-200 ${
+              existingBooking
+                ? "p-2 sm:p-3 md:p-4 lg:p-7"
+                : "p-2 sm:p-4 md:p-6 lg:p-12"
+            }`}
+          >
             <CalendarView
               bay={bay}
               events={events}
@@ -1150,10 +1172,10 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
       </div>
 
       <div
-  className={`hidden md:block flex-shrink-0 border-t bg-white transition-all duration-200 ${
-    existingBooking ? "pb-12" : "pb-1"
-  }`}
->
+        className={`hidden md:block flex-shrink-0 border-t bg-white transition-all duration-200 ${
+          existingBooking ? "pb-12" : "pb-1"
+        }`}
+      >
         <div className="flex justify-between items-center gap-4">
           <div className="flex items-center gap-3 lg:gap-4 text-xs lg:text-sm text-slate-600 flex-wrap">
             <div className="flex items-center gap-2">
@@ -1324,6 +1346,7 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
                 placeholder="Enter estimation amount"
                 required
                 className="mt-1.5"
+                disabled={isManual}
               />
             </div>
 
@@ -1461,7 +1484,9 @@ const BayBookingCalendar: React.FC<BayBookingCalendarProps> = ({
                   ? "Rebook"
                   : isEditMode
                   ? "Update"
-                  : "Create"}
+                  : isManual
+                  ? "Create Manual Booking"
+                  : "Create Booking"}
               </Button>
             </div>
           </div>

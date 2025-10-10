@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from "react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -12,27 +12,43 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit2, GripVertical, DollarSign } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { companyServices } from '@/api/services';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import CurrencyManagementDialog from '@/components/cost-config/CurrencyManagementDialog';
-import CostSetterDialog from '@/components/cost-config/CostSetterDialog';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Trash2, Edit2, GripVertical, DollarSign } from "lucide-react";
+import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { companyServices } from "@/api/services";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import CurrencyManagementDialog from "@/components/cost-config/CurrencyManagementDialog";
+import CostSetterDialog from "@/components/cost-config/CostSetterDialog";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface CostType {
   _id: string;
@@ -42,18 +58,14 @@ interface CostType {
   default_tax_type: string;
   section_type: string;
   change_currency: boolean;
+  fx_rate: boolean;
   display_order: number;
 }
 
 // Sortable Cost Type Row Component
 const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: costType._id });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: costType._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -65,14 +77,14 @@ const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
       <td className="p-3 text-center">{index + 1}</td>
       <td className="p-3">
         <div className="flex items-center gap-2">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing"
+          >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(costType)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onEdit(costType)}>
             <Edit2 className="h-4 w-4" />
           </Button>
           <Button
@@ -86,10 +98,21 @@ const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
       </td>
       <td className="p-3">{costType.cost_type}</td>
       <td className="p-3">
-        {costType.currency_id?.currency_name} ({costType.currency_id?.currency_code})
+        {costType.currency_id?.currency_name} (
+        {costType.currency_id?.currency_code})
       </td>
-      <td className="p-3">{costType.default_tax_rate || '-'}</td>
-      <td className="p-3">{costType.default_tax_type || '-'}</td>
+      <td className="p-3">{costType.default_tax_rate || "-"}</td>
+      <td className="p-3">{costType.default_tax_type || "-"}</td>
+      <td className="p-3">
+        <Badge variant={costType.change_currency ? "default" : "secondary"}>
+          {costType.change_currency ? "Yes" : "No"}
+        </Badge>
+      </td>
+      <td className="p-3">
+        <Badge variant={costType.fx_rate ? "default" : "secondary"}>
+          {costType.fx_rate ? "Yes" : "No"}
+        </Badge>
+      </td>
       <td className="p-3 text-sm text-muted-foreground">
         {new Date(costType.created_at).toLocaleString()}
       </td>
@@ -106,21 +129,24 @@ const CostConfiguration = () => {
   const [isCurrencyDialogOpen, setIsCurrencyDialogOpen] = useState(false);
   const [isCostSetterDialogOpen, setIsCostSetterDialogOpen] = useState(false);
   const [editingCostType, setEditingCostType] = useState<CostType | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Unassigned']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(["Unassigned"])
+  );
   const [dropdownData, setDropdownData] = useState<any>({});
 
   const [formData, setFormData] = useState({
-    cost_type: '',
-    currency_id: '',
-    default_tax_rate: '',
-    default_tax_type: '',
-    section_type: '',
+    cost_type: "",
+    currency_id: "",
+    default_tax_rate: "",
+    default_tax_type: "",
+    section_type: "",
     change_currency: false,
+    fx_rate: false,
   });
 
   // Fetch cost configuration
   const { data: costConfig, isLoading: isLoadingConfig } = useQuery({
-    queryKey: ['cost-configuration'],
+    queryKey: ["cost-configuration"],
     queryFn: async () => {
       const response = await companyServices.getCostConfiguration();
       return response.data.data;
@@ -129,7 +155,7 @@ const CostConfiguration = () => {
 
   // Fetch currencies
   const { data: currenciesData } = useQuery({
-    queryKey: ['currencies'],
+    queryKey: ["currencies"],
     queryFn: async () => {
       const response = await companyServices.getCurrencies({ limit: 1000 });
       return response.data.data;
@@ -141,7 +167,12 @@ const CostConfiguration = () => {
     const loadDropdowns = async () => {
       try {
         const response = await companyServices.getCompanyMasterdropdownvalues({
-          dropdown_name: ['vehicle_tax_type', 'vehicle_cost_section_type', 'vehicle_tax_rate', 'vehicle_cost_type'],
+          dropdown_name: [
+            "vehicle_tax_type",
+            "vehicle_cost_section_type",
+            "vehicle_tax_rate",
+            "vehicle_cost_type",
+          ],
         });
         if (response.data.success) {
           const data = response.data.data.reduce((acc: any, item: any) => {
@@ -151,7 +182,7 @@ const CostConfiguration = () => {
           setDropdownData(data);
         }
       } catch (error) {
-        console.error('Failed to load dropdowns:', error);
+        console.error("Failed to load dropdowns:", error);
       }
     };
     loadDropdowns();
@@ -161,13 +192,13 @@ const CostConfiguration = () => {
   const addCostTypeMutation = useMutation({
     mutationFn: (data: any) => companyServices.addCostType(data),
     onSuccess: () => {
-      toast.success('Cost type added successfully');
-      queryClient.invalidateQueries({ queryKey: ['cost-configuration'] });
+      toast.success("Cost type added successfully");
+      queryClient.invalidateQueries({ queryKey: ["cost-configuration"] });
       setIsAddDialogOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to add cost type');
+      toast.error(error.response?.data?.message || "Failed to add cost type");
     },
   });
 
@@ -176,14 +207,16 @@ const CostConfiguration = () => {
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       companyServices.updateCostType(id, data),
     onSuccess: () => {
-      toast.success('Cost type updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['cost-configuration'] });
+      toast.success("Cost type updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["cost-configuration"] });
       setIsAddDialogOpen(false);
       setEditingCostType(null);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update cost type');
+      toast.error(
+        error.response?.data?.message || "Failed to update cost type"
+      );
     },
   });
 
@@ -191,11 +224,13 @@ const CostConfiguration = () => {
   const deleteCostTypeMutation = useMutation({
     mutationFn: (id: string) => companyServices.deleteCostType(id),
     onSuccess: () => {
-      toast.success('Cost type deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['cost-configuration'] });
+      toast.success("Cost type deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["cost-configuration"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete cost type');
+      toast.error(
+        error.response?.data?.message || "Failed to delete cost type"
+      );
     },
   });
 
@@ -203,22 +238,25 @@ const CostConfiguration = () => {
   const reorderMutation = useMutation({
     mutationFn: (data: any) => companyServices.reorderCostTypes(data),
     onSuccess: () => {
-      toast.success('Cost types reordered successfully');
-      queryClient.invalidateQueries({ queryKey: ['cost-configuration'] });
+      toast.success("Cost types reordered successfully");
+      queryClient.invalidateQueries({ queryKey: ["cost-configuration"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to reorder cost types');
+      toast.error(
+        error.response?.data?.message || "Failed to reorder cost types"
+      );
     },
   });
 
   const resetForm = () => {
     setFormData({
-      cost_type: '',
-      currency_id: '',
-      default_tax_rate: '',
-      default_tax_type: '',
-      section_type: '',
+      cost_type: "",
+      currency_id: "",
+      default_tax_rate: "",
+      default_tax_type: "",
+      section_type: "",
       change_currency: false,
+      fx_rate: false,
     });
   };
 
@@ -226,18 +264,19 @@ const CostConfiguration = () => {
     setEditingCostType(costType);
     setFormData({
       cost_type: costType.cost_type,
-      currency_id: costType.currency_id?._id || '',
-      default_tax_rate: costType.default_tax_rate || '',
-      default_tax_type: costType.default_tax_type || '',
-      section_type: costType.section_type || '',
+      currency_id: costType.currency_id?._id || "",
+      default_tax_rate: costType.default_tax_rate || "",
+      default_tax_type: costType.default_tax_type || "",
+      section_type: costType.section_type || "",
       change_currency: costType.change_currency || false,
+      fx_rate: costType.fx_rate || false,
     });
     setIsAddDialogOpen(true);
   };
 
   const handleSubmit = () => {
     if (!formData.cost_type || !formData.currency_id) {
-      toast.error('Please fill in all required fields');
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -252,7 +291,7 @@ const CostConfiguration = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this cost type?')) {
+    if (confirm("Are you sure you want to delete this cost type?")) {
       deleteCostTypeMutation.mutate(id);
     }
   };
@@ -262,9 +301,9 @@ const CostConfiguration = () => {
     if (!costConfig?.cost_types) return {};
 
     const grouped: Record<string, CostType[]> = {};
-    
+
     costConfig.cost_types.forEach((ct: CostType) => {
-      const section = ct.section_type || 'Unassigned';
+      const section = ct.section_type || "Unassigned";
       if (!grouped[section]) {
         grouped[section] = [];
       }
@@ -272,7 +311,7 @@ const CostConfiguration = () => {
     });
 
     // Sort each section by display_order
-    Object.keys(grouped).forEach(section => {
+    Object.keys(grouped).forEach((section) => {
       grouped[section].sort((a, b) => a.display_order - b.display_order);
     });
 
@@ -280,7 +319,7 @@ const CostConfiguration = () => {
   }, [costConfig]);
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => {
+    setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(section)) {
         newSet.delete(section);
@@ -303,14 +342,18 @@ const CostConfiguration = () => {
 
     if (active.id !== over.id) {
       const items = groupedCostTypes[sectionType];
-      const oldIndex = items.findIndex((item: CostType) => item._id === active.id);
-      const newIndex = items.findIndex((item: CostType) => item._id === over.id);
+      const oldIndex = items.findIndex(
+        (item: CostType) => item._id === active.id
+      );
+      const newIndex = items.findIndex(
+        (item: CostType) => item._id === over.id
+      );
 
       const newItems = arrayMove(items, oldIndex, newIndex);
       const cost_type_ids = newItems.map((item: CostType) => item._id);
 
       reorderMutation.mutate({
-        section_type: sectionType === 'Unassigned' ? '' : sectionType,
+        section_type: sectionType === "Unassigned" ? "" : sectionType,
         cost_type_ids,
       });
     }
@@ -341,11 +384,13 @@ const CostConfiguration = () => {
                   <DollarSign className="h-4 w-4 mr-2" />
                   Cost Setter
                 </Button>
-                <Button onClick={() => {
-                  resetForm();
-                  setEditingCostType(null);
-                  setIsAddDialogOpen(true);
-                }}>
+                <Button
+                  onClick={() => {
+                    resetForm();
+                    setEditingCostType(null);
+                    setIsAddDialogOpen(true);
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Cost Type
                 </Button>
@@ -357,83 +402,98 @@ const CostConfiguration = () => {
               <div className="text-center py-8">Loading...</div>
             ) : (
               <div className="space-y-4">
-                {Object.entries(groupedCostTypes).map(([section, costTypes]) => (
-                  <Collapsible
-                    key={section}
-                    open={expandedSections.has(section)}
-                    onOpenChange={() => toggleSection(section)}
-                  >
-                    <div className="border rounded-lg">
-                      <CollapsibleTrigger asChild>
-                        <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
-                          <div className="flex items-center gap-2">
-                            {expandedSections.has(section) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <h3 className="font-semibold">{section}</h3>
-                            <Badge variant="outline">{costTypes.length}</Badge>
+                {Object.entries(groupedCostTypes).map(
+                  ([section, costTypes]) => (
+                    <Collapsible
+                      key={section}
+                      open={expandedSections.has(section)}
+                      onOpenChange={() => toggleSection(section)}
+                    >
+                      <div className="border rounded-lg">
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
+                            <div className="flex items-center gap-2">
+                              {expandedSections.has(section) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                              <h3 className="font-semibold">{section}</h3>
+                              <Badge variant="outline">
+                                {costTypes.length}
+                              </Badge>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                            >
+                              <GripVertical className="h-4 w-4 mr-2" />
+                              Reorder
+                            </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                          >
-                            <GripVertical className="h-4 w-4 mr-2" />
-                            Reorder
-                          </Button>
-                        </div>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-muted/50">
-                              <tr>
-                                <th className="p-3 text-left">Order</th>
-                                <th className="p-3 text-left">Actions</th>
-                                <th className="p-3 text-left">Cost Type</th>
-                                <th className="p-3 text-left">Currency</th>
-                                <th className="p-3 text-left">Tax Rate</th>
-                                <th className="p-3 text-left">Tax Type</th>
-                                <th className="p-3 text-left">Created At</th>
-                                <th className="p-3 text-left">Modified At</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={(event) => handleDragEnd(event, section)}
-                              >
-                                <SortableContext
-                                  items={costTypes.map((ct: CostType) => ct._id)}
-                                  strategy={verticalListSortingStrategy}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead className="bg-muted/50">
+                                <tr>
+                                  <th className="p-3 text-left">Order</th>
+                                  <th className="p-3 text-left">Actions</th>
+                                  <th className="p-3 text-left">Cost Type</th>
+                                  <th className="p-3 text-left">Currency</th>
+                                  <th className="p-3 text-left">Tax Rate</th>
+                                  <th className="p-3 text-left">Tax Type</th>
+                                  <th className="p-3 text-left">
+                                    Change Currency
+                                  </th>
+                                  <th className="p-3 text-left">FX Rate</th>
+                                  <th className="p-3 text-left">Created At</th>
+                                  <th className="p-3 text-left">Modified At</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={(event) =>
+                                    handleDragEnd(event, section)
+                                  }
                                 >
-                                  {costTypes.map((costType: CostType, idx: number) => (
-                                    <SortableCostTypeRow
-                                      key={costType._id}
-                                      costType={costType}
-                                      index={idx}
-                                      onEdit={handleEdit}
-                                      onDelete={handleDelete}
-                                    />
-                                  ))}
-                                </SortableContext>
-                              </DndContext>
-                            </tbody>
-                          </table>
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                ))}
+                                  <SortableContext
+                                    items={costTypes.map(
+                                      (ct: CostType) => ct._id
+                                    )}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {costTypes.map(
+                                      (costType: CostType, idx: number) => (
+                                        <SortableCostTypeRow
+                                          key={costType._id}
+                                          costType={costType}
+                                          index={idx}
+                                          onEdit={handleEdit}
+                                          onDelete={handleDelete}
+                                        />
+                                      )
+                                    )}
+                                  </SortableContext>
+                                </DndContext>
+                              </tbody>
+                            </table>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+                  )
+                )}
 
                 {Object.keys(groupedCostTypes).length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    No cost types configured yet. Click "Add Cost Type" to get started.
+                    No cost types configured yet. Click "Add Cost Type" to get
+                    started.
                   </div>
                 )}
               </div>
@@ -447,7 +507,7 @@ const CostConfiguration = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingCostType ? 'Edit Cost Type' : 'Add Cost Type'}
+              {editingCostType ? "Edit Cost Type" : "Add Cost Type"}
             </DialogTitle>
             <DialogDescription>
               Configure cost type details including currency and tax information
@@ -565,11 +625,26 @@ const CostConfiguration = () => {
                 id="change_currency"
                 checked={formData.change_currency}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, change_currency: checked as boolean })
+                  setFormData({
+                    ...formData,
+                    change_currency: checked as boolean,
+                  })
                 }
               />
               <Label htmlFor="change_currency" className="cursor-pointer">
                 Change Currency
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2 pt-8">
+              <Checkbox
+                id="fx_rate"
+                checked={formData.fx_rate}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, fx_rate: checked as boolean })
+                }
+              />
+              <Label htmlFor="fx_rate" className="cursor-pointer">
+                FX Rate
               </Label>
             </div>
           </div>
@@ -587,9 +662,12 @@ const CostConfiguration = () => {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={addCostTypeMutation.isPending || updateCostTypeMutation.isPending}
+              disabled={
+                addCostTypeMutation.isPending ||
+                updateCostTypeMutation.isPending
+              }
             >
-              {editingCostType ? 'Update' : 'Save'}
+              {editingCostType ? "Update" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

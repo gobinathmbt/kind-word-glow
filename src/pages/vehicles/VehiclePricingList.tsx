@@ -10,6 +10,7 @@ import {
   ArrowDown,
   SlidersHorizontal,
   RefreshCw,
+  Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ import {
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
 
 const VehiclePricingList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,6 +34,8 @@ const VehiclePricingList = () => {
   const [paginationEnabled, setPaginationEnabled] = useState(true);
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [costCalculationOpen, setCostCalculationOpen] = useState(false);
+  const [selectedVehicleForCost, setSelectedVehicleForCost] = useState<any>(null);
 
   const { completeUser } = useAuth();
 
@@ -181,6 +185,12 @@ const VehiclePricingList = () => {
     setSelectedVehicle(vehicle);
   };
 
+  const handleOpenCostCalculation = (vehicle: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedVehicleForCost(vehicle);
+    setCostCalculationOpen(true);
+  };
+
 
   const getDealershipName = (dealershipId: string) => {
     const dealership = dealerships?.find(
@@ -306,6 +316,7 @@ const VehiclePricingList = () => {
           {getSortIcon("vehicle_type")}
         </div>
       </TableHead>
+      <TableHead className="bg-muted/50">Actions</TableHead>
     </TableRow>
   );
 
@@ -370,6 +381,17 @@ const VehiclePricingList = () => {
               {vehicle.vehicle_type}
             </Badge>
           </TableCell>
+          <TableCell>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => handleOpenCostCalculation(vehicle, e)}
+              className="gap-2"
+            >
+              <Calculator className="h-4 w-4" />
+              Pricing Calculation
+            </Button>
+          </TableCell>
         </TableRow>
       ))}
     </>
@@ -401,6 +423,14 @@ const VehiclePricingList = () => {
         cookieName="vehicle_pricing_pagination"
       />
 
+      <CostCalculationDialog
+        open={costCalculationOpen}
+        onClose={() => {
+          setCostCalculationOpen(false);
+          setSelectedVehicleForCost(null);
+        }}
+        vehicle={selectedVehicleForCost}
+      />
     </>
   );
 };

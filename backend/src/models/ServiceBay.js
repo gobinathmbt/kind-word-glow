@@ -8,11 +8,9 @@ const BayTimingsSchema = new mongoose.Schema({
   },
   start_time: {
     type: String, // Format: "HH:mm" (24-hour)
-    required: true
   },
   end_time: {
     type: String, // Format: "HH:mm" (24-hour)
-    required: true
   },
   is_working_day: {
     type: Boolean,

@@ -80,12 +80,12 @@ export interface FormData {
 interface CommentSheetModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  quote?: any; 
-  field?: any; 
+  quote?: any;
+  field?: any;
   workMode?: any;
   mode: "supplier_submit" | "company_review" | "company_view";
-  onSubmit?: (data: any) => void;
-  onSuccess?: () => void;
+  onSubmit?: (data: any, saveAsDraft?: boolean) => void; // Updated
+  onSuccess?: (isDraft?: boolean) => void; // Updated
   loading?: boolean;
 }
 
@@ -122,12 +122,11 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
       );
       return response.data.data;
     },
-    enabled:
-      open && !!field && (mode === "company_review" || mode === "company_view"),
+    enabled: open && !!field,
   });
 
-  const quote = mode === "supplier_submit" ? propQuote : fetchedQuote;
-  const isLoading = mode === "supplier_submit" ? false : isFetchingQuote;
+  const quote = fetchedQuote || propQuote;
+  const isLoading = isFetchingQuote;
 
   const acceptWorkMutation = useMutation({
     mutationFn: async () => {
@@ -206,7 +205,7 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
 
   const getQuoteDifference = () => {
     const total = calculateGrandTotal();
-    const quoteAmount = quote?.quote_amount || 0;
+    const quoteAmount = quote?.quote_amount || quote?.manual_quote_amount || 0;
     return total - quoteAmount;
   };
 
@@ -227,11 +226,12 @@ const CommentSheetModal: React.FC<CommentSheetModalProps> = ({
         save_as_draft: saveAsDraft,
       };
 
-      onSubmit?.(submitData);
+      onSubmit?.(submitData, saveAsDraft);
     }
   };
 
   const handleSaveAsDraft = (e: React.FormEvent) => {
+    e.preventDefault();
     setIsDraftSubmission(true);
     handleSubmit(e, true);
   };

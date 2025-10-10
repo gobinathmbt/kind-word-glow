@@ -31,6 +31,7 @@ interface CalculationSettingsDialogProps {
   categoryId: string;
   category: any;
   configType: "inspection" | "tradein";
+  onRefetch?: () => void;
 }
 
 const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
@@ -40,6 +41,7 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
   categoryId,
   category,
   configType,
+  onRefetch,
 }) => {
   const queryClient = useQueryClient();
   const [isNewCalculationDialogOpen, setIsNewCalculationDialogOpen] =
@@ -101,7 +103,7 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
           data
         );
       } else {
-        return await configServices.addTradeinCalculation(configId, data);
+        return await configServices.addTradeinCalculation(configId, categoryId, data);
       }
     },
     onSuccess: () => {
@@ -136,6 +138,7 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
       } else {
         return await configServices.updateTradeinCalculationFormula(
           configId,
+          categoryId,
           calculationId,
           formula
         );
@@ -157,32 +160,40 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
 
   // Delete calculation mutation
   const deleteCalculationMutation = useMutation({
-    mutationFn: async (calculationId: string) => {
-      if (configType === "inspection") {
-        return await configServices.deleteInspectionCalculation(
-          configId,
-          categoryId,
-          calculationId
-        );
-      } else {
-        return await configServices.deleteTradeinCalculation(
-          configId,
-          calculationId
-        );
-      }
-    },
-    onSuccess: () => {
-      toast.success("Calculation deleted successfully");
-      queryClient.invalidateQueries({
-        queryKey: [`${configType}-config-details`],
-      });
-    },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to delete calculation"
+  mutationFn: async (calculationId: string) => {
+    console.log('Deleting calculation with:', {
+      configId,
+      categoryId,
+      calculationId
+    });
+    
+    if (configType === "inspection") {
+      return await configServices.deleteInspectionCalculation(
+        configId,
+        categoryId,
+        calculationId
       );
-    },
-  });
+    } else {
+      return await configServices.deleteTradeinCalculation(
+        configId,
+        categoryId,
+        calculationId
+      );
+    }
+  },
+  onSuccess: () => {
+    toast.success("Calculation deleted successfully");
+    queryClient.invalidateQueries({
+      queryKey: [`${configType}-config-details`],
+    });
+  },
+  onError: (error: any) => {
+    console.error('Delete calculation error:', error);
+    toast.error(
+      error.response?.data?.message || "Failed to delete calculation"
+    );
+  },
+});
 
   // Toggle calculation status mutation
   const toggleStatusMutation = useMutation({
@@ -203,6 +214,7 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
       } else {
         return await configServices.toggleTradeinCalculationStatus(
           configId,
+          categoryId,
           calculationId,
           isActive
         );

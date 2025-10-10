@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
 const {
@@ -29,7 +28,7 @@ const {
   addInspectionCategory,
   updateInspectionCategory,
   toggleInspectionCategoryStatus,
-    addInspectionCalculation,
+  addInspectionCalculation,
   updateInspectionCalculationFormula,
   deleteInspectionCalculation,
   toggleInspectionCalculationStatus,
@@ -37,6 +36,10 @@ const {
   updateTradeinCalculationFormula,
   deleteTradeinCalculation,
   toggleTradeinCalculationStatus,
+  // NEW: Trade-in category controllers
+  addTradeinCategory,
+  updateTradeinCategory,
+  toggleTradeinCategoryStatus,
 } = require('../controllers/config.controller');
 
 const router = express.Router();
@@ -77,19 +80,27 @@ router.get('/tradein/:id', getTradeinConfigDetails);
 router.post('/tradein', authorize('company_super_admin'), createTradeinConfig);
 router.put('/tradein/:id', authorize('company_super_admin'), updateTradeinConfig);
 router.delete('/tradein/:id', authorize('company_super_admin'), deleteTradeinConfig);
-router.post('/tradein/:id/sections', authorize('company_super_admin'), addTradeinSection);
+
+// Trade-in Category Routes (NEW)
+router.post('/tradein/:id/categories', authorize('company_super_admin'), addTradeinCategory);
+router.put('/tradein/:id/categories/:categoryId', authorize('company_super_admin'), updateTradeinCategory);
+router.patch('/tradein/:id/categories/:categoryId/toggle', authorize('company_super_admin'), toggleTradeinCategoryStatus);
+
+// Trade-in Section Routes (Updated to include categoryId)
+router.post('/tradein/:id/categories/:categoryId/sections', authorize('company_super_admin'), addTradeinSection);
+router.delete('/tradein/:id/sections/:sectionId', authorize('company_super_admin'), deleteTradeinSection);
+router.put('/tradein/:id/categories/:categoryId/sections/reorder', authorize('company_super_admin'), updateTradeinSectionsOrder);
+
+// Trade-in Field Routes
 router.post('/tradein/:id/sections/:sectionId/fields', authorize('company_super_admin'), addTradeinField);
 router.put('/update/tradein/:id/fields/:fieldId', authorize('company_super_admin'), updateTradeinField);
 router.delete('/tradein/:id/fields/:fieldId', authorize('company_super_admin'), deleteTradeinField);
-router.delete('/tradein/:id/sections/:sectionId', authorize('company_super_admin'), deleteTradeinSection);
-router.put('/tradein/:id/sections/reorder', authorize('company_super_admin'), updateTradeinSectionsOrder);
 router.put('/tradein/:id/sections/:sectionId/fields/reorder', authorize('company_super_admin'), updateTradeinFieldsOrder);
 
-// Trade-in Calculation Routes
-router.post('/tradein/:id/calculations', authorize('company_super_admin'), addTradeinCalculation);
-router.put('/tradein/:id/calculations/:calculationId/formula', authorize('company_super_admin'), updateTradeinCalculationFormula);
-router.delete('/tradein/:id/calculations/:calculationId', authorize('company_super_admin'), deleteTradeinCalculation);
-router.patch('/tradein/:id/calculations/:calculationId/toggle', authorize('company_super_admin'), toggleTradeinCalculationStatus);
-
+// Trade-in Calculation Routes (Updated to include categoryId)
+router.post('/tradein/:id/categories/:categoryId/calculations', authorize('company_super_admin'), addTradeinCalculation);
+router.put('/tradein/:id/categories/:categoryId/calculations/:calculationId/formula', authorize('company_super_admin'), updateTradeinCalculationFormula);
+router.delete('/tradein/:id/categories/:categoryId/calculations/:calculationId', authorize('company_super_admin'), deleteTradeinCalculation);
+router.patch('/tradein/:id/categories/:categoryId/calculations/:calculationId/toggle', authorize('company_super_admin'), toggleTradeinCalculationStatus);
 
 module.exports = router;

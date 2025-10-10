@@ -817,12 +817,11 @@ const getTradeinConfigs = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Add vehicles_count (or similar) to each config
+    // Add categories_count to each config
     const configsWithCount = await Promise.all(
       configs.map(async (config) => {
         const configObj = config.toObject();
-        // Assuming TradeinConfig has an array like `vehicles` or `items`
-        configObj.vehicles_count = config.vehicles ? config.vehicles.length : 0;
+        configObj.categories_count = config.categories ? config.categories.length : 0;
         return configObj;
       })
     );
@@ -1003,6 +1002,161 @@ const deleteTradeinConfig = async (req, res) => {
   }
 };
 
+const addTradeinCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category_name, category_id, description } = req.body;
+    const companyId = req.user.company_id;
+
+    // Validate required fields
+    if (!category_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category name is required'
+      });
+    }
+
+    // Find the configuration
+    const config = await TradeinConfig.findOne({
+      _id: id,
+      company_id: companyId
+    });
+
+    if (!config) {
+      return res.status(404).json({
+        success: false,
+        message: 'Configuration not found'
+      });
+    }
+
+    // Check if category_id already exists
+    const existingCategory = config.categories.find(
+      cat => cat.category_id === category_id
+    );
+
+    if (existingCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category ID already exists'
+      });
+    }
+
+    // Create new category
+    const newCategory = {
+      category_id: category_id || category_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+      category_name,
+      description: description || '',
+      display_order: config.categories.length,
+      is_active: true,
+      sections: [],
+      calculations: []
+    };
+
+    // Add category to configuration
+    config.categories.push(newCategory);
+    await config.save();
+
+    res.json({
+      success: true,
+      message: 'Category added successfully',
+      data: newCategory
+    });
+  } catch (error) {
+    console.error('Add tradein category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add category'
+    });
+  }
+};
+
+const updateTradeinCategory = async (req, res) => {
+  try {
+    const { id: configId, categoryId } = req.params;
+    const { category_name, description } = req.body;
+
+    // Generate category_id from category_name
+    const generated_category_id = category_name.toLowerCase().replace(/\s+/g, '_');
+
+    const config = await TradeinConfig.findById(configId);
+    if (!config) {
+      return res.status(404).json({
+        success: false,
+        message: 'Configuration not found'
+      });
+    }
+
+    // Find and update the category
+    const categoryIndex = config.categories.findIndex(cat => cat.category_id === categoryId);
+    if (categoryIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    // Update category data
+    config.categories[categoryIndex].category_name = category_name;
+    config.categories[categoryIndex].category_id = generated_category_id;
+    config.categories[categoryIndex].description = description;
+
+    await config.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Category updated successfully',
+      data: config.categories[categoryIndex]
+    });
+  } catch (error) {
+    console.error('Update tradein category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+const toggleTradeinCategoryStatus = async (req, res) => {
+  try {
+    const { id: configId, categoryId } = req.params;
+    const { is_active } = req.body;
+
+    const config = await TradeinConfig.findById(configId);
+    if (!config) {
+      return res.status(404).json({
+        success: false,
+        message: 'Configuration not found'
+      });
+    }
+
+    // Find and update the category status
+    const categoryIndex = config.categories.findIndex(cat => cat.category_id === categoryId);
+    if (categoryIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    config.categories[categoryIndex].is_active = is_active;
+    await config.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Category status updated successfully',
+      data: config.categories[categoryIndex]
+    });
+  } catch (error) {
+    console.error('Toggle tradein category status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 const addTradeinSection = async (req, res) => {
   try {
     const config = await TradeinConfig.findOne({
@@ -1017,9 +1171,21 @@ const addTradeinSection = async (req, res) => {
       });
     }
 
-    // Check for unique section name within the company
-    const sectionNameExists = config.sections.some(section => 
-      section.section_name.toLowerCase() === req.body.section_name.toLowerCase()
+    const category = config.categories.find(
+      (cat) => cat.category_id === req.params.categoryId
+    );
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    // Check for unique section name across all categories within the company
+    const sectionNameExists = config.categories.some(category =>
+      category.sections.some(section => 
+        section.section_name.toLowerCase() === req.body.section_name.toLowerCase()
+      )
     );
 
     if (sectionNameExists) {
@@ -1032,11 +1198,11 @@ const addTradeinSection = async (req, res) => {
     const newSection = {
       ...req.body,
       section_id: `section_${Date.now()}`,
-      display_order: config.sections.length,
+      display_order: category.sections.length,
       fields: [],
     };
 
-    config.sections.push(newSection);
+    category.sections.push(newSection);
     await config.save();
 
     res.status(201).json({
@@ -1063,26 +1229,28 @@ const addTradeinField = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Configuration not found",
-      });
+      }); 
     }
 
-    // Check for unique field name within the company
-    const fieldNameExists = config.sections.some(section =>
-      section.fields.some(field => 
-        field.field_name.toLowerCase() === req.body.field_name.toLowerCase()
-      )
+    // Find the category that contains the section
+    const category = config.categories.find(cat => 
+      cat.sections.some(section => section.section_id === req.params.sectionId)
     );
 
-    if (fieldNameExists) {
-      return res.status(400).json({
+    if (!category) {
+      return res.status(404).json({
         success: false,
-        message: "Field name must be unique within the company",
+        message: "Category containing the section not found",
       });
     }
 
-    const section = config.sections.find(
+    // Find the section within the category
+    const section = category.sections.find(
       (section) => section.section_id === req.params.sectionId
     );
+    
+    console.log("Found section:", section);
+
     if (!section) {
       return res.status(404).json({
         success: false,
@@ -1090,17 +1258,45 @@ const addTradeinField = async (req, res) => {
       });
     }
 
+    console.log("Section fields:", section.fields);
+
+    // Initialize fields array if it doesn't exist
+    if (!section.fields) {
+      section.fields = [];
+    }
+
+    // Check for unique field name within the same section only
+    const fieldNameExists = section.fields.some(field => 
+      field.field_name && field.field_name.toLowerCase() === req.body.field_name.toLowerCase()
+    );
+
+    if (fieldNameExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Field name must be unique within this section",
+      });
+    }
+
+    // Create new field with proper structure
     const newField = {
-      ...req.body,
-      field_id: `field_${Date.now()}`,
+      field_id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      field_name: req.body.field_name,
+      field_type: req.body.field_type,
+      is_required: req.body.is_required || false,
+      has_image: req.body.has_image || false,
+      has_notes: req.body.has_notes || false,
+      placeholder: req.body.placeholder || "",
+      help_text: req.body.help_text || "",
       display_order: section.fields.length,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
     // Validate dropdown configuration if field type is dropdown
-    if (newField.field_type === "dropdown") {
+    if (req.body.field_type === "dropdown") {
       if (
-        !newField.dropdown_config ||
-        !newField.dropdown_config.dropdown_name
+        !req.body.dropdown_config ||
+        !req.body.dropdown_config.dropdown_name
       ) {
         return res.status(400).json({
           success: false,
@@ -1110,7 +1306,7 @@ const addTradeinField = async (req, res) => {
 
       // Verify that the dropdown exists and belongs to the company
       const dropdown = await DropdownMaster.findOne({
-        dropdown_name: newField.dropdown_config.dropdown_name,
+        dropdown_name: req.body.dropdown_config.dropdown_name,
         company_id: req.user.company_id,
         is_active: true,
       });
@@ -1122,30 +1318,50 @@ const addTradeinField = async (req, res) => {
         });
       }
 
-      // Set the dropdown_id reference
-      newField.dropdown_config.dropdown_id = dropdown._id;
+      // Set the dropdown configuration
+      newField.dropdown_config = {
+        dropdown_id: dropdown._id,
+        dropdown_name: dropdown.dropdown_name,
+        allow_multiple: req.body.dropdown_config.allow_multiple || false,
+      };
     }
 
+    // Add validation rules if provided
+    if (req.body.validation_rules) {
+      newField.validation_rules = req.body.validation_rules;
+    }
+
+    // Add the field to the section
     section.fields.push(newField);
+    
+    // Mark the entire path as modified to ensure Mongoose detects the change
+    config.markModified('categories');
+    
     await config.save();
 
     res.status(201).json({
       success: true,
-      data: config,
+      message: "Field added successfully",
+      data: newField,
     });
   } catch (error) {
     console.error("Add tradein field error:", error);
     res.status(500).json({
       success: false,
-      message: "Error adding field",
+      message: "Error adding field: " + error.message,
     });
   }
 };
 
 const updateTradeinField = async (req, res) => {
   try {
+    const { id: configId, fieldId } = req.params;
+    const updateData = { ...req.body };
+
+    console.log(`Updating field: config=${configId}, field=${fieldId}`);
+
     const config = await TradeinConfig.findOne({
-      _id: req.params.id,
+      _id: configId,
       company_id: req.user.company_id,
     });
 
@@ -1156,96 +1372,116 @@ const updateTradeinField = async (req, res) => {
       });
     }
 
-    // Find field across all sections
+    // Find the field
     let targetField = null;
-    let targetSection = null;
-    for (const section of config.sections) {
-      targetField = section.fields.find(
-        (field) => field.field_id === req.params.fieldId
-      );
-      if (targetField) {
-        targetSection = section;
-        break;
+    let fieldPath = '';
+
+    for (const [catIndex, category] of config.categories.entries()) {
+      for (const [secIndex, section] of category.sections.entries()) {
+        const fieldIndex = section.fields.findIndex(
+          field => field.field_id === fieldId
+        );
+        
+        if (fieldIndex !== -1) {
+          targetField = section.fields[fieldIndex];
+          fieldPath = `categories.${catIndex}.sections.${secIndex}.fields.${fieldIndex}`;
+          break;
+        }
       }
+      if (targetField) break;
     }
 
     if (!targetField) {
       return res.status(404).json({
         success: false,
-        message: "Field not found",
+        message: "Field not found in configuration",
       });
     }
 
-    // Check for unique field name if it's being changed
-    if (req.body.field_name && req.body.field_name.toLowerCase() !== targetField.field_name.toLowerCase()) {
-      const fieldNameExists = config.sections.some(section =>
-        section.fields.some(field => 
-          field.field_id !== req.params.fieldId &&
-          field.field_name.toLowerCase() === req.body.field_name.toLowerCase()
+    // Check for unique field name
+    if (updateData.field_name && updateData.field_name.toLowerCase() !== targetField.field_name.toLowerCase()) {
+      const fieldNameExists = config.categories.some(category =>
+        category.sections.some(section =>
+          section.fields.some(field => 
+            field.field_id !== fieldId &&
+            field.field_name.toLowerCase() === updateData.field_name.toLowerCase()
+          )
         )
       );
 
       if (fieldNameExists) {
         return res.status(400).json({
           success: false,
-          message: "Field name must be unique within the company",
+          message: "Field name must be unique within the configuration",
         });
       }
     }
 
-    // Validate dropdown configuration if field type is dropdown
-    if (req.body.field_type === "dropdown") {
-      if (
-        !req.body.dropdown_config ||
-        (!req.body.dropdown_config.dropdown_name &&
-          !req.body.dropdown_config.dropdown_id)
-      ) {
+    // Handle dropdown configuration
+    if (updateData.field_type === "dropdown" || targetField.field_type === "dropdown") {
+      if (updateData.field_type === "dropdown" && (!updateData.dropdown_config || (!updateData.dropdown_config.dropdown_id && !updateData.dropdown_config.dropdown_name))) {
         return res.status(400).json({
           success: false,
-          message:
-            "Dropdown configuration (dropdown_id or dropdown_name) is required",
+          message: "Dropdown configuration is required for dropdown fields",
         });
       }
 
-      // Build query dynamically
-      const query = {
-        company_id: req.user.company_id,
-        is_active: true,
-      };
+      if (updateData.dropdown_config) {
+        const query = {
+          company_id: req.user.company_id,
+          is_active: true,
+        };
 
-      if (req.body.dropdown_config.dropdown_id) {
-        query._id = req.body.dropdown_config.dropdown_id;
-      } else {
-        query.dropdown_name = req.body.dropdown_config.dropdown_name;
+        if (updateData.dropdown_config.dropdown_id) {
+          query._id = updateData.dropdown_config.dropdown_id;
+        } else if (updateData.dropdown_config.dropdown_name) {
+          query.dropdown_name = updateData.dropdown_config.dropdown_name;
+        }
+
+        const dropdown = await DropdownMaster.findOne(query);
+
+        if (!dropdown) {
+          return res.status(400).json({
+            success: false,
+            message: "Selected dropdown not found or inactive",
+          });
+        }
+
+        // Update dropdown config
+        updateData.dropdown_config = {
+          dropdown_id: dropdown._id,
+          dropdown_name: dropdown.dropdown_name,
+          allow_multiple: updateData.dropdown_config.allow_multiple || false,
+        };
       }
-
-      // Verify that the dropdown exists and belongs to the company
-      const dropdown = await DropdownMaster.findOne(query);
-
-      if (!dropdown) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected dropdown not found or inactive",
-        });
-      }
-
-      // Set the dropdown_id reference
-      req.body.dropdown_config.dropdown_id = dropdown._id;
     }
 
-    // Update field properties
-    Object.assign(targetField, req.body);
+    // Remove dropdown_config from updateData if we're not changing to dropdown
+    if (updateData.field_type !== "dropdown" && targetField.field_type !== "dropdown") {
+      delete updateData.dropdown_config;
+    }
+
+    // Update the field
+    Object.assign(targetField, updateData);
+    targetField.updated_at = new Date();
+
+    // Mark the specific path as modified
+    config.markModified(fieldPath);
+    
     await config.save();
+
+    console.log("Field updated successfully:", targetField.field_name);
 
     res.status(200).json({
       success: true,
-      data: config,
+      message: "Field updated successfully",
+      data: targetField,
     });
   } catch (error) {
     console.error("Update tradein field error:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating field",
+      message: "Error updating field: " + error.message,
     });
   }
 };
@@ -1264,17 +1500,25 @@ const deleteTradeinField = async (req, res) => {
       });
     }
 
-    // Find and remove field across all sections
+    // Find and remove field across all categories and sections
     let fieldRemoved = false;
-    for (const section of config.sections) {
-      const fieldIndex = section.fields.findIndex(
-        (field) => field.field_id === req.params.fieldId
-      );
-      if (fieldIndex !== -1) {
-        section.fields.splice(fieldIndex, 1);
-        fieldRemoved = true;
-        break;
+    let targetCategory = null;
+    let targetSection = null;
+
+    for (const category of config.categories) {
+      for (const section of category.sections) {
+        const fieldIndex = section.fields.findIndex(
+          (field) => field.field_id === req.params.fieldId
+        );
+        if (fieldIndex !== -1) {
+          section.fields.splice(fieldIndex, 1);
+          fieldRemoved = true;
+          targetCategory = category;
+          targetSection = section;
+          break;
+        }
       }
+      if (fieldRemoved) break;
     }
 
     if (!fieldRemoved) {
@@ -1284,18 +1528,32 @@ const deleteTradeinField = async (req, res) => {
       });
     }
 
+    // Update display orders for remaining fields in the section
+    if (targetSection && targetSection.fields) {
+      targetSection.fields.forEach((field, index) => {
+        field.display_order = index;
+      });
+    }
+
+    // Mark the entire path as modified to ensure Mongoose detects the change
+    config.markModified('categories');
+    
     await config.save();
 
     res.status(200).json({
       success: true,
-      data: config,
       message: "Field deleted successfully",
+      data: {
+        field_id: req.params.fieldId,
+        category_id: targetCategory?.category_id,
+        section_id: targetSection?.section_id
+      },
     });
   } catch (error) {
     console.error("Delete tradein field error:", error);
     res.status(500).json({
       success: false,
-      message: "Error deleting field",
+      message: "Error deleting field: " + error.message,
     });
   }
 };
@@ -1317,13 +1575,19 @@ const deleteTradeinSection = async (req, res) => {
       });
     }
 
-    // Find and remove the section
-    const initialLength = config.sections.length;
-    config.sections = config.sections.filter(
-      (section) => section.section_id !== sectionId
-    );
+    // Find and remove the section from all categories
+    let sectionRemoved = false;
+    config.categories.forEach((category) => {
+      const initialLength = category.sections.length;
+      category.sections = category.sections.filter(
+        (section) => section.section_id !== sectionId
+      );
+      if (category.sections.length < initialLength) {
+        sectionRemoved = true;
+      }
+    });
 
-    if (config.sections.length === initialLength) {
+    if (!sectionRemoved) {
       return res.status(404).json({
         success: false,
         message: "Section not found",
@@ -1348,7 +1612,7 @@ const deleteTradeinSection = async (req, res) => {
 // Update sections order for tradein
 const updateTradeinSectionsOrder = async (req, res) => {
   try {
-    const { id: configId } = req.params;
+    const { id: configId, categoryId } = req.params;
     const { sections } = req.body;
     const { company_id } = req.user;
 
@@ -1364,9 +1628,19 @@ const updateTradeinSectionsOrder = async (req, res) => {
       });
     }
 
+    const category = config.categories.find(
+      (cat) => cat.category_id === categoryId
+    );
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
     // Update display order for sections based on the array received
     sections.forEach((sectionUpdate, index) => {
-      const section = config.sections.find(
+      const section = category.sections.find(
         (s) => s.section_id === sectionUpdate.section_id
       );
       if (section) {
@@ -1375,7 +1649,7 @@ const updateTradeinSectionsOrder = async (req, res) => {
     });
 
     // Sort sections by display_order to maintain consistency
-    config.sections.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    category.sections.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
     await config.save();
 
@@ -1742,7 +2016,7 @@ const toggleInspectionCalculationStatus = async (req, res) => {
 // Calculation management for tradein configs
 const addTradeinCalculation = async (req, res) => {
   try {
-    const { id: configId } = req.params;
+    const { id: configId, categoryId } = req.params;
     const { display_name, internal_name } = req.body;
 
     const config = await TradeinConfig.findById(configId);
@@ -1753,8 +2027,16 @@ const addTradeinCalculation = async (req, res) => {
       });
     }
 
-    // Check if calculation name already exists in this config
-    const existingCalculation = config.calculations?.find(calc => 
+    const category = config.categories.find(cat => cat.category_id === categoryId);
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    // Check if calculation name already exists in this category
+    const existingCalculation = category.calculations?.find(calc => 
       calc.internal_name === internal_name || calc.display_name === display_name
     );
 
@@ -1773,10 +2055,10 @@ const addTradeinCalculation = async (req, res) => {
       is_active: true
     };
 
-    if (!config.calculations) {
-      config.calculations = [];
+    if (!category.calculations) {
+      category.calculations = [];
     }
-    config.calculations.push(newCalculation);
+    category.calculations.push(newCalculation);
     
     await config.save();
 
@@ -1795,7 +2077,7 @@ const addTradeinCalculation = async (req, res) => {
 
 const updateTradeinCalculationFormula = async (req, res) => {
   try {
-    const { id: configId, calculationId } = req.params;
+    const { id: configId, categoryId, calculationId } = req.params;
     const { formula } = req.body;
 
     const config = await TradeinConfig.findById(configId);
@@ -1806,7 +2088,15 @@ const updateTradeinCalculationFormula = async (req, res) => {
       });
     }
 
-    const calculation = config.calculations?.find(calc => calc.calculation_id === calculationId);
+    const category = config.categories.find(cat => cat.category_id === categoryId);
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    const calculation = category.calculations?.find(calc => calc.calculation_id === calculationId);
     if (!calculation) {
       return res.status(404).json({
         success: false,
@@ -1822,17 +2112,18 @@ const updateTradeinCalculationFormula = async (req, res) => {
       data: calculation
     });
   } catch (error) {
-    console.error('Update tradein calculation formula error:', error);
+    console.error('Update calculation formula error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update calculation formula'
+      message: 'Failed to update calculation formula',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
 const deleteTradeinCalculation = async (req, res) => {
   try {
-    const { id: configId, calculationId } = req.params;
+    const { id: configId, categoryId, calculationId } = req.params;
 
     const config = await TradeinConfig.findById(configId);
     if (!config) {
@@ -1842,14 +2133,23 @@ const deleteTradeinCalculation = async (req, res) => {
       });
     }
 
-    if (!config.calculations) {
+    // Find the category within the config
+    const category = config.categories.find(cat => cat.category_id === categoryId);
+    if (!category) {
       return res.status(404).json({
         success: false,
-        message: 'No calculations found'
+        message: 'Category not found'
       });
     }
 
-    const calculationIndex = config.calculations.findIndex(calc => calc.calculation_id === calculationId);
+    if (!category.calculations || category.calculations.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No calculations found in this category'
+      });
+    }
+
+    const calculationIndex = category.calculations.findIndex(calc => calc.calculation_id === calculationId);
     if (calculationIndex === -1) {
       return res.status(404).json({
         success: false,
@@ -1857,7 +2157,7 @@ const deleteTradeinCalculation = async (req, res) => {
       });
     }
 
-    config.calculations.splice(calculationIndex, 1);
+    category.calculations.splice(calculationIndex, 1);
     await config.save();
 
     res.status(200).json({
@@ -1875,7 +2175,7 @@ const deleteTradeinCalculation = async (req, res) => {
 
 const toggleTradeinCalculationStatus = async (req, res) => {
   try {
-    const { id: configId, calculationId } = req.params;
+    const { id: configId, categoryId, calculationId } = req.params;
     const { is_active } = req.body;
 
     const config = await TradeinConfig.findById(configId);
@@ -1886,7 +2186,15 @@ const toggleTradeinCalculationStatus = async (req, res) => {
       });
     }
 
-    const calculation = config.calculations?.find(calc => calc.calculation_id === calculationId);
+    const category = config.categories.find(cat => cat.category_id === categoryId);
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    const calculation = category.calculations?.find(calc => calc.calculation_id === calculationId);
     if (!calculation) {
       return res.status(404).json({
         success: false,
@@ -1902,7 +2210,7 @@ const toggleTradeinCalculationStatus = async (req, res) => {
       data: calculation
     });
   } catch (error) {
-    console.error('Toggle tradein calculation status error:', error);
+    console.error('Toggle calculation status error:', error); // Changed to match inspection
     res.status(500).json({
       success: false,
       message: 'Failed to toggle calculation status'
@@ -1935,6 +2243,9 @@ module.exports = {
   updateTradeinSectionsOrder,
   updateTradeinFieldsOrder,
   addInspectionCategory,
+  addTradeinCategory,
+  updateTradeinCategory,
+  toggleTradeinCategoryStatus,
   updateInspectionCategory,
   toggleInspectionCategoryStatus,
   addInspectionCalculation,

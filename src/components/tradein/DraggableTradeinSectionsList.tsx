@@ -1,32 +1,63 @@
 
 import React, { useState } from 'react';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { GripVertical, Trash2, Plus } from 'lucide-react';
-import { configServices } from '@/api/services';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import DraggableTradeinFieldsList from './DraggableTradeinFieldsList';
-import { SectionDeleteDialog } from './SectionDeleteDialog';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import DraggableFieldsList from '@/components/inspection/DraggableFieldsList';
+import SectionDeleteDialog  from '@/components/tradein/SectionDeleteDialog';
 
 interface SortableSectionProps {
   section: any;
-  selectedConfig: any;
+  configId: string;
+  onDeleteSection: (sectionId: string) => void;
   onAddField: (section: any) => void;
-  onEditField: (field: any, section: any) => void;
-  onDeleteField: (fieldId: string, sectionId: string) => void;
-  dropdowns?: any[];
+  onEditField: (field: any) => void;
+  onDeleteField: (field: any) => void;
+  onUpdateFieldsOrder: (sectionId: string, fields: any[]) => void;
+  isFieldDialogOpen: boolean;
+  setIsFieldDialogOpen: (open: boolean) => void;
+  selectedSection: any;
+  setSelectedSection: (section: any) => void;
+  addFieldForm: React.ReactNode;
+  isDeletingSection: boolean;
 }
 
-function SortableSection({ section, selectedConfig, onAddField, onEditField, onDeleteField, dropdowns }: SortableSectionProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+function SortableSection({
+  section,
+  configId,
+  onDeleteSection,
+  onAddField,
+  onEditField,
+  onDeleteField,
+  onUpdateFieldsOrder,
+  isFieldDialogOpen,
+  setIsFieldDialogOpen,
+  selectedSection,
+  setSelectedSection,
+  addFieldForm,
+  isDeletingSection
+}: SortableSectionProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const {
     attributes,
@@ -34,112 +65,123 @@ function SortableSection({ section, selectedConfig, onAddField, onEditField, onD
     setNodeRef,
     transform,
     transition,
-    isDragging,
   } = useSortable({ id: section.section_id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
-  const queryClient = useQueryClient();
+  const handleFieldsOrderUpdate = (fields: any[]) => {
+    onUpdateFieldsOrder(section.section_id, fields);
+  };
 
-  const handleDeleteSection = async () => {
-    setIsDeleting(true);
-    try {
-      await configServices.deleteTradeinSection(selectedConfig._id, section.section_id);
-      toast.success('Section deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['tradein-config-details', selectedConfig._id] });
-      setDeleteDialogOpen(false);
-    } catch (error) {
-      console.error('Delete section error:', error);
-      toast.error('Failed to delete section');
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDeleteSection(section.section_id);
+    setIsDeleteDialogOpen(false);
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <AccordionItem value={section.section_id}>
-        <AccordionTrigger className="text-left hover:no-underline">
-          <div className="flex items-center justify-between w-full mr-4">
-            <div className="flex items-center gap-3">
-              <div {...attributes} {...listeners} className="cursor-grab hover:cursor-grabbing">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold">{section.section_name}</h3>
-                <p className="text-sm text-muted-foreground">{section.description}</p>
-              </div>
+    <>
+      <div ref={setNodeRef} style={style} className="border rounded-lg p-4 bg-white">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className="cursor-grab hover:cursor-grabbing">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{section.fields?.length || 0} fields</Badge>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+            <div>
+              <h5 className="font-medium">{section.section_name}</h5>
+              <p className="text-sm text-muted-foreground">{section.description}</p>
             </div>
           </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="space-y-4 pl-4">
-            <div className="flex justify-between items-center">
-              <h4 className="font-medium">Fields</h4>
-              <Button size="sm" variant="outline" onClick={() => onAddField(section)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Field
-              </Button>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline">{section.fields?.length || 0} fields</Badge>
+            <Dialog open={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedSection(section);
+                    onAddField(section);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              {selectedSection?.section_id === section.section_id && addFieldForm}
+            </Dialog>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDeleteClick}
+              disabled={isDeletingSection}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-            {section.fields?.length > 0 && (
-              <DraggableTradeinFieldsList
-                fields={section.fields}
-                sectionId={section.section_id}
-                configId={selectedConfig._id}
-                onEditField={(field) => onEditField(field, section)}
-                onDeleteField={onDeleteField}
-                dropdowns={dropdowns}
-              />
-            )}
+        {/* Fields List */}
+        {section.fields?.length > 0 && (
+          <div className="mt-4">
+            <DraggableFieldsList
+              fields={section.fields.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))}
+              onEditField={onEditField}
+              onDeleteField={onDeleteField}
+              onUpdateOrder={handleFieldsOrderUpdate}
+            />
           </div>
-        </AccordionContent>
-      </AccordionItem>
-      
+        )}
+      </div>
+
       <SectionDeleteDialog
-        isOpen={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteSection}
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
         sectionName={section.section_name}
-        isLoading={isDeleting}
+        isLoading={isDeletingSection}
       />
-    </div>
+    </>
   );
 }
 
-interface DraggableTradeinSectionsListProps {
+interface DraggableSectionsListProps {
   sections: any[];
-  selectedConfig: any;
+  configId: string;
+  onDeleteSection: (sectionId: string) => void;
   onAddField: (section: any) => void;
-  onEditField: (field: any, section: any) => void;
-  onDeleteField: (fieldId: string, sectionId: string) => void;
-  dropdowns?: any[];
+  onEditField: (field: any) => void;
+  onDeleteField: (field: any) => void;
+  onUpdateSectionsOrder: (sections: any[]) => void;
+  onUpdateFieldsOrder: (sectionId: string, fields: any[]) => void;
+  isFieldDialogOpen: boolean;
+  setIsFieldDialogOpen: (open: boolean) => void;
+  selectedSection: any;
+  setSelectedSection: (section: any) => void;
+  addFieldForm: React.ReactNode;
+  isDeletingSection: boolean;
 }
 
-const DraggableTradeinSectionsList: React.FC<DraggableTradeinSectionsListProps> = ({
+const DraggableSectionsList: React.FC<DraggableSectionsListProps> = ({
   sections,
-  selectedConfig,
+  configId,
+  onDeleteSection,
   onAddField,
   onEditField,
   onDeleteField,
-  dropdowns
+  onUpdateSectionsOrder,
+  onUpdateFieldsOrder,
+  isFieldDialogOpen,
+  setIsFieldDialogOpen,
+  selectedSection,
+  setSelectedSection,
+  addFieldForm,
+  isDeletingSection
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -148,30 +190,16 @@ const DraggableTradeinSectionsList: React.FC<DraggableTradeinSectionsListProps> 
     })
   );
 
-  const queryClient = useQueryClient();
-
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (active.id !== over?.id) {
-      const oldIndex = sections.findIndex((section) => section.section_id === active.id);
-      const newIndex = sections.findIndex((section) => section.section_id === over.id);
-
-      const newSections = arrayMove(sections, oldIndex, newIndex);
+      const oldIndex = sections.findIndex(section => section.section_id === active.id);
+      const newIndex = sections.findIndex(section => section.section_id === over?.id);
       
-      // Update display_order for all sections
-      const sectionsWithOrder = newSections.map((section, index) => ({
-        section_id: section.section_id,
-        display_order: index
-      }));
-
-      try {
-        await configServices.updateTradeinSectionsOrder(selectedConfig._id, { sections: sectionsWithOrder });
-        toast.success('Section order updated');
-        queryClient.invalidateQueries({ queryKey: ['tradein-config-details', selectedConfig._id] });
-      } catch (error) {
-        console.error('Reorder sections error:', error);
-        toast.error('Failed to update section order');
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newSections = arrayMove(sections, oldIndex, newIndex);
+        onUpdateSectionsOrder(newSections);
       }
     }
   };
@@ -182,23 +210,33 @@ const DraggableTradeinSectionsList: React.FC<DraggableTradeinSectionsListProps> 
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={sections.map(s => s.section_id)} strategy={verticalListSortingStrategy}>
-        <Accordion type="single" collapsible className="space-y-4">
+      <SortableContext
+        items={sections.map(section => section.section_id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-4">
           {sections.map((section) => (
             <SortableSection
               key={section.section_id}
               section={section}
-              selectedConfig={selectedConfig}
+              configId={configId}
+              onDeleteSection={onDeleteSection}
               onAddField={onAddField}
               onEditField={onEditField}
               onDeleteField={onDeleteField}
-              dropdowns={dropdowns}
+              onUpdateFieldsOrder={onUpdateFieldsOrder}
+              isFieldDialogOpen={isFieldDialogOpen}
+              setIsFieldDialogOpen={setIsFieldDialogOpen}
+              selectedSection={selectedSection}
+              setSelectedSection={setSelectedSection}
+              addFieldForm={addFieldForm}
+              isDeletingSection={isDeletingSection}
             />
           ))}
-        </Accordion>
+        </div>
       </SortableContext>
     </DndContext>
   );
 };
 
-export default DraggableTradeinSectionsList;
+export default DraggableSectionsList;

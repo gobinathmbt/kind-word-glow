@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -6,7 +6,6 @@ import {
   workshopServices,
   vehicleServices,
   dropdownServices,
-  configServices,
 } from "@/api/services";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -113,7 +112,6 @@ const WorkshopConfig = () => {
   const [selectedManualField, setSelectedManualField] = useState<any>(null);
   const [manualConfirmDialogOpen, setManualConfirmDialogOpen] = useState(false);
 
-  // Add refresh function
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
     toast.success("Data Refreshed");
@@ -134,7 +132,6 @@ const WorkshopConfig = () => {
   const vehicle = vehicleData?.data?.vehicle;
   const vehicle_quotes = vehicleData?.data?.quotes;
 
-  // Fetch dropdowns for workshop field creation
   const { data: dropdowns } = useQuery({
     queryKey: ["dropdowns-for-workshop"],
     queryFn: async () => {
@@ -143,7 +140,6 @@ const WorkshopConfig = () => {
     },
   });
 
-  // Add this useEffect to check if all fields are completed
   useEffect(() => {
     if (vehicleData) {
       const resultData =
@@ -181,7 +177,6 @@ const WorkshopConfig = () => {
             });
           }
 
-          // Check if stage is in workshop
           const stageInWorkshop =
             Array.isArray(vehicle.workshop_progress) &&
             vehicle.workshop_progress.some(
@@ -190,7 +185,6 @@ const WorkshopConfig = () => {
                 item.progress === "in_progress"
             );
 
-          // Stage is completable if it has completed jobs, is in workshop, and all fields are completed
           if (hasCompletedJobs && stageInWorkshop && allFieldsCompleted) {
             completableStages.push(category.category_name);
           }
@@ -198,24 +192,20 @@ const WorkshopConfig = () => {
 
         setAvailableCompletionStages(completableStages);
       } else {
-        // For trade-in: Only enable complete workshop button when ALL fields are completed
         const allFields: any[] = [];
 
         resultData.forEach((item: any) => {
           if (item.sections) {
-            // Category with sections
             item.sections.forEach((section: any) => {
               if (section.fields) {
                 allFields.push(...section.fields);
               }
             });
           } else if (item.fields) {
-            // Direct section
             allFields.push(...item.fields);
           }
         });
 
-        // For tradein, all fields must be completed
         const allCompleted =
           allFields.length > 0 &&
           allFields.every((field: any) => {
@@ -224,12 +214,11 @@ const WorkshopConfig = () => {
           });
 
         setCanCompleteWorkshop(allCompleted);
-        setAvailableCompletionStages([]); // Not used for tradein
+        setAvailableCompletionStages([]);
       }
     }
   }, [vehicleData, vehicleType, vehicle, vehicle_quotes]);
 
-  // Also add this check when the component first loads
   useEffect(() => {
     if (vehicleData && vehicle_quotes) {
       const resultData =
@@ -271,11 +260,9 @@ const WorkshopConfig = () => {
       vehicle.vehicle_type === "inspection" &&
       vehicle.inspection_result
     ) {
-      // Get stages that are in workshop and have completed jobs
       const completableStages: string[] = [];
 
       vehicle.inspection_result.forEach((category: any) => {
-        // Check if this stage has any completed jobs
         let hasCompletedJobs = false;
 
         if (category.sections) {
@@ -291,7 +278,6 @@ const WorkshopConfig = () => {
           });
         }
 
-        // Check if stage is in workshop
         const stageInWorkshop =
           Array.isArray(vehicle.workshop_progress) &&
           vehicle.workshop_progress.some(
@@ -342,9 +328,7 @@ const WorkshopConfig = () => {
           }
         }
       } else {
-        // For trade_in, handle both category-based and direct sections
         if (fieldData.categoryId) {
-          // Handle category-based structure
           const categoryIndex = updatedResults.findIndex(
             (cat) => cat.category_id === fieldData.categoryId
           );
@@ -364,7 +348,6 @@ const WorkshopConfig = () => {
             }
           }
         } else {
-          // Handle direct section structure
           const sectionIndex = updatedResults.findIndex(
             (section: any) => section.section_id === fieldData.sectionId
           );
@@ -400,7 +383,6 @@ const WorkshopConfig = () => {
     },
   });
 
-  // Update field mutation
   const updateWorkshopFieldMutation = useMutation({
     mutationFn: async (fieldData: any) => {
       const currentResults =
@@ -439,9 +421,7 @@ const WorkshopConfig = () => {
           }
         }
       } else {
-        // For trade_in, handle both category-based and direct sections
         if (fieldData.categoryId) {
-          // Handle category-based structure
           const categoryIndex = updatedResults.findIndex(
             (cat) => cat.category_id === fieldData.categoryId
           );
@@ -466,7 +446,6 @@ const WorkshopConfig = () => {
             }
           }
         } else {
-          // Handle direct section structure
           const sectionIndex = updatedResults.findIndex(
             (section: any) => section.section_id === fieldData.sectionId
           );
@@ -509,7 +488,6 @@ const WorkshopConfig = () => {
   const handleOpenMediaViewer = (field: any, selectedMediaId: string) => {
     const mediaItems: MediaItem[] = [];
 
-    // Add images
     field.images?.forEach((image: string, index: number) => {
       mediaItems.push({
         id: `${field.field_id}-image-${index}`,
@@ -522,7 +500,6 @@ const WorkshopConfig = () => {
       });
     });
 
-    // Add videos
     field.videos?.forEach((video: string, index: number) => {
       mediaItems.push({
         id: `${field.field_id}-video-${index}`,
@@ -540,7 +517,6 @@ const WorkshopConfig = () => {
     setMediaViewerOpen(true);
   };
 
-  // Update vehicle inspection order mutation
   const updateOrderMutation = useMutation({
     mutationFn: async (newOrder: any) => {
       const updateField =
@@ -558,7 +534,7 @@ const WorkshopConfig = () => {
       toast.success(`${vehicleType} order updated successfully`);
       queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
       setRearrangeModalOpen(false);
-      // Update the local state as well
+
       setInspectionOrder([]);
     },
     onError: (error: any) => {
@@ -567,12 +543,10 @@ const WorkshopConfig = () => {
     },
   });
 
-  // Complete workshop mutation
   const completeWorkshopMutation = useMutation({
     mutationFn: async (confirmation: string) => {
       const requestBody: any = { confirmation };
 
-      // Add stageName for inspection vehicles
       if (vehicle.vehicle_type === "inspection" && selectedCompletionStage) {
         requestBody.stageName = selectedCompletionStage;
       }
@@ -591,11 +565,8 @@ const WorkshopConfig = () => {
       queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
       queryClient.invalidateQueries({ queryKey: ["workshop-completion"] });
 
-      // For inspection stage completion, don't navigate away - just refresh the page
       if (vehicle.vehicle_type === "inspection") {
-        // Stay on the same page and refresh data
       } else {
-        // For tradein completion, navigate back to workshop list
         setTimeout(() => navigate("/company/workshop"), 2000);
       }
     },
@@ -606,38 +577,57 @@ const WorkshopConfig = () => {
     },
   });
 
-  // Handler for manual quote completion success
   const handleManualQuoteSuccess = (quote: any) => {
     setManualQuoteDialogOpen(false);
     queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
   };
 
-  // Handler for manual bay completion success  
   const handleManualBaySuccess = (quote: any) => {
     setManualBayDialogOpen(false);
     queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
   };
 
-  // Handler to open worksheet for manual quotes
   const handleOpenWorksheet = (field: any) => {
     setSelectedManualField(field);
     setManualCommentSheetOpen(true);
   };
 
-  // Complete manual quote mutation
   const completeManualQuoteMutation = useMutation({
-    mutationFn: async ({ quoteId, data }: { quoteId: string; data: any }) => {
-      const response = await workshopServices.completeManualQuote(quoteId, data);
+    mutationFn: async ({
+      quoteId,
+      data,
+      isDraft = false,
+    }: {
+      quoteId: string;
+      data: any;
+      isDraft?: boolean;
+    }) => {
+      const response = await workshopServices.completeManualQuote(quoteId, {
+        ...data,
+        save_as_draft: isDraft,
+      });
       return response.data;
     },
-    onSuccess: (response) => {
-      toast.success(response.message);
-      setManualConfirmDialogOpen(false);
-      setManualCommentSheetOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
+    onSuccess: (response, variables) => {
+      const { isDraft } = variables;
+
+      if (isDraft) {
+        toast.success("Work draft saved successfully");
+
+        queryClient.invalidateQueries({
+          queryKey: ["workshop-vehicle-details"],
+        });
+      } else {
+        toast.success(response.message);
+        setManualConfirmDialogOpen(false);
+        setManualCommentSheetOpen(false);
+        queryClient.invalidateQueries({
+          queryKey: ["workshop-vehicle-details"],
+        });
+      }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to complete manual quote");
+      toast.error(error.response?.data?.message || "Failed to save work");
     },
   });
 
@@ -666,7 +656,6 @@ const WorkshopConfig = () => {
       });
     }
 
-    // Check if stage is in workshop
     const stageInWorkshop =
       Array.isArray(vehicle.workshop_progress) &&
       vehicle.workshop_progress.some(
@@ -774,7 +763,6 @@ const WorkshopConfig = () => {
     setViewWorkModalOpen(true);
   };
   const handleRearrange = () => {
-    // Determine which result set to use based on vehicle type
     const resultData =
       vehicleType === "inspection"
         ? vehicle?.inspection_result
@@ -786,7 +774,6 @@ const WorkshopConfig = () => {
     }
   };
 
-  // Drag and Drop Handlers
   const handleUpdateCategoriesOrder = (categories: any[]) => {
     setInspectionOrder(categories);
   };
@@ -824,13 +811,11 @@ const WorkshopConfig = () => {
     }
   };
 
-  // Workshop field creation
   const handleInsertField = (categoryId?: string) => {
     setSelectedCategoryForField(categoryId || null);
     setInsertFieldModalOpen(true);
   };
 
-  // Add workshop field mutation - UPDATED LOGIC
   const addWorkshopFieldMutation = useMutation({
     mutationFn: async (fieldData: any) => {
       const currentResults =
@@ -845,7 +830,6 @@ const WorkshopConfig = () => {
       let updatedResults = [...currentResults];
 
       if (vehicleType === "inspection") {
-        // Find the category to add field to
         const categoryIndex = updatedResults.findIndex(
           (cat) => cat.category_id === selectedCategoryForField
         );
@@ -854,7 +838,6 @@ const WorkshopConfig = () => {
           throw new Error("Category not found");
         }
 
-        // Find existing "At Workshop - Add On" section OR create if doesn't exist
         let workshopSectionIndex = updatedResults[
           categoryIndex
         ].sections?.findIndex(
@@ -864,13 +847,12 @@ const WorkshopConfig = () => {
         );
 
         if (workshopSectionIndex === -1) {
-          // Create new workshop section only if it doesn't exist
           const newWorkshopSection = {
             section_id: `workshop_section_${Date.now()}`,
             section_name: "At Workshop - Add On",
             section_display_name: "at_workshop_onstaging",
             display_order: updatedResults[categoryIndex].sections?.length || 0,
-            fields: [fieldData], // Add the field directly
+            fields: [fieldData],
           };
 
           if (!updatedResults[categoryIndex].sections) {
@@ -879,7 +861,6 @@ const WorkshopConfig = () => {
 
           updatedResults[categoryIndex].sections.push(newWorkshopSection);
         } else {
-          // Add field to existing workshop section
           if (
             !updatedResults[categoryIndex].sections[workshopSectionIndex].fields
           ) {
@@ -892,7 +873,6 @@ const WorkshopConfig = () => {
           ].fields.push(fieldData);
         }
       } else {
-        // For trade_in, find existing workshop section OR create if doesn't exist
         let workshopSectionIndex = updatedResults.findIndex(
           (item: any) =>
             item.section_id &&
@@ -901,18 +881,16 @@ const WorkshopConfig = () => {
         );
 
         if (workshopSectionIndex === -1) {
-          // Create new workshop section as direct section
           const newWorkshopSection = {
             section_id: `workshop_section_${Date.now()}`,
             section_name: "At Workshop - Add On",
             section_display_name: "at_workshop_onstaging",
             display_order: updatedResults.length,
-            fields: [fieldData], // Add the field directly
+            fields: [fieldData],
           };
 
           updatedResults.push(newWorkshopSection);
         } else {
-          // Add field to existing workshop section
           if (!updatedResults[workshopSectionIndex].fields) {
             updatedResults[workshopSectionIndex].fields = [];
           }
@@ -920,7 +898,6 @@ const WorkshopConfig = () => {
         }
       }
 
-      // Update vehicle with new results
       const updateField =
         vehicleType === "inspection"
           ? { inspection_result: updatedResults }
@@ -950,7 +927,6 @@ const WorkshopConfig = () => {
     setRearrangeModalOpen(false);
   };
 
-  // Get supplier quote for a field
   const getSupplierQuote = (field_id: string) => {
     if (!vehicle_quotes) return null;
     return vehicle_quotes.find(
@@ -958,7 +934,6 @@ const WorkshopConfig = () => {
     );
   };
 
-  // Get bay quote for a field
   const getBayQuote = (field_id: string) => {
     if (!vehicle_quotes) return null;
     return vehicle_quotes.find(
@@ -972,9 +947,12 @@ const WorkshopConfig = () => {
     );
   };
 
-  // Get primary quote (supplier preferred, fallback to bay)
   const getQuote = (field_id: string) => {
-    return getSupplierQuote(field_id) || getBayQuote(field_id) || getManualQuote(field_id);
+    return (
+      getSupplierQuote(field_id) ||
+      getBayQuote(field_id) ||
+      getManualQuote(field_id)
+    );
   };
 
   const getStatus = (field_id: string) => {
@@ -992,7 +970,7 @@ const WorkshopConfig = () => {
       work_review: "border-indigo-500 border-2",
       completed_jobs: "border-green-500 border-2",
       rework: "border-red-500 border-2",
-      // Bay quote specific statuses (unique colors)
+      manual_completion_in_progress: "border-lime-500 border-2",
       booking_request: "border-pink-500 border-2",
       booking_accepted: "border-teal-500 border-2",
       booking_rejected: "border-rose-500 border-2",
@@ -1010,7 +988,7 @@ const WorkshopConfig = () => {
       work_review: "bg-indigo-500 text-white",
       completed_jobs: "bg-green-500 text-white",
       rework: "bg-red-500 text-white",
-      // Bay quote specific statuses (unique colors)
+      manual_completion_in_progress: "bg-lime-500 text-white",
       booking_request: "bg-pink-500 text-white",
       booking_accepted: "bg-teal-500 text-white",
       booking_rejected: "bg-rose-500 text-white",
@@ -1049,7 +1027,6 @@ const WorkshopConfig = () => {
 
   const handleCompleteWorkshop = () => {
     if (vehicle.vehicle_type === "inspection") {
-      // For inspection, always show stage selection (if there are completable stages)
       if (availableCompletionStages.length > 0) {
         setStageSelectionModalOpen(true);
       } else {
@@ -1058,7 +1035,6 @@ const WorkshopConfig = () => {
         );
       }
     } else {
-      // For tradein, check if all jobs are completed
       if (canCompleteWorkshop) {
         setCompleteWorkshopModalOpen(true);
       } else {
@@ -1136,7 +1112,6 @@ const WorkshopConfig = () => {
 
     return (
       <div className="space-y-4">
-        {/* Fixed Header Section */}
         <div className="sticky top-0 z-10 bg-background py-4 border-b">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">
@@ -1147,7 +1122,6 @@ const WorkshopConfig = () => {
             </h3>
 
             <div className="flex gap-2">
-              {/* Insert Field button for tradein (no categories) */}
               {vehicleType === "tradein" && (
                 <TooltipProvider>
                   <Tooltip>
@@ -1186,7 +1160,6 @@ const WorkshopConfig = () => {
                 </TooltipProvider>
               </div>
 
-              {/* Refresh Button */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1254,7 +1227,6 @@ const WorkshopConfig = () => {
                 </Tooltip>
               </TooltipProvider>
 
-              {/* Complete Workshop Button */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1263,9 +1235,9 @@ const WorkshopConfig = () => {
                       onClick={() => handleCompleteWorkshop()}
                       disabled={
                         vehicle.vehicle_type === "inspection"
-                          ? false // Always enabled for inspection (will show appropriate message if no stages ready)
+                          ? false
                           : !canCompleteWorkshop ||
-                            completeWorkshopMutation.isPending // For tradein, check if all completed
+                            completeWorkshopMutation.isPending
                       }
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
@@ -1285,11 +1257,9 @@ const WorkshopConfig = () => {
           </div>
         </div>
 
-        {/* Scrollable Content */}
         <div className="pt-4">
           {vehicleType === "inspection"
-            ? // Render inspection results (categories with sections)
-              resultData.map((category: any, categoryIndex: number) => (
+            ? resultData.map((category: any, categoryIndex: number) => (
                 <Card key={categoryIndex} className="mb-4">
                   {category.sections?.length > 0 && (
                     <>
@@ -1318,7 +1288,6 @@ const WorkshopConfig = () => {
                         <Accordion type="multiple" className="w-full">
                           {category.sections?.map(
                             (section: any, sectionIndex: number) =>
-                              // Only render section if it has fields - UPDATED CONDITION
                               section.fields?.length > 0 && (
                                 <AccordionItem
                                   key={sectionIndex}
@@ -1361,14 +1330,11 @@ const WorkshopConfig = () => {
                   )}
                 </Card>
               ))
-            : // Render trade-in results (mixed structure - both categories and direct sections)
-              resultData.map((item: any, itemIndex: number) => {
-                // Check if this is a category (has category_id and sections) or a direct section
+            : resultData.map((item: any, itemIndex: number) => {
                 const isCategory = item.category_id && item.sections;
                 const isDirectSection = item.section_id && item.fields;
 
                 if (isCategory) {
-                  // Render as category with sections - UPDATED: Only render if sections have fields
                   const hasSectionsWithFields = item.sections?.some(
                     (section: any) => section.fields?.length > 0
                   );
@@ -1389,7 +1355,6 @@ const WorkshopConfig = () => {
                         <Accordion type="multiple" className="w-full">
                           {item.sections?.map(
                             (section: any, sectionIndex: number) =>
-                              // Only render section if it has fields - UPDATED CONDITION
                               section.fields?.length > 0 && (
                                 <AccordionItem
                                   key={sectionIndex}
@@ -1431,10 +1396,8 @@ const WorkshopConfig = () => {
                     </Card>
                   );
                 } else if (isDirectSection) {
-                  // Only render direct section if it has fields - UPDATED CONDITION
                   if (!item.fields?.length) return null;
 
-                  // Render as direct section
                   return (
                     <Card key={itemIndex} className="mb-4">
                       <CardHeader>
@@ -1457,7 +1420,7 @@ const WorkshopConfig = () => {
                               >
                                 {renderFieldContent(
                                   field,
-                                  null, // No category for direct sections
+                                  null,
                                   item.section_id
                                 )}
                               </div>
@@ -1469,7 +1432,7 @@ const WorkshopConfig = () => {
                   );
                 }
 
-                return null; // Skip unknown structures
+                return null;
               })}
         </div>
       </div>
@@ -1478,7 +1441,7 @@ const WorkshopConfig = () => {
 
   const renderFieldContent = (
     field: any,
-    categoryId: string | null, // Allow null for direct sections
+    categoryId: string | null,
     sectionId: string
   ) => {
     const isWorkshopField =
@@ -1486,6 +1449,7 @@ const WorkshopConfig = () => {
       sectionId.includes("workshop_section");
     const quote = getQuote(field.field_id);
     const isRejected = quote?.status === "booking_rejected";
+    const isCompleted = quote?.status === "completed_jobs";
 
     return (
       <>
@@ -1496,7 +1460,6 @@ const WorkshopConfig = () => {
               {getStatus(field.field_id) || "Not Progressed"}
             </Badge>
 
-            {/* Workshop field edit/delete buttons */}
             {isWorkshopField && (
               <div className="flex gap-1">
                 <Button
@@ -1519,252 +1482,273 @@ const WorkshopConfig = () => {
               </div>
             )}
 
-            {(() => {
-              const supplierQuote = getSupplierQuote(field.field_id);
-              const bayQuote = getBayQuote(field.field_id);
+            {!isCompleted &&
+              (() => {
+                const supplierQuote = getSupplierQuote(field.field_id);
+                const bayQuote = getBayQuote(field.field_id);
+                const manualQuote = getManualQuote(field.field_id);
 
-              // Check if any quote is approved/accepted
-              const supplierApproved = supplierQuote?.supplier_responses?.some(
-                (q) => q.status === "approved"
-              );
-              const bayAccepted =
-                bayQuote?.status === "booking_accepted" ||
-                bayQuote?.status === "work_in_progress" ||
-                bayQuote?.status === "work_review" ||
-                bayQuote?.status === "rework" ||
-                bayQuote?.status === "completed_jobs";
+                // Check if status is manual_completion_in_progress
+                const isManualCompletionInProgress =
+                  manualQuote?.status === "manual_completion_in_progress";
 
-              const anyApproved = supplierApproved || bayAccepted;
+                // If manual completion is in progress, don't show any of these buttons
+                if (isManualCompletionInProgress) {
+                  return null;
+                }
 
-              // Calculate pending suppliers correctly
-              const hasSupplierQuote =
-                supplierQuote && supplierQuote.selected_suppliers?.length > 0;
+                // Check if any quote is approved/accepted
+                const supplierApproved =
+                  supplierQuote?.supplier_responses?.some(
+                    (q) => q.status === "approved"
+                  );
+                const bayAccepted =
+                  bayQuote?.status === "booking_accepted" ||
+                  bayQuote?.status === "work_in_progress" ||
+                  bayQuote?.status === "work_review" ||
+                  bayQuote?.status === "rework" ||
+                  bayQuote?.status === "completed_jobs";
 
-              // Get list of suppliers who have responded
-              const respondedSupplierIds =
-                supplierQuote?.supplier_responses?.map(
-                  (response) => response.supplier_id._id || response.supplier_id
-                ) || [];
+                const anyApproved = supplierApproved || bayAccepted;
 
-              // Suppliers who haven't responded yet (true pending)
-              const pendingSuppliers =
-                supplierQuote?.selected_suppliers?.filter((supplier) => {
-                  const supplierId = supplier._id || supplier;
-                  return !respondedSupplierIds.includes(supplierId);
-                }) || [];
+                const hasSupplierQuote =
+                  supplierQuote && supplierQuote.selected_suppliers?.length > 0;
 
-              // Check if all suppliers are not interested
-              const allSuppliersNotInterested =
-                hasSupplierQuote &&
-                supplierQuote.supplier_responses?.length ===
-                  supplierQuote.selected_suppliers?.length &&
-                supplierQuote.supplier_responses.every(
-                  (response) => response.status === "not_interested"
-                );
+                const respondedSupplierIds =
+                  supplierQuote?.supplier_responses?.map(
+                    (response) =>
+                      response.supplier_id._id || response.supplier_id
+                  ) || [];
 
-              const shouldDisableBayButton =
-                hasSupplierQuote &&
-                (pendingSuppliers.length > 0 || !allSuppliersNotInterested);
+                const pendingSuppliers =
+                  supplierQuote?.selected_suppliers?.filter((supplier) => {
+                    const supplierId = supplier._id || supplier;
+                    return !respondedSupplierIds.includes(supplierId);
+                  }) || [];
 
-              if (!anyApproved) {
-                return (
-                  <>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span
-                            className={
-                              bayQuote?.status === "booking_request"
-                                ? "cursor-not-allowed"
-                                : ""
-                            }
-                          >
-                            <Button
-                              size="sm"
-                              disabled={bayQuote?.status === "booking_request"}
-                              onClick={() =>
-                                handleSendQuote(field, categoryId, sectionId)
+                const allSuppliersNotInterested =
+                  hasSupplierQuote &&
+                  supplierQuote.supplier_responses?.length ===
+                    supplierQuote.selected_suppliers?.length &&
+                  supplierQuote.supplier_responses.every(
+                    (response) => response.status === "not_interested"
+                  );
+
+                const shouldDisableBayButton =
+                  hasSupplierQuote &&
+                  (pendingSuppliers.length > 0 || !allSuppliersNotInterested);
+
+                if (!anyApproved) {
+                  return (
+                    <>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={
+                                bayQuote?.status === "booking_request"
+                                  ? "cursor-not-allowed"
+                                  : ""
                               }
                             >
-                              <DollarSign className="h-3 w-3 mr-1" />
-                              {supplierQuote
-                                ? "Edit Quote"
-                                : "Request For Quote"}
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
+                              <Button
+                                size="sm"
+                                disabled={
+                                  bayQuote?.status === "booking_request"
+                                }
+                                onClick={() =>
+                                  handleSendQuote(field, categoryId, sectionId)
+                                }
+                              >
+                                <DollarSign className="h-3 w-3 mr-1" />
+                                {supplierQuote
+                                  ? "Edit Quote"
+                                  : "Request For Quote"}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
 
-                        {bayQuote?.status === "booking_request" && (
-                          <TooltipContent>
-                            Bay booking is in progress
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
+                          {bayQuote?.status === "booking_request" && (
+                            <TooltipContent>
+                              Bay booking is in progress
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
 
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span
-                            className={
-                              shouldDisableBayButton ? "cursor-not-allowed" : ""
-                            }
-                          >
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={
+                                shouldDisableBayButton
+                                  ? "cursor-not-allowed"
+                                  : ""
+                              }
+                            >
+                              <Button
+                                size="sm"
+                                disabled={shouldDisableBayButton}
+                                onClick={() =>
+                                  handleSendBay(
+                                    field,
+                                    categoryId,
+                                    sectionId,
+                                    isRejected
+                                  )
+                                }
+                              >
+                                <HardHat className="h-3 w-3 mr-1" />
+                                {isRejected
+                                  ? "Rebook Bay"
+                                  : bayQuote
+                                  ? "Edit Bay"
+                                  : "Request For Bay"}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+
+                          {shouldDisableBayButton && (
+                            <TooltipContent>
+                              {pendingSuppliers.length > 0
+                                ? `Waiting for ${pendingSuppliers.length} supplier response(s)`
+                                : "Supplier quote is in progress"}
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Manual Completion
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56">
+                          <div className="space-y-2">
                             <Button
                               size="sm"
-                              disabled={shouldDisableBayButton}
-                              onClick={() =>
-                                handleSendBay(
-                                  field,
+                              variant="outline"
+                              className="w-full justify-start"
+                              onClick={() => {
+                                setSelectedField({
+                                  ...field,
                                   categoryId,
                                   sectionId,
-                                  isRejected
-                                )
-                              }
+                                  vehicle_type: vehicle?.vehicle_type,
+                                  vehicle_stock_id: vehicle?.vehicle_stock_id,
+                                  field_id: field.field_id,
+                                  field_name: field.field_name,
+                                  images: field.images || [],
+                                  videos: field.videos || [],
+                                });
+                                setManualQuoteDialogOpen(true);
+                              }}
                             >
-                              <HardHat className="h-3 w-3 mr-1" />
-                              {isRejected
-                                ? "Rebook Bay"
-                                : bayQuote
-                                ? "Edit Bay"
-                                : "Request For Bay"}
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Manual Quote Completion
                             </Button>
-                          </span>
-                        </TooltipTrigger>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full justify-start"
+                              onClick={() => {
+                                setSelectedField({
+                                  ...field,
+                                  categoryId,
+                                  sectionId,
+                                  vehicle_type: vehicle?.vehicle_type,
+                                  vehicle_stock_id: vehicle?.vehicle_stock_id,
+                                  field_id: field.field_id,
+                                  field_name: field.field_name,
+                                  images: field.images || [],
+                                  videos: field.videos || [],
+                                });
+                                setManualBayDialogOpen(true);
+                              }}
+                            >
+                              <HardHat className="h-4 w-4 mr-2" />
+                              Manual Bay Completion
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  );
+                }
+              })()}
 
-                        {shouldDisableBayButton && (
-                          <TooltipContent>
-                            {pendingSuppliers.length > 0
-                              ? `Waiting for ${pendingSuppliers.length} supplier response(s)`
-                              : "Supplier quote is in progress"}
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button size="sm">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Manual Completion
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56">
-                        <div className="space-y-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start"
-                            onClick={() => {
-                              setSelectedField({
-                                ...field,
-                                categoryId,
-                                sectionId,
-                                vehicle_type: vehicle?.vehicle_type,
-                                vehicle_stock_id: vehicle?.vehicle_stock_id,
-                                field_id: field.field_id,
-                                field_name: field.field_name,
-                                images: field.images || [],
-                                videos: field.videos || [],
-                              });
-                              setManualQuoteDialogOpen(true);
-                            }}
-                          >
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Manual Quote Completion
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start"
-                            onClick={() => {
-                              setSelectedField({
-                                ...field,
-                                categoryId,
-                                sectionId,
-                                vehicle_type: vehicle?.vehicle_type,
-                                vehicle_stock_id: vehicle?.vehicle_stock_id,
-                                field_id: field.field_id,
-                                field_name: field.field_name,
-                                images: field.images || [],
-                                videos: field.videos || [],
-                              });
-                              setManualBayDialogOpen(true);
-                            }}
-                          >
-                            <HardHat className="h-4 w-4 mr-2" />
-                            Manual Bay Completion
-                          </Button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </>
-                );
-              }
-            })()}
-            {(() => {
-              const quote = getQuote(field.field_id);
-              const hasWorkSubmitted = quote?.status === "quote_request";
+            {!isCompleted &&
+              (() => {
+                const quote = getQuote(field.field_id);
+                const hasWorkSubmitted = quote?.status === "quote_request";
 
-              if (hasWorkSubmitted) {
-                return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      handleReceivedQuotes(field, categoryId, sectionId)
-                    }
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Received Quotes
-                  </Button>
-                );
-              }
-              return null;
-            })()}
+                if (hasWorkSubmitted) {
+                  return (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleReceivedQuotes(field, categoryId, sectionId)
+                      }
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      Received Quotes
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
+
+            {!isCompleted &&
+              (() => {
+                const quote = getQuote(field.field_id);
+                const hasWorkSubmitted = quote?.status === "work_review";
+
+                if (hasWorkSubmitted) {
+                  return (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleViewWork(field, categoryId, sectionId)
+                      }
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      View Work
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
 
             {(() => {
               const quote = getQuote(field.field_id);
-              const hasWorkSubmitted = quote?.status === "work_review";
 
-              if (hasWorkSubmitted) {
-                return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleViewWork(field, categoryId, sectionId)}
-                  >
-                    <FileText className="h-3 w-3 mr-1" />
-                    View Work
-                  </Button>
-                );
-              }
-              return null;
-            })()}
-
-            {(() => {
-              const quote = getQuote(field.field_id);
-              
-              // Show Worksheet button for manual_completion_in_progress
-              if (quote?.status === "manual_completion_in_progress" && quote?.quote_type === "manual") {
+              if (
+                quote?.status === "manual_completion_in_progress" &&
+                quote?.quote_type === "manual"
+              ) {
                 return (
                   <Button
                     size="sm"
                     variant="default"
-                    onClick={() => handleOpenWorksheet({
-                      ...field,
-                      categoryId,
-                      sectionId,
-                      vehicle_type: vehicle?.vehicle_type,
-                      vehicle_stock_id: vehicle?.vehicle_stock_id,
-                    })}
+                    onClick={() =>
+                      handleOpenWorksheet({
+                        ...field,
+                        categoryId,
+                        sectionId,
+                        vehicle_type: vehicle?.vehicle_type,
+                        vehicle_stock_id: vehicle?.vehicle_stock_id,
+                      })
+                    }
                   >
                     <FileText className="h-3 w-3 mr-1" />
                     Worksheet
                   </Button>
                 );
               }
-              
-              // Show Final Work button for completed_jobs
+
               const hasWorkSubmitted = quote?.status === "completed_jobs";
               if (hasWorkSubmitted) {
                 return (
@@ -1790,7 +1774,6 @@ const WorkshopConfig = () => {
                 "booking_accepted",
                 "work_in_progress",
                 "work_review",
-                "completed_jobs",
                 "rework",
               ].includes(getQuote(field.field_id)?.status)) && (
               <Button
@@ -1804,7 +1787,7 @@ const WorkshopConfig = () => {
             )}
           </div>
         </div>
-        {/* Rest of the field content rendering remains the same */}
+
         {field.field_value && (
           <div className="text-sm text-muted-foreground mb-2">
             Value:{" "}
@@ -1816,7 +1799,6 @@ const WorkshopConfig = () => {
 
         {(field.images?.length > 0 || field.videos?.length > 0) && (
           <div className="grid grid-cols-6 gap-2 mt-2">
-            {/* Render Images */}
             {field.images?.map((image: string, imgIndex: number) => {
               const mediaId = `${field.field_id}-image-${imgIndex}`;
               return (
@@ -1832,7 +1814,6 @@ const WorkshopConfig = () => {
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded transition-all duration-200 flex items-center justify-center">
                     <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      {/* Replace svg with Lucide Icon */}
                       <ZoomIn className="w-4 h-4 text-gray-700" />
                     </div>
                   </div>
@@ -1840,7 +1821,6 @@ const WorkshopConfig = () => {
               );
             })}
 
-            {/* Render Videos */}
             {field.videos?.map((video: string, vidIndex: number) => {
               const mediaId = `${field.field_id}-video-${vidIndex}`;
               return (
@@ -1857,7 +1837,6 @@ const WorkshopConfig = () => {
                   </video>
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded transition-all duration-200 flex items-center justify-center">
                     <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      {/* Replace svg with Lucide Icon */}
                       <Video className="w-4 h-4 text-gray-700" />
                     </div>
                   </div>
@@ -1873,17 +1852,14 @@ const WorkshopConfig = () => {
   return (
     <DashboardLayout title="Workshop Configuration">
       <div className="flex flex-col h-full">
-        {/* Scrollable Content Area */}
         <div className="flex-1 min-h-0">
           <div className="grid grid-cols-1 lg:grid-cols-10 h-full gap-6">
-            {/* Left Panel - 70% - Inspection Results with Scroll */}
             <div className="lg:col-span-7 h-full overflow-hidden">
               <div className="h-full overflow-y-auto pr-2">
                 {renderResults(vehicleType)}
               </div>
             </div>
 
-            {/* Right Panel - 30% - Vehicle Details with Scroll */}
             <div className="hidden lg:block lg:col-span-3 h-full overflow-hidden">
               <div className="h-full overflow-y-auto">
                 <Card className="h-auto">
@@ -1894,7 +1870,6 @@ const WorkshopConfig = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Hero Image */}
                     <div className="aspect-video rounded-lg overflow-hidden">
                       <img
                         src={vehicle.vehicle_hero_image}
@@ -1903,7 +1878,6 @@ const WorkshopConfig = () => {
                       />
                     </div>
 
-                    {/* Basic Info */}
                     <div className="space-y-2">
                       <h3 className="font-semibold text-lg">
                         {vehicle.name ||
@@ -1935,7 +1909,6 @@ const WorkshopConfig = () => {
                       </div>
                     </div>
 
-                    {/* Vehicle Specs */}
                     <div className="pt-4 border-t">
                       <h4 className="font-medium mb-2">Specifications</h4>
                       <div className="space-y-1 text-sm">
@@ -1966,7 +1939,6 @@ const WorkshopConfig = () => {
                       </div>
                     </div>
 
-                    {/* Status */}
                     <div className="pt-4 border-t">
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Status:</span>
@@ -1987,7 +1959,7 @@ const WorkshopConfig = () => {
             </div>
           </div>
         </div>
-        {/* Modals */}
+
         {selectedField && (
           <>
             <QuoteModal
@@ -2060,7 +2032,7 @@ const WorkshopConfig = () => {
             />
           </>
         )}
-        {/* Insert Workshop Field Modal */}
+
         <InsertWorkshopFieldModal
           open={insertFieldModalOpen}
           onOpenChange={setInsertFieldModalOpen}
@@ -2068,9 +2040,9 @@ const WorkshopConfig = () => {
           vehicleType={vehicleType!}
           categoryId={selectedCategoryForField}
           dropdowns={dropdowns}
-          s3Config={completeUser.company_id.s3_config} // Will be implemented with S3 config
+          s3Config={completeUser.company_id.s3_config}
         />
-        {/* Rearrange Modal */}
+
         <Dialog open={rearrangeModalOpen} onOpenChange={setRearrangeModalOpen}>
           <DialogContent className="max-w-7xl max-h-[90vh] w-[95vw]">
             <DialogHeader>
@@ -2306,7 +2278,7 @@ const WorkshopConfig = () => {
             </div>
           </DialogContent>
         </Dialog>
-        {/* Color Palette Modal */}
+
         <Dialog
           open={colorPaletteModalOpen}
           onOpenChange={setColorPaletteModalOpen}
@@ -2355,7 +2327,7 @@ const WorkshopConfig = () => {
                   label: "Rework - Vehicle sent back for reworks",
                   className: "bg-red-500",
                 },
-                // Bay quote specific statuses
+
                 {
                   label: "Booking Request - Bay booking has been requested",
                   className: "bg-pink-500",
@@ -2386,7 +2358,6 @@ const WorkshopConfig = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Modal */}
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -2431,7 +2402,6 @@ const WorkshopConfig = () => {
             </DialogHeader>
             <ScrollArea className="max-h-[70vh]">
               <div className="space-y-4 p-1">
-                {/* Hero Image */}
                 <div className="aspect-video rounded-lg overflow-hidden">
                   <img
                     src={vehicle.vehicle_hero_image}
@@ -2440,7 +2410,6 @@ const WorkshopConfig = () => {
                   />
                 </div>
 
-                {/* Basic Info */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-lg">
                     {vehicle.name ||
@@ -2468,7 +2437,6 @@ const WorkshopConfig = () => {
                   </div>
                 </div>
 
-                {/* Vehicle Specs */}
                 <div className="pt-4 border-t">
                   <h4 className="font-medium mb-2">Specifications</h4>
                   <div className="space-y-1 text-sm">
@@ -2495,7 +2463,6 @@ const WorkshopConfig = () => {
                   </div>
                 </div>
 
-                {/* Status */}
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Status:</span>
@@ -2512,7 +2479,7 @@ const WorkshopConfig = () => {
             </ScrollArea>
           </DialogContent>
         </Dialog>
-        {/* Edit Workshop Field Modal */}
+
         {selectedEditField && (
           <InsertWorkshopFieldModal
             open={editFieldModalOpen}
@@ -2527,7 +2494,6 @@ const WorkshopConfig = () => {
           />
         )}
       </div>
-
       <MediaViewer
         media={currentMediaItems}
         currentMediaId={currentMediaId}
@@ -2539,7 +2505,6 @@ const WorkshopConfig = () => {
         }}
       />
 
-      {/* Manual Quote Dialog */}
       {selectedField && (
         <ManualQuoteDialog
           open={manualQuoteDialogOpen}
@@ -2551,7 +2516,6 @@ const WorkshopConfig = () => {
         />
       )}
 
-      {/* Manual Bay Dialog */}
       {selectedField && (
         <ManualBayDialog
           open={manualBayDialogOpen}
@@ -2563,7 +2527,6 @@ const WorkshopConfig = () => {
         />
       )}
 
-      {/* Manual Comment Sheet Modal */}
       {selectedManualField && (
         <CommentSheetModal
           open={manualCommentSheetOpen}
@@ -2571,22 +2534,29 @@ const WorkshopConfig = () => {
           field={selectedManualField}
           mode="supplier_submit"
           workMode="submit"
-          onSubmit={(data) => {
-            if (data.save_as_draft) {
-              // Save as draft
+          onSubmit={(data, saveAsDraft = false) => {
+            if (saveAsDraft) {
               completeManualQuoteMutation.mutate({
                 quoteId: getQuote(selectedManualField.field_id)?._id,
-                data: { ...data, save_as_draft: true },
+                data: data,
+                isDraft: true,
               });
             } else {
-              // Show confirm dialog for completion
               setManualConfirmDialogOpen(true);
             }
           }}
+          onSuccess={(isDraft = false) => {
+            if (!isDraft) {
+              setManualCommentSheetOpen(false);
+              queryClient.invalidateQueries({
+                queryKey: ["workshop-vehicle-details"],
+              });
+            }
+          }}
+          loading={completeManualQuoteMutation.isPending}
         />
       )}
 
-      {/* Manual Complete Confirm Dialog */}
       <ManualCompleteConfirmDialog
         open={manualConfirmDialogOpen}
         onOpenChange={setManualConfirmDialogOpen}

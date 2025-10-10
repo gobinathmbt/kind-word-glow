@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const FieldConfigSchema = new mongoose.Schema({
@@ -34,7 +33,6 @@ const FieldConfigSchema = new mongoose.Schema({
     allow_multiple: Boolean,
     custom_options: [String]
   },
-
   has_image: {
     type: Boolean,
     default: false
@@ -76,38 +74,25 @@ const SectionConfigSchema = new mongoose.Schema({
   fields: [FieldConfigSchema]
 });
 
-const TradeinConfigSchema = new mongoose.Schema({
-  config_name: {
+const CategoryConfigSchema = new mongoose.Schema({
+  category_id: {
+    type: String,
+    required: true
+  },
+  category_name: {
     type: String,
     required: true
   },
   description: String,
-  company_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company',
-    required: true
-  },
-  version: {
-    type: String,
-    default: '1.0'
+  display_order: {
+    type: Number,
+    default: 0
   },
   is_active: {
     type: Boolean,
     default: true
   },
-  is_default: {
-    type: Boolean,
-    default: false
-  },
-  dealership_id: {
-    type: String,
-    ref: "Dealership",
-  },
-  
-  // Sections for trade-in evaluation (no master categories, just accordion sections)
   sections: [SectionConfigSchema],
-  
-  // Calculations for trade-in (global level since no categories)
   calculations: [{
     calculation_id: {
       type: String,
@@ -137,10 +122,39 @@ const TradeinConfigSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }],
-  
-  // Valuation settings
+  }]
+});
 
+const TradeinConfigSchema = new mongoose.Schema({
+  config_name: {
+    type: String,
+    required: true
+  },
+  description: String,
+  company_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  version: {
+    type: String,
+    default: '1.0'
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  },
+  is_default: {
+    type: Boolean,
+    default: false
+  },
+  dealership_id: {
+    type: String,
+    ref: "Dealership",
+  },
+  
+  // Categories for trade-in evaluation (following inspection pattern)
+  categories: [CategoryConfigSchema],
   
   // Global settings for this configuration
   settings: {
