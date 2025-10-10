@@ -58,7 +58,6 @@ interface CostType {
   default_tax_type: string;
   section_type: string;
   change_currency: boolean;
-  fx_rate: boolean;
   display_order: number;
 }
 
@@ -108,11 +107,6 @@ const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
           {costType.change_currency ? "Yes" : "No"}
         </Badge>
       </td>
-      <td className="p-3">
-        <Badge variant={costType.fx_rate ? "default" : "secondary"}>
-          {costType.fx_rate ? "Yes" : "No"}
-        </Badge>
-      </td>
       <td className="p-3 text-sm text-muted-foreground">
         {new Date(costType.created_at).toLocaleString()}
       </td>
@@ -141,7 +135,7 @@ const CostConfiguration = () => {
     default_tax_type: "",
     section_type: "",
     change_currency: false,
-    fx_rate: false,
+
   });
 
   // Fetch cost configuration
@@ -256,7 +250,6 @@ const CostConfiguration = () => {
       default_tax_type: "",
       section_type: "",
       change_currency: false,
-      fx_rate: false,
     });
   };
 
@@ -269,7 +262,6 @@ const CostConfiguration = () => {
       default_tax_type: costType.default_tax_type || "",
       section_type: costType.section_type || "",
       change_currency: costType.change_currency || false,
-      fx_rate: costType.fx_rate || false,
     });
     setIsAddDialogOpen(true);
   };
@@ -449,7 +441,6 @@ const CostConfiguration = () => {
                                   <th className="p-3 text-left">
                                     Change Currency
                                   </th>
-                                  <th className="p-3 text-left">FX Rate</th>
                                   <th className="p-3 text-left">Created At</th>
                                   <th className="p-3 text-left">Modified At</th>
                                 </tr>
@@ -635,18 +626,7 @@ const CostConfiguration = () => {
                 Change Currency
               </Label>
             </div>
-            <div className="flex items-center space-x-2 pt-8">
-              <Checkbox
-                id="fx_rate"
-                checked={formData.fx_rate}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, fx_rate: checked as boolean })
-                }
-              />
-              <Label htmlFor="fx_rate" className="cursor-pointer">
-                FX Rate
-              </Label>
-            </div>
+
           </div>
 
           <DialogFooter>

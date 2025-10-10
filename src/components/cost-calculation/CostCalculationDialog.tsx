@@ -31,14 +31,18 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
   const [editingCost, setEditingCost] = useState<any>(null);
   const [editingCostType, setEditingCostType] = useState<any>(null);
   const [currencyDialogOpen, setCurrencyDialogOpen] = useState(false);
-  const [selectedCostForCurrency, setSelectedCostForCurrency] = useState<any>(null);
+  const [selectedCostForCurrency, setSelectedCostForCurrency] =
+    useState<any>(null);
 
   // Fetch cost configuration based on vehicle type
   const { data: costConfig, isLoading: isLoadingConfig } = useQuery({
     queryKey: ["cost-configuration", vehicle?.vehicle_type],
     queryFn: async () => {
-      const vehiclePurchaseType = vehicle?.vehicle_type === "master" ? "local_vehicle" : "import_vehicle";
-      const response = await companyServices.getCostConfigurationByVehicleType(vehiclePurchaseType);
+      const vehiclePurchaseType =
+        vehicle?.vehicle_type === "master" ? "local_vehicle" : "import_vehicle";
+      const response = await companyServices.getCostConfigurationByVehicleType(
+        vehiclePurchaseType
+      );
       return response.data.data;
     },
     enabled: open && !!vehicle,
@@ -48,7 +52,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
   useEffect(() => {
     if (costConfig && vehicle) {
       const initialData: any = {};
-      
+
       costConfig.sections?.forEach((section: any) => {
         section.cost_types.forEach((costType: any) => {
           // Check if vehicle has existing cost_details
@@ -68,7 +72,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
           }
         });
       });
-      
+
       setCostData(initialData);
     }
   }, [costConfig, vehicle]);
@@ -88,7 +92,9 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to save cost details");
+      toast.error(
+        error?.response?.data?.message || "Failed to save cost details"
+      );
     },
   });
 
@@ -139,7 +145,8 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
       <DialogContent className="max-w-[90vw] h-[90vh] p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle>
-            Cost Details - {vehicle.vehicle_stock_id} / {vehicle.year} {vehicle.make} {vehicle.model}
+            Cost Details - {vehicle.vehicle_stock_id} / {vehicle.year}{" "}
+            {vehicle.make} {vehicle.model}
           </DialogTitle>
         </DialogHeader>
 
@@ -166,28 +173,42 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
 
                 <div className="space-y-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground text-[10px]">Stock ID</span>
+                    <span className="text-muted-foreground text-[10px]">
+                      Stock ID
+                    </span>
                     <p className="font-medium">{vehicle.vehicle_stock_id}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground text-[10px]">VIN</span>
+                    <span className="text-muted-foreground text-[10px]">
+                      VIN
+                    </span>
                     <p className="font-medium text-xs">{vehicle.vin}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground text-[10px]">Registration</span>
+                    <span className="text-muted-foreground text-[10px]">
+                      Registration
+                    </span>
                     <p className="font-medium">{vehicle.plate_no}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground text-[10px]">Year</span>
+                    <span className="text-muted-foreground text-[10px]">
+                      Year
+                    </span>
                     <p className="font-medium">{vehicle.year}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground text-[10px]">Vehicle</span>
-                    <p className="font-medium">{vehicle.make} {vehicle.model}</p>
+                    <span className="text-muted-foreground text-[10px]">
+                      Vehicle
+                    </span>
+                    <p className="font-medium">
+                      {vehicle.make} {vehicle.model}
+                    </p>
                   </div>
                   {vehicle.variant && (
                     <div>
-                      <span className="text-muted-foreground text-[10px]">Variant</span>
+                      <span className="text-muted-foreground text-[10px]">
+                        Variant
+                      </span>
                       <p className="font-medium">{vehicle.variant}</p>
                     </div>
                   )}
@@ -197,138 +218,149 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
 
             {/* Center - Cost Tables */}
             <div className="flex-1">
-       <ScrollArea className="h-full">
-  <div className="p-4">
-    <h3 className="font-semibold mb-4 text-lg">Cost Heads</h3>
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <h3 className="font-semibold mb-4 text-lg">Cost Heads</h3>
 
-    {/* Two-column layout for sections */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {costConfig?.sections?.map((section: any) => {
-        const isPricingSection = section.section_name === "pricing_cost";
+                  {/* Two-column layout for sections */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {costConfig?.sections?.map((section: any) => {
+                      const isPricingSection =
+                        section.section_name === "pricing_cost";
 
-        return (
-          <div
-            key={section.section_name}
-            className="mb-6 border rounded-lg shadow-sm bg-card p-3"
-          >
-            <h4 className="font-semibold text-sm mb-3 px-2">
-              {formatApiNames(section.section_name)}
-            </h4>
+                      return (
+                        <div
+                          key={section.section_name}
+                          className="mb-6 border rounded-lg shadow-sm bg-card p-3"
+                        >
+                          <h4 className="font-semibold text-sm mb-3 px-2">
+                            {formatApiNames(section.section_name)}
+                          </h4>
 
-            {/* Table Header */}
-            <div
-              className={`grid ${
-                isPricingSection
-                  ? "grid-cols-[40px_1fr_200px]"
-                  : "grid-cols-[40px_1fr_150px_80px_200px]"
-              } gap-2 bg-muted/50 p-2 rounded-t-lg text-xs font-medium`}
-            >
-              <div>Actions</div>
-              <div>Cost Head</div>
-              {!isPricingSection && (
-                <>
-                  <div>Invoiced Currency</div>
-                  <div>Fx</div>
-                </>
-              )}
-              <div>Base Currency</div>
-            </div>
-
-            {/* Table Rows */}
-            <div className="space-y-1">
-              {section.cost_types.map((costType: any) => {
-                const costValue = costData[costType._id];
-                const invoicedAmount = costValue?.net_amount || "0";
-                const invoicedTax = costValue?.total_tax || "0";
-                const invoicedTotal = costValue?.total_amount || "0";
-                const fxRate = costValue?.exchange_rate || 1;
-                const baseAmount = (parseFloat(invoicedAmount) * fxRate).toFixed(2);
-                const baseTax = (parseFloat(invoicedTax) * fxRate).toFixed(2);
-                const baseTotal = (parseFloat(invoicedTotal) * fxRate).toFixed(2);
-                const taxLabel = getTaxTypeLabel(costValue?.tax_type || "exclusive");
-
-                return (
-                  <div
-                    key={costType._id}
-                    className={`grid ${
-                      isPricingSection
-                        ? "grid-cols-[40px_1fr_200px]"
-                        : "grid-cols-[40px_1fr_150px_80px_200px]"
-                    } gap-2 p-2 border-b hover:bg-muted/30 text-xs items-center`}
-                  >
-                    {/* Actions */}
-                    <div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-6 p-0"
-                        onClick={() => handleEditCost(costType, costType._id)}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    {/* Cost Head */}
-                    <div className="font-medium">
-                      {formatApiNames(costType.cost_type)}
-                    </div>
-
-                    {/* Invoiced Currency (only for non-pricing sections) */}
-                    {!isPricingSection && (
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <div className="text-[11px]">
-                            {costValue?.currency?.symbol} {invoicedTotal} {taxLabel}
+                          {/* Table Header */}
+                          <div
+                            className={`grid ${
+                              isPricingSection
+                                ? "grid-cols-[40px_1fr_200px]"
+                                : "grid-cols-[40px_1fr_150px_80px_200px]"
+                            } gap-2 bg-muted/50 p-2 rounded-t-lg text-xs font-medium`}
+                          >
+                            <div>Actions</div>
+                            <div>Cost Head</div>
+                            {!isPricingSection && (
+                              <>
+                                <div>Invoiced Currency</div>
+                                <div>Fx</div>
+                              </>
+                            )}
+                            <div>Base Currency</div>
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            (GST {costValue?.tax_rate || 0}%)
+
+                          {/* Table Rows */}
+                          <div className="space-y-1">
+                            {section.cost_types.map((costType: any) => {
+                              const costValue = costData[costType._id];
+                              const invoicedAmount =
+                                costValue?.net_amount || "0";
+                              const invoicedTax = costValue?.total_tax || "0";
+                              const invoicedTotal =
+                                costValue?.total_amount || "0";
+                              const fxRate = costValue?.exchange_rate || 1;
+                              const baseAmount = (
+                                parseFloat(invoicedAmount) * fxRate
+                              ).toFixed(2);
+                              const baseTax = (
+                                parseFloat(invoicedTax) * fxRate
+                              ).toFixed(2);
+                              const baseTotal = (
+                                parseFloat(invoicedTotal) * fxRate
+                              ).toFixed(2);
+                              const taxLabel = getTaxTypeLabel(
+                                costValue?.tax_type || "exclusive"
+                              );
+
+                              return (
+                                <div
+                                  key={costType._id}
+                                  className={`grid ${
+                                    isPricingSection
+                                      ? "grid-cols-[40px_1fr_200px]"
+                                      : "grid-cols-[40px_1fr_150px_80px_200px]"
+                                  } gap-2 p-2 border-b hover:bg-muted/30 text-xs items-center`}
+                                >
+                                  {/* Actions */}
+                                  <div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() =>
+                                        handleEditCost(costType, costType._id)
+                                      }
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+
+                                  {/* Cost Head */}
+                                  <div className="font-medium">
+                                    {formatApiNames(costType.cost_type)}
+                                  </div>
+
+                                  {/* Invoiced Currency (only for non-pricing sections) */}
+                                  {!isPricingSection && (
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1">
+                                        <div className="text-[11px]">
+                                          {costValue?.currency?.symbol}{" "}
+                                          {invoicedTotal} {taxLabel}
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          (GST {costValue?.tax_rate || 0}%)
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* FX Rate (only for non-pricing sections) */}
+                                  {!isPricingSection && (
+                                    <div className="text-center">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={fxRate}
+                                        onChange={(e) => {
+                                          handleCostChange(costType._id, {
+                                            ...costValue,
+                                            exchange_rate:
+                                              parseFloat(e.target.value) || 1,
+                                          });
+                                        }}
+                                        className="w-16 h-7 px-1 text-center text-xs border rounded"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Base Currency */}
+                                  <div>
+                                    <div className="text-[11px]">
+                                      {costValue?.currency?.symbol} {baseTotal}{" "}
+                                      {taxLabel}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">
+                                      (GST {baseTax})
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* FX Rate (only for non-pricing sections) */}
-                    {!isPricingSection && (
-                      <div className="text-center">
-                        {costType.fx_rate ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={fxRate}
-                            onChange={(e) => {
-                              handleCostChange(costType._id, {
-                                ...costValue,
-                                exchange_rate: parseFloat(e.target.value) || 1,
-                              });
-                            }}
-                            className="w-16 h-7 px-1 text-center text-xs border rounded"
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">{fxRate}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Base Currency */}
-                    <div>
-                      <div className="text-[11px]">
-                        {costValue?.currency?.symbol} {baseTotal} {taxLabel}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        (GST {baseTax})
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-</ScrollArea>
-
+                </div>
+              </ScrollArea>
             </div>
 
             {/* Right Sidebar - Summary */}
@@ -345,8 +377,14 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saveMutation.isPending} className="bg-[hsl(var(--primary))]">
-            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="bg-[hsl(var(--primary))]"
+          >
+            {saveMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             <Save className="mr-2 h-4 w-4" />
             Save
           </Button>
@@ -371,8 +409,6 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
           availableCurrencies={costConfig?.available_company_currency || []}
         />
       )}
-
-    
     </Dialog>
   );
 };

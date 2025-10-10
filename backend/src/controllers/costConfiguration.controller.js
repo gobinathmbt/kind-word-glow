@@ -64,7 +64,7 @@ const getCostConfiguration = async (req, res) => {
 // @access  Private (Company Super Admin)
 const addCostType = async (req, res) => {
   try {
-    const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency ,fx_rate  } = req.body;
+    const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency  } = req.body;
     
     let costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
@@ -90,7 +90,6 @@ const addCostType = async (req, res) => {
       default_tax_type: default_tax_type || '',
       section_type: section_type || '',
       change_currency: change_currency || false,
-      fx_rate: fx_rate || false,
       display_order: maxOrder + 1
     };
     
@@ -130,7 +129,7 @@ const addCostType = async (req, res) => {
 const updateCostType = async (req, res) => {
   try {
     const { costTypeId } = req.params;
-    const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency,fx_rate } = req.body;
+    const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency } = req.body;
     
     const costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
@@ -162,7 +161,6 @@ const updateCostType = async (req, res) => {
     if (default_tax_type !== undefined) costConfig.cost_types[costTypeIndex].default_tax_type = default_tax_type;
     if (section_type !== undefined) costConfig.cost_types[costTypeIndex].section_type = section_type;
     if (change_currency !== undefined) costConfig.cost_types[costTypeIndex].change_currency = change_currency;
-    if (fx_rate !== undefined) costConfig.cost_types[costTypeIndex].fx_rate = fx_rate;
 
     costConfig.cost_types[costTypeIndex].updated_at = new Date();
     
@@ -383,7 +381,6 @@ const getCostConfigurationByVehicleType = async (req, res) => {
         default_tax_type: costType.default_tax_type,
         section_type: costType.section_type,
         change_currency: costType.change_currency,
-        fx_rate: costType.fx_rate,
         display_order: costType.display_order,
         created_at: costType.created_at,
         updated_at: costType.updated_at

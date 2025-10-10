@@ -28,10 +28,6 @@ const CostTypeSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  fx_rate: { // Add this field
-    type: Boolean,
-    default: false
-  },
   display_order: {
     type: Number,
     default: 0
