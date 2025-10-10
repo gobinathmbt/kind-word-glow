@@ -135,6 +135,7 @@ const CostEditDialog: React.FC<CostEditDialogProps> = ({
               <Select
                 value={localValue.currency?._id}
                 onValueChange={handleCurrencyChange}
+                disabled={!costType.change_currency}
               >
                 <SelectTrigger>
                   <SelectValue>
