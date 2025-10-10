@@ -10,9 +10,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Building2, Lock, Save } from "lucide-react";
+import { Loader2, Building2, Lock, Save, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { companyServices } from "@/api/services";
+import axios from "axios";
+import { countries } from "countries-list";
+import { getCountry } from "countries-and-timezones";
 
 interface CompanyInfo {
   company_name: string;
@@ -34,10 +37,29 @@ interface PasswordData {
   confirm_password: string;
 }
 
+interface AddressSuggestion {
+  display_name: string;
+  address: {
+    country?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    county?: string;
+    state?: string;
+    region?: string;
+    postcode?: string;
+  };
+}
+
 const CompanyInfoTab = () => {
   const [loading, setLoading] = useState(false);
   const [infoLoading, setInfoLoading] = useState(true);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    AddressSuggestion[]
+  >([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
     company_name: "",
     contact_person: "",
@@ -57,9 +79,117 @@ const CompanyInfoTab = () => {
     confirm_password: "",
   });
 
+  // Safe string getter
+  const getSafeString = (value: unknown): string => {
+    return typeof value === "string" ? value : "";
+  };
+
+  // Get currency for a country
+  const getCurrencyForCountry = (countryName: string): string => {
+    if (!countryName) return "";
+
+    const countryEntry = Object.entries(countries).find(
+      ([code, country]) =>
+        country.name.toLowerCase() === countryName.toLowerCase()
+    );
+
+    if (countryEntry) {
+      const [_, countryData] = countryEntry;
+      return getSafeString(countryData.currency);
+    }
+
+    return "";
+  };
+
+  // Get timezone for a country
+  const getTimezoneForCountry = (countryName: string): string => {
+    if (!countryName) return "";
+
+    try {
+      const countryData = getCountry(countryName);
+      if (
+        countryData &&
+        countryData.timezones &&
+        countryData.timezones.length > 0
+      ) {
+        return getSafeString(countryData.timezones[0]);
+      }
+    } catch (error) {
+      console.error("Error getting timezone for country:", error);
+    }
+
+    return "";
+  };
+
+  // Search address using OpenStreetMap Nominatim API
+  const searchAddress = async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    setIsSearchingAddress(true);
+    try {
+      const response = await axios.get<AddressSuggestion[]>(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}&addressdetails=1&limit=5`
+      );
+      setAddressSuggestions(response.data);
+      setShowSuggestions(true);
+    } catch (err) {
+      console.error("Address search error:", err);
+      toast.error("Failed to search address");
+    } finally {
+      setIsSearchingAddress(false);
+    }
+  };
+
+  // Handle address selection
+  const handleAddressSelect = (suggestion: AddressSuggestion) => {
+    const addr = suggestion.address;
+
+    const selectedCountry = getSafeString(addr.country);
+    const selectedCity = getSafeString(
+      addr.city || addr.town || addr.village || addr.county
+    );
+    const selectedState = getSafeString(addr.state || addr.region);
+    const selectedPincode = getSafeString(addr.postcode);
+
+    // Auto-fill timezone and currency based on country
+    const timezone = getTimezoneForCountry(selectedCountry);
+    const currency = getCurrencyForCountry(selectedCountry);
+
+    setCompanyInfo((prev) => ({
+      ...prev,
+      address: getSafeString(suggestion.display_name),
+      city: selectedCity,
+      state: selectedState,
+      country: selectedCountry,
+      pincode: selectedPincode,
+      timezone,
+      currency,
+    }));
+
+    setShowSuggestions(false);
+    setAddressSuggestions([]);
+  };
+
   // Load company info on mount
   useEffect(() => {
     loadCompanyInfo();
+  }, []);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowSuggestions(false);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
   }, []);
 
   const loadCompanyInfo = async () => {
@@ -81,6 +211,11 @@ const CompanyInfoTab = () => {
 
   const handleInfoChange = (field: keyof CompanyInfo, value: string) => {
     setCompanyInfo((prev) => ({ ...prev, [field]: value }));
+
+    // Trigger address search when address field changes
+    if (field === "address") {
+      searchAddress(value);
+    }
   };
 
   const handlePasswordChange = (field: keyof PasswordData, value: string) => {
@@ -167,7 +302,7 @@ const CompanyInfoTab = () => {
             Company Information
           </CardTitle>
           <CardDescription>
-            Update your company details. Email address cannot be changed.
+            Update your company details. Email address and Company name cannot be changed.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -222,15 +357,47 @@ const CompanyInfoTab = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={companyInfo.address}
-                onChange={(e) => handleInfoChange("address", e.target.value)}
-                placeholder="Enter address"
-                required
-              />
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="address"
+                  value={companyInfo.address}
+                  onChange={(e) =>
+                    handleInfoChange("address", e.target.value)
+                  }
+                  placeholder="Start typing your address..."
+                  className="pl-10 pr-10"
+                  required
+                  autoComplete="off"
+                />
+                {isSearchingAddress && (
+                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+
+              {showSuggestions && addressSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {addressSuggestions.map(
+                    (suggestion: any, index: number) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 border-b last:border-b-0"
+                        onClick={() => handleAddressSelect(suggestion)}
+                      >
+                        <div className="flex items-start space-x-2">
+                          <MapPin className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
+                          <span className="text-sm">
+                            {suggestion.display_name}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid md:grid-cols-4 gap-4">
@@ -282,7 +449,7 @@ const CompanyInfoTab = () => {
                   id="timezone"
                   value={companyInfo.timezone}
                   onChange={(e) => handleInfoChange("timezone", e.target.value)}
-                  placeholder="Timezone"
+                  placeholder="Auto-filled from address"
                   required
                 />
               </div>
@@ -292,10 +459,21 @@ const CompanyInfoTab = () => {
                   id="currency"
                   value={companyInfo.currency}
                   onChange={(e) => handleInfoChange("currency", e.target.value)}
-                  placeholder="Currency"
+                  placeholder="Auto-filled from address"
                   required
                 />
               </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <h4 className="font-semibold mb-2 text-blue-900">
+                💡 Address Auto-Fill
+              </h4>
+              <p className="text-sm text-blue-800">
+                Start typing your address and select from suggestions. City,
+                State, Country, Pin Code, Timezone, and Currency will be
+                automatically filled.
+              </p>
             </div>
 
             <Button type="submit" disabled={loading}>
