@@ -65,48 +65,52 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections }) => {
 
   return (
     <div className="h-full flex flex-col bg-card border-l">
-      <div className="p-3 border-b">
-        <h3 className="font-semibold text-sm">Summary</h3>
+      <div className="p-4 border-b">
+        <h3 className="font-semibold">Summary</h3>
       </div>
       
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-3">
-          {/* Expense Summary - Compact */}
-          <div className="space-y-1.5">
-            <div className="space-y-1 text-[11px]">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Exact Expenses</span>
-                <span>0 Incl</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Estimated Expenses</span>
-                <span>0 Incl</span>
-              </div>
-              <Separator className="my-1" />
-              <div className="flex justify-between">
+        <div className="p-4 space-y-4">
+          {/* Expense Summary */}
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">Expense Summary</h4>
+            <div className="space-y-1.5 text-sm">
+              {Object.entries(summary.expenseSummary).map(([key, value]: any) => (
+                <div key={key} className="flex justify-between">
+                  <span className="text-muted-foreground">{key}</span>
+                  <span>{value.toFixed(2)} Incl</span>
+                </div>
+              ))}
+              <Separator />
+              <div className="flex justify-between font-semibold">
                 <span>Total Expenses</span>
-                <span className="font-medium">0 Incl</span>
+                <span>{summary.totalExpenses.toFixed(2)} Incl</span>
               </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between font-semibold text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Exact Expenses</span>
+                <span>0 Incl</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Estimated Expenses</span>
+                <span>0 Incl</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-semibold">
                 <span>Total Costs</span>
                 <span>{summary.totalCosts.toFixed(2)} Incl</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground text-right">
-                (GST {summary.totalGST.toFixed(2)})
               </div>
             </div>
           </div>
 
           <Separator />
 
-          {/* Margin Summary - Compact */}
-          <div className="space-y-1.5 border rounded-lg p-2 bg-muted/20">
-            <h4 className="font-semibold text-xs mb-2">Margin Summary</h4>
-            <div className="space-y-1 text-[11px]">
+          {/* Margin Summary */}
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">Margin Summary</h4>
+            <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Retail Price</span>
-                <span className="font-medium">{summary.retailPrice.toFixed(2)} Incl</span>
+                <span>{summary.retailPrice.toFixed(2)} Incl</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Gross Profit</span>
@@ -120,17 +124,17 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections }) => {
                 <span className="text-muted-foreground">Appraisal</span>
                 <span>0 Incl</span>
               </div>
-              <Separator className="my-1" />
-              <div className="flex justify-between font-semibold text-xs">
+              <Separator />
+              <div className="flex justify-between font-semibold">
                 <span>Net Profit</span>
                 <span>{summary.netProfit.toFixed(2)} Excl</span>
               </div>
-              <div className="flex justify-between font-semibold text-xs">
+              <div className="flex justify-between font-semibold">
                 <span>Net Margin</span>
                 <span>{summary.netMargin}%</span>
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>After Sales</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">After Sales</span>
                 <span>0.00</span>
               </div>
             </div>

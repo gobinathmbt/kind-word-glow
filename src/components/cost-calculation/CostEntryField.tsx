@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import CurrencySelectionDialog from "./CurrencySelectionDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
 
 interface CostEntryFieldProps {
@@ -209,16 +208,6 @@ const CostEntryField: React.FC<CostEntryFieldProps> = ({
           </span>
         </div>
       </div>
-
-      {costType.change_currency && (
-        <CurrencySelectionDialog
-          open={currencyDialogOpen}
-          onClose={() => setCurrencyDialogOpen(false)}
-          availableCurrencies={availableCurrencies}
-          selectedCurrency={localValue.currency}
-          onSelectCurrency={handleCurrencyChange}
-        />
-      )}
     </div>
   );
 };
