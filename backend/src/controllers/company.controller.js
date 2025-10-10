@@ -1179,6 +1179,186 @@ const getCompanyMasterdropdownvalues = async (req, res) => {
   }
 };
 
+// @desc    Get company information
+// @route   GET /api/company/info
+// @access  Private (Company Super Admin)
+const getCompanyInfo = async (req, res) => {
+  try {
+    const company = await Company.findById(req.user.company_id).select(
+      'company_name contact_person email phone address city state country pincode timezone currency'
+    );
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: company,
+    });
+  } catch (error) {
+    console.error('Get company info error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving company information',
+    });
+  }
+};
+
+// @desc    Update company information
+// @route   PUT /api/company/info
+// @access  Private (Company Super Admin)
+const updateCompanyInfo = async (req, res) => {
+  try {
+    const {
+      contact_person,
+      phone,
+      address,
+      city,
+      state,
+      country,
+      pincode,
+      timezone,
+      currency,
+    } = req.body;
+
+    const company = await Company.findById(req.user.company_id);
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found',
+      });
+    }
+
+    // Update only the allowed fields (email cannot be changed)
+    if (contact_person) company.contact_person = contact_person;
+    if (phone) company.phone = phone;
+    if (address) company.address = address;
+    if (city) company.city = city;
+    if (state) company.state = state;
+    if (country) company.country = country;
+    if (pincode !== undefined) company.pincode = pincode;
+    if (timezone) company.timezone = timezone;
+    if (currency) company.currency = currency;
+
+    await company.save();
+
+    await logEvent({
+      event_type: 'company_management',
+      event_action: 'company_info_updated',
+      event_description: `Company information updated: ${company.company_name}`,
+      user_id: req.user.id,
+      company_id: company._id,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Company information updated successfully',
+      data: {
+        company_name: company.company_name,
+        contact_person: company.contact_person,
+        email: company.email,
+        phone: company.phone,
+        address: company.address,
+        city: company.city,
+        state: company.state,
+        country: company.country,
+        pincode: company.pincode,
+        timezone: company.timezone,
+        currency: company.currency,
+      },
+    });
+  } catch (error) {
+    console.error('Update company info error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating company information',
+    });
+  }
+};
+
+// @desc    Update company password
+// @route   PUT /api/company/password
+// @access  Private (Company Super Admin)
+const updateCompanyPassword = async (req, res) => {
+  try {
+    const { old_password, new_password, confirm_password } = req.body;
+
+    // Validate input
+    if (!old_password || !new_password || !confirm_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'All password fields are required',
+      });
+    }
+
+    if (new_password !== confirm_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'New passwords do not match',
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long',
+      });
+    }
+
+    // Get the user (company super admin)
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Verify old password
+    const isPasswordValid = await user.comparePassword(old_password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+
+    // Update password
+    user.password = new_password;
+    await user.save();
+
+    await logEvent({
+      event_type: 'user_management',
+      event_action: 'password_changed',
+      event_description: `Password changed for user: ${user.email}`,
+      user_id: user._id,
+      company_id: req.user.company_id,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating password',
+    });
+  }
+};
+
 module.exports = {
   // Dashboard endpoints
   getDashboardStats,
@@ -1211,4 +1391,9 @@ module.exports = {
   testS3Connection,
   testWebhook,
   getCompanyMasterdropdownvalues,
+  
+  // Company info
+  getCompanyInfo,
+  updateCompanyInfo,
+  updateCompanyPassword,
 };

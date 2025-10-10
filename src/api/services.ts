@@ -501,6 +501,14 @@ export const companyServices = {
   testWebhook: (data: any) =>
     apiClient.post("/api/company/settings/test-webhook", data),
 
+  // Company Info
+  getCompanyInfo: () => apiClient.get("/api/company/info"),
+
+  updateCompanyInfo: (data: any) => apiClient.put("/api/company/info", data),
+
+  updateCompanyPassword: (data: any) =>
+    apiClient.put("/api/company/password", data),
+
   // Currency Services
   getCurrencies: (params?: any) =>
     apiClient.get("/api/company/currencies", { params }),

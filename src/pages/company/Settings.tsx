@@ -32,6 +32,7 @@ import {
   TrendingUp,
   History,
   Grid,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { companyServices } from "@/api/services";
@@ -39,6 +40,7 @@ import { useQuery } from "@tanstack/react-query";
 import SubscriptionModal from "@/components/subscription/SubscriptionModal";
 import SubscriptionHistoryTable from "@/components/subscription/SubscriptionHistoryTable";
 import apiClient from "@/api/axios";
+import CompanyInfoTab from "@/components/company/CompanyInfoTab";
 
 const CompanySettings = () => {
   const [loading, setLoading] = useState(false);
@@ -230,6 +232,10 @@ const CompanySettings = () => {
             <TabsTrigger value="webhooks" className="flex items-center gap-2">
               <Link className="h-4 w-4" />
               Webhooks
+            </TabsTrigger>
+            <TabsTrigger value="company-info" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Company Info
             </TabsTrigger>
           </TabsList>
 
@@ -608,11 +614,16 @@ const CompanySettings = () => {
                       Test Trade-in
                     </Button>
                   </div>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Company Info Tab */}
+        <TabsContent value="company-info">
+          <CompanyInfoTab />
+        </TabsContent>
+      </Tabs>
 
         {/* Subscription Modal */}
         <SubscriptionModal

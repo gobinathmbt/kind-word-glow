@@ -247,6 +247,9 @@ const registerCompany = async (req, res) => {
       city,
       state,
       country,
+      pincode,
+      timezone,
+      currency,
       password,
     } = req.body;
 
@@ -286,6 +289,9 @@ const registerCompany = async (req, res) => {
       city,
       state,
       country,
+      pincode,
+      timezone,
+      currency,
       subscription_status: "inactive", // Set to inactive initially
       user_limit: 1, // Default to 1 user initially
     });

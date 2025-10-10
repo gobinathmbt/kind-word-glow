@@ -32,7 +32,12 @@ const {
   updateS3Config,
   updateCallbackConfig,
   testS3Connection,
-  testWebhook
+  testWebhook,
+  
+  // Company info
+  getCompanyInfo,
+  updateCompanyInfo,
+  updateCompanyPassword
 } = require('../controllers/company.controller');
 
 const {
@@ -98,6 +103,11 @@ router.put('/settings/s3', authorize('company_super_admin'), updateS3Config);
 router.put('/settings/callback', authorize('company_super_admin'), updateCallbackConfig);
 router.post('/settings/test-s3', authorize('company_super_admin'), testS3Connection);
 router.post('/settings/test-webhook', authorize('company_super_admin'), testWebhook);
+
+// Company info routes (only super admin)
+router.get('/info', authorize('company_super_admin'), getCompanyInfo);
+router.put('/info', authorize('company_super_admin'), updateCompanyInfo);
+router.put('/password', authorize('company_super_admin'), updateCompanyPassword);
 
 router.post('/create/:type', authorize('company_super_admin' , 'company_admin'), createController.create);
 

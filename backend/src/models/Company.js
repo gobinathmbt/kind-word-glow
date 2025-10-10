@@ -37,6 +37,15 @@ const CompanySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  pincode: {
+    type: String
+  },
+  timezone: {
+    type: String
+  },
+  currency: {
+    type: String
+  },
   subscription_status: {
     type: String,
     enum: ['active', 'inactive', 'suspended', 'trial', 'grace_period'],
