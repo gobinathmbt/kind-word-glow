@@ -9,7 +9,12 @@ const IntegrationSchema = new mongoose.Schema({
   integration_type: {
     type: String,
     required: true,
-    enum: ['redbook_vehicle_pricing_integration']
+    enum: ['redbook_vehicle_pricing_integration', 'autograb_vehicle_pricing_integration']
+  },
+  environment: {
+    type: String,
+    enum: ['development', 'testing', 'production'],
+    default: 'production'
   },
   display_name: {
     type: String,

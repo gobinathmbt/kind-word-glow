@@ -11,6 +11,7 @@ import { useAuth } from "@/auth/AuthContext";
 import S3ConfigDialog from "@/components/integrations/S3ConfigDialog";
 import SendGridConfigDialog from "@/components/integrations/SendGridConfigDialog";
 import RedBookConfigDialog from "@/components/integrations/RedBookConfigDialog";
+import AutoGrabConfigDialog from "@/components/integrations/AutoGrabConfigDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 
@@ -403,6 +404,14 @@ const Integration = () => {
 
       {selectedModule === "redbook_vehicle_pricing_integration" && (
         <RedBookConfigDialog
+          isOpen={true}
+          onClose={handleCloseDialog}
+          integration={selectedIntegration}
+        />
+      )}
+
+      {selectedModule === "autograb_vehicle_pricing_integration" && (
+        <AutoGrabConfigDialog
           isOpen={true}
           onClose={handleCloseDialog}
           integration={selectedIntegration}

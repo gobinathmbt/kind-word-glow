@@ -11,13 +11,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface RedBookConfigDialogProps {
+interface AutoGrabConfigDialogProps {
   isOpen: boolean;
   onClose: () => void;
   integration: any;
 }
 
-const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({ 
+const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({ 
   isOpen, 
   onClose, 
   integration 
@@ -35,41 +35,35 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
     development: {
       api_key: getEnvConfig("development").api_key || "",
       api_secret: getEnvConfig("development").api_secret || "",
-      base_url: getEnvConfig("development").base_url || "https://api-dev.redbookdirect.com",
-      client_id: getEnvConfig("development").client_id || "",
+      base_url: getEnvConfig("development").base_url || "https://api-dev.autograb.com.au",
       timeout: getEnvConfig("development").timeout || "30000",
       enable_caching: getEnvConfig("development").enable_caching ?? true,
       cache_duration: getEnvConfig("development").cache_duration || "3600",
-      webhook_url: getEnvConfig("development").webhook_url || "",
+      enable_vin_lookup: getEnvConfig("development").enable_vin_lookup ?? true,
+      enable_rego_lookup: getEnvConfig("development").enable_rego_lookup ?? true,
       enable_valuations: getEnvConfig("development").enable_valuations ?? true,
-      enable_specifications: getEnvConfig("development").enable_specifications ?? true,
-      enable_images: getEnvConfig("development").enable_images ?? false,
     },
     testing: {
       api_key: getEnvConfig("testing").api_key || "",
       api_secret: getEnvConfig("testing").api_secret || "",
-      base_url: getEnvConfig("testing").base_url || "https://api-test.redbookdirect.com",
-      client_id: getEnvConfig("testing").client_id || "",
+      base_url: getEnvConfig("testing").base_url || "https://api-test.autograb.com.au",
       timeout: getEnvConfig("testing").timeout || "30000",
       enable_caching: getEnvConfig("testing").enable_caching ?? true,
       cache_duration: getEnvConfig("testing").cache_duration || "3600",
-      webhook_url: getEnvConfig("testing").webhook_url || "",
+      enable_vin_lookup: getEnvConfig("testing").enable_vin_lookup ?? true,
+      enable_rego_lookup: getEnvConfig("testing").enable_rego_lookup ?? true,
       enable_valuations: getEnvConfig("testing").enable_valuations ?? true,
-      enable_specifications: getEnvConfig("testing").enable_specifications ?? true,
-      enable_images: getEnvConfig("testing").enable_images ?? false,
     },
     production: {
       api_key: getEnvConfig("production").api_key || "",
       api_secret: getEnvConfig("production").api_secret || "",
-      base_url: getEnvConfig("production").base_url || "https://api.redbookdirect.com",
-      client_id: getEnvConfig("production").client_id || "",
+      base_url: getEnvConfig("production").base_url || "https://api.autograb.com.au",
       timeout: getEnvConfig("production").timeout || "30000",
       enable_caching: getEnvConfig("production").enable_caching ?? true,
       cache_duration: getEnvConfig("production").cache_duration || "3600",
-      webhook_url: getEnvConfig("production").webhook_url || "",
+      enable_vin_lookup: getEnvConfig("production").enable_vin_lookup ?? true,
+      enable_rego_lookup: getEnvConfig("production").enable_rego_lookup ?? true,
       enable_valuations: getEnvConfig("production").enable_valuations ?? true,
-      enable_specifications: getEnvConfig("production").enable_specifications ?? true,
-      enable_images: getEnvConfig("production").enable_images ?? false,
     },
   });
 
@@ -81,12 +75,12 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
       return integrationServices.createIntegration(data);
     },
     onSuccess: () => {
-      toast.success("RedBook configuration saved successfully");
+      toast.success("AutoGrab configuration saved successfully");
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to save RedBook configuration");
+      toast.error(error?.response?.data?.message || "Failed to save AutoGrab configuration");
     },
   });
 
@@ -114,8 +108,8 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
     });
 
     saveMutation.mutate({
-      integration_type: "redbook_vehicle_pricing_integration",
-      display_name: "RedBook Vehicle Pricing",
+      integration_type: "autograb_vehicle_pricing_integration",
+      display_name: "AutoGrab Vehicle Pricing",
       environment: selectedEnvironment,
       configuration: environmentConfigs,
       is_active: true,
@@ -150,12 +144,12 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
             <Input
               id={`${env}_api_key`}
               type="password"
-              placeholder="Enter your RedBook API key"
+              placeholder="Enter your AutoGrab API key"
               value={formData.api_key}
               onChange={(e) => handleInputChange(env, "api_key", e.target.value)}
             />
             <p className="text-xs text-gray-500">
-              Your RedBook API authentication key
+              Your AutoGrab API authentication key
             </p>
           </div>
 
@@ -164,26 +158,12 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
             <Input
               id={`${env}_api_secret`}
               type="password"
-              placeholder="Enter your RedBook API secret"
+              placeholder="Enter your AutoGrab API secret"
               value={formData.api_secret}
               onChange={(e) => handleInputChange(env, "api_secret", e.target.value)}
             />
             <p className="text-xs text-gray-500">
-              Additional secret key if required by your RedBook plan
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={`${env}_client_id`}>Client ID (Optional)</Label>
-            <Input
-              id={`${env}_client_id`}
-              type="text"
-              placeholder="Enter your client ID"
-              value={formData.client_id}
-              onChange={(e) => handleInputChange(env, "client_id", e.target.value)}
-            />
-            <p className="text-xs text-gray-500">
-              Your RedBook client identifier if applicable
+              Additional secret key if required by your AutoGrab plan
             </p>
           </div>
         </div>
@@ -201,12 +181,12 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
             <Input
               id={`${env}_base_url`}
               type="url"
-              placeholder="https://api.redbookdirect.com"
+              placeholder="https://api.autograb.com.au"
               value={formData.base_url}
               onChange={(e) => handleInputChange(env, "base_url", e.target.value)}
             />
             <p className="text-xs text-gray-500">
-              RedBook API base endpoint URL
+              AutoGrab API base endpoint URL
             </p>
           </div>
 
@@ -275,9 +255,37 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex-1">
+                <Label htmlFor={`${env}_enable_vin_lookup`}>VIN Lookups</Label>
+                <p className="text-xs text-gray-500">
+                  Enable vehicle lookup by VIN number
+                </p>
+              </div>
+              <Switch
+                id={`${env}_enable_vin_lookup`}
+                checked={formData.enable_vin_lookup}
+                onCheckedChange={(checked) => handleInputChange(env, "enable_vin_lookup", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <Label htmlFor={`${env}_enable_rego_lookup`}>Rego Lookups</Label>
+                <p className="text-xs text-gray-500">
+                  Enable vehicle lookup by registration number
+                </p>
+              </div>
+              <Switch
+                id={`${env}_enable_rego_lookup`}
+                checked={formData.enable_rego_lookup}
+                onCheckedChange={(checked) => handleInputChange(env, "enable_rego_lookup", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
                 <Label htmlFor={`${env}_enable_valuations`}>Vehicle Valuations</Label>
                 <p className="text-xs text-gray-500">
-                  Enable pricing and valuation lookups
+                  Enable vehicle valuation and pricing data
                 </p>
               </div>
               <Switch
@@ -286,55 +294,6 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
                 onCheckedChange={(checked) => handleInputChange(env, "enable_valuations", checked)}
               />
             </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label htmlFor={`${env}_enable_specifications`}>Vehicle Specifications</Label>
-                <p className="text-xs text-gray-500">
-                  Enable vehicle specification data access
-                </p>
-              </div>
-              <Switch
-                id={`${env}_enable_specifications`}
-                checked={formData.enable_specifications}
-                onCheckedChange={(checked) => handleInputChange(env, "enable_specifications", checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label htmlFor={`${env}_enable_images`}>Vehicle Images</Label>
-                <p className="text-xs text-gray-500">
-                  Enable vehicle image retrieval (may incur additional costs)
-                </p>
-              </div>
-              <Switch
-                id={`${env}_enable_images`}
-                checked={formData.enable_images}
-                onCheckedChange={(checked) => handleInputChange(env, "enable_images", checked)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Webhook Section */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">
-            Webhooks (Optional)
-          </h3>
-
-          <div className="space-y-2">
-            <Label htmlFor={`${env}_webhook_url`}>Webhook URL</Label>
-            <Input
-              id={`${env}_webhook_url`}
-              type="url"
-              placeholder="https://yourapp.com/webhooks/redbook"
-              value={formData.webhook_url}
-              onChange={(e) => handleInputChange(env, "webhook_url", e.target.value)}
-            />
-            <p className="text-xs text-gray-500">
-              Receive notifications for pricing updates and changes
-            </p>
           </div>
         </div>
       </div>
@@ -345,9 +304,9 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Configure RedBook Vehicle Pricing Integration</DialogTitle>
+          <DialogTitle>Configure AutoGrab Vehicle Pricing Integration</DialogTitle>
           <DialogDescription>
-            Configure your RedBook API credentials and settings for different environments
+            Configure your AutoGrab API credentials and settings for different environments
           </DialogDescription>
         </DialogHeader>
 
@@ -398,13 +357,12 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
             <InfoIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">RedBook API Information</p>
+              <p className="font-medium mb-1">AutoGrab API Information</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Contact RedBook Commercial to obtain API credentials</li>
+                <li>Visit <a href="https://devhub.autograb.com/" target="_blank" rel="noopener noreferrer" className="underline">devhub.autograb.com</a> for API documentation</li>
+                <li>Contact AutoGrab to obtain API credentials for each environment</li>
                 <li>Configure separate credentials for development, testing, and production</li>
-                <li>Pricing data is subject to your subscription plan</li>
                 <li>API usage may incur costs based on your agreement</li>
-                <li>Ensure your IP is whitelisted with RedBook if required</li>
               </ul>
             </div>
           </div>
@@ -432,4 +390,4 @@ const RedBookConfigDialog: React.FC<RedBookConfigDialogProps> = ({
   );
 };
 
-export default RedBookConfigDialog;
+export default AutoGrabConfigDialog;

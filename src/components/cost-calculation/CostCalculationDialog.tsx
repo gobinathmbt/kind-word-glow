@@ -6,12 +6,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Car, ArrowLeftRight } from "lucide-react";
+import { Loader2, Car, ArrowLeftRight, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { companyServices, commonVehicleServices } from "@/api/services";
 import CostSummary from "./CostSummary";
 import CostEditDialog from "./CostEditDialog";
+import ExternalPricingDialog from "./ExternalPricingDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
 
 interface CostCalculationDialogProps {
@@ -32,6 +34,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
   const [costData, setCostData] = useState<any>({});
   const [editingCost, setEditingCost] = useState<any>(null);
   const [editingCostType, setEditingCostType] = useState<any>(null);
+  const [externalPricingOpen, setExternalPricingOpen] = useState(false);
   
   const companyCurrency = completeUser?.company_id?.currency;
 
@@ -115,6 +118,25 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
     saveMutation.mutate(costData);
   };
 
+  const handleExternalPricingReceived = (pricingData: any, integrationType: string) => {
+    // Store external pricing data with vehicle
+    const updatedCostData = {
+      ...costData,
+      external_pricing_data: [
+        {
+          integration_type: integrationType,
+          valuation: pricingData.valuation,
+          lookup_data: pricingData.lookup_data,
+          retrieved_at: pricingData.retrieved_at,
+        },
+        ...(vehicle?.external_pricing_data || []),
+      ],
+    };
+    
+    setCostData(updatedCostData);
+    toast.success("External pricing data added. You can now use these values in your cost calculations.");
+  };
+
   const getTaxTypeLabel = (taxType: string) => {
     if (taxType === "exclusive") return "excl";
     if (taxType === "inclusive") return "incl";
@@ -128,10 +150,21 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[90vw] h-[90vh] p-0">
         <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle>
-            Cost Details - {vehicle.vehicle_stock_id} / {vehicle.year}{" "}
-            {vehicle.make} {vehicle.model} - Company Currency({companyCurrency})
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              Cost Details - {vehicle.vehicle_stock_id} / {vehicle.year}{" "}
+              {vehicle.make} {vehicle.model} - Company Currency({companyCurrency})
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setExternalPricingOpen(true)}
+              className="gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+            >
+              <TrendingUp className="h-4 w-4" />
+              External API Pricing
+            </Button>
+          </div>
         </DialogHeader>
 
         {isLoadingConfig ? (
@@ -377,6 +410,14 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({
           availableCurrencies={costConfig?.available_company_currency || []}
         />
       )}
+
+      {/* External Pricing Dialog */}
+      <ExternalPricingDialog
+        open={externalPricingOpen}
+        onClose={() => setExternalPricingOpen(false)}
+        vehicle={vehicle}
+        onPricingReceived={handleExternalPricingReceived}
+      />
     </Dialog>
   );
 };
