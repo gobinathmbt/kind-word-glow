@@ -164,7 +164,7 @@ app.use("/api/service-bay", serviceBayRoutes);
 app.use("/api/company/currencies", currencyRoutes);
 app.use("/api/company/cost-configuration", costConfigurationRoutes);
 app.use("/api/company/cost-setter", costSetterRoutes);
-// Bay booking now handled through /api/workshop/bay-quote routes
+
 
 app.get("/api/health", async (req, res) => {
   try {
