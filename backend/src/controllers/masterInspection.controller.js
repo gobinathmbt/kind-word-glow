@@ -30,7 +30,7 @@ const getMasterConfiguration = async (req, res) => {
 
     // If configId is provided, use it instead of is_active
     if (configId) {
-      query = {
+            query = {
         company_id,
         _id: configId,
       };
@@ -63,7 +63,7 @@ const getMasterConfiguration = async (req, res) => {
       );
     } else if (vehicle_type === "tradein") {
       config = await TradeinConfig.findOne(query).populate(
-        "sections.fields.dropdown_config.dropdown_id"
+        "categories.sections.fields.dropdown_config.dropdown_id"
       );
     } else {
       return res.status(400).json({
@@ -76,7 +76,7 @@ const getMasterConfiguration = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `Configuration not found.`,
-      });
+              });
     }
 
     // Get workshop sections from vehicle data if vehicle_stock_id is provided
@@ -116,13 +116,21 @@ const getMasterConfiguration = async (req, res) => {
             });
           } else {
             // For tradein: look for workshop sections directly
-            resultData.forEach((section) => {
-              if (
-                section.section_display_name === "at_workshop_onstaging" ||
-                section.section_name?.includes("Workshop") ||
+            resultData.forEach((category) => {
+              if (category.sections) {
+                category.sections.forEach((section) => {
+                  if (
+                    section.section_display_name === "at_workshop_onstaging" ||
+                    section.section_name?.includes("Workshop") ||
                 section.section_id?.includes("workshop_section")
-              ) {
-                workshopSections.push(section);
+                  ) {
+                    workshopSections.push({
+                      ...section,
+                      category_id: category.category_id,
+                      category_name: category.category_name,
+                    });
+                  }
+                });
               }
             });
           }
@@ -153,7 +161,6 @@ const getMasterConfiguration = async (req, res) => {
             }
           } else {
             // Create a new category for workshop sections if category not found
-            // (This handles edge cases where workshop sections might not have a proper category)
             const workshopCategory = {
               category_id: `workshop_category_${Date.now()}`,
               category_name: "Workshop Additions",
@@ -166,15 +173,35 @@ const getMasterConfiguration = async (req, res) => {
           }
         });
       } else {
-        // For tradein, add workshop sections directly to config
+        // Tradein logic (same as inspection for now)
         workshopSections.forEach((workshopSection) => {
-          // Check if section already exists
-          const existingSectionIndex = config.sections.findIndex(
-            (sec) => sec.section_id === workshopSection.section_id
+          const categoryIndex = config.categories.findIndex(
+            (cat) => cat.category_id === workshopSection.category_id
           );
 
-          if (existingSectionIndex === -1) {
-            config.sections.push(workshopSection);
+          if (categoryIndex !== -1) {
+            // Check if section already exists in this category
+            const existingSectionIndex = config.categories[
+              categoryIndex
+            ].sections.findIndex(
+              (sec) => sec.section_id === workshopSection.section_id
+            );
+
+            if (existingSectionIndex === -1) {
+              // Add new workshop section to the category
+              config.categories[categoryIndex].sections.push(workshopSection);
+            }
+          } else {
+            // Create a new category for workshop sections if category not found
+            const workshopCategory = {
+              category_id: `workshop_category_${Date.now()}`,
+              category_name: "Workshop Additions",
+              description: "Dynamically added workshop fields",
+              display_order: config.categories.length,
+              is_active: true,
+              sections: [workshopSection],
+            };
+            config.categories.push(workshopCategory);
           }
         });
       }
@@ -206,11 +233,13 @@ const getMasterConfiguration = async (req, res) => {
         });
       });
     } else {
-      config.sections.forEach((section) => {
-        section.fields.forEach((field) => {
-          if (field.dropdown_config?.dropdown_id) {
-            dropdownIds.push(field.dropdown_config.dropdown_id);
-          }
+      config.categories.forEach((category) => {
+        category.sections.forEach((section) => {
+          section.fields.forEach((field) => {
+            if (field.dropdown_config?.dropdown_id) {
+              dropdownIds.push(field.dropdown_config.dropdown_id);
+            }
+          });
         });
       });
     }
@@ -294,9 +323,22 @@ const saveInspectionData = async (req, res) => {
         vehicle.trade_in_result = inspection_result;
       }
 
-      // Handle single unified PDF for trade-in vehicles
-      if (tradein_report_pdf) {
-        vehicle.tradein_report_pdf = tradein_report_pdf;
+      // Handle category-specific PDFs for trade-in vehicles
+      if (tradein_report_pdf && current_category) {
+        if (!vehicle.tradein_report_pdf) {
+          vehicle.tradein_report_pdf = [];
+        }
+
+        // Remove existing PDF for the current category
+        vehicle.tradein_report_pdf = vehicle.tradein_report_pdf.filter(
+          existingReport => existingReport.category !== current_category
+        );
+
+        // Add new PDF for the current category
+        vehicle.tradein_report_pdf.push({
+          category: current_category,
+          link: tradein_report_pdf
+        });
       }
 
       if (config_id) {

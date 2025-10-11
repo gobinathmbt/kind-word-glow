@@ -9,17 +9,49 @@ const IntegrationSchema = new mongoose.Schema({
   integration_type: {
     type: String,
     required: true,
-    enum: ['redbook_vehicle_pricing_integration', 'autograb_vehicle_pricing_integration']
-  },
-  environment: {
-    type: String,
-    enum: ['development', 'testing', 'production'],
-    default: 'production'
   },
   display_name: {
     type: String,
     required: true
   },
+  environments: {
+    development: {
+      configuration: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      is_active: {
+        type: Boolean,
+        default: false
+      }
+    },
+    testing: {
+      configuration: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      is_active: {
+        type: Boolean,
+        default: false
+      }
+    },
+    production: {
+      configuration: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      is_active: {
+        type: Boolean,
+        default: false
+      }
+    }
+  },
+  active_environment: {
+    type: String,
+    enum: ['development', 'testing', 'production'],
+    default: 'production'
+  },
+  // Deprecated fields - kept for backward compatibility
   configuration: {
     type: mongoose.Schema.Types.Mixed,
     default: {}

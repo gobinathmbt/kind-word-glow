@@ -8,18 +8,21 @@ import { formatApiNames } from "@/utils/GlobalUtils";
 interface CostSummaryProps {
   costData: any;
   sections: any[];
+  addOnExpenses?: any[];
   onCancel: () => void;
   onSave: () => void;
   isSaving: boolean;
 }
 
-const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, onCancel, onSave, isSaving }) => {
+const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, addOnExpenses = [], onCancel, onSave, isSaving }) => {
   const summary = useMemo(() => {
     const expenseSummary: any = {};
     const marginSummary: any = {};
     let totalExpenses = 0;
     let totalCosts = 0;
     let totalGST = 0;
+    let exactExpenses = 0;
+    let estimatedExpenses = 0;
 
     sections.forEach((section) => {
       const sectionTotal = section.cost_types.reduce((sum: number, costType: any) => {
@@ -47,6 +50,21 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, onCancel,
       }
     });
 
+    // Calculate add-on expenses
+    addOnExpenses.forEach((expense) => {
+      const amount = parseFloat(expense.total_amount) * expense.exchange_rate || 0;
+      const tax = parseFloat(expense.total_tax) * expense.exchange_rate || 0;
+      
+      if (expense.is_estimated) {
+        estimatedExpenses += amount;
+      } else {
+        exactExpenses += amount;
+      }
+      
+      totalExpenses += amount;
+      totalGST += tax;
+    });
+
     totalCosts = totalExpenses;
 
     // Calculate margin summary values
@@ -61,12 +79,14 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, onCancel,
       totalExpenses,
       totalCosts,
       totalGST,
+      exactExpenses,
+      estimatedExpenses,
       retailPrice,
       grossProfit,
       netProfit,
       netMargin,
     };
-  }, [costData, sections]);
+  }, [costData, sections, addOnExpenses]);
 
   return (
     <div className="h-full flex flex-col bg-card border-l">
@@ -96,12 +116,12 @@ const CostSummary: React.FC<CostSummaryProps> = ({ costData, sections, onCancel,
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground text-xs">Exact Expenses</span>
-                <span className="text-xs">0 Incl</span>
+                <span className="text-muted-foreground text-xs text-green-600">Exact Expenses</span>
+                <span className="text-xs text-green-600">{summary.exactExpenses.toFixed(2)} Incl</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground text-xs">Estimated Expenses</span>
-                <span className="text-xs">0 Incl</span>
+                <span className="text-muted-foreground text-xs text-amber-600">Estimated Expenses</span>
+                <span className="text-xs text-amber-600">{summary.estimatedExpenses.toFixed(2)} Incl</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">

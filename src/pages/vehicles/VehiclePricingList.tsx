@@ -385,6 +385,7 @@ const VehiclePricingList = () => {
             <Button
               size="sm"
               variant="outline"
+              disabled={!vehicle.purchase_type}
               onClick={(e) => handleOpenCostCalculation(vehicle, e)}
               className="gap-2"
             >

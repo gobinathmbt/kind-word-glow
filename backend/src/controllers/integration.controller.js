@@ -96,7 +96,7 @@ const getIntegration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createIntegration = async (req, res) => {
   try {
-    const { integration_type, display_name, configuration } = req.body;
+    const { integration_type, display_name, configuration, environments, active_environment } = req.body;
 
     // Validate required fields
     if (!integration_type || !display_name) {
@@ -124,7 +124,13 @@ const createIntegration = async (req, res) => {
       company_id: req.user.company_id,
       integration_type,
       display_name,
-      configuration: configuration || {},
+      environments: environments || {
+        development: { configuration: {}, is_active: false },
+        testing: { configuration: {}, is_active: false },
+        production: { configuration: configuration || {}, is_active: true }
+      },
+      active_environment: active_environment || 'production',
+      configuration: configuration || {}, // Backward compatibility
       created_by: req.user.id,
     });
 
@@ -162,7 +168,7 @@ const createIntegration = async (req, res) => {
 const updateIntegration = async (req, res) => {
   try {
     const { id } = req.params;
-    const { display_name, configuration, is_active } = req.body;
+    const { display_name, configuration, is_active, environments, active_environment } = req.body;
 
     const integration = await Integration.findOne({
       _id: id,
@@ -180,6 +186,8 @@ const updateIntegration = async (req, res) => {
     if (display_name) integration.display_name = display_name;
     if (configuration) integration.configuration = configuration;
     if (typeof is_active !== 'undefined') integration.is_active = is_active;
+    if (environments) integration.environments = environments;
+    if (active_environment) integration.active_environment = active_environment;
     integration.updated_by = req.user.id;
 
     await integration.save();

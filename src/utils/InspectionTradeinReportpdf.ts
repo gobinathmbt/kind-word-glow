@@ -1,4 +1,4 @@
-// src/utils/pdfGenerator.ts
+// src/utils/InspectionTradeinReportpdf.ts
 import jsPDF from 'jspdf';
 
 interface PdfData {
@@ -23,15 +23,15 @@ export const generatePdfBlob = async (
   const contentWidth = pageWidth - (2 * margin);
   let currentY = 25;
 
-  // Helper function to get categories to render
+  // Helper function to get categories to render - FIXED FOR BOTH INSPECTION AND TRADEIN
   const getCategoriesToRender = () => {
-    if (vehicleType !== "inspection") return [];
-    
+    // For both inspection and tradein, only render selected category
     if (selectedCategory && selectedCategory !== "all") {
-      return config.categories.filter((cat: any) => cat.category_id === selectedCategory);
+      return config.categories?.filter((cat: any) => cat.category_id === selectedCategory) || [];
     }
     
-    return config.categories;
+    // If no specific category selected, return all categories
+    return config.categories || [];
   };
 
   // Helper function to get dropdown by ID
@@ -168,6 +168,8 @@ export const generatePdfBlob = async (
     formImages: any,
     formVideos: any
   ) => {
+    if (!fields || !Array.isArray(fields)) return;
+
     for (const field of fields) {
       const value = formData[field.field_id];
       const notes = formNotes[field.field_id];
@@ -306,7 +308,7 @@ export const generatePdfBlob = async (
 
   // Process calculations
   const processCalculations = (calculations: any[], calcData: any, title: string) => {
-    if (!calculations || calculations.length === 0) return;
+    if (!calculations || !Array.isArray(calculations) || calculations.length === 0) return;
 
     checkPageBreak(30);
 
@@ -381,26 +383,26 @@ export const generatePdfBlob = async (
 
   // Process data based on vehicle type
   if (vehicleType === "inspection") {
-    const categoriesToRender = getCategoriesToRender();
-    const sortedCategories = categoriesToRender.sort(
-      (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
-    );
+  const categoriesToRender = getCategoriesToRender();
+  const sortedCategories = categoriesToRender.sort(
+    (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
+  );
 
-    for (const category of sortedCategories) {
-      checkPageBreak(20);
+  for (const category of sortedCategories) {
+    checkPageBreak(20);
 
       // Category Header
       currentY = addSection(category.category_name, currentY, [59, 130, 246]);
 
-      if (category.description) {
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'italic');
-        pdf.setTextColor(71, 85, 105);
-        currentY = addWrappedText(category.description, margin + 5, currentY, contentWidth - 10, 9, 'italic');
-        currentY += 5;
-      }
+    if (category.description) {
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(71, 85, 105);
+      currentY = addWrappedText(category.description, margin + 5, currentY, contentWidth - 10, 9, 'italic');
+      currentY += 5;
+    }
 
-      // Process sections
+    // Process sections
       const sortedSections = category.sections.sort(
         (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
       );
@@ -425,25 +427,46 @@ export const generatePdfBlob = async (
   } else {
     // Process other vehicle types
     // Global calculations
-    processCalculations(config.calculations, data.calculations, "Global Calculations");
+    const categoriesToRender = getCategoriesToRender();
+  const sortedCategories = categoriesToRender.sort(
+    (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
+  );
+
+  for (const category of sortedCategories) {
+    checkPageBreak(20);
+
+      // Category Header
+      currentY = addSection(category.category_name, currentY, [59, 130, 246]);
+
+    if (category.description) {
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(71, 85, 105);
+      currentY = addWrappedText(category.description, margin + 5, currentY, contentWidth - 10, 9, 'italic');
+      currentY += 5;
+    }
 
     // Process sections
-    const sortedSections = config.sections.sort(
-      (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
-    );
-
-    for (const section of sortedSections) {
-      checkPageBreak(15);
-
-      // Section Header
-      currentY = addSection(section.section_name, currentY, [100, 116, 139]);
-
-      // Process fields
-      const sortedFields = section.fields.sort(
+      const sortedSections = category.sections.sort(
         (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
       );
 
-      await processFields(sortedFields, data.formData, data.formNotes, data.formImages, data.formVideos);
+      for (const section of sortedSections) {
+        checkPageBreak(15);
+
+        // Section Header
+        currentY = addSection(section.section_name, currentY, [100, 116, 139]);
+
+        // Process fields
+        const sortedFields = section.fields.sort(
+          (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
+        );
+
+        await processFields(sortedFields, data.formData, data.formNotes, data.formImages, data.formVideos);
+      }
+
+      // Category calculations
+      processCalculations(category.calculations, data.calculations, "Category Calculations");
     }
   }
 

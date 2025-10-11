@@ -80,7 +80,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [calculations, setCalculations] = useState<any>({});
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
-  const [showConfigDialog, setShowConfigDialog] = useState(true);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
   const [editFieldModalOpen, setEditFieldModalOpen] = useState(false);
   const [selectedEditField, setSelectedEditField] = useState<any>(null);
@@ -105,10 +105,10 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
   >(null);
   const [inspectorId] = useState<string>("68a405a06c25cd6de3e5619b"); // This should come from authentication
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [regeneratePdfOnSave, setRegeneratePdfOnSave] = useState(false);
   const [categoryPdfs, setCategoryPdfs] = useState<{ [key: string]: string }>(
     {}
   );
+  const [workshopSections, setWorkshopSections] = useState<any[]>([]);
 
   const handlePdfUploaded = (pdfUrl: string) => {
     if (vehicle_type === "inspection" && selectedCategory) {
@@ -117,8 +117,15 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
         ...prev,
         [selectedCategory]: pdfUrl,
       }));
-    } else {
+      // Also update the main report PDF URL
+      setReportPdfUrl(pdfUrl);
+    } else if (vehicle_type === "tradein" && selectedCategory) {
       // For trade-in, store as single PDF
+      setCategoryPdfs((prev) => ({
+        ...prev,
+        [selectedCategory]: pdfUrl,
+      }));
+      // Also update the main report PDF URL
       setReportPdfUrl(pdfUrl);
     }
   };
@@ -143,6 +150,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
 
   const loadConfiguration = async (configId?: string) => {
     try {
+      setLoading(true);
       const response = await masterInspectionServices.getMasterConfiguration(
         company_id!,
         vehicle_type!,
@@ -162,21 +170,27 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
       setConfig(data.config);
       setDropdowns(data.dropdowns);
       setS3Config(data.s3Config);
+      setWorkshopSections(data.workshopSections || []);
 
       if (data.s3Config) {
         setS3Uploader(new S3Uploader(data.s3Config));
       }
 
-      if (vehicle_type === "inspection" && data.config.categories?.length > 0) {
+      // Set initial category for both inspection and tradein
+      if (data.config.categories?.length > 0) {
         const sortedCategories = [...data.config.categories].sort(
           (a, b) => a.display_order - b.display_order
         );
         setSelectedCategory(sortedCategories[0].category_id);
       }
 
-      if (data.company.last_config_id) {
+      // Show config dialog only if no config is selected and we're in edit mode
+      if (mode === "edit" && !configId && !data.company.last_config_id) {
+        setShowConfigDialog(true);
+      } else {
         setShowConfigDialog(false);
       }
+
       setConfigurationLoaded(true);
       setLoading(false);
     } catch (error: any) {
@@ -189,7 +203,6 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
       setLoading(false);
     }
   };
-
 
   const handleConfigurationSelected = (configId: string) => {
     setSelectedConfigId(configId);
@@ -213,14 +226,29 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
           pdfMap[pdf.category] = pdf.link;
         });
         setCategoryPdfs(pdfMap);
+        
+        // Set report PDF URL if current category has a PDF
+        if (selectedCategory && pdfMap[selectedCategory]) {
+          setReportPdfUrl(pdfMap[selectedCategory]);
+        }
       } else if (
         vehicle_type === "tradein" &&
         data.vehicle.tradein_report_pdf
       ) {
-        setReportPdfUrl(data.vehicle.tradein_report_pdf);
+        const pdfMap: { [key: string]: string } = {};
+        data.vehicle.tradein_report_pdf.forEach((pdf: any) => {
+          pdfMap[pdf.category] = pdf.link;
+        });
+        setCategoryPdfs(pdfMap);
+        
+        // Set report PDF URL if current category has a PDF
+        if (selectedCategory && pdfMap[selectedCategory]) {
+          setReportPdfUrl(pdfMap[selectedCategory]);
+        }
       }
 
       if (data.result && data.result.length > 0) {
+        // Unified data structure handling for both inspection and tradein
         if (
           Array.isArray(data.result) &&
           data.result[0] &&
@@ -250,6 +278,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
           setFormImages(completeFormImages);
           setFormVideos(completeFormVideos);
         } else {
+          // Fallback for old data structure
           const resultObj: any = {};
           const notesObj: any = {};
           const imagesObj: any = {};
@@ -432,48 +461,6 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
     if (vehicle_type === "inspection") {
       config.categories.forEach((category: any) => {
         category.calculations?.forEach((calc: any) => {
-          if (!calc.is_active) return;
-
-          let result = 0;
-          calc.formula.forEach((item: any, index: number) => {
-            if (item.field_id) {
-              let value = 0;
-
-              if (
-                formData[item.field_id] &&
-                typeof formData[item.field_id] === "object"
-              ) {
-                value = parseFloat(formData[item.field_id].total || 0);
-              } else {
-                value = parseFloat(formData[item.field_id] || 0);
-              }
-
-              if (index === 0) {
-                result = value;
-              } else {
-                const prevOp = calc.formula[index - 1];
-                switch (prevOp.operation) {
-                  case "+":
-                    result += value;
-                    break;
-                  case "-":
-                    result -= value;
-                    break;
-                  case "*":
-                    result *= value;
-                    break;
-                  case "/":
-                    result = value !== 0 ? result / value : result;
-                    break;
-                }
-              }
-            }
-          });
-          newCalculations[calc.calculation_id] = result;
-        });
-      });
-    } else {
-      config.calculations?.forEach((calc: any) => {
         if (!calc.is_active) return;
 
         let result = 0;
@@ -513,6 +500,50 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
         });
         newCalculations[calc.calculation_id] = result;
       });
+      });
+    } else {
+      config.categories.forEach((category: any) => {
+        category.calculations?.forEach((calc: any) => {
+        if (!calc.is_active) return;
+
+        let result = 0;
+        calc.formula.forEach((item: any, index: number) => {
+          if (item.field_id) {
+            let value = 0;
+
+            if (
+              formData[item.field_id] &&
+              typeof formData[item.field_id] === "object"
+            ) {
+              value = parseFloat(formData[item.field_id].total || 0);
+            } else {
+              value = parseFloat(formData[item.field_id] || 0);
+            }
+
+            if (index === 0) {
+              result = value;
+            } else {
+              const prevOp = calc.formula[index - 1];
+              switch (prevOp.operation) {
+                case "+":
+                  result += value;
+                  break;
+                case "-":
+                  result -= value;
+                  break;
+                case "*":
+                  result *= value;
+                  break;
+                case "/":
+                  result = value !== 0 ? result / value : result;
+                  break;
+              }
+            }
+          }
+        });
+        newCalculations[calc.calculation_id] = result;
+      });
+      });
     }
 
     setCalculations(newCalculations);
@@ -544,14 +575,21 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
         });
       }
     } else {
-      config.sections?.forEach((section: any) => {
-        section.fields?.forEach((field: any) => {
-          if (field.is_required && !formData[field.field_id]) {
-            errors[field.field_id] = true;
-            isValid = false;
-          }
+      const targetCategoryId = categoryId || selectedCategory;
+      const category = config.categories.find(
+        (cat: any) => cat.category_id === targetCategoryId
+      );
+
+      if (category) {
+        category.sections?.forEach((section: any) => {
+          section.fields?.forEach((field: any) => {
+            if (field.is_required && !formData[field.field_id]) {
+              errors[field.field_id] = true;
+              isValid = false;
+            }
+          });
         });
-      });
+      }
     }
 
     setValidationErrors(errors);
@@ -561,15 +599,15 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
   const handleGenerateReport = () => {
     // For inspection, validate only the active category
     if (vehicle_type === "inspection") {
-      if (!validateForm(selectedCategory)) {
-        toast.error("Please fill all required fields in the current category");
-        return;
+    if (!validateForm(selectedCategory)) {
+      toast.error("Please fill all required fields in the current category");
+      return;
       }
     } else {
       // For trade-in, validate all fields
-      if (!validateForm()) {
-        toast.error("Please fill all required fields");
-        return;
+      if (!validateForm(selectedCategory)) {
+      toast.error("Please fill all required fields in the current category");
+      return;
       }
     }
 
@@ -584,26 +622,23 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
       } else {
         toast.error("No PDF available for this category");
       }
-    } else if (vehicle_type === "tradein" && reportPdfUrl) {
-      window.open(reportPdfUrl, "_blank");
+    } else if (vehicle_type === "tradein" && selectedCategory) {
+      const pdfUrl = categoryPdfs[selectedCategory];
+      if (pdfUrl) {
+        window.open(pdfUrl, "_blank");
+      } else {
+        toast.error("No PDF available for this category");
+      }
     } else {
       toast.error("No PDF available");
     }
   };
 
   const handleSaveClick = () => {
-    // For inspection, validate only the active category
-    if (vehicle_type === "inspection") {
-      if (!validateForm(selectedCategory)) {
-        toast.error("Please fill all required fields in the current category");
-        return;
-      }
-    } else {
-      // For trade-in, validate all fields
-      if (!validateForm()) {
-        toast.error("Please fill all required fields");
-        return;
-      }
+    // For both inspection and tradein, validate only the active category
+    if (!validateForm(selectedCategory)) {
+      toast.error("Please fill all required fields in the current category");
+      return;
     }
 
     // Show confirmation dialog for PDF regeneration
@@ -619,13 +654,13 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
     try {
       // If regenerate PDF is requested, generate it first
       if (regeneratePdf && s3Uploader) {
-        try {
-          // Generate PDF programmatically using the utility function
-          const { generatePdfBlob } = await import(
-            "@/utils/InspectionTradeinReportpdf"
-          );
+    try {
+      // Dynamically import the PDF generation utility
+      const { generatePdfBlob } = await import(
+        "@/utils/InspectionTradeinReportpdf"
+      );
 
-          const pdfBlob = await generatePdfBlob(
+      const pdfBlob = await generatePdfBlob(
             {
               formData,
               formNotes,
@@ -633,23 +668,23 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
               formVideos,
               calculations,
             },
-            vehicle,
-            config,
-            vehicle_type,
-            selectedCategory
-          );
+        vehicle,
+        config,
+        vehicle_type,
+        selectedCategory
+      );
 
-          const pdfFile = new File(
-            [pdfBlob],
+      const pdfFile = new File(
+        [pdfBlob],
             `report-${
               vehicle?.vehicle_stock_id || "unknown"
-            }-${Date.now()}.pdf`,
-            {
-              type: "application/pdf",
-            }
-          );
+        }-${Date.now()}.pdf`,
+        {
+          type: "application/pdf",
+        }
+      );
 
-          const uploadResult = await s3Uploader.uploadFile(pdfFile, "reports");
+      const uploadResult = await s3Uploader.uploadFile(pdfFile, "reports");
           finalPdfUrl = uploadResult.url;
 
           // Update category PDFs state
@@ -658,8 +693,11 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
               ...prev,
               [selectedCategory]: finalPdfUrl,
             }));
-          } else {
-            setReportPdfUrl(finalPdfUrl);
+          } else if(vehicle_type === "tradein" && selectedCategory){
+            setCategoryPdfs((prev) => ({
+              ...prev,
+              [selectedCategory]: finalPdfUrl,
+            }));
           }
 
           toast.success("PDF regenerated successfully");
@@ -673,87 +711,83 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
 
       if (vehicle_type === "inspection") {
         inspectionResult = config.categories.map((category: any) => ({
-          category_id: category.category_id,
-          category_name: category.category_name,
-          description: category.description || "",
-          display_order: category.display_order || 0,
-          is_active: category.is_active,
-          sections: category.sections.map((section: any) => ({
-            section_id: section.section_id,
-            section_name: section.section_name,
-            description: section.description || "",
-            display_order: section.display_order || 0,
-            is_collapsible: section.is_collapsible,
-            is_expanded_by_default: section.is_expanded_by_default,
-            fields: section.fields.map((field: any) => ({
-              field_id: field.field_id,
-              field_name: field.field_name,
-              field_type: field.field_type,
-              is_required: field.is_required,
-              has_image: field.has_image,
-              display_order: field.display_order || 0,
-              placeholder: field.placeholder || "",
-              help_text: field.help_text || "",
-              field_value: formData[field.field_id] || "",
-              dropdown_config: field.dropdown_config || null,
-              images: formImages[field.field_id] || [],
-              videos: formVideos[field.field_id] || [],
-              notes: formNotes[field.field_id] || "",
-              inspector_id: inspectorId,
-              inspection_date: new Date().toISOString(),
-            })),
+        category_id: category.category_id,
+        category_name: category.category_name,
+        description: category.description || "",
+        display_order: category.display_order || 0,
+        is_active: category.is_active,
+        sections: category.sections.map((section: any) => ({
+          section_id: section.section_id,
+          section_name: section.section_name,
+          description: section.description || "",
+          display_order: section.display_order || 0,
+          is_collapsible: section.is_collapsible,
+          is_expanded_by_default: section.is_expanded_by_default,
+          fields: section.fields.map((field: any) => ({
+            field_id: field.field_id,
+            field_name: field.field_name,
+            field_type: field.field_type,
+            is_required: field.is_required,
+            has_image: field.has_image,
+            display_order: field.display_order || 0,
+            placeholder: field.placeholder || "",
+            help_text: field.help_text || "",
+            field_value: formData[field.field_id] || "",
+            dropdown_config: field.dropdown_config || null,
+            images: formImages[field.field_id] || [],
+            videos: formVideos[field.field_id] || [],
+            notes: formNotes[field.field_id] || "",
+            inspector_id: inspectorId,
+            inspection_date: new Date().toISOString(),
           })),
-        }));
+        })),
+      }));
       } else {
-        inspectionResult = [
-          {
-            category_id: vehicle_type,
-            category_name: config.config_name,
-            description: config.description || "",
-            display_order: 0,
-            is_active: true,
-            sections: config.sections.map((section: any) => ({
-              section_id: section.section_id,
-              section_name: section.section_name,
-              description: section.description || "",
-              display_order: section.display_order || 0,
-              is_collapsible: section.is_collapsible,
-              is_expanded_by_default: section.is_expanded_by_default,
-              fields: section.fields.map((field: any) => ({
-                field_id: field.field_id,
-                field_name: field.field_name,
-                field_type: field.field_type,
-                is_required: field.is_required,
-                has_image: field.has_image,
-                display_order: field.display_order || 0,
-                placeholder: field.placeholder || "",
-                help_text: field.help_text || "",
-                field_value: formData[field.field_id] || "",
-                dropdown_config: field.dropdown_config || null,
-                images: formImages[field.field_id] || [],
-                videos: formVideos[field.field_id] || [],
-                notes: formNotes[field.field_id] || "",
-                inspector_id: inspectorId,
-                inspection_date: new Date().toISOString(),
-              })),
-            })),
-          },
-        ];
+        inspectionResult = config.categories.map((category: any) => ({
+        category_id: category.category_id,
+        category_name: category.category_name,
+        description: category.description || "",
+        display_order: category.display_order || 0,
+        is_active: category.is_active,
+        sections: category.sections.map((section: any) => ({
+          section_id: section.section_id,
+          section_name: section.section_name,
+          description: section.description || "",
+          display_order: section.display_order || 0,
+          is_collapsible: section.is_collapsible,
+          is_expanded_by_default: section.is_expanded_by_default,
+          fields: section.fields.map((field: any) => ({
+            field_id: field.field_id,
+            field_name: field.field_name,
+            field_type: field.field_type,
+            is_required: field.is_required,
+            has_image: field.has_image,
+            display_order: field.display_order || 0,
+            placeholder: field.placeholder || "",
+            help_text: field.help_text || "",
+            field_value: formData[field.field_id] || "",
+            dropdown_config: field.dropdown_config || null,
+            images: formImages[field.field_id] || [],
+            videos: formVideos[field.field_id] || [],
+            notes: formNotes[field.field_id] || "",
+            inspector_id: inspectorId,
+            inspection_date: new Date().toISOString(),
+          })),
+        })),
+      }));
       }
 
       const savePayload: any = {
         inspection_result: inspectionResult,
         config_id: selectedConfigId || config._id,
+        current_category: selectedCategory, // Add current category to payload
       };
 
-      // Add appropriate PDF URLs to payload
-      if (vehicle_type === "inspection") {
-        if (regeneratePdf && finalPdfUrl) {
+      // Add PDF URL to payload if regenerated successfully
+      if (regeneratePdf && finalPdfUrl && selectedCategory) {
+        if (vehicle_type === "inspection") {
           savePayload.inspection_report_pdf = finalPdfUrl;
-          savePayload.current_category = selectedCategory;
-        }
-      } else {
-        if (regeneratePdf && finalPdfUrl) {
+        } else if (vehicle_type === "tradein") {
           savePayload.tradein_report_pdf = finalPdfUrl;
         }
       }
@@ -816,22 +850,26 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
       let updatedConfig = { ...config };
 
       if (vehicle_type === "inspection") {
-        if (
-          typeof fieldData.categoryIndex === "number" &&
-          typeof fieldData.sectionIndex === "number"
-        ) {
-          updatedConfig.categories[fieldData.categoryIndex].sections[
-            fieldData.sectionIndex
-          ].fields = updatedConfig.categories[fieldData.categoryIndex].sections[
-            fieldData.sectionIndex
-          ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
+      if (
+        typeof fieldData.categoryIndex === "number" &&
+        typeof fieldData.sectionIndex === "number"
+      ) {
+        updatedConfig.categories[fieldData.categoryIndex].sections[
+          fieldData.sectionIndex
+        ].fields = updatedConfig.categories[fieldData.categoryIndex].sections[
+          fieldData.sectionIndex
+        ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
         }
       } else {
-        if (typeof fieldData.sectionIndex === "number") {
-          updatedConfig.sections[fieldData.sectionIndex].fields =
-            updatedConfig.sections[fieldData.sectionIndex].fields.filter(
-              (f: any) => f.field_id !== fieldData.field_id
-            );
+        if (
+        typeof fieldData.categoryIndex === "number" &&
+        typeof fieldData.sectionIndex === "number"
+      ) {
+        updatedConfig.categories[fieldData.categoryIndex].sections[
+          fieldData.sectionIndex
+        ].fields = updatedConfig.categories[fieldData.categoryIndex].sections[
+          fieldData.sectionIndex
+        ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
         }
       }
 
@@ -866,29 +904,35 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
       let updatedConfig = { ...config };
 
       if (vehicle_type === "inspection") {
-        if (
-          typeof fieldData.categoryIndex === "number" &&
-          typeof fieldData.sectionIndex === "number"
-        ) {
-          const fieldIndex = updatedConfig.categories[
-            fieldData.categoryIndex
-          ].sections[fieldData.sectionIndex].fields.findIndex(
-            (f: any) => f.field_id === fieldData.field_id
-          );
-          if (fieldIndex !== -1) {
-            updatedConfig.categories[fieldData.categoryIndex].sections[
-              fieldData.sectionIndex
-            ].fields[fieldIndex] = fieldData;
+      if (
+        typeof fieldData.categoryIndex === "number" &&
+        typeof fieldData.sectionIndex === "number"
+      ) {
+        const fieldIndex = updatedConfig.categories[
+          fieldData.categoryIndex
+        ].sections[fieldData.sectionIndex].fields.findIndex(
+          (f: any) => f.field_id === fieldData.field_id
+        );
+        if (fieldIndex !== -1) {
+          updatedConfig.categories[fieldData.categoryIndex].sections[
+            fieldData.sectionIndex
+          ].fields[fieldIndex] = fieldData;
           }
         }
       } else {
-        if (typeof fieldData.sectionIndex === "number") {
-          const fieldIndex = updatedConfig.sections[
+        if (
+        typeof fieldData.categoryIndex === "number" &&
+        typeof fieldData.sectionIndex === "number"
+      ) {
+        const fieldIndex = updatedConfig.categories[
+          fieldData.categoryIndex
+        ].sections[fieldData.sectionIndex].fields.findIndex(
+          (f: any) => f.field_id === fieldData.field_id
+        );
+        if (fieldIndex !== -1) {
+          updatedConfig.categories[fieldData.categoryIndex].sections[
             fieldData.sectionIndex
-          ].fields.findIndex((f: any) => f.field_id === fieldData.field_id);
-          if (fieldIndex !== -1) {
-            updatedConfig.sections[fieldData.sectionIndex].fields[fieldIndex] =
-              fieldData;
+          ].fields[fieldIndex] = fieldData;
           }
         }
       }
@@ -960,35 +1004,53 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
         updatedConfig.categories[categoryIndex].sections[
           workshopSectionIndex
         ].fields.push(fieldData);
-      } else {
-        // For trade_in, find or create workshop section as direct section
-        let workshopSectionIndex = updatedConfig.sections.findIndex(
+      } else if (vehicle_type === "tradein") {
+        // For tradein, find or create workshop section in categories
+        const categoryIndex = updatedConfig.categories.findIndex(
+          (cat: any) => cat.category_id === selectedCategoryForField
+        );
+
+        if (categoryIndex === -1) {
+          throw new Error("Category not found");
+        }
+
+        // Find or create "at_workshop_onstaging" section
+        let workshopSectionIndex = updatedConfig.categories[
+          categoryIndex
+        ].sections?.findIndex(
           (section: any) =>
-            section.section_display_name === "at_workshop_onstaging" ||
-            section.section_name.includes("At Workshop")
+            section.section_display_name === "at_workshop_onstaging"
         );
 
         if (workshopSectionIndex === -1) {
-          // Create new workshop section as direct section
+          // Create new workshop section
           const newWorkshopSection = {
             section_id: `workshop_section_${Date.now()}`,
             section_name: "At Workshop - Add On",
             section_display_name: "at_workshop_onstaging",
-            display_order: updatedConfig.sections.length,
+            display_order:
+              updatedConfig.categories[categoryIndex].sections?.length || 0,
             is_collapsible: true,
             is_expanded_by_default: true,
-            fields: [fieldData],
+            fields: [],
           };
 
-          updatedConfig.sections.push(newWorkshopSection);
-        } else {
-          // Add field to existing workshop section
-          if (!updatedConfig.sections[workshopSectionIndex].fields) {
-            updatedConfig.sections[workshopSectionIndex].fields = [];
+          if (!updatedConfig.categories[categoryIndex].sections) {
+            updatedConfig.categories[categoryIndex].sections = [];
           }
-          updatedConfig.sections[workshopSectionIndex].fields.push(fieldData);
+
+          updatedConfig.categories[categoryIndex].sections.push(
+            newWorkshopSection
+          );
+          workshopSectionIndex =
+            updatedConfig.categories[categoryIndex].sections.length - 1;
         }
-      }
+
+        // Add field to workshop section
+        updatedConfig.categories[categoryIndex].sections[
+          workshopSectionIndex
+        ].fields.push(fieldData);
+            }
 
       // Update local state
       setConfig(updatedConfig);
@@ -1002,12 +1064,12 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
     }
   };
 
-  // Get current category PDF URL for inspection
+  // Get current category PDF URL for both inspection and tradein
   const getCurrentCategoryPdfUrl = () => {
     if (vehicle_type === "inspection" && selectedCategory) {
       return categoryPdfs[selectedCategory];
-    } else if (vehicle_type === "tradein") {
-      return reportPdfUrl;
+    } else if (vehicle_type === "tradein" && selectedCategory) {
+      return categoryPdfs[selectedCategory];
     }
     return "";
   };
@@ -1091,63 +1153,35 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
 
       {/* Content */}
       <div className="container mx-auto px-3 sm:px-4 py-6">
-        {vehicle_type === "inspection" ? (
-          <CategorySection
-            config={config}
-            calculations={calculations}
-            categories={config.categories}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            formData={formData}
-            formNotes={formNotes}
-            formImages={formImages}
-            formVideos={formVideos}
-            validationErrors={validationErrors}
-            uploading={uploading}
-            onFieldChange={handleFieldChange}
-            onNotesChange={handleNotesChange}
-            onMultiSelectChange={handleMultiSelectChange}
-            onMultiplierChange={handleMultiplierChange}
-            onFileUpload={handleFileUpload}
-            onRemoveImage={removeImage}
-            onRemoveVideo={removeVideo}
-            onEditWorkshopField={handleEditWorkshopField}
-            onDeleteWorkshopField={handleDeleteWorkshopField}
-            onInsertWorkshopField={handleInsertWorkshopField}
-            onOpenMediaViewer={openMediaViewer}
-            getDropdownById={getDropdownById}
-            isViewMode={isViewMode}
-            isEditMode={isEditMode}
-            vehicleType={vehicle_type!}
-          />
-        ) : (
-          <SectionAccordion
-            config={config}
-            sections={config.sections || []}
-            calculations={calculations}
-            formData={formData}
-            formNotes={formNotes}
-            formImages={formImages}
-            formVideos={formVideos}
-            validationErrors={validationErrors}
-            uploading={uploading}
-            onFieldChange={handleFieldChange}
-            onNotesChange={handleNotesChange}
-            onMultiSelectChange={handleMultiSelectChange}
-            onMultiplierChange={handleMultiplierChange}
-            onFileUpload={handleFileUpload}
-            onRemoveImage={removeImage}
-            onRemoveVideo={removeVideo}
-            onEditWorkshopField={handleEditWorkshopField}
-            onDeleteWorkshopField={handleDeleteWorkshopField}
-            onInsertWorkshopField={() => handleInsertWorkshopField()}
-            onOpenMediaViewer={openMediaViewer}
-            getDropdownById={getDropdownById}
-            isViewMode={isViewMode}
-            isEditMode={isEditMode}
-            vehicleType={vehicle_type!}
-          />
-        )}
+        {/* Unified category-based approach for both inspection and tradein */}
+        <CategorySection
+          config={config}
+          calculations={calculations}
+          categories={config.categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          formData={formData}
+          formNotes={formNotes}
+          formImages={formImages}
+          formVideos={formVideos}
+          validationErrors={validationErrors}
+          uploading={uploading}
+          onFieldChange={handleFieldChange}
+          onNotesChange={handleNotesChange}
+          onMultiSelectChange={handleMultiSelectChange}
+          onMultiplierChange={handleMultiplierChange}
+          onFileUpload={handleFileUpload}
+          onRemoveImage={removeImage}
+          onRemoveVideo={removeVideo}
+          onEditWorkshopField={handleEditWorkshopField}
+          onDeleteWorkshopField={handleDeleteWorkshopField}
+          onInsertWorkshopField={handleInsertWorkshopField}
+          onOpenMediaViewer={openMediaViewer}
+          getDropdownById={getDropdownById}
+          isViewMode={isViewMode}
+          isEditMode={isEditMode}
+          vehicleType={vehicle_type!}
+        />
       </div>
 
       {/* Modals */}
@@ -1158,9 +1192,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
         vehicle={vehicle}
         config={config}
         vehicleType={vehicle_type}
-        selectedCategory={
-          vehicle_type === "inspection" ? selectedCategory : undefined
-        }
+        selectedCategory={selectedCategory} // Pass selected category for both inspection and tradein
         s3Uploader={s3Uploader}
         onPdfUploaded={handlePdfUploaded}
         inspectorId={inspectorId}

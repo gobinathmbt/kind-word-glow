@@ -62,10 +62,10 @@ startSubscriptionCronJob();
 startGlobalLogCleanupCron();
 startNotificationCleanupCron();
 // Start main vehicle processing queue consumer
-// startQueueConsumer();
+startQueueConsumer();
 
 // Start workshop report processing queue consumer
-// startWorkshopQueueConsumer();
+startWorkshopQueueConsumer();
 
 
 const app = express();

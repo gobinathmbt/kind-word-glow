@@ -80,7 +80,12 @@ const VehicleSchema = new mongoose.Schema({
       link: { type: String },
     },
   ],
-  tradein_report_pdf: String, // URL to the generated PDF report
+  tradein_report_pdf: [
+    {
+      category: { type: String },
+      link: { type: String },
+    },
+  ], 
 
   last_inspection_config_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -237,32 +242,31 @@ const VehicleSchema = new mongoose.Schema({
     },
   ],
 
-  // Workshop Status - Updated to handle stages for inspection
+  // Workshop Status - Updated to handle stages for both inspection and tradein
   is_workshop: {
     type: mongoose.Schema.Types.Mixed,
     default: function () {
-      return this.vehicle_type === "inspection" ? [] : false;
+      return ["inspection", "tradein"].includes(this.vehicle_type) ? [] : false;
     },
   },
   workshop_progress: {
     type: mongoose.Schema.Types.Mixed,
     default: function () {
-      return this.vehicle_type === "inspection" ? [] : "not_processed_yet";
+      return ["inspection", "tradein"].includes(this.vehicle_type) ? [] : "not_processed_yet";
     },
   },
 
   // Workshop Report Status
   workshop_report_ready: {
-    // For inspection: array of stages, for tradein: single boolean
     type: mongoose.Schema.Types.Mixed,
     default: function () {
-      return this.vehicle_type === "inspection" ? [] : false;
+      return ["inspection", "tradein"].includes(this.vehicle_type) ? [] : false;
     },
   },
   workshop_report_preparing: {
     type: mongoose.Schema.Types.Mixed,
     default: function () {
-      return this.vehicle_type === "inspection" ? [] : false;
+      return ["inspection", "tradein"].includes(this.vehicle_type) ? [] : false;
     },
   },
 

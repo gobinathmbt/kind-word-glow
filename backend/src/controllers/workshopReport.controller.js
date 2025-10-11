@@ -47,22 +47,13 @@ const checkWorkshopCompletion = async (req, res) => {
             }
           });
         } else if (vehicleType === "tradein") {
-          // Handle both category and direct section structures for tradein
-          if (item.sections) {
-            // Category structure
-            item.sections.forEach((section) => {
-              if (section.fields) {
-                section.fields.forEach((field) => {
-                  allFieldIds.push(field.field_id);
-                });
-              }
-            });
-          } else if (item.fields) {
-            // Direct section structure
-            item.fields.forEach((field) => {
-              allFieldIds.push(field.field_id);
-            });
-          }
+             item.sections.forEach((section) => {
+            if (section.fields) {
+              section.fields.forEach((field) => {
+                allFieldIds.push(field.field_id);
+              });
+            }
+          });
         }
       });
     }
@@ -123,16 +114,6 @@ const completeWorkshop = async (req, res) => {
         message: "Vehicle not found",
       });
     }
-
-    if (vehicleType === "inspection" && stageName) {
-      // Handle stage completion for inspection - FORCE UPDATE ARRAYS
-
-      console.log("Before update:", {
-        workshop_progress: vehicle.workshop_progress,
-        workshop_report_preparing: vehicle.workshop_report_preparing,
-        workshop_report_ready: vehicle.workshop_report_ready,
-        is_workshop: vehicle.is_workshop,
-      });
 
       // Ensure arrays are properly initialized
       if (!Array.isArray(vehicle.workshop_progress)) {
@@ -221,13 +202,6 @@ const completeWorkshop = async (req, res) => {
         console.log(`Added new workshop entry for ${stageName}`);
       }
 
-      console.log("After update:", {
-        workshop_progress: vehicle.workshop_progress,
-        workshop_report_preparing: vehicle.workshop_report_preparing,
-        workshop_report_ready: vehicle.workshop_report_ready,
-        is_workshop: vehicle.is_workshop,
-      });
-
       // Mark arrays as modified to ensure Mongoose saves them
       vehicle.markModified("workshop_progress");
       vehicle.markModified("workshop_report_preparing");
@@ -306,80 +280,6 @@ const completeWorkshop = async (req, res) => {
           stage_name: stageName,
         },
       });
-    } else {
-      // Handle full workshop completion for tradein (existing logic with force updates)
-      const quotes = await WorkshopQuote.find({
-        vehicle_type: vehicleType,
-        company_id: req.user.company_id,
-        vehicle_stock_id: vehicle.vehicle_stock_id,
-      });
-
-      const completedQuotes = quotes.filter(
-        (quote) => quote.status === "completed_jobs"
-      );
-      if (completedQuotes.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No completed jobs found for this vehicle",
-        });
-      }
-
-      // FORCE UPDATE for tradein
-      vehicle.workshop_progress = "completed";
-      vehicle.workshop_report_preparing = true;
-      vehicle.is_workshop = true; // Ensure is_workshop is set
-
-      // Initialize workshop_report_ready for tradein if it doesn't exist
-      if (typeof vehicle.workshop_report_ready === "undefined") {
-        vehicle.workshop_report_ready = false;
-      }
-
-      // Mark fields as modified for tradein
-      vehicle.markModified("workshop_progress");
-      vehicle.markModified("workshop_report_preparing");
-      vehicle.markModified("workshop_report_ready");
-      vehicle.markModified("is_workshop");
-
-      const savedVehicle = await vehicle.save();
-      console.log("Tradein vehicle saved successfully:", savedVehicle._id);
-
-      const {
-        sendToWorkshopReportQueue,
-      } = require("./workshopReportSqs.controller");
-      const queueResult = await sendToWorkshopReportQueue({
-        vehicle_id: vehicle._id,
-        company_id: req.user.company_id,
-        vehicle_stock_id: vehicle.vehicle_stock_id,
-        vehicle_type: vehicleType,
-        completed_by: req.user.id,
-      });
-
-      if (!queueResult.success) {
-        // ROLLBACK for tradein
-        vehicle.workshop_progress = "in_progress";
-        vehicle.workshop_report_preparing = false;
-
-        vehicle.markModified("workshop_progress");
-        vehicle.markModified("workshop_report_preparing");
-
-        await vehicle.save();
-
-        return res.status(500).json({
-          success: false,
-          message: "Failed to queue report generation",
-        });
-      }
-
-      res.json({
-        success: true,
-        message:
-          "Workshop completed successfully. Report will be available shortly.",
-        data: {
-          queue_id: queueResult.queueId,
-          vehicle_id: vehicle._id,
-        },
-      });
-    }
   } catch (error) {
     console.error("Complete workshop error:", error);
     res.status(500).json({
@@ -431,7 +331,7 @@ const generateWorkshopReport = async (messageData) => {
         conversations,
         completed_by
       );
-    } else {
+    } else if(vehicle_type === "tradein")  {
       await generateTradeinReport(
         vehicle,
         company,
@@ -467,13 +367,14 @@ const getWorkshopReports = async (req, res) => {
       // Get all stage reports
       reports = await WorkshopReport.find({
         vehicle_id: vehicleId,
+        vehicle_type:vehicleType,
         report_type: "stage_workshop",
       }).sort({ created_at: -1 });
     } else {
-      // Get single tradein report
       reports = await WorkshopReport.find({
         vehicle_id: vehicleId,
-        report_type: "full_workshop",
+        vehicle_type:vehicleType,
+        report_type: "stage_workshop",
       }).sort({ created_at: -1 });
     }
 
@@ -1168,8 +1069,6 @@ const generateInspectionReport = async (
     `Report generation completed for ${reportReadyFlags.length} stages`
   );
 };
-
-// Generate tradein workshop report (single report)
 const generateTradeinReport = async (
   vehicle,
   company,
@@ -1177,121 +1076,252 @@ const generateTradeinReport = async (
   conversations,
   completed_by
 ) => {
-  const allQuotes = [];
-  const allCommunications = [];
-  const allAttachments = [];
+  const resultData = vehicle.trade_in_result || [];
 
-  // Process all quotes for tradein
-  for (const quote of quotes) {
-    const quoteData = {
-      field_id: quote.field_id,
-      field_name: quote.field_name,
-      quote_amount: quote.quote_amount,
-      quote_description: quote.quote_description,
-      selected_suppliers: quote.selected_suppliers.map((s) => ({
-        supplier_id: s._id,
-        supplier_name: s.name,
-        supplier_email: s.email,
-        supplier_shop_name: s.supplier_shop_name,
-      })),
-      approved_supplier: quote.approved_supplier
-        ? {
-            supplier_id: quote.approved_supplier._id,
-            supplier_name: quote.approved_supplier.name,
-            supplier_email: quote.approved_supplier.email,
-            supplier_shop_name: quote.approved_supplier.supplier_shop_name,
-            approved_at: quote.approved_at,
-          }
-        : null,
-      work_details: quote.comment_sheet || {},
-      field_images: quote.images || [],
-      field_videos: quote.videos || [],
-      quote_responses: (quote.supplier_responses || []).map((response) => ({
-        supplier_id: response.supplier_id,
-        supplier_name: response.supplier_name || "Unknown",
-        estimated_cost: response.estimated_cost,
-        estimated_time: response.estimated_time,
-        comments: response.comments,
-        quote_pdf_url: response.quote_pdf_url,
-        quote_pdf_key: response.quote_pdf_key,
-        status: response.status,
-        responded_at: response.responded_at,
-      })),
-      quote_created_at: quote.created_at,
-      work_started_at: quote.work_started_at,
-      work_submitted_at: quote.work_submitted_at,
-      work_completed_at: quote.work_completed_at,
-      status: quote.status,
-    };
+  const stagesToGenerate = [];
 
-    allQuotes.push(quoteData);
+  if (Array.isArray(vehicle.workshop_progress)) {
+    for (const progressItem of vehicle.workshop_progress) {
+      if (progressItem.progress === "completed") {
+        // Check if report is not ready for this stage
+        const reportReadyItem = Array.isArray(vehicle.workshop_report_ready)
+          ? vehicle.workshop_report_ready.find(
+              (item) => item.stage_name === progressItem.stage_name
+            )
+          : null;
 
-    // Collect enhanced attachments and conversations (same as inspection)
-    const quoteAttachments = collectAttachments(quoteData);
-    allAttachments.push(...quoteAttachments);
-
-    const fieldConversations = conversations.filter(
-      (c) => c.quote_id.toString() === quote._id.toString()
-    );
-    fieldConversations.forEach((conv) => {
-      allCommunications.push({
-        conversation_id: conv._id,
-        supplier_id: conv.supplier_id,
-        field_id: quote.field_id,
-        field_name: quote.field_name,
-        total_messages: conv.messages.length,
-        last_message_at: conv.last_message_at,
-        messages: conv.messages.slice(0, 50),
-      });
-    });
+        // Generate report if: no report ready entry exists OR report ready is false
+        if (!reportReadyItem || reportReadyItem.ready === false) {
+          stagesToGenerate.push(progressItem.stage_name);
+        }
+      }
+    }
   }
 
-  const stats = calculateStageStatistics(allQuotes);
+  // If no stages need report generation, exit early
+  if (stagesToGenerate.length === 0) {
+    console.log("No stages require report generation at this time");
+    return;
+  }
 
-  // Create single tradein workshop report
-  const reportData = {
-    vehicle_id: vehicle._id,
-    company_id: company._id,
-    vehicle_stock_id: vehicle.vehicle_stock_id,
-    vehicle_type: "tradein",
-    report_type: "full_workshop",
-    vehicle_details: {
-      vin: vehicle.vin,
-      plate_no: vehicle.plate_no,
-      make: vehicle.make,
-      model: vehicle.model,
-      year: vehicle.year,
-      chassis_no: vehicle.chassis_no,
-      variant: vehicle.variant,
-      hero_image: vehicle.vehicle_hero_image,
-      name: vehicle.name,
-    },
-    workshop_summary: stats.summary,
-    quotes_data: allQuotes,
-    communications: allCommunications,
-    attachments: allAttachments,
-    statistics: stats.detailed,
-    generated_by: completed_by,
-  };
+  console.log(`Generating reports for stages: ${stagesToGenerate.join(", ")}`);
 
-  await WorkshopReport.findOneAndUpdate(
-    {
-      vehicle_id: vehicle._id,
-      report_type: "full_workshop",
-    },
-    reportData,
-    { upsert: true, new: true }
+  // Filter resultData to only include stages that need report generation
+  const stagesToProcess = resultData.filter((category) =>
+    stagesToGenerate.includes(category.category_name)
   );
 
-  // Update vehicle report status
-  vehicle.workshop_report_ready = true;
-  vehicle.workshop_report_preparing = false;
-  await vehicle.save();
+  const reportReadyFlags = [];
+
+  // Initialize arrays if they don't exist or are not arrays
+  if (!Array.isArray(vehicle.workshop_report_ready)) {
+    vehicle.workshop_report_ready = [];
+  }
+  if (!Array.isArray(vehicle.workshop_report_preparing)) {
+    vehicle.workshop_report_preparing = [];
+  }
+
+  // Process each category (stage)
+  for (const category of stagesToProcess) {
+    if (!category.sections || category.sections.length === 0) continue;
+
+    const stageQuotes = [];
+    const stageCommunications = [];
+    const stageAttachments = [];
+
+    // Collect all data for this stage
+    for (const section of category.sections) {
+      if (!section.fields) continue;
+
+      for (const field of section.fields) {
+        const fieldQuotes = quotes.filter((q) => q.field_id === field.field_id);
+
+        for (const quote of fieldQuotes) {
+          // Build enhanced quote data with new work_details structure
+          const quoteData = {
+            field_id: field.field_id,
+            field_name: field.field_name,
+            category_name: category.category_name,
+            section_name: section.section_name,
+            quote_amount: quote.quote_amount,
+            quote_description: quote.quote_description,
+            selected_suppliers: quote.selected_suppliers.map((s) => ({
+              supplier_id: s._id,
+              supplier_name: s.name,
+              supplier_email: s.email,
+              supplier_shop_name: s.supplier_shop_name,
+            })),
+            approved_supplier: quote.approved_supplier
+              ? {
+                  supplier_id: quote.approved_supplier._id,
+                  supplier_name: quote.approved_supplier.name,
+                  supplier_email: quote.approved_supplier.email,
+                  supplier_shop_name:
+                    quote.approved_supplier.supplier_shop_name,
+                  approved_at: quote.approved_at,
+                }
+              : null,
+            work_details: quote.comment_sheet || {},
+            field_images: quote.images || [],
+            field_videos: quote.videos || [],
+            quote_responses: (quote.supplier_responses || []).map(
+              (response) => ({
+                supplier_id: response.supplier_id,
+                supplier_name: response.supplier_name || "Unknown",
+                estimated_cost: response.estimated_cost,
+                estimated_time: response.estimated_time,
+                comments: response.comments,
+                quote_pdf_url: response.quote_pdf_url,
+                quote_pdf_key: response.quote_pdf_key,
+                status: response.status,
+                responded_at: response.responded_at,
+              })
+            ),
+            quote_created_at: quote.created_at,
+            work_started_at: quote.work_started_at,
+            work_submitted_at: quote.work_submitted_at,
+            work_completed_at: quote.work_completed_at,
+            status: quote.status,
+          };
+
+          stageQuotes.push(quoteData);
+
+          // Collect enhanced attachments
+          const quoteAttachments = collectAttachments(quoteData);
+          stageAttachments.push(...quoteAttachments);
+
+          // Collect conversations
+          const fieldConversations = conversations.filter(
+            (c) => c.quote_id.toString() === quote._id.toString()
+          );
+          fieldConversations.forEach((conv) => {
+            stageCommunications.push({
+              conversation_id: conv._id,
+              supplier_id: conv.supplier_id,
+              field_id: field.field_id,
+              field_name: field.field_name,
+              total_messages: conv.messages.length,
+              last_message_at: conv.last_message_at,
+              messages: conv.messages.slice(0, 50), // Limit messages for performance
+            });
+          });
+        }
+      }
+    }
+
+    // Calculate enhanced stage statistics
+    const stageStats = calculateStageStatistics(stageQuotes);
+
+    // Create workshop report for this stage
+    const reportData = {
+      vehicle_id: vehicle._id,
+      company_id: company._id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: "tradein",
+      report_type: "stage_workshop",
+      stage_name: category.category_name,
+      vehicle_details: {
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        chassis_no: vehicle.chassis_no,
+        variant: vehicle.variant,
+        hero_image: vehicle.vehicle_hero_image,
+        name: vehicle.name,
+      },
+      workshop_summary: stageStats.summary,
+      quotes_data: stageQuotes,
+      communications: stageCommunications,
+      attachments: stageAttachments,
+      statistics: stageStats.detailed,
+      generated_by: completed_by,
+    };
+
+    await WorkshopReport.findOneAndUpdate(
+      {
+        vehicle_id: vehicle._id,
+        report_type: "stage_workshop",
+        stage_name: category.category_name,
+      },
+      reportData,
+      { upsert: true, new: true }
+    );
+
+    reportReadyFlags.push({
+      stage_name: category.category_name,
+      ready: true,
+      generated_at: new Date(),
+    });
+
+    // FORCE UPDATE: workshop_report_ready for this specific stage
+    const readyIndex = vehicle.workshop_report_ready.findIndex(
+      (item) => item.stage_name === category.category_name
+    );
+
+    if (readyIndex !== -1) {
+      // Update existing entry
+      vehicle.workshop_report_ready[readyIndex] = {
+        ...vehicle.workshop_report_ready[readyIndex],
+        ready: true,
+        generated_at: new Date(),
+      };
+    } else {
+      // Add new entry
+      vehicle.workshop_report_ready.push({
+        stage_name: category.category_name,
+        ready: true,
+        generated_at: new Date(),
+      });
+    }
+
+    // FORCE UPDATE: workshop_report_preparing for this specific stage
+    const preparingIndex = vehicle.workshop_report_preparing.findIndex(
+      (item) => item.stage_name === category.category_name
+    );
+
+    if (preparingIndex !== -1) {
+      // Update existing entry
+      vehicle.workshop_report_preparing[preparingIndex] = {
+        ...vehicle.workshop_report_preparing[preparingIndex],
+        preparing: false,
+        updated_at: new Date(),
+      };
+    } else {
+      // Add new entry if it doesn't exist
+      vehicle.workshop_report_preparing.push({
+        stage_name: category.category_name,
+        preparing: false,
+        updated_at: new Date(),
+      });
+    }
+
+    // Mark the specific fields as modified to ensure Mongoose saves them
+    vehicle.markModified("workshop_report_ready");
+    vehicle.markModified("workshop_report_preparing");
+
+    console.log(
+      `Report generated successfully for stage: ${category.category_name}`
+    );
+  }
+
+  // Force save the vehicle document with explicit field updates
+  try {
+    await vehicle.save();
+    console.log(
+      `Vehicle document saved with updated workshop_report_ready and workshop_report_preparing fields`
+    );
+  } catch (error) {
+    console.error("Error saving vehicle document:", error);
+    throw error;
+  }
 
   console.log(
-    `Tradein workshop report generated successfully for vehicle: ${vehicle.vehicle_stock_id}`
+    `Report generation completed for ${reportReadyFlags.length} stages`
   );
 };
+
 
 module.exports = {
   checkWorkshopCompletion,

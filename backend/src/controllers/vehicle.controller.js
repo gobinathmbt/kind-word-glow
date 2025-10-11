@@ -1098,7 +1098,8 @@ const updateVehicleWorkshopStatus = async (req, res) => {
       });
     }
 
-    if (vehicle.vehicle_type === "inspection" && stages && Array.isArray(stages)) {
+    // Handle both inspection and tradein vehicles with stages
+    if (["inspection", "tradein"].includes(vehicle.vehicle_type) && stages && Array.isArray(stages)) {
 
       // Ensure arrays are properly initialized (handle case where they might be false)
       if (!Array.isArray(vehicle.is_workshop)) {
@@ -1110,11 +1111,15 @@ const updateVehicleWorkshopStatus = async (req, res) => {
       if (!Array.isArray(vehicle.workshop_report_preparing)) {
         vehicle.workshop_report_preparing = [];
       }
+      if (!Array.isArray(vehicle.workshop_report_ready)) {
+        vehicle.workshop_report_ready = [];
+      }
 
       console.log('Before update:', {
         is_workshop: vehicle.is_workshop,
         workshop_progress: vehicle.workshop_progress,
-        workshop_report_preparing: vehicle.workshop_report_preparing
+        workshop_report_preparing: vehicle.workshop_report_preparing,
+        workshop_report_ready: vehicle.workshop_report_ready
       });
 
       if (workshop_action === 'push') {
@@ -1131,11 +1136,15 @@ const updateVehicleWorkshopStatus = async (req, res) => {
           const existingPreparingIndex = vehicle.workshop_report_preparing.findIndex(
             item => item.stage_name === stageName
           );
+          const existingReadyIndex = vehicle.workshop_report_ready.findIndex(
+            item => item.stage_name === stageName
+          );
 
           console.log(`Existing indices for ${stageName}:`, {
             workshop: existingWorkshopIndex,
             progress: existingProgressIndex,
-            preparing: existingPreparingIndex
+            preparing: existingPreparingIndex,
+            ready: existingReadyIndex
           });
 
           // Handle is_workshop array
@@ -1182,6 +1191,17 @@ const updateVehicleWorkshopStatus = async (req, res) => {
           } else {
             console.log(`Preparing entry already exists for ${stageName}`);
           }
+
+          // Handle workshop_report_ready array
+          if (existingReadyIndex === -1) {
+            vehicle.workshop_report_ready.push({
+              stage_name: stageName,
+              ready: false
+            });
+            console.log(`Added new ready entry for ${stageName}`);
+          } else {
+            console.log(`Ready entry already exists for ${stageName}`);
+          }
         });
       }
       else if (workshop_action === 'remove') {
@@ -1202,6 +1222,7 @@ const updateVehicleWorkshopStatus = async (req, res) => {
           const initialWorkshopLength = vehicle.is_workshop.length;
           const initialProgressLength = vehicle.workshop_progress.length;
           const initialPreparingLength = vehicle.workshop_report_preparing.length;
+          const initialReadyLength = vehicle.workshop_report_ready.length;
 
           // Remove from is_workshop array
           vehicle.is_workshop = vehicle.is_workshop.filter(
@@ -1218,10 +1239,16 @@ const updateVehicleWorkshopStatus = async (req, res) => {
             item => item.stage_name !== stageName
           );
 
+          // Remove from workshop_report_ready array
+          vehicle.workshop_report_ready = vehicle.workshop_report_ready.filter(
+            item => item.stage_name !== stageName
+          );
+
           console.log(`Removed ${stageName}:`, {
             workshop_removed: initialWorkshopLength - vehicle.is_workshop.length,
             progress_removed: initialProgressLength - vehicle.workshop_progress.length,
-            preparing_removed: initialPreparingLength - vehicle.workshop_report_preparing.length
+            preparing_removed: initialPreparingLength - vehicle.workshop_report_preparing.length,
+            ready_removed: initialReadyLength - vehicle.workshop_report_ready.length
           });
         });
       }
@@ -1229,16 +1256,18 @@ const updateVehicleWorkshopStatus = async (req, res) => {
       console.log('After update:', {
         is_workshop: vehicle.is_workshop,
         workshop_progress: vehicle.workshop_progress,
-        workshop_report_preparing: vehicle.workshop_report_preparing
+        workshop_report_preparing: vehicle.workshop_report_preparing,
+        workshop_report_ready: vehicle.workshop_report_ready
       });
 
       // Mark arrays as modified to ensure Mongoose saves them
       vehicle.markModified('is_workshop');
       vehicle.markModified('workshop_progress');
       vehicle.markModified('workshop_report_preparing');
+      vehicle.markModified('workshop_report_ready');
 
     } else {
-      // Handle single workshop status for tradein
+      // Handle other vehicle types (advertisement, master) with single boolean values
       const { is_workshop, workshop_progress } = req.body;
 
       vehicle.is_workshop = is_workshop;
@@ -1246,6 +1275,9 @@ const updateVehicleWorkshopStatus = async (req, res) => {
 
       if (!vehicle.workshop_report_preparing) {
         vehicle.workshop_report_preparing = false;
+      }
+      if (!vehicle.workshop_report_ready) {
+        vehicle.workshop_report_ready = false;
       }
     }
 
@@ -1256,7 +1288,7 @@ const updateVehicleWorkshopStatus = async (req, res) => {
     // Log the event
     await logEvent({
       event_type: "vehicle_operation",
-      event_action: vehicle.vehicle_type === "inspection"
+      event_action: ["inspection", "tradein"].includes(vehicle.vehicle_type)
         ? `stages_${workshop_action}_workshop`
         : "vehicle_pushed_to_workshop",
       event_description: `Vehicle/stages ${workshop_action} workshop: ${vehicle.make} ${vehicle.model}`,
@@ -1266,7 +1298,7 @@ const updateVehicleWorkshopStatus = async (req, res) => {
       metadata: {
         vehicle_stock_id: vehicle.vehicle_stock_id,
         vehicle_type: vehicle.vehicle_type,
-        stages: vehicle.vehicle_type === "inspection" ? stages : null,
+        stages: ["inspection", "tradein"].includes(vehicle.vehicle_type) ? stages : null,
         action: workshop_action,
       },
     });

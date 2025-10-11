@@ -51,9 +51,9 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
 }) => {
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Filter categories based on selectedCategory
+  // Filter categories based on selectedCategory - now for both inspection and tradein
   const getCategoriesToRender = () => {
-    if (vehicleType !== "inspection") return [];
+    if (!config?.categories) return [];
     
     if (selectedCategory && selectedCategory !== "all") {
       return config.categories.filter((cat: any) => cat.category_id === selectedCategory);
@@ -113,7 +113,8 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
     return config.dropdowns.find((d: any) => d._id === id);
   };
 
-
+  // Check if config has categories structure (for both inspection and tradein)
+  const hasCategories = config?.categories && config.categories.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -122,7 +123,7 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
           <DialogTitle className="flex items-center space-x-2">
             <FileText className="h-5 w-5 text-primary" />
             <span className="text-primary">Generate Auto ERP Report</span>
-            {selectedCategory && selectedCategory !== "all" && vehicleType === "inspection" && (
+            {selectedCategory && selectedCategory !== "all" && hasCategories && (
               <span className="text-sm text-muted-foreground ml-2">
                 ({getCategoriesToRender()[0]?.category_name})
               </span>
@@ -150,7 +151,7 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
                     </h1>
                     <h2 className="text-xl text-primary mt-2">
                       {config?.config_name}
-                      {selectedCategory && selectedCategory !== "all" && vehicleType === "inspection" && (
+                      {selectedCategory && selectedCategory !== "all" && hasCategories && (
                         <span className="text-sm text-muted-foreground block mt-1">
                           Category: {getCategoriesToRender()[0]?.category_name}
                         </span>
@@ -204,8 +205,8 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
                   </div>
 
                   {/* Report Content */}
-                  {vehicleType === "inspection" ? (
-                    // Inspection with categories (filtered by selectedCategory)
+                  {hasCategories ? (
+                    // Both inspection and tradein with categories structure
                     getCategoriesToRender()
                       .sort(
                         (a: any, b: any) =>
@@ -414,7 +415,6 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
                         </div>
                       ))
                   ) : (
-                    // Other vehicle types
                     <div>
                       {/* Global Calculations */}
                       {config.calculations &&

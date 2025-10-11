@@ -329,8 +329,13 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
           if (stageReport) {
             setSelectedReport(stageReport);
           }
-        } else if (vehicleType === "tradein" && response.data.data.reports.length > 0) {
-          setSelectedReport(response.data.data.reports[0]);
+        } else if (vehicleType === "tradein" && stageName) {
+              const stageReport = response.data.data.reports.find(
+            (report: WorkshopReport) => report.stage_name === stageName
+          );
+          if (stageReport) {
+            setSelectedReport(stageReport);
+          }
         }
       }
     } catch (error) {
@@ -467,7 +472,7 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
                   <DialogTitle className="text-lg sm:text-xl text-left">Workshop Report</DialogTitle>
                   <DialogDescription className="text-sm text-left">
                     {selectedReport?.vehicle_details.name || "Vehicle Workshop Report"}
-                    {vehicleType === "inspection" && stageName && ` - ${stageName}`}
+                    {vehicleType === "inspection" ||vehicleType === "tradein" && stageName && ` - ${stageName}`}
                   </DialogDescription>
                 </div>
               </div>
@@ -480,6 +485,29 @@ const WorkshopReportModal: React.FC<WorkshopReportModalProps> = ({
           <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] overflow-hidden">
 
             {vehicleType === "inspection" && reports.length > 1 && (
+              <div className="hidden lg:block lg:w-64 flex-shrink-0 border-r bg-gray-50/50">
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Select Stage Report</h3>
+                  <ScrollArea className="h-[calc(90vh-140px)]">
+                    <div className="space-y-2">
+                      {reports.map((report) => (
+                        <Button
+                          key={report._id}
+                          variant={selectedReport?._id === report._id ? "default" : "ghost"}
+                          size="sm"
+                          className="w-full justify-start text-left h-auto py-2 px-3"
+                          onClick={() => setSelectedReport(report)}
+                        >
+                          <FileText className="h-4 w-4 mr-2 shrink-0" />
+                          <span className="truncate">{report.stage_name}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            )}
+            {vehicleType === "tradein" && reports.length > 1 && (
               <div className="hidden lg:block lg:w-64 flex-shrink-0 border-r bg-gray-50/50">
                 <div className="p-4">
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">Select Stage Report</h3>

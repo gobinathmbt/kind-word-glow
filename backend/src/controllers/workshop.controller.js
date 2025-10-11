@@ -136,6 +136,23 @@ const getWorkshopVehicleDetails = async (req, res) => {
         inProgressStages.includes(category.category_name)
       );
     }
+    if (vehicle.vehicle_type === "tradein" && vehicle.trade_in_result) {
+      // Get the stage names that are currently in progress in workshop
+      const inProgressStages = [];
+
+      if (Array.isArray(vehicle.workshop_progress)) {
+        vehicle.workshop_progress.forEach((stage) => {
+          if (stage.progress === "in_progress") {
+            inProgressStages.push(stage.stage_name);
+          }
+        });
+      }
+
+      // Filter trade_in_result to only include in-progress stages
+      vehicle.trade_in_result = vehicle.trade_in_result.filter((category) =>
+        inProgressStages.includes(category.category_name)
+      );
+    }
 
     const quotes = await WorkshopQuote.find({
       vehicle_stock_id: req.params.vehicleId,
@@ -879,7 +896,8 @@ const getBayCalendar = async (req, res) => {
 
     // Get bay quotes for these bays within date range
     const quotes = await WorkshopQuote.find({
-      quote_type: "bay",
+quote_type: ["bay", "manual"],
+
       bay_id: { $in: bayIds },
       booking_date: {
         $gte: new Date(start_date),

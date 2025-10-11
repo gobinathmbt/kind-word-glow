@@ -255,7 +255,7 @@ const getPricingReadyVehicles = async (req, res) => {
       filter.$text = { $search: search };
     }
 
-    // Define fields to return
+    // Define fields to return - added vehicle_source.purchase_type
     const fields = {
       vehicle_stock_id: 1,
       make: 1,
@@ -272,6 +272,7 @@ const getPricingReadyVehicles = async (req, res) => {
       cost_details: 1,
       created_at: 1,
       dealership_id: 1,
+      vehicle_source: { $arrayElemAt: ["$vehicle_source", 0] }, // Get first element from vehicle_source array
     };
 
     // Fetch from both Vehicle and MasterVehicle collections
@@ -290,8 +291,25 @@ const getPricingReadyVehicles = async (req, res) => {
       MasterVehicle.countDocuments(filter),
     ]);
 
+    // Process results to extract purchase_type and flatten the structure
+    const processResults = (results) => {
+      return results.map(vehicle => {
+        const processedVehicle = { ...vehicle };
+        if (vehicle.vehicle_source) {
+          processedVehicle.purchase_type = vehicle.vehicle_source.purchase_type;
+        } else {
+          processedVehicle.purchase_type = null;
+        }
+        delete processedVehicle.vehicle_source;
+        return processedVehicle;
+      });
+    };
+
+    const processedVehicleResults = processResults(vehicleResults);
+    const processedMasterVehicleResults = processResults(masterVehicleResults);
+
     // Combine results and sort by created_at
-    const combinedResults = [...vehicleResults, ...masterVehicleResults]
+    const combinedResults = [...processedVehicleResults, ...processedMasterVehicleResults]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, numericLimit);
 

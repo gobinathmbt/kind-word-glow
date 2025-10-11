@@ -192,29 +192,43 @@ const WorkshopConfig = () => {
 
         setAvailableCompletionStages(completableStages);
       } else {
-        const allFields: any[] = [];
+        setCanCompleteWorkshop(true);
 
-        resultData.forEach((item: any) => {
-          if (item.sections) {
-            item.sections.forEach((section: any) => {
+        const completableStages: string[] = [];
+
+        vehicle.inspection_result.forEach((category: any) => {
+          let hasCompletedJobs = false;
+          let allFieldsCompleted = true;
+
+          if (category.sections) {
+            category.sections.forEach((section: any) => {
               if (section.fields) {
-                allFields.push(...section.fields);
+                section.fields.forEach((field: any) => {
+                  const fieldStatus = getStatus(field.field_id);
+                  if (fieldStatus === "completed_jobs") {
+                    hasCompletedJobs = true;
+                  } else if (fieldStatus && fieldStatus !== "completed_jobs") {
+                    allFieldsCompleted = false;
+                  }
+                });
               }
             });
-          } else if (item.fields) {
-            allFields.push(...item.fields);
+          }
+
+          const stageInWorkshop =
+            Array.isArray(vehicle.workshop_progress) &&
+            vehicle.workshop_progress.some(
+              (item: any) =>
+                item.stage_name === category.category_name &&
+                item.progress === "in_progress"
+            );
+
+          if (hasCompletedJobs && stageInWorkshop && allFieldsCompleted) {
+            completableStages.push(category.category_name);
           }
         });
 
-        const allCompleted =
-          allFields.length > 0 &&
-          allFields.every((field: any) => {
-            const fieldStatus = getStatus(field.field_id);
-            return fieldStatus === "completed_jobs";
-          });
-
-        setCanCompleteWorkshop(allCompleted);
-        setAvailableCompletionStages([]);
+        setAvailableCompletionStages(completableStages);
       }
     }
   }, [vehicleData, vehicleType, vehicle, vehicle_quotes]);
@@ -293,6 +307,42 @@ const WorkshopConfig = () => {
 
       setAvailableCompletionStages(completableStages);
     }
+    else if( vehicle &&
+      vehicle.vehicle_type === "tradein" &&
+      vehicle.trade_in_result){
+  const completableStages: string[] = [];
+
+      vehicle.trade_in_result.forEach((category: any) => {
+        let hasCompletedJobs = false;
+
+        if (category.sections) {
+          category.sections.forEach((section: any) => {
+            if (section.fields) {
+              section.fields.forEach((field: any) => {
+                const fieldStatus = getStatus(field.field_id);
+                if (fieldStatus === "completed_jobs") {
+                  hasCompletedJobs = true;
+                }
+              });
+            }
+          });
+        }
+
+        const stageInWorkshop =
+          Array.isArray(vehicle.workshop_progress) &&
+          vehicle.workshop_progress.some(
+            (item: any) =>
+              item.stage_name === category.category_name &&
+              item.progress === "in_progress"
+          );
+
+        if (hasCompletedJobs && stageInWorkshop) {
+          completableStages.push(category.category_name);
+        }
+      });
+
+      setAvailableCompletionStages(completableStages);
+    }
   }, [vehicle, vehicle_quotes]);
 
   const deleteWorkshopFieldMutation = useMutation({
@@ -328,34 +378,22 @@ const WorkshopConfig = () => {
           }
         }
       } else {
-        if (fieldData.categoryId) {
-          const categoryIndex = updatedResults.findIndex(
-            (cat) => cat.category_id === fieldData.categoryId
-          );
+    const categoryIndex = updatedResults.findIndex(
+          (cat) => cat.category_id === fieldData.categoryId
+        );
 
-          if (categoryIndex !== -1) {
-            const sectionIndex = updatedResults[
-              categoryIndex
-            ].sections?.findIndex(
-              (section: any) => section.section_id === fieldData.sectionId
-            );
-
-            if (sectionIndex !== -1) {
-              updatedResults[categoryIndex].sections[sectionIndex].fields =
-                updatedResults[categoryIndex].sections[
-                  sectionIndex
-                ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
-            }
-          }
-        } else {
-          const sectionIndex = updatedResults.findIndex(
+        if (categoryIndex !== -1) {
+          const sectionIndex = updatedResults[
+            categoryIndex
+          ].sections?.findIndex(
             (section: any) => section.section_id === fieldData.sectionId
           );
 
           if (sectionIndex !== -1) {
-            updatedResults[sectionIndex].fields = updatedResults[
-              sectionIndex
-            ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
+            updatedResults[categoryIndex].sections[sectionIndex].fields =
+              updatedResults[categoryIndex].sections[
+                sectionIndex
+              ].fields.filter((f: any) => f.field_id !== fieldData.field_id);
           }
         }
       }
@@ -421,42 +459,26 @@ const WorkshopConfig = () => {
           }
         }
       } else {
-        if (fieldData.categoryId) {
           const categoryIndex = updatedResults.findIndex(
-            (cat) => cat.category_id === fieldData.categoryId
-          );
+          (cat) => cat.category_id === fieldData.categoryId
+        );
 
-          if (categoryIndex !== -1) {
-            const sectionIndex = updatedResults[
-              categoryIndex
-            ].sections?.findIndex(
-              (section: any) => section.section_id === fieldData.sectionId
-            );
-
-            if (sectionIndex !== -1) {
-              const fieldIndex = updatedResults[categoryIndex].sections[
-                sectionIndex
-              ].fields.findIndex((f: any) => f.field_id === fieldData.field_id);
-
-              if (fieldIndex !== -1) {
-                updatedResults[categoryIndex].sections[sectionIndex].fields[
-                  fieldIndex
-                ] = fieldData;
-              }
-            }
-          }
-        } else {
-          const sectionIndex = updatedResults.findIndex(
+        if (categoryIndex !== -1) {
+          const sectionIndex = updatedResults[
+            categoryIndex
+          ].sections?.findIndex(
             (section: any) => section.section_id === fieldData.sectionId
           );
 
           if (sectionIndex !== -1) {
-            const fieldIndex = updatedResults[sectionIndex].fields.findIndex(
-              (f: any) => f.field_id === fieldData.field_id
-            );
+            const fieldIndex = updatedResults[categoryIndex].sections[
+              sectionIndex
+            ].fields.findIndex((f: any) => f.field_id === fieldData.field_id);
 
             if (fieldIndex !== -1) {
-              updatedResults[sectionIndex].fields[fieldIndex] = fieldData;
+              updatedResults[categoryIndex].sections[sectionIndex].fields[
+                fieldIndex
+              ] = fieldData;
             }
           }
         }
@@ -550,6 +572,9 @@ const WorkshopConfig = () => {
       if (vehicle.vehicle_type === "inspection" && selectedCompletionStage) {
         requestBody.stageName = selectedCompletionStage;
       }
+      if (vehicle.vehicle_type === "tradein" && selectedCompletionStage) {
+        requestBody.stageName = selectedCompletionStage;
+      }
 
       return await workshopServices.completeWorkshop(
         vehicleId!,
@@ -565,10 +590,9 @@ const WorkshopConfig = () => {
       queryClient.invalidateQueries({ queryKey: ["workshop-vehicle-details"] });
       queryClient.invalidateQueries({ queryKey: ["workshop-completion"] });
 
-      if (vehicle.vehicle_type === "inspection") {
-      } else {
+ 
         setTimeout(() => navigate("/company/workshop"), 2000);
-      }
+
     },
     onError: (error: any) => {
       toast.error(
@@ -632,9 +656,12 @@ const WorkshopConfig = () => {
   });
 
   const canStageBeCompleted = (stageName: string) => {
-    if (!vehicle.inspection_result) return false;
-
-    const category = vehicle.inspection_result.find(
+    if (!vehicle.inspection_result ||!vehicle.trade_in_result) return false;
+     let category:any
+     category = vehicle.inspection_result.find(
+      (cat: any) => cat.category_name === stageName
+    );
+     category = vehicle.trade_in_result.find(
       (cat: any) => cat.category_name === stageName
     );
     if (!category) return false;
@@ -1035,11 +1062,11 @@ const WorkshopConfig = () => {
         );
       }
     } else {
-      if (canCompleteWorkshop) {
-        setCompleteWorkshopModalOpen(true);
+         if (availableCompletionStages.length > 0) {
+        setStageSelectionModalOpen(true);
       } else {
         toast.error(
-          "All workshop jobs must be completed before finishing workshop"
+          "No stages are ready for completion. Ensure at least one stage has all jobs completed and is in workshop."
         );
       }
     }
@@ -1122,25 +1149,6 @@ const WorkshopConfig = () => {
             </h3>
 
             <div className="flex gap-2">
-              {vehicleType === "tradein" && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="default"
-                        onClick={() => handleInsertField()}
-                        className="flex items-center gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Insert Field</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
               <div className="lg:hidden">
                 <TooltipProvider>
                   <Tooltip>
@@ -1233,12 +1241,7 @@ const WorkshopConfig = () => {
                     <Button
                       variant="default"
                       onClick={() => handleCompleteWorkshop()}
-                      disabled={
-                        vehicle.vehicle_type === "inspection"
-                          ? false
-                          : !canCompleteWorkshop ||
-                            completeWorkshopMutation.isPending
-                      }
+            
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
                       {completeWorkshopMutation.isPending ? (
@@ -1330,35 +1333,39 @@ const WorkshopConfig = () => {
                   )}
                 </Card>
               ))
-            : resultData.map((item: any, itemIndex: number) => {
-                const isCategory = item.category_id && item.sections;
-                const isDirectSection = item.section_id && item.fields;
-
-                if (isCategory) {
-                  const hasSectionsWithFields = item.sections?.some(
-                    (section: any) => section.fields?.length > 0
-                  );
-
-                  if (!hasSectionsWithFields) return null;
-
-                  return (
-                    <Card key={itemIndex} className="mb-4">
+            :  resultData.map((category: any, categoryIndex: number) => (
+                <Card key={categoryIndex} className="mb-4">
+                  {category.sections?.length > 0 && (
+                    <>
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                          <span>{item.category_name}</span>
-                          <Badge variant="secondary">
-                            {item.sections?.length || 0} Sections
-                          </Badge>
+                          <span>{category.category_name}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">
+                              {category.sections?.length || 0} Sections
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleInsertField(category.category_id)
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Insert Field
+                            </Button>
+                          </div>
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <Accordion type="multiple" className="w-full">
-                          {item.sections?.map(
+                          {category.sections?.map(
                             (section: any, sectionIndex: number) =>
                               section.fields?.length > 0 && (
                                 <AccordionItem
                                   key={sectionIndex}
-                                  value={`section-${itemIndex}-${sectionIndex}`}
+                                  value={`section-${categoryIndex}-${sectionIndex}`}
                                 >
                                   <AccordionTrigger>
                                     <div className="flex items-center justify-between w-full mr-4">
@@ -1380,7 +1387,7 @@ const WorkshopConfig = () => {
                                           >
                                             {renderFieldContent(
                                               field,
-                                              item.category_id,
+                                              category.category_id,
                                               section.section_id
                                             )}
                                           </div>
@@ -1393,47 +1400,10 @@ const WorkshopConfig = () => {
                           )}
                         </Accordion>
                       </CardContent>
-                    </Card>
-                  );
-                } else if (isDirectSection) {
-                  if (!item.fields?.length) return null;
-
-                  return (
-                    <Card key={itemIndex} className="mb-4">
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>{item.section_name}</span>
-                          <Badge variant="secondary">
-                            {item.fields?.length || 0} Fields
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {item.fields?.map(
-                            (field: any, fieldIndex: number) => (
-                              <div
-                                key={fieldIndex}
-                                className={`rounded-lg p-4 ${getFieldBorderColor(
-                                  field
-                                )}`}
-                              >
-                                {renderFieldContent(
-                                  field,
-                                  null,
-                                  item.section_id
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                }
-
-                return null;
-              })}
+                    </>
+                  )}
+                </Card>
+              ))}
         </div>
       </div>
     );
@@ -2227,13 +2197,13 @@ const WorkshopConfig = () => {
                 {vehicle.vehicle_type === "inspection" &&
                 selectedCompletionStage
                   ? `${selectedCompletionStage} Stage`
-                  : "Workshop"}
+                  :  `${selectedCompletionStage} Stage`}
               </DialogTitle>
               <DialogDescription>
                 {vehicle.vehicle_type === "inspection" &&
                 selectedCompletionStage
                   ? `Are you sure you want to complete the "${selectedCompletionStage}" stage? This will generate the stage report and mark it as completed.`
-                  : "Are you sure you want to complete the workshop for this vehicle? This action will generate the final workshop report and cannot be undone."}
+                  : `Are you sure you want to complete the "${selectedCompletionStage}" stage? This will generate the stage report and mark it as completed.`}
                 <br />
                 <br />
                 Type <strong>CONFIRM</strong> to proceed.
@@ -2271,7 +2241,7 @@ const WorkshopConfig = () => {
                         vehicle.vehicle_type === "inspection" &&
                         selectedCompletionStage
                           ? "Stage"
-                          : "Workshop"
+                          : "Stage"
                       }`}
                 </Button>
               </div>

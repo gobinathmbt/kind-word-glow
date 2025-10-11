@@ -76,29 +76,35 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
     stages?: string[];
   } | null>(null);
 
+  // Fetch available stages based on vehicle type
   useEffect(() => {
-    if (
-      vehicle &&
-      vehicle.vehicle_type === "inspection" &&
-      vehicle.inspection_result
-    ) {
-      const stages = vehicle.inspection_result
-        .map((item: any) => item.category_name)
-        .filter(Boolean);
-      setAvailableStages(stages);
+    if (vehicle) {
+      if (vehicle.vehicle_type === "inspection" && vehicle.inspection_result) {
+        // For inspection vehicles, get stages from inspection_result
+        const stages = vehicle.inspection_result
+          .map((item: any) => item.category_name)
+          .filter(Boolean);
+        setAvailableStages(stages);
+      } else if (vehicle.vehicle_type === "tradein") {
+        // For trade-in vehicles, get stages from configuration or use default stages
+        const tradeinStages = vehicle.trade_in_result
+          .map((item: any) => item.category_name)
+          .filter(Boolean) || [];
+        setAvailableStages(tradeinStages);
+      }
     }
   }, [vehicle]);
 
   useEffect(() => {
-    if (vehicle && vehicle.vehicle_type === "inspection") {
+    if (vehicle) {
+      // Set selected stages based on current workshop status
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
             .filter((item: any) => item.in_workshop)
             .map((item: any) => item.stage_name)
         : [];
       setSelectedStages(currentlyInWorkshop);
-    }
-    if (vehicle) {
+      
       setIsPricingReady(vehicle.is_pricing_ready || false);
     }
   }, [vehicle]);
@@ -133,13 +139,10 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   };
 
   const handlePushToWorkshop = async () => {
-    if (vehicle.vehicle_type === "inspection") {
-      setStageSelectionOpen(true);
-    } else {
-      setPendingAction({ type: "tradein" });
-      setConfirmationOpen(true);
-    }
+    // For both inspection and tradein vehicles, show stage selection
+    setStageSelectionOpen(true);
   };
+
   const handleTogglePricingReady = async () => {
     try {
       await commonVehicleServices.togglePricingReady(vehicle.vehicle_stock_id, {
@@ -162,16 +165,23 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
     try {
       if (!pendingAction) return;
 
-      if (pendingAction.type === "tradein") {
+      if (pendingAction.type === "tradein" && pendingAction.stages) {
         await vehicleServices.updateVehicleWorkshopStatus(
           vehicle._id,
           vehicleType,
           {
-            is_workshop: true,
-            workshop_progress: "in_progress",
+            stages: pendingAction.stages,
+            workshop_action: pendingAction.action,
           }
         );
-        toast.success("Vehicle pushed to workshop successfully");
+
+        const actionText =
+          pendingAction.action === "push" ? "pushed to" : "removed from";
+        toast.success(`Selected stages ${actionText} workshop successfully`);
+        setStageSelectionOpen(false);
+        setTimeout(() => {
+          onUpdate();
+        }, 100);
       } else if (pendingAction.type === "inspection" && pendingAction.stages) {
         await vehicleServices.updateVehicleWorkshopStatus(
           vehicle._id,
@@ -239,7 +249,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       actions.push(`Remove: ${stagesToRemove.join(", ")}`);
 
     setPendingAction({
-      type: "inspection",
+      type: vehicle.vehicle_type as "tradein" | "inspection",
       action: stagesToPush.length > 0 ? "push" : "remove",
       stages: stagesToPush.length > 0 ? stagesToPush : stagesToRemove,
     });
@@ -284,10 +294,6 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   };
 
   const getWorkshopStatusDisplay = () => {
-    if (vehicle.vehicle_type !== "inspection") {
-      return vehicle.is_workshop ? "In Workshop" : "Push to Workshop";
-    }
-
     if (Array.isArray(vehicle.is_workshop)) {
       const inWorkshopStages = vehicle.is_workshop.filter(
         (item: any) => item.in_workshop
@@ -300,7 +306,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   };
 
   const handleWorkshopReport = () => {
-    if (vehicle.vehicle_type === "inspection") {
+    if (vehicle.vehicle_type === "inspection" || vehicle.vehicle_type === "tradein") {
       setWorkshopStageSelectionOpen(true);
     } else {
       setWorkshopReportModalOpen(true);
@@ -316,18 +322,10 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   const getConfirmationMessage = () => {
     if (!pendingAction) return "";
 
-    if (pendingAction.type === "tradein") {
-      return "Are you sure you want to push this vehicle to the workshop?";
-    }
-
-    if (pendingAction.type === "inspection") {
-      const actionText =
-        pendingAction.action === "push" ? "push to" : "remove from";
-      const stagesText = pendingAction.stages?.join(", ") || "";
-      return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
-    }
-
-    return "";
+    const actionText =
+      pendingAction.action === "push" ? "push to" : "remove from";
+    const stagesText = pendingAction.stages?.join(", ") || "";
+    return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
   };
 
   return (
@@ -360,39 +358,22 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                 <div className="flex space-x-2">
                   <Button
                     variant={
-                      vehicle.vehicle_type === "inspection"
-                        ? Array.isArray(vehicle.is_workshop) &&
-                          vehicle.is_workshop.some(
-                            (item: any) => item.in_workshop
-                          )
-                          ? "default"
-                          : "outline"
-                        : vehicle.is_workshop
+                      Array.isArray(vehicle.is_workshop) &&
+                      vehicle.is_workshop.some((item: any) => item.in_workshop)
                         ? "default"
                         : "outline"
                     }
                     size="sm"
                     onClick={handlePushToWorkshop}
-                    disabled={
-                      vehicle.vehicle_type === "inspection"
-                        ? false
-                        : vehicle.workshop_progress === "completed"
-                    }
+                    disabled={vehicle.workshop_progress === "completed"}
                     className={
-                      (
-                        vehicle.vehicle_type === "inspection"
-                          ? Array.isArray(vehicle.is_workshop) &&
-                            vehicle.is_workshop.some(
-                              (item: any) => item.in_workshop
-                            )
-                          : vehicle.is_workshop
-                      )
+                      Array.isArray(vehicle.is_workshop) &&
+                      vehicle.is_workshop.some((item: any) => item.in_workshop)
                         ? "bg-orange-500 hover:bg-orange-600 text-white"
                         : ""
                     }
                   >
                     <Wrench className="h-4 w-4 mr-2" />
-
                     {vehicle.workshop_progress === "completed"
                       ? "Completed"
                       : getWorkshopStatusDisplay()}
@@ -442,23 +423,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                   </Popover>
 
                   {(() => {
-                    if (vehicle.vehicle_type === "tradein") {
-                      return (
-                        vehicle.workshop_progress === "completed" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleWorkshopReport}
-                            disabled={vehicle.workshop_report_preparing}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            {vehicle.workshop_report_preparing
-                              ? "Preparing Report..."
-                              : "Workshop Report"}
-                          </Button>
-                        )
-                      );
-                    } else if (vehicle.vehicle_type === "inspection") {
+                    if (vehicle.vehicle_type === "tradein" || vehicle.vehicle_type === "inspection") {
                       const hasPreparingReports =
                         Array.isArray(vehicle.workshop_report_preparing) &&
                         vehicle.workshop_report_preparing.some(
@@ -562,16 +527,16 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
         </SheetContent>
       </Sheet>
 
-      {/* Workshop Report Stage Selection Modal (for inspection vehicles) */}
+      {/* Workshop Report Stage Selection Modal */}
       <Dialog
         open={workshopStageSelectionOpen}
         onOpenChange={setWorkshopStageSelectionOpen}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <SheetTitle>Select Inspection Stage</SheetTitle>
+            <SheetTitle>Select Stage Report</SheetTitle>
             <SheetDescription>
-              Choose which inspection stage report you want to view
+              Choose which stage report you want to view
             </SheetDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -596,7 +561,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             {(!vehicle.workshop_report_ready ||
               vehicle.workshop_report_ready.length === 0) && (
               <p className="text-center text-muted-foreground py-4">
-                No inspection stage reports available yet
+                No stage reports available yet
               </p>
             )}
           </div>
@@ -609,8 +574,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
           <DialogHeader>
             <SheetTitle>Manage Workshop Stages</SheetTitle>
             <SheetDescription>
-              Select stages to push to workshop or unselect to remove from
-              workshop
+              Select stages to push to workshop or unselect to remove from workshop
             </SheetDescription>
           </DialogHeader>
           <div className="space-y-3">
