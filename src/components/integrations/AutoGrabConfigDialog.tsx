@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { integrationServices } from "@/api/services";
@@ -34,35 +33,20 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
   const [formData, setFormData] = useState({
     development: {
       api_key: getEnvironmentConfig("development")?.configuration?.api_key || "",
-      base_url: getEnvironmentConfig("development")?.configuration?.base_url || "https://sandbox.autograb.com.au/api/v2",
-      timeout: getEnvironmentConfig("development")?.configuration?.timeout || "30000",
-      enable_caching: getEnvironmentConfig("development")?.configuration?.enable_caching ?? true,
-      cache_duration: getEnvironmentConfig("development")?.configuration?.cache_duration || "3600",
-      enable_rego_lookup: getEnvironmentConfig("development")?.configuration?.enable_rego_lookup ?? true,
-      enable_vin_lookup: getEnvironmentConfig("development")?.configuration?.enable_vin_lookup ?? true,
-      enable_valuations: getEnvironmentConfig("development")?.configuration?.enable_valuations ?? true,
+      vehicle_retrieval_url: getEnvironmentConfig("development")?.configuration?.vehicle_retrieval_url || "https://api.autograb.com.au/v2/vehicles/registrations",
+      valuation_url: getEnvironmentConfig("development")?.configuration?.valuation_url || "https://api.autograb.com.au/v2/valuations/predict",
       is_active: getEnvironmentConfig("development")?.is_active || false,
     },
     testing: {
       api_key: getEnvironmentConfig("testing")?.configuration?.api_key || "",
-      base_url: getEnvironmentConfig("testing")?.configuration?.base_url || "https://test.autograb.com.au/api/v2",
-      timeout: getEnvironmentConfig("testing")?.configuration?.timeout || "30000",
-      enable_caching: getEnvironmentConfig("testing")?.configuration?.enable_caching ?? true,
-      cache_duration: getEnvironmentConfig("testing")?.configuration?.cache_duration || "3600",
-      enable_rego_lookup: getEnvironmentConfig("testing")?.configuration?.enable_rego_lookup ?? true,
-      enable_vin_lookup: getEnvironmentConfig("testing")?.configuration?.enable_vin_lookup ?? true,
-      enable_valuations: getEnvironmentConfig("testing")?.configuration?.enable_valuations ?? true,
+      vehicle_retrieval_url: getEnvironmentConfig("testing")?.configuration?.vehicle_retrieval_url || "https://api.autograb.com.au/v2/vehicles/registrations",
+      valuation_url: getEnvironmentConfig("testing")?.configuration?.valuation_url || "https://api.autograb.com.au/v2/valuations/predict",
       is_active: getEnvironmentConfig("testing")?.is_active || false,
     },
     production: {
       api_key: getEnvironmentConfig("production")?.configuration?.api_key || "",
-      base_url: getEnvironmentConfig("production")?.configuration?.base_url || "https://api.autograb.com.au/api/v2",
-      timeout: getEnvironmentConfig("production")?.configuration?.timeout || "30000",
-      enable_caching: getEnvironmentConfig("production")?.configuration?.enable_caching ?? true,
-      cache_duration: getEnvironmentConfig("production")?.configuration?.cache_duration || "3600",
-      enable_rego_lookup: getEnvironmentConfig("production")?.configuration?.enable_rego_lookup ?? true,
-      enable_vin_lookup: getEnvironmentConfig("production")?.configuration?.enable_vin_lookup ?? true,
-      enable_valuations: getEnvironmentConfig("production")?.configuration?.enable_valuations ?? true,
+      vehicle_retrieval_url: getEnvironmentConfig("production")?.configuration?.vehicle_retrieval_url || "https://api.autograb.com.au/v2/vehicles/registrations",
+      valuation_url: getEnvironmentConfig("production")?.configuration?.valuation_url || "https://api.autograb.com.au/v2/valuations/predict",
       is_active: getEnvironmentConfig("production")?.is_active || false,
     },
   });
@@ -94,16 +78,22 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
       return;
     }
 
-    if (!activeEnvData.base_url.trim()) {
-      toast.error(`Base URL is required for ${activeEnvironment} environment`);
+    if (!activeEnvData.vehicle_retrieval_url.trim()) {
+      toast.error(`Vehicle Retrieval URL is required for ${activeEnvironment} environment`);
+      return;
+    }
+
+    if (!activeEnvData.valuation_url.trim()) {
+      toast.error(`Valuation URL is required for ${activeEnvironment} environment`);
       return;
     }
 
     // Validate URL format
     try {
-      new URL(activeEnvData.base_url);
+      new URL(activeEnvData.vehicle_retrieval_url);
+      new URL(activeEnvData.valuation_url);
     } catch {
-      toast.error("Please enter a valid Base URL");
+      toast.error("Please enter valid URLs");
       return;
     }
 
@@ -111,39 +101,24 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
       development: {
         configuration: {
           api_key: formData.development.api_key,
-          base_url: formData.development.base_url,
-          timeout: parseInt(formData.development.timeout) || 30000,
-          enable_caching: formData.development.enable_caching,
-          cache_duration: parseInt(formData.development.cache_duration) || 3600,
-          enable_rego_lookup: formData.development.enable_rego_lookup,
-          enable_vin_lookup: formData.development.enable_vin_lookup,
-          enable_valuations: formData.development.enable_valuations,
+          vehicle_retrieval_url: formData.development.vehicle_retrieval_url,
+          valuation_url: formData.development.valuation_url,
         },
         is_active: formData.development.is_active,
       },
       testing: {
         configuration: {
           api_key: formData.testing.api_key,
-          base_url: formData.testing.base_url,
-          timeout: parseInt(formData.testing.timeout) || 30000,
-          enable_caching: formData.testing.enable_caching,
-          cache_duration: parseInt(formData.testing.cache_duration) || 3600,
-          enable_rego_lookup: formData.testing.enable_rego_lookup,
-          enable_vin_lookup: formData.testing.enable_vin_lookup,
-          enable_valuations: formData.testing.enable_valuations,
+          vehicle_retrieval_url: formData.testing.vehicle_retrieval_url,
+          valuation_url: formData.testing.valuation_url,
         },
         is_active: formData.testing.is_active,
       },
       production: {
         configuration: {
           api_key: formData.production.api_key,
-          base_url: formData.production.base_url,
-          timeout: parseInt(formData.production.timeout) || 30000,
-          enable_caching: formData.production.enable_caching,
-          cache_duration: parseInt(formData.production.cache_duration) || 3600,
-          enable_rego_lookup: formData.production.enable_rego_lookup,
-          enable_vin_lookup: formData.production.enable_vin_lookup,
-          enable_valuations: formData.production.enable_valuations,
+          vehicle_retrieval_url: formData.production.vehicle_retrieval_url,
+          valuation_url: formData.production.valuation_url,
         },
         is_active: formData.production.is_active,
       },
@@ -154,7 +129,6 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
       display_name: "AutoGrab Vehicle Pricing",
       environments,
       active_environment: activeEnvironment,
-      configuration: environments[activeEnvironment].configuration, // Backward compatibility
       is_active: true,
     });
   };
@@ -198,133 +172,44 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
           </div>
         </div>
 
-        {/* Connection Settings Section */}
+        {/* API Endpoints Section */}
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-foreground border-b pb-2">
-            Connection Settings
+            API Endpoints
           </h3>
 
           <div className="space-y-2">
-            <Label htmlFor={`${env}_base_url`}>
-              Base URL <span className="text-red-500">*</span>
+            <Label htmlFor={`${env}_vehicle_retrieval_url`}>
+              Vehicle Retrieval URL <span className="text-red-500">*</span>
             </Label>
             <Input
-              id={`${env}_base_url`}
+              id={`${env}_vehicle_retrieval_url`}
               type="url"
-              placeholder="https://api.autograb.com.au/api/v2"
-              value={envData.base_url}
-              onChange={(e) => handleInputChange(env, "base_url", e.target.value)}
+              placeholder="https://api.autograb.com.au/v2/vehicles/registrations"
+              value={envData.vehicle_retrieval_url}
+              onChange={(e) => handleInputChange(env, "vehicle_retrieval_url", e.target.value)}
               required
             />
             <p className="text-xs text-muted-foreground">
-              AutoGrab API base endpoint URL
+              Base URL for vehicle registration lookups
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={`${env}_timeout`}>Request Timeout (ms)</Label>
+            <Label htmlFor={`${env}_valuation_url`}>
+              Valuation URL <span className="text-red-500">*</span>
+            </Label>
             <Input
-              id={`${env}_timeout`}
-              type="number"
-              placeholder="30000"
-              value={envData.timeout}
-              onChange={(e) => handleInputChange(env, "timeout", e.target.value)}
-              min="1000"
-              max="120000"
+              id={`${env}_valuation_url`}
+              type="url"
+              placeholder="https://api.autograb.com.au/v2/valuations/predict"
+              value={envData.valuation_url}
+              onChange={(e) => handleInputChange(env, "valuation_url", e.target.value)}
+              required
             />
             <p className="text-xs text-muted-foreground">
-              Maximum time to wait for API response (1000-120000 ms)
+              URL for vehicle valuation predictions
             </p>
-          </div>
-        </div>
-
-        {/* Caching Settings Section */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground border-b pb-2">
-            Caching & Performance
-          </h3>
-
-          <div className="flex items-center justify-between space-x-2">
-            <div className="flex-1">
-              <Label htmlFor={`${env}_enable_caching`}>Enable Response Caching</Label>
-              <p className="text-xs text-muted-foreground">
-                Cache API responses to reduce costs and improve performance
-              </p>
-            </div>
-            <Switch
-              id={`${env}_enable_caching`}
-              checked={envData.enable_caching}
-              onCheckedChange={(checked) => handleInputChange(env, "enable_caching", checked)}
-            />
-          </div>
-
-          {envData.enable_caching && (
-            <div className="space-y-2">
-              <Label htmlFor={`${env}_cache_duration`}>Cache Duration (seconds)</Label>
-              <Input
-                id={`${env}_cache_duration`}
-                type="number"
-                placeholder="3600"
-                value={envData.cache_duration}
-                onChange={(e) => handleInputChange(env, "cache_duration", e.target.value)}
-                min="60"
-                max="86400"
-              />
-              <p className="text-xs text-muted-foreground">
-                How long to cache pricing data (60-86400 seconds)
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Feature Flags Section */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground border-b pb-2">
-            Enabled Features
-          </h3>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label htmlFor={`${env}_enable_rego_lookup`}>Rego Lookup</Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable vehicle registration number lookups
-                </p>
-              </div>
-              <Switch
-                id={`${env}_enable_rego_lookup`}
-                checked={envData.enable_rego_lookup}
-                onCheckedChange={(checked) => handleInputChange(env, "enable_rego_lookup", checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label htmlFor={`${env}_enable_vin_lookup`}>VIN Lookup</Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable vehicle identification number lookups
-                </p>
-              </div>
-              <Switch
-                id={`${env}_enable_vin_lookup`}
-                checked={envData.enable_vin_lookup}
-                onCheckedChange={(checked) => handleInputChange(env, "enable_vin_lookup", checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label htmlFor={`${env}_enable_valuations`}>Vehicle Valuations</Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable pricing and valuation data
-                </p>
-              </div>
-              <Switch
-                id={`${env}_enable_valuations`}
-                checked={envData.enable_valuations}
-                onCheckedChange={(checked) => handleInputChange(env, "enable_valuations", checked)}
-              />
-            </div>
           </div>
         </div>
 
@@ -336,16 +221,25 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
 
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <Label htmlFor={`${env}_is_active`}>Activate {env.charAt(0).toUpperCase() + env.slice(1)} Environment</Label>
+              <Label htmlFor={`${env}_is_active`}>
+                Activate {env.charAt(0).toUpperCase() + env.slice(1)} Environment
+              </Label>
               <p className="text-xs text-muted-foreground">
                 Enable this environment for API calls
               </p>
             </div>
-            <Switch
-              id={`${env}_is_active`}
-              checked={envData.is_active}
-              onCheckedChange={(checked) => handleInputChange(env, "is_active", checked)}
-            />
+            <div className="flex items-center space-x-2">
+              <Label htmlFor={`${env}_is_active`} className="text-sm">
+                {envData.is_active ? "Active" : "Inactive"}
+              </Label>
+              <input
+                id={`${env}_is_active`}
+                type="checkbox"
+                checked={envData.is_active}
+                onChange={(e) => handleInputChange(env, "is_active", e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -354,11 +248,11 @@ const AutoGrabConfigDialog: React.FC<AutoGrabConfigDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configure AutoGrab Vehicle Pricing Integration</DialogTitle>
           <DialogDescription>
-            Configure your AutoGrab API credentials and settings for vehicle pricing and valuation services across different environments
+            Configure your AutoGrab API credentials and endpoints for vehicle pricing and valuation services
           </DialogDescription>
         </DialogHeader>
 

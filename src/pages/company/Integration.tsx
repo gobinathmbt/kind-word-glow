@@ -19,7 +19,6 @@ import { companyServices, integrationServices } from "@/api/services";
 import { useAuth } from "@/auth/AuthContext";
 import S3ConfigDialog from "@/components/integrations/S3ConfigDialog";
 import SendGridConfigDialog from "@/components/integrations/SendGridConfigDialog";
-import RedBookConfigDialog from "@/components/integrations/RedBookConfigDialog";
 import AutoGrabConfigDialog from "@/components/integrations/AutoGrabConfigDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
@@ -28,7 +27,6 @@ interface Integration {
   _id: string;
   integration_type: string;
   display_name: string;
-  configuration: any;
   is_active: boolean;
   created_at: string;
 }
@@ -155,7 +153,6 @@ const Integration = () => {
       smtp: Plug,
       payment_gateway: Plug,
       api_integration: Plug,
-      redbook_vehicle_pricing_integration: Plug,
     };
     const Icon = icons[moduleType] || Plug;
     return <Icon className="h-6 w-6" />;
@@ -168,7 +165,6 @@ const Integration = () => {
       smtp: "bg-purple-100 text-purple-800",
       payment_gateway: "bg-orange-100 text-orange-800",
       api_integration: "bg-pink-100 text-pink-800",
-      redbook_vehicle_pricing_integration: "bg-red-100 text-red-800",
     };
     return colors[moduleType] || "bg-gray-100 text-gray-800";
   };
@@ -469,14 +465,6 @@ const Integration = () => {
 
       {selectedModule === "sendgrid" && (
         <SendGridConfigDialog
-          isOpen={true}
-          onClose={handleCloseDialog}
-          integration={selectedIntegration}
-        />
-      )}
-
-      {selectedModule === "redbook_vehicle_pricing_integration" && (
-        <RedBookConfigDialog
           isOpen={true}
           onClose={handleCloseDialog}
           integration={selectedIntegration}

@@ -51,11 +51,7 @@ const IntegrationSchema = new mongoose.Schema({
     enum: ['development', 'testing', 'production'],
     default: 'production'
   },
-  // Deprecated fields - kept for backward compatibility
-  configuration: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
+
   is_active: {
     type: Boolean,
     default: true

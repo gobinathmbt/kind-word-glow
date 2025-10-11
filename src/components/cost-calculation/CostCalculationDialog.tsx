@@ -81,7 +81,6 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
         cost_details: {
           ...data,
           addon_expenses: addOnExpenses,
-          external_api_evaluations: vehicle.cost_details?.external_api_evaluations || [],
         },
       });
     },
@@ -95,11 +94,16 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
   });
 
   const handleApplyExternalPricing = (pricingData: any) => {
+    console.log(pricingData)
     // Save external API evaluation to vehicle
     const updatedEvaluations = [
       ...(vehicle.cost_details?.external_api_evaluations || []),
       pricingData,
     ];
+console.log("Payload sent to API:", {
+  ...costData,
+  external_api_evaluations: updatedEvaluations,
+});
 
     saveMutation.mutate({
       ...costData,
