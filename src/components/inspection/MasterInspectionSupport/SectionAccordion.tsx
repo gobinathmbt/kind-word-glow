@@ -98,7 +98,7 @@ const SectionAccordion: React.FC<SectionAccordionProps> = ({
   return (
     <div className="space-y-6">
       {/* do not remove, might be needed later */}
-      {/* Insert Field Button for non-inspection types */}
+      {/*Insert Job cards Button for non-inspection types */}
       {/* {isEditMode && onInsertWorkshopField && vehicleType !== "inspection" && (
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Sections</h3>
@@ -108,7 +108,7 @@ const SectionAccordion: React.FC<SectionAccordionProps> = ({
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            Insert Field
+       Insert Job cards
           </Button>
         </div>
       )} */}

@@ -126,7 +126,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
           value={category.category_id}
           className="space-y-6 mt-0"
         >
-          {/* Category Header with Insert Field Button */}
+          {/* Category Header with Insert Job cards Button */}
           {/* <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"> */}
           {/* do not remove, might be needed later */}
           {/* <div>  
@@ -145,7 +145,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                 className="flex items-center gap-1"
               >
                 <Plus className="h-3 w-3" />
-                Insert Field
+               Insert Job cards
               </Button>
             )} */}
           {/* </div> */}

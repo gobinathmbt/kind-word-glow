@@ -900,11 +900,20 @@ const WorkshopConfig = () => {
           ].fields.push(fieldData);
         }
       } else {
-        let workshopSectionIndex = updatedResults.findIndex(
-          (item: any) =>
-            item.section_id &&
-            (item.section_name === "At Workshop - Add On" ||
-              item.section_display_name === "at_workshop_onstaging")
+      const categoryIndex = updatedResults.findIndex(
+          (cat) => cat.category_id === selectedCategoryForField
+        );
+
+        if (categoryIndex === -1) {
+          throw new Error("Category not found");
+        }
+
+        let workshopSectionIndex = updatedResults[
+          categoryIndex
+        ].sections?.findIndex(
+          (section: any) =>
+            section.section_name === "At Workshop - Add On" ||
+            section.section_display_name === "at_workshop_onstaging"
         );
 
         if (workshopSectionIndex === -1) {
@@ -912,16 +921,26 @@ const WorkshopConfig = () => {
             section_id: `workshop_section_${Date.now()}`,
             section_name: "At Workshop - Add On",
             section_display_name: "at_workshop_onstaging",
-            display_order: updatedResults.length,
+            display_order: updatedResults[categoryIndex].sections?.length || 0,
             fields: [fieldData],
           };
 
-          updatedResults.push(newWorkshopSection);
-        } else {
-          if (!updatedResults[workshopSectionIndex].fields) {
-            updatedResults[workshopSectionIndex].fields = [];
+          if (!updatedResults[categoryIndex].sections) {
+            updatedResults[categoryIndex].sections = [];
           }
-          updatedResults[workshopSectionIndex].fields.push(fieldData);
+
+          updatedResults[categoryIndex].sections.push(newWorkshopSection);
+        } else {
+          if (
+            !updatedResults[categoryIndex].sections[workshopSectionIndex].fields
+          ) {
+            updatedResults[categoryIndex].sections[
+              workshopSectionIndex
+            ].fields = [];
+          }
+          updatedResults[categoryIndex].sections[
+            workshopSectionIndex
+          ].fields.push(fieldData);
         }
       }
 
@@ -1282,7 +1301,7 @@ const WorkshopConfig = () => {
                               className="flex items-center gap-1"
                             >
                               <Plus className="h-3 w-3" />
-                              Insert Field
+                              Insert Job cards
                             </Button>
                           </div>
                         </CardTitle>
@@ -1353,7 +1372,7 @@ const WorkshopConfig = () => {
                               className="flex items-center gap-1"
                             >
                               <Plus className="h-3 w-3" />
-                              Insert Field
+                             Insert Job card
                             </Button>
                           </div>
                         </CardTitle>
