@@ -1376,15 +1376,9 @@ export const commonVehicleServices = {
 
   togglePricingReady: (vehicleId: string, data: any) =>
     apiClient.patch(`/api/common-vehicle/pricing-ready/${vehicleId}`, data),
-
+    
   saveVehicleCostDetails: (vehicleId: string, vehicleType: string, data: any) =>
     apiClient.put(`/api/common-vehicle/${vehicleId}/${vehicleType}/cost-details`, data),
-
-  getKanbanReport: (params?: any) =>
-    apiClient.get("/api/common-vehicle/kanban-report", { params }),
-
-  updateVehicleStatus: (vehicleId: string, data: any) =>
-    apiClient.patch(`/api/common-vehicle/${vehicleId}/status`, data),
 };
 
 // Integration Services
