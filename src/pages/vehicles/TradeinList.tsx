@@ -12,6 +12,7 @@ import {
   ArrowUp,
   ArrowDown,
   SlidersHorizontal,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { MoveHorizontal } from "lucide-react";
 import BulkOperationsDialog from "@/components/common/BulkOperationsDialog";
+import KanbanReportDialog from "@/components/vehicles/KanbanReportDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
 
 
@@ -43,6 +45,7 @@ const TradeinList = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isKanbanDialogOpen, setIsKanbanDialogOpen] = useState(false);
 
   const { completeUser } = useAuth();
 
@@ -342,6 +345,13 @@ const TradeinList = () => {
   // Prepare action buttons
   const actionButtons = [
     {
+      icon: <BarChart3 className="h-4 w-4" />,
+      tooltip: "Detailed Report",
+      onClick: () => setIsKanbanDialogOpen(true),
+      className:
+        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
+    },
+    {
       icon: <MoveHorizontal className="h-4 w-4" />,
       tooltip: "Bulk Operations",
       onClick: () => setIsBulkDialogOpen(true),
@@ -586,6 +596,12 @@ const TradeinList = () => {
         onOpenChange={setIsBulkDialogOpen}
         vehicleType="tradein"
         onSuccess={refetch}
+      />
+
+      <KanbanReportDialog
+        open={isKanbanDialogOpen}
+        onClose={() => setIsKanbanDialogOpen(false)}
+        vehicleType="tradein"
       />
 
       <ConfigurationSearchmore

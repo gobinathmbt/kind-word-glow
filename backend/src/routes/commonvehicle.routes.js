@@ -6,6 +6,8 @@ const {
   getPricingReadyVehicles,
   togglePricingReady,
   saveVehicleCostDetails,
+  getKanbanReport,
+  updateVehicleStatus,
 } = require('../controllers/commonvehicle.controller');
 
 const router = express.Router();
@@ -23,5 +25,9 @@ router.get('/bulk-operations', getVehiclesForBulkOperations);
 router.get('/pricing-ready', getPricingReadyVehicles);
 router.patch('/pricing-ready/:vehicleId', togglePricingReady);
 router.put('/:vehicleId/:vehicleType/cost-details', saveVehicleCostDetails);
+
+// Kanban report routes
+router.get('/kanban-report', getKanbanReport);
+router.patch('/:vehicleId/status', updateVehicleStatus);
 
 module.exports = router;
