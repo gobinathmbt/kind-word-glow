@@ -118,9 +118,7 @@ const getWorkshopVehicleDetails = async (req, res) => {
       });
     }
 
-    // For inspection vehicles, filter inspection_result to only include stages that are in progress
     if (vehicle.vehicle_type === "inspection" && vehicle.inspection_result) {
-      // Get the stage names that are currently in progress in workshop
       const inProgressStages = [];
 
       if (Array.isArray(vehicle.workshop_progress)) {
@@ -130,16 +128,20 @@ const getWorkshopVehicleDetails = async (req, res) => {
           }
         });
       }
-
-      // Filter inspection_result to only include in-progress stages
-      vehicle.inspection_result = vehicle.inspection_result.filter((category) =>
-        inProgressStages.includes(category.category_name)
-      );
+      vehicle.inspection_result = vehicle.inspection_result
+        .filter((category) => inProgressStages.includes(category.category_name))
+        .map((category) => ({
+          ...category,
+          sections: category.sections.map((section) => ({
+            ...section,
+            fields: section.fields.filter((field) => field.workshop_work_required === true)
+          })).filter((section) => section.fields.length > 0)
+        }))
+        .filter((category) => category.sections.length > 0);
     }
+    
     if (vehicle.vehicle_type === "tradein" && vehicle.trade_in_result) {
-      // Get the stage names that are currently in progress in workshop
       const inProgressStages = [];
-
       if (Array.isArray(vehicle.workshop_progress)) {
         vehicle.workshop_progress.forEach((stage) => {
           if (stage.progress === "in_progress") {
@@ -147,11 +149,16 @@ const getWorkshopVehicleDetails = async (req, res) => {
           }
         });
       }
-
-      // Filter trade_in_result to only include in-progress stages
-      vehicle.trade_in_result = vehicle.trade_in_result.filter((category) =>
-        inProgressStages.includes(category.category_name)
-      );
+      vehicle.trade_in_result = vehicle.trade_in_result
+        .filter((category) => inProgressStages.includes(category.category_name))
+        .map((category) => ({
+          ...category,
+          sections: category.sections.map((section) => ({
+            ...section,
+            fields: section.fields.filter((field) => field.workshop_work_required === true)
+          })).filter((section) => section.fields.length > 0)
+        }))
+        .filter((category) => category.sections.length > 0);
     }
 
     const quotes = await WorkshopQuote.find({
