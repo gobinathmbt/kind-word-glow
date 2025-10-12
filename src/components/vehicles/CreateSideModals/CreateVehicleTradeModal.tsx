@@ -52,6 +52,8 @@ const CreateVehicleTradeModal = ({
 }: CreateVehicleTradeModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [purchaseDate, setPurchaseDate] = useState<Date>();
+  const [regoExpiryDate, setRegoExpiryDate] = useState<Date>();
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState<Date>();
   const [heroImage, setHeroImage] = useState<File | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string>("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -83,9 +85,10 @@ const CreateVehicleTradeModal = ({
     vin: "",
     vehicle_type: vehicleType,
     plate_no: "",
-    supplier: "",
     purchase_notes: "",
     vehicle_hero_image: "",
+    odometer_reading: "",
+    purchase_price: "",
   });
 
   // Fetch dealerships data
@@ -256,6 +259,22 @@ const CreateVehicleTradeModal = ({
     if (!formData.vin) newErrors.vin = "VIN is required";
     if (!formData.plate_no)
       newErrors.plate_no = "Registration number is required";
+    
+    // New mandatory fields
+    if (!formData.odometer_reading)
+      newErrors.odometer_reading = "Odometer reading is required";
+    if (!regoExpiryDate) newErrors.regoExpiryDate = "Registration expiry is required";
+    if (!warrantyExpiryDate) newErrors.warrantyExpiryDate = "Manufacture warranty expiry is required";
+    if (!formData.purchase_price)
+      newErrors.purchase_price = "Purchase price is required";
+
+    // Validate numeric fields
+    if (formData.odometer_reading && isNaN(Number(formData.odometer_reading))) {
+      newErrors.odometer_reading = "Odometer reading must be a number";
+    }
+    if (formData.purchase_price && isNaN(Number(formData.purchase_price))) {
+      newErrors.purchase_price = "Purchase price must be a number";
+    }
 
     // Validate metadata fields
     const newMetadataErrors: Record<string, string> = {};
@@ -305,6 +324,11 @@ const CreateVehicleTradeModal = ({
         vehicle_hero_image: heroImageUrl,
         vehicle_type: vehicleType,
         dealership: formData.dealership_id,
+        // New fields
+        odometer_reading: parseInt(formData.odometer_reading),
+        purchase_price: parseFloat(formData.purchase_price),
+        rego_expiry_date: regoExpiryDate ? regoExpiryDate.toISOString() : null,
+        warranty_expiry_date: warrantyExpiryDate ? warrantyExpiryDate.toISOString() : null,
       };
 
       await vehicleServices.createVehicleStock(submitData);
@@ -325,9 +349,10 @@ const CreateVehicleTradeModal = ({
         vin: "",
         vehicle_type: vehicleType,
         plate_no: "",
-        supplier: "",
         purchase_notes: "",
         vehicle_hero_image: "",
+        odometer_reading: "",
+        purchase_price: "",
       });
 
       setSelectedMake("");
@@ -336,6 +361,8 @@ const CreateVehicleTradeModal = ({
       setSelectedYear("");
       setSelectedBody("");
       setPurchaseDate(undefined);
+      setRegoExpiryDate(undefined);
+      setWarrantyExpiryDate(undefined);
       setHeroImage(null);
       setHeroImagePreview("");
       setErrors({});
@@ -594,7 +621,110 @@ const CreateVehicleTradeModal = ({
             )}
           </div>
 
-          {/* Purchase Date - Eighth Field */}
+          {/* Odometer Reading - Eighth Field */}
+          <div className="space-y-2">
+            <Label htmlFor="odometer_reading" className="required">
+              Odometer Reading<span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="odometer_reading"
+              type="number"
+              value={formData.odometer_reading}
+              onChange={(e) => handleInputChange("odometer_reading", e.target.value)}
+              placeholder="Enter odometer reading"
+              className={errors.odometer_reading ? "border-red-500" : ""}
+            />
+            {errors.odometer_reading && (
+              <p className="text-red-500 text-sm">{errors.odometer_reading}</p>
+            )}
+          </div>
+
+          {/* Purchase Price - Ninth Field */}
+          <div className="space-y-2">
+            <Label htmlFor="purchase_price" className="required">
+              Purchase Price<span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="purchase_price"
+              type="number"
+              step="0.01"
+              value={formData.purchase_price}
+              onChange={(e) => handleInputChange("purchase_price", e.target.value)}
+              placeholder="Enter purchase price"
+              className={errors.purchase_price ? "border-red-500" : ""}
+            />
+            {errors.purchase_price && (
+              <p className="text-red-500 text-sm">{errors.purchase_price}</p>
+            )}
+          </div>
+
+          {/* Registration Expiry Date - Tenth Field */}
+          <div className="space-y-2">
+            <Label className="required">
+              Registration Expiry Date<span className="text-red-500">*</span>
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !regoExpiryDate && "text-muted-foreground",
+                    errors.regoExpiryDate && "border-red-500"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {regoExpiryDate ? format(regoExpiryDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={regoExpiryDate}
+                  onSelect={setRegoExpiryDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.regoExpiryDate && (
+              <p className="text-red-500 text-sm">{errors.regoExpiryDate}</p>
+            )}
+          </div>
+
+          {/* Manufacture Warranty Expiry Date - Eleventh Field */}
+          <div className="space-y-2">
+            <Label className="required">
+              Manufacture Warranty Expiry Date<span className="text-red-500">*</span>
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !warrantyExpiryDate && "text-muted-foreground",
+                    errors.warrantyExpiryDate && "border-red-500"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {warrantyExpiryDate ? format(warrantyExpiryDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={warrantyExpiryDate}
+                  onSelect={setWarrantyExpiryDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.warrantyExpiryDate && (
+              <p className="text-red-500 text-sm">{errors.warrantyExpiryDate}</p>
+            )}
+          </div>
+
+          {/* Purchase Date - Twelfth Field */}
           <div className="space-y-2">
             <Label>Purchase Date</Label>
             <Popover>
@@ -621,7 +751,7 @@ const CreateVehicleTradeModal = ({
             </Popover>
           </div>
 
-          {/* Purchase Notes - Ninth Field */}
+          {/* Purchase Notes - Thirteenth Field */}
           <div className="space-y-2">
             <Label htmlFor="purchase_notes">Purchase Notes</Label>
             <Textarea
@@ -632,17 +762,6 @@ const CreateVehicleTradeModal = ({
               }
               placeholder="Enter any additional notes"
               rows={3}
-            />
-          </div>
-
-          {/* Supplier - Optional Field */}
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier</Label>
-            <Input
-              id="supplier"
-              value={formData.supplier}
-              onChange={(e) => handleInputChange("supplier", e.target.value)}
-              placeholder="Enter supplier name"
             />
           </div>
 

@@ -17,11 +17,15 @@ const getTadeins = async (req, res) => {
     let filter = { company_id: req.user.company_id };
 
     // Handle dealership-based access for non-primary company_super_admin
-    if (!req.user.is_primary_admin &&
-      req.user.dealership_ids && req.user.dealership_ids.length > 0) {
-
+    if (
+      !req.user.is_primary_admin &&
+      req.user.dealership_ids &&
+      req.user.dealership_ids.length > 0
+    ) {
       // Extract dealership ObjectIds from the user's dealership_ids array
-      const dealershipObjectIds = req.user.dealership_ids.map(dealer => dealer._id);
+      const dealershipObjectIds = req.user.dealership_ids.map(
+        (dealer) => dealer._id
+      );
 
       // Add dealership filter to only show vehicles from authorized dealerships
       filter.dealership_id = { $in: dealershipObjectIds };
@@ -35,42 +39,96 @@ const getTadeins = async (req, res) => {
       filter.status = status;
     }
 
-    // Use text search if available, otherwise use regex fallback
+    // Use text search if available
     if (search) {
       if (search.trim().length > 0) {
         filter.$text = { $search: search };
       }
     }
 
-    // Define the fields to exclude (from vehicle_category to vehicle_odometer)
-    const excludedFields = {
-      inspection_result: 0,
-      trade_in_result: 0,
-      vehicle_other_details: 0,
-      vehicle_source: 0,
-      vehicle_registration: 0,
-      vehicle_import_details: 0,
-      vehicle_attachments: 0,
-      vehicle_eng_transmission: 0,
-      vehicle_specifications: 0,
-      vehicle_safety_features: 0,
-      vehicle_odometer: 0,
+    // Define the projection to include only necessary fields
+    const projection = {
+      _id: 1,
+      vehicle_stock_id: 1,
+      vehicle_type: 1,
+      vehicle_hero_image: 1,
+      vin: 1,
+      plate_no: 1,
+      make: 1,
+      model: 1,
+      year: 1,
+      variant: 1,
+      body_style: 1,
+      dealership_id: 1,
+      status: 1,
+      // Get latest odometer reading
+      "vehicle_odometer": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+      // Get latest registration details
+      "vehicle_registration": {
+        $slice: 1 // Get only the first (latest) entry
+      },
     };
 
-    // Use parallel execution for count and data retrieval
-    const [vehicles, total] = await Promise.all([
-      Vehicle.find(filter, excludedFields)
+    // Execute queries in parallel
+    const [vehicles, total, statusCounts] = await Promise.all([
+      Vehicle.find(filter, projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
-        .lean(), // Use lean for faster queries
+        .lean(),
       Vehicle.countDocuments(filter),
+      // Aggregate to get status counts
+      Vehicle.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
+
+    // Transform vehicles data to flatten nested arrays and add computed fields
+    const transformedVehicles = vehicles.map((vehicle) => {
+      // Get latest odometer reading
+      const latestOdometer = vehicle.vehicle_odometer?.[0]?.reading || null;
+
+      // Get latest license expiry date
+      const latestRegistration = vehicle.vehicle_registration?.[0];
+      const licenseExpiryDate = latestRegistration?.license_expiry_date || null;
+
+      return {
+        _id: vehicle._id,
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        vehicle_type: vehicle.vehicle_type,
+        vehicle_hero_image: vehicle.vehicle_hero_image,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        make: vehicle.make,
+        model: vehicle.model,
+        variant: vehicle.variant,
+        body_style: vehicle.body_style,
+        dealership_id: vehicle.dealership_id,
+        status: vehicle.status,
+        latest_odometer: latestOdometer,
+        license_expiry_date: licenseExpiryDate,
+      };
+    });
+
+    // Transform status counts into an object
+    const statusCountsObject = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
 
     res.status(200).json({
       success: true,
-      data: vehicles,
+      data: transformedVehicles,
       total,
+      statusCounts: statusCountsObject,
       pagination: {
         current_page: numericPage,
         total_pages: Math.ceil(total / numericLimit),

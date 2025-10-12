@@ -148,6 +148,11 @@ const createVehicleStock = async (req, res) => {
       purchase_notes,
       year,
       vehicle_hero_image,
+      // New fields
+      odometer_reading,
+      purchase_price,
+      rego_expiry_date,
+      warranty_expiry_date,
     } = req.body;
 
     // Validate required fields
@@ -159,7 +164,12 @@ const createVehicleStock = async (req, res) => {
       plate_no: "Registration number",
       dealership: "Dealership",
       status: "Status",
-      purchase_type: "Purchase type"
+      purchase_type: "Purchase type",
+      // New required fields
+      odometer_reading: "Odometer reading",
+      purchase_price: "Purchase price",
+      rego_expiry_date: "Registration expiry date",
+      warranty_expiry_date: "Manufacture warranty expiry date"
     };
 
     const missingFields = [];
@@ -184,7 +194,7 @@ const createVehicleStock = async (req, res) => {
       .sort({ vehicle_stock_id: -1 })
       .limit(1);
 
-    const nextStockId = lastVehicle ? lastVehicle.vehicle_stock_id + 1 : 1;
+    const nextStockId = lastVehicle ? lastVehicle.vehicle_stock_id + 1 : 1000;
 
     // Check if VIN or plate number already exists for this company
     const existingVehicle = await Vehicle.findOne({
@@ -217,9 +227,19 @@ const createVehicleStock = async (req, res) => {
       chassis_no: vin,
       variant,
       body_style,
-      status: "pending",
+      status: status, // Use the status from frontend directly
       queue_status: "processed",
     };
+
+    // Add odometer data
+    if (odometer_reading) {
+      vehicleData.vehicle_odometer = [
+        {
+          reading: parseInt(odometer_reading),
+          reading_date: new Date(),
+        },
+      ];
+    }
 
     // Add vehicle source information
     if (supplier || purchase_date || purchase_type || purchase_notes) {
@@ -233,12 +253,29 @@ const createVehicleStock = async (req, res) => {
       ];
     }
 
-    // Add vehicle other details with status
+    // Add vehicle registration with expiry dates
+    if (rego_expiry_date || warranty_expiry_date) {
+      vehicleData.vehicle_registration = [
+        {
+          license_expiry_date: rego_expiry_date ? new Date(rego_expiry_date) : null,
+          wof_cof_expiry_date: warranty_expiry_date ? new Date(warranty_expiry_date) : null,
+          registered_in_local: true,
+          year_first_registered_local: 0,
+          re_registered: false,
+          first_registered_year: 0,
+          road_user_charges_apply: false,
+          outstanding_road_user_charges: false,
+          ruc_end_distance: 0,
+        },
+      ];
+    }
+
+    // Add vehicle other details with status and purchase price
     vehicleData.vehicle_other_details = [
       {
-        status,
-        trader_acquisition: dealership,
-        purchase_price: 0,
+        status: status, // Use the status from frontend
+        trader_acquisition: "",
+        purchase_price: parseFloat(purchase_price) || 0,
         exact_expenses: 0,
         estimated_expenses: 0,
         gst_inclusive: false,
@@ -267,6 +304,7 @@ const createVehicleStock = async (req, res) => {
         vin,
         plate_no,
         vehicle_type: vehicle_type,
+        status: status,
       },
     });
 

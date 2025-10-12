@@ -57,7 +57,7 @@ const VehicleSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  
+
   // Cost Details for Pricing Calculation
   cost_details: {
     type: mongoose.Schema.Types.Mixed,
@@ -85,7 +85,7 @@ const VehicleSchema = new mongoose.Schema({
       category: { type: String },
       link: { type: String },
     },
-  ], 
+  ],
 
   last_inspection_config_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -117,6 +117,10 @@ const VehicleSchema = new mongoose.Schema({
     {
       reading: Number,
       reading_date: Date,
+      created_at: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 
@@ -143,6 +147,10 @@ const VehicleSchema = new mongoose.Schema({
       road_user_charges_apply: Boolean,
       outstanding_road_user_charges: Boolean,
       ruc_end_distance: Number,
+          created_at: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 
@@ -252,7 +260,9 @@ const VehicleSchema = new mongoose.Schema({
   workshop_progress: {
     type: mongoose.Schema.Types.Mixed,
     default: function () {
-      return ["inspection", "tradein"].includes(this.vehicle_type) ? [] : "not_processed_yet";
+      return ["inspection", "tradein"].includes(this.vehicle_type)
+        ? []
+        : "not_processed_yet";
     },
   },
 
@@ -273,7 +283,6 @@ const VehicleSchema = new mongoose.Schema({
   // Processing Status
   status: {
     type: String,
-    enum: ["pending", "processing", "completed", "failed"],
     default: "pending",
   },
 

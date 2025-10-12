@@ -40,16 +40,24 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RefreshCw, ChevronLeft, ChevronRight, BarChart3, MoreVertical, Plus } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
+  MoreVertical,
+  Plus,
+} from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 interface StatChip {
   label: string;
-  value: number;
-  variant?: "outline" | "secondary" | "default" | "destructive";
-  bgColor?: string;
-  textColor?: string;
-  hoverColor?: string;
+  value: string | number;
+  variant: "default" | "outline";
+  bgColor: string;
+  textColor: string;
+  hoverColor: string;
+  onClick?: () => void; // optional handler
 }
 
 interface ActionButton {
@@ -142,7 +150,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
   onRefresh,
   cookieName = "pagination_enabled",
   cookieMaxAge = 60 * 60 * 24 * 30,
-  disableDashboardLayout=false,
+  disableDashboardLayout = false,
 }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
@@ -177,14 +185,16 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
     if (totalPages <= 1) return null;
     const items = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages > 0) {
       items.push(
         <PaginationItem key={1}>
           <PaginationLink
             onClick={() => onPageChange(1)}
             isActive={page === 1}
-            className={`cursor-pointer ${page === 1 ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+            className={`cursor-pointer ${
+              page === 1 ? "bg-blue-600 text-white hover:bg-blue-700" : ""
+            }`}
           >
             1
           </PaginationLink>
@@ -210,7 +220,9 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
             <PaginationLink
               onClick={() => onPageChange(i)}
               isActive={page === i}
-              className={`cursor-pointer ${page === i ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+              className={`cursor-pointer ${
+                page === i ? "bg-blue-600 text-white hover:bg-blue-700" : ""
+              }`}
             >
               {i}
             </PaginationLink>
@@ -233,7 +245,11 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
           <PaginationLink
             onClick={() => onPageChange(totalPages)}
             isActive={page === totalPages}
-            className={`cursor-pointer ${page === totalPages ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+            className={`cursor-pointer ${
+              page === totalPages
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : ""
+            }`}
           >
             {totalPages}
           </PaginationLink>
@@ -260,219 +276,294 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
   const primaryButton = actionButtons.length > 0 ? actionButtons[0] : null;
   const secondaryButtons = actionButtons.slice(1);
 
-
-   const content = (
-        <div className="flex flex-col h-full">
-        {/* Fixed Header - Responsive */}
-        <div className="bg-white border-b border-gray-200 p-3 sm:p-4 flex-shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            {/* Left side - Stats (Desktop) / Stats Dialog (Mobile) */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              {/* Mobile: Stats Dialog */}
-              <div className="sm:hidden">
-                <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2 bg-gray-50 hover:bg-gray-100"
-                    >
-                      <BarChart3 className="h-4 w-4 mr-1" />
-                      <span className="text-xs">Stats</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Statistics</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-3 py-4">
-                      {statChips.map((chip, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border"
-                        >
-                          <span className="text-sm font-medium text-gray-700">
-                            {chip.label}
-                          </span>
-                          <Badge
-                            variant={chip.variant || "outline"}
-                            className={`
-                              ${chip.bgColor || "bg-gray-100"} 
-                              ${chip.textColor || ""} 
-                              ${chip.hoverColor || ""}
-                            `}
-                          >
-                            {chip.value}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {/* Desktop: Stats Chips */}
-              <div className="hidden sm:flex flex-wrap items-center gap-2">
-                {statChips.map((chip, index) => (
-                  <Badge
-                    key={index}
-                    variant={chip.variant || "outline"}
-                    className={`
-                      px-3 py-1 text-sm
-                      ${chip.bgColor || "bg-gray-100"} 
-                      ${chip.textColor || ""} 
-                      ${chip.hoverColor || "hover:bg-gray-100"}
-                      whitespace-nowrap
-                    `}
+  const content = (
+    <div className="flex flex-col h-full">
+      {/* Fixed Header - Responsive */}
+      <div className="bg-white border-b border-gray-200 p-3 sm:p-4 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          {/* Left side - Stats (Desktop) / Stats Dialog (Mobile) */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* Mobile: Stats Dialog */}
+            <div className="sm:hidden">
+              <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 bg-gray-50 hover:bg-gray-100"
                   >
-                    {chip.label}: {chip.value}
-                  </Badge>
-                ))}
-              </div>
+                    <BarChart3 className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Stats</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Statistics</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-3 py-4">
+                    {statChips.map((chip, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center justify-between p-3 rounded-lg bg-gray-50 border ${
+                          chip.onClick ? "cursor-pointer hover:bg-gray-100" : ""
+                        }`}
+                        onClick={chip.onClick}
+                      >
+                        <span className="text-sm font-medium text-gray-700">
+                          {chip.label}
+                        </span>
+                        <Badge
+                          variant={chip.variant || "outline"}
+                          className={`
+          ${chip.bgColor || "bg-gray-100"} 
+          ${chip.textColor || ""} 
+          ${chip.hoverColor || ""}
+        `}
+                        >
+                          {chip.value}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
-            {/* Right side - Action buttons */}
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Refresh Button */}
+            {/* Desktop: Stats Chips */}
+            <div className="hidden sm:flex flex-wrap items-center gap-2">
+              {statChips.map((chip, index) => (
+                <Badge
+                  key={index}
+                  variant={chip.variant || "outline"}
+                  className={`
+        px-3 py-1 text-sm
+        ${chip.bgColor || "bg-gray-100"} 
+        ${chip.textColor || ""} 
+        ${chip.hoverColor || "hover:bg-gray-100"}
+        whitespace-nowrap
+        ${chip.onClick ? "cursor-pointer" : ""}
+      `}
+                  onClick={chip.onClick}
+                >
+                  {chip.label}: {chip.value}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Right side - Action buttons */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Refresh Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="h-8 w-8 sm:h-9 sm:w-9 p-0 bg-gray-50 hover:bg-gray-100"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Refresh Data</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Primary Action Button (Always visible) */}
+            {primaryButton && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outline"
+                      variant={primaryButton.variant || "outline"}
                       size="sm"
-                      onClick={onRefresh}
-                      disabled={isLoading}
-                      className="h-8 w-8 sm:h-9 sm:w-9 p-0 bg-gray-50 hover:bg-gray-100"
+                      onClick={primaryButton.onClick}
+                      disabled={primaryButton.disabled}
+                      className={`h-8 w-8 sm:h-9 sm:w-9 p-0 ${
+                        primaryButton.className || ""
+                      }`}
                     >
-                      <RefreshCw
-                        className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-                      />
+                      {primaryButton.icon}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Refresh Data</p>
+                    <p>{primaryButton.tooltip}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+            )}
 
-              {/* Primary Action Button (Always visible) */}
-              {primaryButton && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+            {/* Mobile: More Actions Popover (for secondary buttons) */}
+            {secondaryButtons.length > 0 && (
+              <>
+                <div className="sm:hidden">
+                  <Popover
+                    open={moreActionsOpen}
+                    onOpenChange={setMoreActionsOpen}
+                  >
+                    <PopoverTrigger asChild>
                       <Button
-                        variant={primaryButton.variant || "outline"}
+                        variant="outline"
                         size="sm"
-                        onClick={primaryButton.onClick}
-                        disabled={primaryButton.disabled}
-                        className={`h-8 w-8 sm:h-9 sm:w-9 p-0 ${primaryButton.className || ""}`}
+                        className="h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100"
                       >
-                        {primaryButton.icon}
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{primaryButton.tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2" align="end">
+                      <div className="flex flex-col gap-1">
+                        {secondaryButtons.map((button, index) => (
+                          <Button
+                            key={index}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              button.onClick();
+                              setMoreActionsOpen(false);
+                            }}
+                            disabled={button.disabled}
+                            className="w-full justify-start h-9"
+                          >
+                            <span className="mr-2">{button.icon}</span>
+                            <span className="text-sm">{button.tooltip}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              {/* Mobile: More Actions Popover (for secondary buttons) */}
-              {secondaryButtons.length > 0 && (
-                <>
-                  <div className="sm:hidden">
-                    <Popover open={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48 p-2" align="end">
-                        <div className="flex flex-col gap-1">
-                          {secondaryButtons.map((button, index) => (
-                            <Button
-                              key={index}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                button.onClick();
-                                setMoreActionsOpen(false);
-                              }}
-                              disabled={button.disabled}
-                              className="w-full justify-start h-9"
-                            >
-                              <span className="mr-2">{button.icon}</span>
-                              <span className="text-sm">{button.tooltip}</span>
-                            </Button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* Desktop: All Action Buttons */}
-                  <div className="hidden sm:flex items-center gap-2">
-                    {secondaryButtons.map((button, index) => (
-                      <TooltipProvider key={index}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant={button.variant || "outline"}
-                              size="sm"
-                              onClick={button.onClick}
-                              disabled={button.disabled}
-                              className={`h-9 w-9 p-0 ${button.className || ""}`}
-                            >
-                              {button.icon}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{button.tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+                {/* Desktop: All Action Buttons */}
+                <div className="hidden sm:flex items-center gap-2">
+                  {secondaryButtons.map((button, index) => (
+                    <TooltipProvider key={index}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={button.variant || "outline"}
+                            size="sm"
+                            onClick={button.onClick}
+                            disabled={button.disabled}
+                            className={`h-9 w-9 p-0 ${button.className || ""}`}
+                          >
+                            {button.icon}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{button.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-hidden">
-          <Card className="h-full flex flex-col border-0 shadow-none">
-            <CardContent className="flex-1 overflow-hidden p-0">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <div className="h-full overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-white z-10 border-b shadow-sm">
-                      {renderTableHeader()}
-                    </TableHeader>
-                    <TableBody>{renderTableBody()}</TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-hidden">
+        <Card className="h-full flex flex-col border-0 shadow-none">
+          <CardContent className="flex-1 overflow-hidden p-0">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="h-full overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-white z-10 border-b shadow-sm">
+                    {renderTableHeader()}
+                  </TableHeader>
+                  <TableBody>{renderTableBody()}</TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fixed Footer with Pagination - Responsive */}
+      <div className="bg-white border-t border-gray-200 py-2 px-3 sm:px-4 flex-shrink-0">
+        {/* Mobile Layout (Below 640px) */}
+        <div className="flex sm:hidden items-center justify-between gap-2">
+          {/* Left: Pagination Checkbox */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Checkbox
+              id="pagination-mobile"
+              checked={paginationEnabled}
+              onCheckedChange={(checked) =>
+                handlePaginationToggle(checked as boolean)
+              }
+              className="h-4 w-4"
+            />
+            <Label
+              htmlFor="pagination-mobile"
+              className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
+            >
+              Pagination
+            </Label>
+          </div>
+
+          {/* Center: Prev/Next Buttons */}
+          {paginationEnabled && totalPages > 0 && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => page > 1 && onPageChange(page - 1)}
+                disabled={page <= 1}
+                className="h-7 px-2"
+              >
+                <ChevronLeft className="h-3 w-3 mr-1" />
+                <span className="text-xs">Prev</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => page < totalPages && onPageChange(page + 1)}
+                disabled={page >= totalPages}
+                className="h-7 px-2"
+              >
+                <span className="text-xs">Next</span>
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+          )}
+
+          {/* Right: Go to Page */}
+          {paginationEnabled && totalPages > 0 && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                Go:
+              </Label>
+              <Select
+                value={page.toString()}
+                onValueChange={(value) => onPageChange(parseInt(value))}
+              >
+                <SelectTrigger className="h-7 w-12 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>{getPageOptions()}</SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        {/* Fixed Footer with Pagination - Responsive */}
-        <div className="bg-white border-t border-gray-200 py-2 px-3 sm:px-4 flex-shrink-0">
-          {/* Mobile Layout (Below 640px) */}
-          <div className="flex sm:hidden items-center justify-between gap-2">
-            {/* Left: Pagination Checkbox */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Desktop Layout (640px and above) */}
+        <div className="hidden sm:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          {/* Left side - Pagination controls */}
+          <div className="flex items-center justify-between sm:justify-start gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
               <Checkbox
-                id="pagination-mobile"
+                id="pagination"
                 checked={paginationEnabled}
                 onCheckedChange={(checked) =>
                   handlePaginationToggle(checked as boolean)
@@ -480,191 +571,125 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                 className="h-4 w-4"
               />
               <Label
-                htmlFor="pagination-mobile"
-                className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
+                htmlFor="pagination"
+                className="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
               >
                 Pagination
               </Label>
             </div>
 
-            {/* Center: Prev/Next Buttons */}
-            {paginationEnabled && totalPages > 0 && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => page > 1 && onPageChange(page - 1)}
-                  disabled={page <= 1}
-                  className="h-7 px-2"
-                >
-                  <ChevronLeft className="h-3 w-3 mr-1" />
-                  <span className="text-xs">Prev</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => page < totalPages && onPageChange(page + 1)}
-                  disabled={page >= totalPages}
-                  className="h-7 px-2"
-                >
-                  <span className="text-xs">Next</span>
-                  <ChevronRight className="h-3 w-3 ml-1" />
-                </Button>
-              </div>
-            )}
-
-            {/* Right: Go to Page */}
-            {paginationEnabled && totalPages > 0 && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">
-                  Go:
+            {paginationEnabled && (
+              <div className="flex items-center gap-2 sm:ml-4">
+                <Label className="text-sm text-muted-foreground whitespace-nowrap">
+                  Rows:
                 </Label>
                 <Select
-                  value={page.toString()}
-                  onValueChange={(value) => onPageChange(parseInt(value))}
+                  value={rowsPerPage.toString()}
+                  onValueChange={onRowsPerPageChange}
                 >
-                  <SelectTrigger className="h-7 w-12 text-xs">
+                  <SelectTrigger className="h-7 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {getPageOptions()}
+                    <SelectItem value="10" className="text-xs">
+                      10
+                    </SelectItem>
+                    <SelectItem value="20" className="text-xs">
+                      20
+                    </SelectItem>
+                    <SelectItem value="50" className="text-xs">
+                      50
+                    </SelectItem>
+                    <SelectItem value="100" className="text-xs">
+                      100
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
           </div>
 
-          {/* Desktop Layout (640px and above) */}
-          <div className="hidden sm:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-            {/* Left side - Pagination controls */}
-            <div className="flex items-center justify-between sm:justify-start gap-4 w-full sm:w-auto">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="pagination"
-                  checked={paginationEnabled}
-                  onCheckedChange={(checked) =>
-                    handlePaginationToggle(checked as boolean)
-                  }
-                  className="h-4 w-4"
-                />
-                <Label
-                  htmlFor="pagination"
-                  className="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
-                >
-                  Pagination
-                </Label>
-              </div>
+          {/* Center - Pagination navigation */}
+          {paginationEnabled && totalPages > 0 && (
+            <div className="flex items-center justify-center w-full sm:w-auto">
+              <Pagination className="justify-center">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => page > 1 && onPageChange(page - 1)}
+                      className={
+                        page <= 1
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
 
-              {paginationEnabled && (
-                <div className="flex items-center gap-2 sm:ml-4">
+                  {/* Always show page 1 when there's only one page */}
+                  {totalPages === 1 ? (
+                    <PaginationItem>
+                      <PaginationLink
+                        isActive={true}
+                        className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                  ) : (
+                    getPaginationItems()
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        page < totalPages && onPageChange(page + 1)
+                      }
+                      className={
+                        page >= totalPages
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+
+          {/* Right side - Go to page and info */}
+          <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+            {paginationEnabled && totalPages > 0 && (
+              <>
+                <div className="flex items-center gap-2">
                   <Label className="text-sm text-muted-foreground whitespace-nowrap">
-                    Rows:
+                    Go to:
                   </Label>
                   <Select
-                    value={rowsPerPage.toString()}
-                    onValueChange={onRowsPerPageChange}
+                    value={page.toString()}
+                    onValueChange={(value) => onPageChange(parseInt(value))}
                   >
-                    <SelectTrigger className="h-7 w-20 text-xs">
+                    <SelectTrigger className="h-7 w-16 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10" className="text-xs">10</SelectItem>
-                      <SelectItem value="20" className="text-xs">20</SelectItem>
-                      <SelectItem value="50" className="text-xs">50</SelectItem>
-                      <SelectItem value="100" className="text-xs">100</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{getPageOptions()}</SelectContent>
                   </Select>
                 </div>
-              )}
-            </div>
 
-            {/* Center - Pagination navigation */}
-            {paginationEnabled && totalPages > 0 && (
-              <div className="flex items-center justify-center w-full sm:w-auto">
-                <Pagination className="justify-center">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => page > 1 && onPageChange(page - 1)}
-                        className={
-                          page <= 1
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-
-                    {/* Always show page 1 when there's only one page */}
-                    {totalPages === 1 ? (
-                      <PaginationItem>
-                        <PaginationLink
-                          isActive={true}
-                          className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
-                        >
-                          1
-                        </PaginationLink>
-                      </PaginationItem>
-                    ) : (
-                      getPaginationItems()
-                    )}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          page < totalPages && onPageChange(page + 1)
-                        }
-                        className={
-                          page >= totalPages
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
+                <div className="hidden lg:flex text-sm text-muted-foreground whitespace-nowrap">
+                  Total: {totalCount}
+                </div>
+              </>
             )}
-
-            {/* Right side - Go to page and info */}
-            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-              {paginationEnabled && totalPages > 0 && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm text-muted-foreground whitespace-nowrap">
-                      Go to:
-                    </Label>
-                    <Select
-                      value={page.toString()}
-                      onValueChange={(value) => onPageChange(parseInt(value))}
-                    >
-                      <SelectTrigger className="h-7 w-16 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getPageOptions()}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="hidden lg:flex text-sm text-muted-foreground whitespace-nowrap">
-                    Total: {totalCount}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </div>
       </div>
-   )
+    </div>
+  );
 
   if (disableDashboardLayout) {
     return content;
   }
-  return (
-     <DashboardLayout title={title}>
-      {content}
-    </DashboardLayout>
-  );
+  return <DashboardLayout title={title}>{content}</DashboardLayout>;
 };
 
 export default DataTableLayout;
