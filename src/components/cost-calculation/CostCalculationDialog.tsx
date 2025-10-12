@@ -26,6 +26,8 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
   const [editingCostType, setEditingCostType] = useState<any>(null);
   const [addOnExpenses, setAddOnExpenses] = useState<any[]>([]);
   const [externalPricingOpen, setExternalPricingOpen] = useState(false);
+  const [externalApiEvaluations, setExternalApiEvaluations] = useState<any[]>([]);
+
 
   const companyCurrency = completeUser?.company_id?.currency;
 
@@ -108,16 +110,20 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
       if (vehicle.cost_details && vehicle.cost_details.addon_expenses) {
         setAddOnExpenses(vehicle.cost_details.addon_expenses);
       }
+        if (vehicle?.cost_details?.external_api_evaluations) {
+      setExternalApiEvaluations(vehicle.cost_details.external_api_evaluations);
+    }
     }
   }, [costConfig, vehicle]);
 
   // Save mutation
-  const saveMutation = useMutation({
+   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       return await commonVehicleServices.saveVehicleCostDetails(vehicle._id, vehicle.vehicle_type, {
         cost_details: {
           ...data,
           addon_expenses: addOnExpenses,
+          external_api_evaluations: externalApiEvaluations,
         },
       });
     },
@@ -131,17 +137,11 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
   });
 
   const handleApplyExternalPricing = (pricingData: any) => {
-    console.log(pricingData)
-    // Save external API evaluation to vehicle
     const updatedEvaluations = [
       ...(vehicle.cost_details?.external_api_evaluations || []),
       pricingData,
     ];
-console.log("Payload sent to API:", {
-  ...costData,
-  external_api_evaluations: updatedEvaluations,
-});
-
+    setExternalApiEvaluations(updatedEvaluations);
     saveMutation.mutate({
       ...costData,
       external_api_evaluations: updatedEvaluations,
@@ -163,7 +163,10 @@ console.log("Payload sent to API:", {
   };
 
   const handleSave = () => {
-    saveMutation.mutate(costData);
+   saveMutation.mutate({
+      ...costData,
+      external_api_evaluations: externalApiEvaluations,
+    });
   };
 
   const getTaxTypeLabel = (taxType: string) => {
@@ -572,6 +575,7 @@ console.log("Payload sent to API:", {
         onClose={() => setExternalPricingOpen(false)}
         vehicle={vehicle}
         onApplyPricing={handleApplyExternalPricing}
+        previousEvaluationData={externalApiEvaluations}
       />
     </Dialog>
   );

@@ -17,6 +17,7 @@ interface ExternalApiPricingDialogProps {
   onClose: () => void;
   vehicle: any;
   onApplyPricing?: (pricingData: any) => void;
+  previousEvaluationData?: any[]; // Add this
 }
 
 interface Integration {
@@ -87,7 +88,8 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
   open, 
   onClose, 
   vehicle,
-  onApplyPricing 
+  onApplyPricing ,
+  previousEvaluationData
 }) => {
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
   const [searchType, setSearchType] = useState<"rego" | "vin">("rego");
@@ -112,7 +114,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
   // Load previous evaluations if available
   React.useEffect(() => {
     if (vehicle?.cost_details?.external_api_evaluations) {
-      setPreviousEvaluations(vehicle.cost_details.external_api_evaluations);
+      setPreviousEvaluations(vehicle.cost_details.external_api_evaluations || previousEvaluationData);
     }
   }, [vehicle]);
 
@@ -207,13 +209,8 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
   // Main AutoGrab API call function
   const fetchAutoGrabPricing = async (integration: Integration) => {
     try {
-      // Step 1: Get vehicle details
       const vehicleDetails = await fetchAutoGrabVehicleDetails(integration);
-      
-      // Step 2: Get valuation using the vehicle ID
       const valuation = await fetchAutoGrabValuation(integration, vehicleDetails.id);
-
-      // Transform AutoGrab response to our format
       return {
         integration_type: integration.integration_type,
         display_name: integration.display_name,
@@ -240,20 +237,19 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
           num_seats: vehicleDetails.num_seats,
         },
         valuations: {
-          // AutoGrab provides retail_price and trade_price directly
-          trade_in_low: Math.round(valuation.trade_price * 0.9), // Estimate low as 90% of trade price
+          trade_in_low: Math.round(valuation.trade_price * 0.9), 
           trade_in_average: valuation.trade_price,
-          trade_in_high: Math.round(valuation.trade_price * 1.1), // Estimate high as 110% of trade price
-          retail_low: Math.round(valuation.retail_price * 0.9), // Estimate low as 90% of retail price
+          trade_in_high: Math.round(valuation.trade_price * 1.1),
+          retail_low: Math.round(valuation.retail_price * 0.9),
           retail_average: valuation.retail_price,
-          retail_high: Math.round(valuation.retail_price * 1.1), // Estimate high as 110% of retail price
-          wholesale: valuation.trade_price, // Using trade price as wholesale
+          retail_high: Math.round(valuation.retail_price * 1.1),
+          wholesale: valuation.trade_price,
         },
         prediction_details: {
           prediction_id: valuation.id,
           score: valuation.score,
           kms: valuation.kms,
-          condition_score: 3, // Default we used
+          condition_score: 3, 
           adjustment: valuation.adjustment,
         },
         specifications: {
@@ -560,7 +556,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
 
               <div className="mt-4 flex justify-end">
                 <Button onClick={() => handleApplyPricing(searchResults)} size="sm">
-                  Apply to Cost Details
+                 Save Pricing Snapshot
                 </Button>
               </div>
             </div>
