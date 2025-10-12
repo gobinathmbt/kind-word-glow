@@ -40,6 +40,22 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
     enabled: open && !!vehicle,
   });
 
+    const getValueFromVehicleDetails = (costType: string) => {
+    if (!vehicle?.vehicle_other_details?.[0]) return null;
+    
+    const vehicleDetails = vehicle.vehicle_other_details[0];
+    
+    const fieldMapping: { [key: string]: string } = {
+      'purchase_price': 'purchase_price',
+      'retail_price': 'retail_price',
+      'sold_price': 'sold_price'
+    };
+    
+    const fieldName = fieldMapping[costType];
+    return fieldName ? vehicleDetails[fieldName] : null;
+  };
+
+
   // Initialize cost data with existing values or defaults
  useEffect(() => {
     if (costConfig && vehicle) {
@@ -47,15 +63,15 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
 
       costConfig.sections?.forEach((section: any) => {
         section.cost_types.forEach((costType: any) => {
-          // Check if vehicle has existing cost_details
           if (vehicle.cost_details && vehicle.cost_details[costType._id]) {
             initialData[costType._id] = vehicle.cost_details[costType._id];
           } else {
-            // Initialize with default values - prioritize default_value if available
-            const defaultValue = parseFloat(costType.default_value) || 0;
-            const netAmount = defaultValue > 0 ? defaultValue.toString() : "0";
+            const vehicleDetailsValue = getValueFromVehicleDetails(costType.cost_type);
+            const defaultValue = vehicleDetailsValue !== null ? 
+              vehicleDetailsValue : 
+              (parseFloat(costType.default_value) || 0);
             
-            // Calculate tax based on default values
+            const netAmount = defaultValue > 0 ? defaultValue.toString() : "0";
             const taxRate = costType.default_tax_rate || "0";
             const taxType = costType.default_tax_type || "exclusive";
             
@@ -94,6 +110,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
       }
     }
   }, [costConfig, vehicle]);
+
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {

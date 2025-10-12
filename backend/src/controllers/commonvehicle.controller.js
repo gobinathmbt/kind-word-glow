@@ -272,6 +272,9 @@ const getPricingReadyVehicles = async (req, res) => {
       cost_details: 1,
       created_at: 1,
       dealership_id: 1,
+        "vehicle_other_details": {
+        $slice: 1 // Get only the first (latest) entry
+      },
       vehicle_source: { $arrayElemAt: ["$vehicle_source", 0] }, // Get first element from vehicle_source array
     };
 

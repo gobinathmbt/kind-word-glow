@@ -28,6 +28,24 @@ import { useAuth } from "@/auth/AuthContext";
 import { MoveHorizontal } from "lucide-react";
 import BulkOperationsDialog from "@/components/common/BulkOperationsDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+
+interface StatChip {
+  label: string;
+  value: string | number;
+  variant: "default" | "outline";
+  bgColor: string;
+  textColor: string;
+  hoverColor: string;
+  onClick?: () => void; // optional handler
+}
+
 
 const MasterVehicleList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,6 +59,7 @@ const MasterVehicleList = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
 
@@ -141,6 +160,7 @@ const MasterVehicleList = () => {
   });
 
   const vehicles = vehiclesData?.data || [];
+  const statusCounts = vehiclesData?.statusCounts || {};
 
   // Sort vehicles when not using pagination
   const sortedVehicles = React.useMemo(() => {
@@ -272,47 +292,48 @@ const MasterVehicleList = () => {
   ).length;
   const failedCount = vehicles.filter((v: any) => v.status === "failed").length;
 
-  // Prepare stat chips
-  const statChips = [
-    {
-      label: "Total",
-      value: totalVehicles,
-      variant: "outline" as const,
-      bgColor: "bg-gray-100",
-    },
-    {
-      label: "Pending",
-      value: pendingCount,
-      variant: "secondary" as const,
-      bgColor: "bg-yellow-100",
-      textColor: "text-yellow-800",
-      hoverColor: "hover:bg-yellow-100",
-    },
-    {
-      label: "Processing",
-      value: processingCount,
-      variant: "default" as const,
-      bgColor: "bg-blue-100",
-      textColor: "text-blue-800",
-      hoverColor: "hover:bg-blue-100",
-    },
-    {
-      label: "Completed",
-      value: completedCount,
-      variant: "default" as const,
-      bgColor: "bg-green-100",
-      textColor: "text-green-800",
-      hoverColor: "hover:bg-green-100",
-    },
-    {
-      label: "Failed",
-      value: failedCount,
-      variant: "destructive" as const,
-      bgColor: "bg-red-100",
-      textColor: "text-red-800",
-      hoverColor: "hover:bg-red-100",
-    },
-  ];
+  const allStatChips = React.useMemo(() => {
+    const chips: StatChip[] = [
+      {
+        label: "Total",
+        value: vehiclesData?.total || 0,
+        variant: "default" as const,
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        hoverColor: "hover:bg-blue-100",
+      },
+    ];
+
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      chips.push({
+        label: formatApiNames(status),
+        value: count as number,
+        variant: "default" as const,
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        hoverColor: "hover:bg-blue-100",
+      });
+    });
+
+    if (chips.length > 5) {
+      const visible = chips.slice(0, 5);
+      visible.push({
+        label: "More...",
+        value: "" as const,
+        variant: "default" as const,
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-700",
+        hoverColor: "hover:bg-gray-200",
+        onClick: () => setShowAllStatusChips(true),
+      });
+      return visible;
+    }
+
+    return chips;
+  }, [vehiclesData, statusCounts]);
+
+  const visibleStatChips = allStatChips.slice(0, 4);
+
 
   // Prepare action buttons
   const actionButtons = [
@@ -515,7 +536,7 @@ const MasterVehicleList = () => {
         data={sortedVehicles}
         isLoading={isLoading}
         totalCount={vehiclesData?.total || 0}
-        statChips={statChips}
+           statChips={visibleStatChips}
         actionButtons={actionButtons}
         page={page}
         rowsPerPage={rowsPerPage}
@@ -571,6 +592,28 @@ const MasterVehicleList = () => {
         filterOptions={STATUS_FILTER_OPTIONS}
         filterLabel="Status"
       />
+        <Dialog open={showAllStatusChips} onOpenChange={setShowAllStatusChips}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>All Status Counts</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+            {allStatChips.map((chip, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 rounded-lg bg-blue-100 border border-blue-200"
+              >
+                <span className="text-sm font-medium text-blue-800">
+                  {chip.label}
+                </span>
+                <span className="text-lg font-bold text-blue-900">
+                  {chip.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

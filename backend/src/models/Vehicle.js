@@ -110,6 +110,10 @@ const VehicleSchema = new mongoose.Schema({
       retail_price: Number,
       sold_price: { type: Number, default: 0 },
       included_in_exports: { type: Boolean, default: true },
+       created_at: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 

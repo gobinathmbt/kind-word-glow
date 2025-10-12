@@ -23,6 +23,24 @@ import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { formatApiNames } from "@/utils/GlobalUtils";
 import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+
+interface StatChip {
+  label: string;
+  value: string | number;
+  variant: "default" | "outline";
+  bgColor: string;
+  textColor: string;
+  hoverColor: string;
+  onClick?: () => void; // optional handler
+}
+
 
 const VehiclePricingList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,6 +54,7 @@ const VehiclePricingList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [costCalculationOpen, setCostCalculationOpen] = useState(false);
   const [selectedVehicleForCost, setSelectedVehicleForCost] = useState<any>(null);
+  const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
 
@@ -136,6 +155,7 @@ const VehiclePricingList = () => {
   });
 
   const vehicles = vehiclesData?.data || [];
+  const statusCounts = vehiclesData?.statusCounts || {};
 
   // Sort vehicles when not using pagination
   const sortedVehicles = React.useMemo(() => {
@@ -224,16 +244,48 @@ const VehiclePricingList = () => {
   // Calculate counts for chips
   const totalVehicles = vehiclesData?.total || 0;
 
-  // Prepare stat chips
-  const statChips = [
-    {
-      label: "Total Ready",
-      value: totalVehicles,
-      variant: "outline" as const,
-      bgColor: "bg-blue-100",
-      textColor: "text-blue-800",
-    },
-  ];
+  const allStatChips = React.useMemo(() => {
+    const chips: StatChip[] = [
+      {
+        label: "Total",
+        value: vehiclesData?.total || 0,
+        variant: "default" as const,
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        hoverColor: "hover:bg-blue-100",
+      },
+    ];
+
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      chips.push({
+        label: formatApiNames(status),
+        value: count as number,
+        variant: "default" as const,
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        hoverColor: "hover:bg-blue-100",
+      });
+    });
+
+    if (chips.length > 5) {
+      const visible = chips.slice(0, 5);
+      visible.push({
+        label: "More...",
+        value: "" as const,
+        variant: "default" as const,
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-700",
+        hoverColor: "hover:bg-gray-200",
+        onClick: () => setShowAllStatusChips(true),
+      });
+      return visible;
+    }
+
+    return chips;
+  }, [vehiclesData, statusCounts]);
+
+  const visibleStatChips = allStatChips.slice(0, 4);
+
 
   // Prepare action buttons
   const actionButtons = [
@@ -406,7 +458,7 @@ const VehiclePricingList = () => {
         data={sortedVehicles}
         isLoading={isLoading}
         totalCount={vehiclesData?.total || 0}
-        statChips={statChips}
+           statChips={visibleStatChips}
         actionButtons={actionButtons}
         page={page}
         rowsPerPage={rowsPerPage}
@@ -433,6 +485,28 @@ const VehiclePricingList = () => {
         }}
         vehicle={selectedVehicleForCost}
       />
+        <Dialog open={showAllStatusChips} onOpenChange={setShowAllStatusChips}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>All Status Counts</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+            {allStatChips.map((chip, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 rounded-lg bg-blue-100 border border-blue-200"
+              >
+                <span className="text-sm font-medium text-blue-800">
+                  {chip.label}
+                </span>
+                <span className="text-lg font-bold text-blue-900">
+                  {chip.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

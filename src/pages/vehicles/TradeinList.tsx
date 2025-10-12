@@ -335,7 +335,6 @@ const TradeinList = () => {
   }, [vehiclesData, statusCounts]);
 
   const visibleStatChips = allStatChips.slice(0, 4);
-  const hasMoreChips = allStatChips.length > 4;
 
   const actionButtons = [
     {

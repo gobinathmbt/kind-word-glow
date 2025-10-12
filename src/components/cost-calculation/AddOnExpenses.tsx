@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +56,7 @@ interface AddOnExpense {
   total_tax: string;
   total_amount: string;
   is_estimated: boolean;
+  imported_from?: string; // Track imported workshop entry ID
 }
 
 interface AddOnExpensesProps {
@@ -134,6 +135,30 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
 
   const suppliers = suppliersData?.data || [];
   const dealerships = dealershipsData || [];
+
+  // Filter out already imported workshop entries
+  const filteredWorkshopReports = useMemo(() => {
+    if (!workshopReportsData?.reports) return [];
+
+    return workshopReportsData.reports.map((report: any) => ({
+      ...report,
+      quotes_data: report.quotes_data?.map((quote: any) => ({
+        ...quote,
+        work_details: {
+          ...quote.work_details,
+          work_entries: quote.work_details?.work_entries?.filter((entry: any) => {
+            return !expenses.some(expense => 
+              expense.imported_from === entry._id
+            );
+          }) || []
+        }
+      })).filter((quote: any) => 
+        quote.work_details?.work_entries?.length > 0
+      )
+    })).filter((report: any) => 
+      report.quotes_data?.length > 0
+    );
+  }, [workshopReportsData, expenses]);
 
   const calculateTax = (netAmount: string, taxRate: string, taxType: string) => {
     const net = parseFloat(netAmount) || 0;
@@ -293,6 +318,7 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
       total_tax: gst,
       total_amount: (parseFloat(totalAmount) + parseFloat(gst)).toFixed(2),
       is_estimated: false,
+      imported_from: entry._id, // Track which workshop entry this was imported from
     };
 
     onChange([...expenses, newExpense]);
@@ -309,9 +335,19 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
             variant="outline"
             onClick={handleOpenImportDialog}
             className="h-8 gap-2"
+            disabled={filteredWorkshopReports.length === 0}
           >
             <FileUp className="h-3.5 w-3.5" />
             Import
+            {filteredWorkshopReports.length > 0 && (
+              <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs min-w-[20px]">
+                {filteredWorkshopReports.reduce((total, report) => 
+                  total + report.quotes_data.reduce((quoteTotal, quote) => 
+                    quoteTotal + (quote.work_details?.work_entries?.length || 0), 0
+                  ), 0
+                )}
+              </span>
+            )}
           </Button>
           <Button
             size="sm"
@@ -380,6 +416,7 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
                   <TableCell className={`text-xs ${expense.is_estimated ? 'text-amber-600' : 'text-green-600'}`}>
                     {expense.currency?.symbol} {expense.total_amount}
                     {expense.is_estimated && " (Est)"}
+                    {expense.imported_from && " (Imported)"}
                   </TableCell>
                   <TableCell className={`text-xs ${expense.is_estimated ? 'text-amber-600' : 'text-green-600'}`}>
                     {companyCurrency} {(parseFloat(expense.total_amount) * expense.exchange_rate).toFixed(2)}
@@ -554,53 +591,59 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
           </DialogHeader>
 
           <ScrollArea className="max-h-[70vh]">
-            {workshopReportsData?.reports?.map((report: any) => (
-              <div key={report._id} className="space-y-4 mb-6">
-                <div className="font-semibold text-sm bg-muted/50 p-2 rounded">
-                  {report.stage_name || "Workshop Report"}
-                </div>
-                {report.quotes_data?.map((quote: any) => (
-                  <div key={quote._id} className="border rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">{quote.field_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Supplier: {quote.approved_supplier?.supplier_name || "N/A"}
+            {filteredWorkshopReports.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No available workshop entries to import
+              </div>
+            ) : (
+              filteredWorkshopReports.map((report: any) => (
+                <div key={report._id} className="space-y-4 mb-6">
+                  <div className="font-semibold text-sm bg-muted/50 p-2 rounded">
+                    {report.stage_name || "Workshop Report"}
+                  </div>
+                  {report.quotes_data?.map((quote: any) => (
+                    <div key={quote._id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">{quote.field_name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Supplier: {quote.approved_supplier?.supplier_name || "N/A"}
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold">
+                          Total: {companyCurrency} {quote.work_details?.total_amount?.toFixed(2) || "0.00"}
                         </div>
                       </div>
-                      <div className="text-sm font-semibold">
-                        Total: {companyCurrency} {quote.work_details?.total_amount?.toFixed(2) || "0.00"}
-                      </div>
-                    </div>
-                    
-                    {quote.work_details?.work_entries?.length > 0 && (
-                      <div className="space-y-1">
-                        {quote.work_details.work_entries.map((entry: any) => (
-                          <div
-                            key={entry._id}
-                            className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded hover:bg-muted/50"
-                          >
-                            <div className="flex-1">
-                              <div>{entry.description}</div>
-                              <div className="text-muted-foreground">
-                                Parts: {entry.parts_cost} | Labor: {entry.labor_cost} | GST: {entry.gst}
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleImportWorkshopEntry(quote, entry)}
-                              className="h-7 bg-purple-600 hover:bg-purple-700"
+                      
+                      {quote.work_details?.work_entries?.length > 0 && (
+                        <div className="space-y-1">
+                          {quote.work_details.work_entries.map((entry: any) => (
+                            <div
+                              key={entry._id}
+                              className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded hover:bg-muted/50"
                             >
-                              Import
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
+                              <div className="flex-1">
+                                <div>{entry.description}</div>
+                                <div className="text-muted-foreground">
+                                  Parts: {entry.parts_cost} | Labor: {entry.labor_cost} | GST: {entry.gst}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => handleImportWorkshopEntry(quote, entry)}
+                                className="h-7 bg-purple-600 hover:bg-purple-700"
+                              >
+                                Import
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </ScrollArea>
 
           <div className="flex justify-end pt-4">
