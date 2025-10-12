@@ -76,27 +76,24 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
     stages?: string[];
   } | null>(null);
 
-  // Fetch available stages based on vehicle type
+  // Fetch available stages and initial workshop status when modal opens
   useEffect(() => {
-    if (vehicle) {
+    if (vehicle && isOpen) {
+      // Fetch initial data when modal opens
       if (vehicle.vehicle_type === "inspection" && vehicle.inspection_result) {
         // For inspection vehicles, get stages from inspection_result
         const stages = vehicle.inspection_result
           .map((item: any) => item.category_name)
           .filter(Boolean);
         setAvailableStages(stages);
-      } else if (vehicle.vehicle_type === "tradein") {
+      } else if (vehicle.vehicle_type === "tradein" && vehicle.trade_in_result) {
         // For trade-in vehicles, get stages from configuration or use default stages
         const tradeinStages = vehicle.trade_in_result
           .map((item: any) => item.category_name)
           .filter(Boolean) || [];
         setAvailableStages(tradeinStages);
       }
-    }
-  }, [vehicle]);
 
-  useEffect(() => {
-    if (vehicle) {
       // Set selected stages based on current workshop status
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
@@ -107,7 +104,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       
       setIsPricingReady(vehicle.is_pricing_ready || false);
     }
-  }, [vehicle]);
+  }, [vehicle, isOpen]);
 
   if (!vehicle) return null;
 
@@ -384,7 +381,21 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                     onOpenChange={setModePopoverOpen}
                   >
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className={
+                          (vehicle.vehicle_type === "tradein" && 
+                           vehicle.trade_in_result && 
+                           vehicle.trade_in_result.length > 0)
+                            ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                            : (vehicle.vehicle_type === "inspection" && 
+                               vehicle.inspection_result && 
+                               vehicle.inspection_result.length > 0)
+                            ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                            : ""
+                        }
+                      >
                         {vehicle.vehicle_type === "inspection" ? (
                           <>
                             <ClipboardList className="h-4 w-4 mr-2" />
@@ -464,6 +475,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                     }}
                     variant="outline"
                     size="sm"
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                     onSuccess={onUpdate}
                   />
                   <Button

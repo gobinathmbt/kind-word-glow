@@ -23,10 +23,12 @@ interface CategorySectionProps {
   formNotes: any;
   formImages: any;
   formVideos: any;
+  formWorkshopFlags?: any;
   validationErrors: any;
   uploading: any;
   onFieldChange: (fieldId: string, value: any, isRequired: boolean) => void;
   onNotesChange: (fieldId: string, notes: string) => void;
+  onWorkshopFlagChange?: (fieldId: string, required: boolean) => void;
   onMultiSelectChange: (
     fieldId: string,
     value: string,
@@ -69,10 +71,12 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   formNotes,
   formImages,
   formVideos,
+  formWorkshopFlags,
   validationErrors,
   uploading,
   onFieldChange,
   onNotesChange,
+  onWorkshopFlagChange,
   onMultiSelectChange,
   onMultiplierChange,
   onFileUpload,
@@ -211,11 +215,13 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                               notes={formNotes[field.field_id] || ""}
                               images={formImages[field.field_id] || []}
                               videos={formVideos[field.field_id] || []}
+                              workshopWorkRequired={formWorkshopFlags?.[field.field_id]}
                               disabled={isViewMode}
                               hasError={validationErrors[field.field_id]}
                               uploading={uploading[field.field_id]}
                               onFieldChange={onFieldChange}
                               onNotesChange={onNotesChange}
+                              onWorkshopFlagChange={onWorkshopFlagChange}
                               onMultiSelectChange={onMultiSelectChange}
                               onMultiplierChange={onMultiplierChange}
                               onFileUpload={onFileUpload}

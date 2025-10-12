@@ -73,6 +73,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
   const [formNotes, setFormNotes] = useState<any>({});
   const [formImages, setFormImages] = useState<any>({});
   const [formVideos, setFormVideos] = useState<any>({});
+  const [formWorkshopFlags, setFormWorkshopFlags] = useState<any>({});
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportPdfUrl, setReportPdfUrl] = useState("");
   const [s3Config, setS3Config] = useState<S3Config | null>(null);
@@ -259,6 +260,8 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
           const completeFormImages: any = {};
           const completeFormVideos: any = {};
 
+          const completeFormWorkshopFlags: any = {};
+
           data.result.forEach((category: any) => {
             category.sections?.forEach((section: any) => {
               section.fields?.forEach((field: any) => {
@@ -269,6 +272,8 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
                   completeFormImages[field.field_id] = field.images;
                 if (field.videos)
                   completeFormVideos[field.field_id] = field.videos;
+                if (field.workshop_work_required !== undefined)
+                  completeFormWorkshopFlags[field.field_id] = field.workshop_work_required;
               });
             });
           });
@@ -277,6 +282,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
           setFormNotes(completeFormNotes);
           setFormImages(completeFormImages);
           setFormVideos(completeFormVideos);
+          setFormWorkshopFlags(completeFormWorkshopFlags);
         } else {
           // Fallback for old data structure
           const resultObj: any = {};
@@ -329,6 +335,15 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
     setFormNotes((prev) => ({
       ...prev,
       [fieldId]: notes,
+    }));
+  };
+
+  const handleWorkshopFlagChange = (fieldId: string, required: boolean) => {
+    if (isViewMode) return;
+
+    setFormWorkshopFlags((prev) => ({
+      ...prev,
+      [fieldId]: required,
     }));
   };
 
@@ -737,6 +752,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
             images: formImages[field.field_id] || [],
             videos: formVideos[field.field_id] || [],
             notes: formNotes[field.field_id] || "",
+            workshop_work_required: formWorkshopFlags[field.field_id] !== undefined ? formWorkshopFlags[field.field_id] : true,
             inspector_id: inspectorId,
             inspection_date: new Date().toISOString(),
           })),
@@ -770,6 +786,7 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
             images: formImages[field.field_id] || [],
             videos: formVideos[field.field_id] || [],
             notes: formNotes[field.field_id] || "",
+            workshop_work_required: formWorkshopFlags[field.field_id] !== undefined ? formWorkshopFlags[field.field_id] : true,
             inspector_id: inspectorId,
             inspection_date: new Date().toISOString(),
           })),
@@ -1164,10 +1181,12 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
           formNotes={formNotes}
           formImages={formImages}
           formVideos={formVideos}
+          formWorkshopFlags={formWorkshopFlags}
           validationErrors={validationErrors}
           uploading={uploading}
           onFieldChange={handleFieldChange}
           onNotesChange={handleNotesChange}
+          onWorkshopFlagChange={handleWorkshopFlagChange}
           onMultiSelectChange={handleMultiSelectChange}
           onMultiplierChange={handleMultiplierChange}
           onFileUpload={handleFileUpload}

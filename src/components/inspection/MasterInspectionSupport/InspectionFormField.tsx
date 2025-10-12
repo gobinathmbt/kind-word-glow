@@ -24,8 +24,15 @@ import {
   Maximize,
   Play,
   Plus,
+  Flag,
 } from "lucide-react";
 import { MediaItem } from "@/components/common/MediaViewer";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface InspectionFormFieldProps {
   field: any;
@@ -40,6 +47,7 @@ interface InspectionFormFieldProps {
   disabled: boolean;
   hasError: boolean;
   uploading: boolean;
+  workshopWorkRequired?: boolean;
   onFieldChange: (fieldId: string, value: any, isRequired: boolean) => void;
   onNotesChange: (fieldId: string, notes: string) => void;
   onMultiSelectChange: (
@@ -56,6 +64,7 @@ interface InspectionFormFieldProps {
   onFileUpload: (fieldId: string, file: File, isImage: boolean) => void;
   onRemoveImage: (fieldId: string, imageUrl: string) => void;
   onRemoveVideo: (fieldId: string, videoUrl: string) => void;
+  onWorkshopFlagChange?: (fieldId: string, required: boolean) => void;
   onEditWorkshopField?: (
     field: any,
     categoryIndex?: number,
@@ -86,6 +95,7 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
   disabled,
   hasError,
   uploading,
+  workshopWorkRequired,
   onFieldChange,
   onNotesChange,
   onMultiSelectChange,
@@ -93,6 +103,7 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
   onFileUpload,
   onRemoveImage,
   onRemoveVideo,
+  onWorkshopFlagChange,
   onEditWorkshopField,
   onDeleteWorkshopField,
   onOpenMediaViewer,
@@ -102,6 +113,9 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
   vehicleType,
 }) => {
   const fieldId = field.field_id;
+  const [localWorkshopFlag, setLocalWorkshopFlag] = useState(
+    workshopWorkRequired !== undefined ? workshopWorkRequired : true
+  );
 
   // Check if this is a workshop field
   const isWorkshopField = (field: any, section: any, category: any = null) => {
@@ -559,6 +573,42 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Workshop Work Required Flag */}
+          {!disabled && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`h-8 w-8 p-0 ${
+                      localWorkshopFlag
+                        ? "text-red-500 hover:text-red-600 hover:bg-red-50"
+                        : "text-green-500 hover:text-green-600 hover:bg-green-50"
+                    }`}
+                    onClick={() => {
+                      const newFlag = !localWorkshopFlag;
+                      setLocalWorkshopFlag(newFlag);
+                      onWorkshopFlagChange?.(fieldId, newFlag);
+                    }}
+                  >
+                    <Flag
+                      className="h-4 w-4"
+                      fill={localWorkshopFlag ? "currentColor" : "none"}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {localWorkshopFlag
+                      ? "Workshop Work Required"
+                      : "No Workshop Work Required"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Field Type Badge */}
           <Badge variant="secondary" className="text-xs hidden sm:flex">
             {field.field_type}
