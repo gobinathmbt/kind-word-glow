@@ -5,19 +5,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Clock, CheckCircle } from "lucide-react";
+import { Loader2, Search, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { integrationServices } from "@/api/services";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface ExternalApiPricingDialogProps {
   open: boolean;
   onClose: () => void;
   vehicle: any;
   onApplyPricing?: (pricingData: any) => void;
-  previousEvaluationData?: any[]; // Add this
+  previousEvaluationData?: any[];
 }
 
 interface Integration {
@@ -88,7 +89,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
   open, 
   onClose, 
   vehicle,
-  onApplyPricing ,
+  onApplyPricing,
   previousEvaluationData
 }) => {
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
@@ -98,7 +99,6 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
   const [searchResults, setSearchResults] = useState<any>(null);
   const [previousEvaluations, setPreviousEvaluations] = useState<any[]>([]);
 
-  // Fetch active integrations
   const { data: integrationsData, isLoading: isLoadingIntegrations } = useQuery({
     queryKey: ["active-integrations"],
     queryFn: async () => {
@@ -111,14 +111,12 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
     enabled: open,
   });
 
-  // Load previous evaluations if available
   React.useEffect(() => {
     if (vehicle?.cost_details?.external_api_evaluations) {
       setPreviousEvaluations(vehicle.cost_details.external_api_evaluations || previousEvaluationData);
     }
   }, [vehicle]);
 
-  // Pre-fill search value based on vehicle data
   React.useEffect(() => {
     if (vehicle) {
       if (searchType === "rego" && vehicle.plate_no) {
@@ -129,7 +127,6 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
     }
   }, [searchType, vehicle]);
 
-  // Step 1: Fetch vehicle details from AutoGrab
   const fetchAutoGrabVehicleDetails = async (integration: Integration): Promise<VehicleDetails> => {
     const environment = integration.active_environment || 'production';
     const { configuration } = integration.environments[environment];
@@ -140,7 +137,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
       const state = vehicle?.state || "VIC"; 
       url = `${configuration.vehicle_retrieval_url}/${searchValue}?state=${state}&region=au`;
     } else {
-     const state = vehicle?.state || "VIC"; 
+      const state = vehicle?.state || "VIC"; 
       url = `${configuration.vehicle_retrieval_url}?vin=${searchValue}?state=${state}&region=au`;
     }
 
@@ -168,7 +165,6 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
     return data.vehicle;
   };
 
-  // Step 2: Fetch valuation from AutoGrab
   const fetchAutoGrabValuation = async (integration: Integration, vehicleId: string): Promise<ValuationPrediction> => {
     const environment = integration.active_environment || 'production';
     const { configuration } = integration.environments[environment];
@@ -206,7 +202,6 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
     return data.prediction;
   };
 
-  // Main AutoGrab API call function
   const fetchAutoGrabPricing = async (integration: Integration) => {
     try {
       const vehicleDetails = await fetchAutoGrabVehicleDetails(integration);
@@ -265,7 +260,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
         },
         condition_adjustments: {
           odometer: valuation.kms,
-          condition: "Good", // Based on our default condition_score of 3
+          condition: "Good",
           condition_score: 3,
           adjustments: valuation.adjustment ? [valuation.adjustment] : []
         },
@@ -312,9 +307,7 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
       }
 
       setSearchResults(results);
-      
-      // Add to previous evaluations
-      setPreviousEvaluations(prev => [results, ...prev.slice(0, 9)]); // Keep only last 10
+      setPreviousEvaluations(prev => [results, ...prev.slice(0, 9)]);
       
       toast.success("Pricing data retrieved successfully");
     } catch (error: any) {
@@ -351,260 +344,281 @@ const ExternalApiPricingDialog: React.FC<ExternalApiPricingDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>External API Pricing Lookup</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
+          <DialogTitle className="text-lg sm:text-xl">External API Pricing Lookup</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             Search for vehicle pricing using external integrations. AutoGrab will first retrieve vehicle details then provide valuation.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Integration Selection */}
-          <div className="space-y-2">
-            <Label>Select Integration</Label>
-            <Select value={selectedIntegration} onValueChange={setSelectedIntegration}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose pricing integration" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingIntegrations ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  integrationsData?.map((integration: Integration) => (
-                    <SelectItem key={integration._id} value={integration.integration_type}>
-                      <div className="flex items-center justify-between">
-                        <span>{integration.display_name}</span>
-                        <Badge 
-                          variant={integration.is_active ? "default" : "secondary"} 
-                          className="ml-2 text-xs"
-                        >
-                          {integration.is_active ? "Active" : "Inactive"}
-                        </Badge>
+        <div className="flex-1 overflow-hidden px-4 sm:px-6 py-4">
+          <ScrollArea className="h-full pr-4">
+            <div className="space-y-4 sm:space-y-6">
+              {/* Integration Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm">Select Integration</Label>
+                <Select value={selectedIntegration} onValueChange={setSelectedIntegration}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose pricing integration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingIntegrations ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
-                    </SelectItem>
-                  ))
+                    ) : (
+                      integrationsData?.map((integration: Integration) => (
+                        <SelectItem key={integration._id} value={integration.integration_type}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm">{integration.display_name}</span>
+                            <Badge 
+                              variant={integration.is_active ? "default" : "secondary"} 
+                              className="ml-2 text-xs"
+                            >
+                              {integration.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                
+                {integrationConfig && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Environment: {integrationConfig.active_environment}
+                  </div>
                 )}
-              </SelectContent>
-            </Select>
-            
-            {integrationConfig && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Environment: {integrationConfig.active_environment}
-              </div>
-            )}
-          </div>
-
-          {/* Search Type and Value */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Search By</Label>
-              <Select value={searchType} onValueChange={(value: any) => setSearchType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rego">Registration Number</SelectItem>
-                  <SelectItem value="vin">VIN</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{searchType === "rego" ? "Registration Number" : "VIN"}</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
-                  placeholder={searchType === "rego" ? "Enter rego" : "Enter VIN"}
-                  className="flex-1 uppercase"
-                />
-                <Button 
-                  onClick={handleSearch} 
-                  disabled={isSearching || !selectedIntegration}
-                >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Searching
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Get Pricing
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Search Results */}
-          {searchResults && (
-            <div className="border rounded-lg p-4 bg-muted/30">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Latest Results - {searchResults.display_name}</h3>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    Score: {(searchResults.prediction_details.score * 100).toFixed(1)}%
-                  </Badge>
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Retrieved
-                  </Badge>
-                </div>
               </div>
 
-              <ScrollArea className="h-[300px]">
-                <div className="space-y-4">
-                  {/* Vehicle Details */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Vehicle Details</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Make/Model:</span>
-                        <span className="ml-2 font-medium">
-                          {searchResults.vehicle_details.make} {searchResults.vehicle_details.model}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Year:</span>
-                        <span className="ml-2 font-medium">{searchResults.vehicle_details.year}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Variant:</span>
-                        <span className="ml-2 font-medium">{searchResults.vehicle_details.variant}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Vehicle ID:</span>
-                        <span className="ml-2 font-medium">{searchResults.vehicle_details.vehicle_id}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Valuations */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Valuations</h4>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="border rounded p-3 bg-background">
-                        <div className="text-xs text-muted-foreground mb-1">Trade-In Range</div>
-                        <div className="font-semibold text-sm">
-                          {formatCurrency(searchResults.valuations.trade_in_low)} - {formatCurrency(searchResults.valuations.trade_in_high)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Avg: {formatCurrency(searchResults.valuations.trade_in_average)}
-                        </div>
-                      </div>
-                      <div className="border rounded p-3 bg-background">
-                        <div className="text-xs text-muted-foreground mb-1">Retail Range</div>
-                        <div className="font-semibold text-sm">
-                          {formatCurrency(searchResults.valuations.retail_low)} - {formatCurrency(searchResults.valuations.retail_high)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Avg: {formatCurrency(searchResults.valuations.retail_average)}
-                        </div>
-                      </div>
-                      <div className="border rounded p-3 bg-background">
-                        <div className="text-xs text-muted-foreground mb-1">Wholesale</div>
-                        <div className="font-semibold text-sm">
-                          {formatCurrency(searchResults.valuations.wholesale)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Prediction Details */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Prediction Details</h4>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Odometer:</span>
-                        <span className="ml-2 font-medium">{searchResults.prediction_details.kms.toLocaleString()} km</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Condition:</span>
-                        <span className="ml-2 font-medium">{searchResults.condition_adjustments.condition}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Prediction ID:</span>
-                        <span className="ml-2 font-medium text-xs">{searchResults.prediction_details.prediction_id}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Specifications */}
-                  {Object.values(searchResults.specifications).some(value => value) && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Specifications</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {Object.entries(searchResults.specifications)
-                          .filter(([_, value]) => value)
-                          .map(([key, value]) => (
-                            <div key={key}>
-                              <span className="text-muted-foreground">{formatApiNames(key)}:</span>
-                              <span className="ml-2 font-medium">{value as string}</span>
-                            </div>
-                          ))
-                        }
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-
-              <div className="mt-4 flex justify-end">
-                <Button onClick={() => handleApplyPricing(searchResults)} size="sm">
-                 Save Pricing Snapshot
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Previous Evaluations */}
-          {previousEvaluations.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-3">Previous Evaluations</h3>
-              <ScrollArea className="h-[200px]">
+              {/* Search Type and Value */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  {previousEvaluations.map((evaluation, index) => (
-                    <div 
-                      key={index} 
-                      className="border rounded-lg p-3 bg-background hover:bg-muted/30 cursor-pointer"
-                      onClick={() => setSearchResults(evaluation)}
+                  <Label className="text-sm">Search By</Label>
+                  <Select value={searchType} onValueChange={(value: any) => setSearchType(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rego">Registration Number</SelectItem>
+                      <SelectItem value="vin">VIN</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">{searchType === "rego" ? "Registration Number" : "VIN"}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
+                      placeholder={searchType === "rego" ? "Enter rego" : "Enter VIN"}
+                      className="flex-1 uppercase text-sm"
+                    />
+                    <Button 
+                      onClick={handleSearch} 
+                      disabled={isSearching || !selectedIntegration}
+                      className="shrink-0"
+                      size="sm"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">
-                              {new Date(evaluation.timestamp).toLocaleString()}
+                      {isSearching ? (
+                        <>
+                          <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                          <span className="hidden sm:inline">Searching</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Get Pricing</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Results */}
+              {searchResults && (
+                <div className="border rounded-lg bg-muted/30">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 sm:p-4 border-b bg-background">
+                    <h3 className="font-semibold text-sm sm:text-base">Latest Results - {searchResults.display_name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs">
+                        Score: {(searchResults.prediction_details.score * 100).toFixed(1)}%
+                      </Badge>
+                      <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Retrieved
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <Accordion type="multiple" defaultValue={["vehicle", "valuations"]} className="w-full">
+                    {/* Vehicle Details */}
+                    <AccordionItem value="vehicle" className="border-b-0">
+                      <AccordionTrigger className="px-3 sm:px-4 py-3 hover:no-underline hover:bg-muted/50 text-sm font-medium">
+                        Vehicle Details
+                      </AccordionTrigger>
+                      <AccordionContent className="px-3 sm:px-4 pb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Make/Model:</span>
+                            <span className="sm:ml-2 font-medium">
+                              {searchResults.vehicle_details.make} {searchResults.vehicle_details.model}
                             </span>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {evaluation.display_name || formatApiNames(evaluation.integration_type)} • {evaluation.search_type.toUpperCase()}: {evaluation.search_value}
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Year:</span>
+                            <span className="sm:ml-2 font-medium">{searchResults.vehicle_details.year}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Variant:</span>
+                            <span className="sm:ml-2 font-medium">{searchResults.vehicle_details.variant}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Vehicle ID:</span>
+                            <span className="sm:ml-2 font-medium break-all">{searchResults.vehicle_details.vehicle_id}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold">
-                            {formatCurrency(evaluation.valuations.retail_average)}
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Valuations */}
+                    <AccordionItem value="valuations" className="border-b-0">
+                      <AccordionTrigger className="px-3 sm:px-4 py-3 hover:no-underline hover:bg-muted/50 text-sm font-medium">
+                        Valuations
+                      </AccordionTrigger>
+                      <AccordionContent className="px-3 sm:px-4 pb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="border rounded p-3 bg-background">
+                            <div className="text-xs text-muted-foreground mb-1">Trade-In Range</div>
+                            <div className="font-semibold text-xs sm:text-sm">
+                              {formatCurrency(searchResults.valuations.trade_in_low)} - {formatCurrency(searchResults.valuations.trade_in_high)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Avg: {formatCurrency(searchResults.valuations.trade_in_average)}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">Retail Avg</div>
+                          <div className="border rounded p-3 bg-background">
+                            <div className="text-xs text-muted-foreground mb-1">Retail Range</div>
+                            <div className="font-semibold text-xs sm:text-sm">
+                              {formatCurrency(searchResults.valuations.retail_low)} - {formatCurrency(searchResults.valuations.retail_high)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Avg: {formatCurrency(searchResults.valuations.retail_average)}
+                            </div>
+                          </div>
+                          <div className="border rounded p-3 bg-background">
+                            <div className="text-xs text-muted-foreground mb-1">Wholesale</div>
+                            <div className="font-semibold text-xs sm:text-sm">
+                              {formatCurrency(searchResults.valuations.wholesale)}
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Prediction Details */}
+                    <AccordionItem value="prediction" className="border-b-0">
+                      <AccordionTrigger className="px-3 sm:px-4 py-3 hover:no-underline hover:bg-muted/50 text-sm font-medium">
+                        Prediction Details
+                      </AccordionTrigger>
+                      <AccordionContent className="px-3 sm:px-4 pb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Odometer:</span>
+                            <span className="sm:ml-2 font-medium">{searchResults.prediction_details.kms.toLocaleString()} km</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Condition:</span>
+                            <span className="sm:ml-2 font-medium">{searchResults.condition_adjustments.condition}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">Prediction ID:</span>
+                            <span className="sm:ml-2 font-medium text-xs break-all">{searchResults.prediction_details.prediction_id}</span>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Specifications */}
+                    {Object.values(searchResults.specifications).some(value => value) && (
+                      <AccordionItem value="specifications" className="border-b-0">
+                        <AccordionTrigger className="px-3 sm:px-4 py-3 hover:no-underline hover:bg-muted/50 text-sm font-medium">
+                          Specifications
+                        </AccordionTrigger>
+                        <AccordionContent className="px-3 sm:px-4 pb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
+                            {Object.entries(searchResults.specifications)
+                              .filter(([_, value]) => value)
+                              .map(([key, value]) => (
+                                <div key={key} className="flex justify-between sm:block">
+                                  <span className="text-muted-foreground">{formatApiNames(key)}:</span>
+                                  <span className="sm:ml-2 font-medium">{value as string}</span>
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                  </Accordion>
+                </div>
+              )}
+
+              {/* Previous Evaluations */}
+              {previousEvaluations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm sm:text-base">Previous Evaluations</h3>
+                  <div className="space-y-2">
+                    {previousEvaluations.map((evaluation, index) => (
+                      <div 
+                        key={index} 
+                        className="border rounded-lg p-3 bg-background hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => setSearchResults(evaluation)}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+                              <span className="text-xs sm:text-sm font-medium truncate">
+                                {new Date(evaluation.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 truncate">
+                              {evaluation.display_name || formatApiNames(evaluation.integration_type)} • {evaluation.search_type.toUpperCase()}: {evaluation.search_value}
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right shrink-0">
+                            <div className="text-sm font-semibold">
+                              {formatCurrency(evaluation.valuations.retail_average)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Retail Avg</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </ScrollArea>
+              )}
             </div>
-          )}
+          </ScrollArea>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+        {/* Fixed Footer */}
+        <div className="border-t bg-background px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-3">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Close
           </Button>
+          {searchResults && (
+            <Button 
+              onClick={() => handleApplyPricing(searchResults)} 
+              className="w-full sm:w-auto"
+            >
+              Save Pricing Snapshot
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
