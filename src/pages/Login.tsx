@@ -298,10 +298,22 @@ const Login = () => {
                       </>
                     )}
                   </Button>
+                                 <Button
+  type="button"
+  onClick={() =>
+    window.open(
+      "https://docs.google.com/forms/d/e/1FAIpQLSc_LwilruMvE8HoSrmQVaz37IJSQZ9qXf_3pFwVoK1i3rLk8g/viewform?usp=sharing&ouid=117961613046205263423",
+      "_blank"
+    )
+  }
+  className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+>
+  Delete Account
+</Button>
                 </form>
 
                 {/* Footer */}
-                <div className="mt-8 text-center">
+                {/* <div className="mt-8 text-center">
                   {mode === 'company' ? (
                     <p className="text-sm text-blue-200">
                       Don't have a company account?{' '}
@@ -314,7 +326,7 @@ const Login = () => {
                       Need help? Contact your workshop administrator
                     </p>
                   )}
-                </div>
+                </div> */}
               </CardContent>
             </Card>
 
