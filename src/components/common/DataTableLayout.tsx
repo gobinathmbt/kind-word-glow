@@ -50,15 +50,6 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-interface StatChip {
-  label: string;
-  value: string | number;
-  variant: "default" | "outline";
-  bgColor: string;
-  textColor: string;
-  hoverColor: string;
-  onClick?: () => void; // optional handler
-}
 
 interface ActionButton {
   icon: React.ReactNode;
@@ -69,17 +60,13 @@ interface ActionButton {
   disabled?: boolean;
 }
 
-interface SortConfig {
-  field: string;
-  order: "asc" | "desc";
-}
 
 interface DataTableLayoutProps {
   title: string;
   data: any[];
   isLoading: boolean;
   totalCount: number;
-  statChips: StatChip[];
+  statChips: any[];
   actionButtons: ActionButton[];
   page: number;
   rowsPerPage: number;
