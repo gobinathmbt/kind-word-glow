@@ -1467,4 +1467,5 @@ export default {
   commonVehicle:commonVehicleServices,
   serviceBayServices:serviceBayServices,
   bayQuoteServices:bayQuoteServices,
+  dashboardReportServices:dashboardReportServices,
 };

@@ -12,6 +12,7 @@ import {
   ArrowUp,
   SlidersHorizontal,
   ArrowDown,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { MoveHorizontal } from "lucide-react";
 import BulkOperationsDialog from "@/components/common/BulkOperationsDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import DetailedReportDialog from "@/components/vehicles/DetailedReportDialog";
 
 const InspectionList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,6 +44,8 @@ const InspectionList = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
+  
 
   const { completeUser } = useAuth();
 
@@ -319,6 +323,13 @@ const InspectionList = () => {
 
   // Prepare action buttons
   const actionButtons = [
+       {
+      icon: <BarChart3 className="h-4 w-4" />,
+      tooltip: "Detailed Report",
+      onClick: () => setIsDetailedReportOpen(true),
+      className:
+        "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
+    },
     {
       icon: <MoveHorizontal className="h-4 w-4" />,
       tooltip: "Bulk Operations",
@@ -574,6 +585,12 @@ const InspectionList = () => {
         onOpenChange={setIsFilterDialogOpen}
         filterOptions={STATUS_FILTER_OPTIONS}
         filterLabel="Status"
+      />
+
+       <DetailedReportDialog
+        isOpen={isDetailedReportOpen}
+        onClose={() => setIsDetailedReportOpen(false)}
+        vehicleType="inspection"
       />
     </>
   );
