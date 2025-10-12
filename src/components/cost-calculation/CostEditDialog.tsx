@@ -39,10 +39,31 @@ const CostEditDialog: React.FC<CostEditDialogProps> = ({
     exchange_rate: value?.exchange_rate || costType?.currency_id?.exchange_rate || 1,
     tax_rate: value?.tax_rate || costType?.default_tax_rate || "0",
     tax_type: value?.tax_type || costType?.default_tax_type || "exclusive",
-    net_amount: value?.net_amount || "0",
+    net_amount: value?.net_amount || (costType?.default_value ? costType.default_value.toString() : "0"),
     total_tax: value?.total_tax || "0",
     total_amount: value?.total_amount || "0",
   });
+
+  useEffect(() => {
+    if (costType?.default_value && !value?.net_amount) {
+      const defaultValue = parseFloat(costType.default_value) || 0;
+      const calculated = calculateTax(
+        defaultValue.toString(), 
+        costType.default_tax_rate || "0", 
+        costType.default_tax_type || "exclusive"
+      );
+      
+      setLocalValue(prev => ({
+        ...prev,
+        net_amount: defaultValue.toString(),
+        tax_rate: costType.default_tax_rate || "0",
+        tax_type: costType.default_tax_type || "exclusive",
+        ...calculated,
+      }));
+    } else if (value) {
+      setLocalValue(value);
+    }
+  }, [value, costType]);
 
   useEffect(() => {
     if (value) {

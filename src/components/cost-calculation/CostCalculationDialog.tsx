@@ -41,7 +41,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
   });
 
   // Initialize cost data with existing values or defaults
-  useEffect(() => {
+ useEffect(() => {
     if (costConfig && vehicle) {
       const initialData: any = {};
 
@@ -51,15 +51,36 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
           if (vehicle.cost_details && vehicle.cost_details[costType._id]) {
             initialData[costType._id] = vehicle.cost_details[costType._id];
           } else {
-            // Initialize with default values
+            // Initialize with default values - prioritize default_value if available
+            const defaultValue = parseFloat(costType.default_value) || 0;
+            const netAmount = defaultValue > 0 ? defaultValue.toString() : "0";
+            
+            // Calculate tax based on default values
+            const taxRate = costType.default_tax_rate || "0";
+            const taxType = costType.default_tax_type || "exclusive";
+            
+            let totalTax = "0";
+            let totalAmount = "0";
+            
+            if (taxType === "exclusive") {
+              totalTax = ((defaultValue * parseFloat(taxRate)) / 100).toFixed(2);
+              totalAmount = (defaultValue + parseFloat(totalTax)).toFixed(2);
+            } else if (taxType === "inclusive") {
+              totalAmount = netAmount;
+              totalTax = ((defaultValue * parseFloat(taxRate)) / (100 + parseFloat(taxRate))).toFixed(2);
+            } else if (taxType === "zero_gst") {
+              totalTax = "0";
+              totalAmount = netAmount;
+            }
+
             initialData[costType._id] = {
               currency: costType.currency_id,
               exchange_rate: costType.currency_id?.exchange_rate || 1,
-              tax_rate: costType.default_tax_rate || "0",
-              tax_type: costType.default_tax_type || "exclusive",
-              net_amount: "0",
-              total_tax: "0",
-              total_amount: "0",
+              tax_rate: taxRate,
+              tax_type: taxType,
+              net_amount: netAmount,
+              total_tax: totalTax,
+              total_amount: totalAmount,
             };
           }
         });
@@ -73,7 +94,6 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
       }
     }
   }, [costConfig, vehicle]);
-
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {

@@ -59,6 +59,7 @@ interface CostType {
   section_type: string;
   change_currency: boolean;
   display_order: number;
+    default_value: string; // Add this line
 }
 
 // Sortable Cost Type Row Component
@@ -102,6 +103,7 @@ const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
       </td>
       <td className="p-3">{costType.default_tax_rate || "-"}</td>
       <td className="p-3">{costType.default_tax_type || "-"}</td>
+      <td className="p-3">{costType.default_value || "-"}</td>
       <td className="p-3">
         <Badge variant={costType.change_currency ? "default" : "secondary"}>
           {costType.change_currency ? "Yes" : "No"}
@@ -135,7 +137,7 @@ const CostConfiguration = () => {
     default_tax_type: "",
     section_type: "",
     change_currency: false,
-
+  default_value: "", // Add this line
   });
 
   // Fetch cost configuration
@@ -250,22 +252,23 @@ const CostConfiguration = () => {
       default_tax_type: "",
       section_type: "",
       change_currency: false,
+      default_value: "", // Add this line
     });
   };
 
-  const handleEdit = (costType: CostType) => {
-    setEditingCostType(costType);
-    setFormData({
-      cost_type: costType.cost_type,
-      currency_id: costType.currency_id?._id || "",
-      default_tax_rate: costType.default_tax_rate || "",
-      default_tax_type: costType.default_tax_type || "",
-      section_type: costType.section_type || "",
-      change_currency: costType.change_currency || false,
-    });
-    setIsAddDialogOpen(true);
-  };
-
+const handleEdit = (costType: CostType) => {
+  setEditingCostType(costType);
+  setFormData({
+    cost_type: costType.cost_type,
+    currency_id: costType.currency_id?._id || "",
+    default_tax_rate: costType.default_tax_rate || "",
+    default_tax_type: costType.default_tax_type || "",
+    section_type: costType.section_type || "",
+    change_currency: costType.change_currency || false,
+    default_value: costType.default_value || "", // Add this line
+  });
+  setIsAddDialogOpen(true);
+};
   const handleSubmit = () => {
     if (!formData.cost_type || !formData.currency_id) {
       toast.error("Please fill in all required fields");
@@ -438,6 +441,7 @@ const CostConfiguration = () => {
                                   <th className="p-3 text-left">Currency</th>
                                   <th className="p-3 text-left">Tax Rate</th>
                                   <th className="p-3 text-left">Tax Type</th>
+                                  <th className="p-3 text-left">Default Value</th>
                                   <th className="p-3 text-left">
                                     Change Currency
                                   </th>
@@ -610,6 +614,16 @@ const CostConfiguration = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+  <Label htmlFor="default_value">Default Value</Label>
+  <Input
+    id="default_value"
+    type="number"
+    placeholder="Enter default value"
+    value={formData.default_value}
+    onChange={(e) => setFormData({ ...formData, default_value: e.target.value })}
+  />
+</div>
 
             <div className="flex items-center space-x-2 pt-8">
               <Checkbox
