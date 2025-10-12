@@ -1,37 +1,37 @@
-import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { supplierAuthServices } from '@/api/services';
-import { useAuth } from '@/auth/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
-import { 
-  Car, 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  Mail, 
-  Lock, 
-  Building2, 
+import React, { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { supplierAuthServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import {
+  Car,
+  Eye,
+  EyeOff,
+  Loader2,
+  Mail,
+  Lock,
+  Building2,
   Truck,
   Wrench,
   Settings,
-  ArrowRight
-} from 'lucide-react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import SubscriptionModal from '@/components/subscription/SubscriptionModal';
+  ArrowRight,
+} from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import SubscriptionModal from "@/components/subscription/SubscriptionModal";
 
-type LoginMode = 'company' | 'supplier';
+type LoginMode = "company" | "supplier";
 
 const Login = () => {
-  const [mode, setMode] = useState<LoginMode>('company');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<LoginMode>("company");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [forceSubscription, setForceSubscription] = useState(false);
 
@@ -47,9 +47,9 @@ const Login = () => {
       await login(email, password);
     },
     onSuccess: () => {
-      toast.success('Login successful');
-      
-      const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+      toast.success("Login successful");
+
+      const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
 
       if (userData.subscription_modal_force) {
         setForceSubscription(true);
@@ -60,10 +60,10 @@ const Login = () => {
       handleNavigationAfterLogin(userData);
     },
     onError: (err: any) => {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed');
-      toast.error('Login failed');
-    }
+      console.error("Login error:", err);
+      setError(err.response?.data?.message || "Login failed");
+      toast.error("Login failed");
+    },
   });
 
   // Supplier login mutation
@@ -73,16 +73,19 @@ const Login = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      sessionStorage.setItem('supplier_token', data.data.token);
-      sessionStorage.setItem('supplier_user', JSON.stringify(data.data.supplier));
-      
-      toast.success('Login successful');
-      navigate('/supplier/dashboard');
+      sessionStorage.setItem("supplier_token", data.data.token);
+      sessionStorage.setItem(
+        "supplier_user",
+        JSON.stringify(data.data.supplier)
+      );
+
+      toast.success("Login successful");
+      navigate("/supplier/dashboard");
     },
     onError: (error: any) => {
-      setError(error.response?.data?.message || 'Login failed');
-      toast.error(error.response?.data?.message || 'Login failed');
-    }
+      setError(error.response?.data?.message || "Login failed");
+      toast.error(error.response?.data?.message || "Login failed");
+    },
   });
 
   const handleNavigationAfterLogin = (userData: any) => {
@@ -90,49 +93,50 @@ const Login = () => {
       navigate(from);
     } else {
       switch (userData.role) {
-        case 'master_admin':
-          navigate('/master/dashboard');
+        case "master_admin":
+          navigate("/master/dashboard");
           break;
-        case 'company_super_admin':
-        case 'company_admin':
-          navigate('/company/dashboard');
+        case "company_super_admin":
+        case "company_admin":
+          navigate("/company/dashboard");
           break;
         default:
-          navigate('/');
+          navigate("/");
       }
     }
   };
 
   const handleSubscriptionComplete = () => {
     setShowSubscriptionModal(false);
-    const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
     handleNavigationAfterLogin(userData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!email || !password) {
-      setError('Please enter both email and password');
-      toast.error('Please enter both email and password');
+      setError("Please enter both email and password");
+      toast.error("Please enter both email and password");
       return;
     }
 
-    if (mode === 'company') {
+    if (mode === "company") {
       companyLoginMutation.mutate();
     } else {
       supplierLoginMutation.mutate();
     }
   };
 
-  const isLoading = companyLoginMutation.isPending || supplierLoginMutation.isPending;
+  const isLoading =
+    companyLoginMutation.isPending || supplierLoginMutation.isPending;
 
   const vehicleIcons = [
-    { icon: Car, position: 'top-10 left-10', delay: '0s' },
-    { icon: Truck, position: 'top-20 right-20', delay: '2s' },
-    { icon: Settings, position: 'bottom-20 left-16', delay: '4s' },
-    { icon: Wrench, position: 'bottom-16 right-12', delay: '1s' }
+    { icon: Car, position: "top-10 left-10", delay: "0s" },
+    { icon: Truck, position: "top-20 right-20", delay: "2s" },
+    { icon: Settings, position: "bottom-20 left-16", delay: "4s" },
+    { icon: Wrench, position: "bottom-16 right-12", delay: "1s" },
   ];
 
   return (
@@ -161,7 +165,7 @@ const Login = () => {
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
                 animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${3 + Math.random() * 4}s`
+                animationDuration: `${3 + Math.random() * 4}s`,
               }}
             />
           ))}
@@ -182,7 +186,9 @@ const Login = () => {
                 </div>
                 <div className="text-left">
                   <h1 className="text-3xl font-bold text-white">Auto ERP</h1>
-                  <p className="text-blue-200 text-sm">Vehicle Management System</p>
+                  <p className="text-blue-200 text-sm">
+                    Vehicle Management System
+                  </p>
                 </div>
               </div>
             </div>
@@ -193,11 +199,11 @@ const Login = () => {
                 <div className="flex rounded-xl bg-white/10 p-1 mb-8 backdrop-blur-sm">
                   <button
                     type="button"
-                    onClick={() => setMode('company')}
+                    onClick={() => setMode("company")}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 font-medium ${
-                      mode === 'company'
-                        ? 'bg-white text-slate-900 shadow-lg'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                      mode === "company"
+                        ? "bg-white text-slate-900 shadow-lg"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     <Building2 className="h-4 w-4" />
@@ -205,11 +211,11 @@ const Login = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode('supplier')}
+                    onClick={() => setMode("supplier")}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 font-medium ${
-                      mode === 'supplier'
-                        ? 'bg-white text-slate-900 shadow-lg'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                      mode === "supplier"
+                        ? "bg-white text-slate-900 shadow-lg"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     <Truck className="h-4 w-4" />
@@ -223,22 +229,26 @@ const Login = () => {
                     Welcome Back
                   </h2>
                   <p className="text-blue-200">
-                    {mode === 'company' 
-                      ? 'Sign in to access your company dashboard' 
-                      : 'Sign in to manage your supplier account'
-                    }
+                    {mode === "company"
+                      ? "Sign in to access your company dashboard"
+                      : "Sign in to manage your supplier account"}
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {error && (
-                    <Alert variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-100">
+                    <Alert
+                      variant="destructive"
+                      className="bg-red-500/20 border-red-500/30 text-red-100"
+                    >
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-white font-medium">Email Address</Label>
+                    <Label htmlFor="email" className="text-white font-medium">
+                      Email Address
+                    </Label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
                       <Input
@@ -254,12 +264,17 @@ const Login = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-white font-medium">Password</Label>
+                    <Label
+                      htmlFor="password"
+                      className="text-white font-medium"
+                    >
+                      Password
+                    </Label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
                       <Input
                         id="password"
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
@@ -271,18 +286,22 @@ const Login = () => {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
-                    {mode === 'supplier' && (
+                    {mode === "supplier" && (
                       <p className="text-xs text-blue-200/80 mt-1">
                         Default password: Welcome@123
                       </p>
                     )}
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isLoading}
                     className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
                   >
@@ -298,18 +317,18 @@ const Login = () => {
                       </>
                     )}
                   </Button>
-                                 <Button
-  type="button"
-  onClick={() =>
-    window.open(
-      "https://docs.google.com/forms/d/e/1FAIpQLSc_LwilruMvE8HoSrmQVaz37IJSQZ9qXf_3pFwVoK1i3rLk8g/viewform?usp=sharing&ouid=117961613046205263423",
-      "_blank"
-    )
-  }
-  className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
->
-  Delete Account
-</Button>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      window.open(
+                        "https://docs.google.com/forms/d/e/1FAIpQLSc_LwilruMvE8HoSrmQVaz37IJSQZ9qXf_3pFwVoK1i3rLk8g/viewform?usp=sharing&ouid=117961613046205263423",
+                        "_blank"
+                      )
+                    }
+                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  >
+                    Delete Account
+                  </Button>
                 </form>
 
                 {/* Footer */}
@@ -345,7 +364,11 @@ const Login = () => {
       {showSubscriptionModal && (
         <SubscriptionModal
           isOpen={showSubscriptionModal}
-          onClose={forceSubscription ? undefined : () => setShowSubscriptionModal(false)}
+          onClose={
+            forceSubscription
+              ? undefined
+              : () => setShowSubscriptionModal(false)
+          }
           mode="new"
           canClose={!forceSubscription}
           refetchSubscription={handleSubscriptionComplete}
