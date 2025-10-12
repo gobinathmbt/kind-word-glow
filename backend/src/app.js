@@ -48,6 +48,7 @@ const serviceBayRoutes = require("./routes/serviceBay.routes");
 const currencyRoutes = require("./routes/currency.routes");
 const costConfigurationRoutes = require("./routes/costConfiguration.routes");
 const costSetterRoutes = require("./routes/costSetter.routes");
+const dashboardReportRoutes = require("./routes/dashboardReport.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -164,6 +165,7 @@ app.use("/api/service-bay", serviceBayRoutes);
 app.use("/api/company/currencies", currencyRoutes);
 app.use("/api/company/cost-configuration", costConfigurationRoutes);
 app.use("/api/company/cost-setter", costSetterRoutes);
+app.use("/api/dashboard-report", dashboardReportRoutes);
 
 
 app.get("/api/health", async (req, res) => {

@@ -26,9 +26,10 @@ import VehicleTradeSideModal from "@/components/vehicles/VehicleSideModals/Vehic
 import CreateVehicleTradeModal from "@/components/vehicles/CreateSideModals/CreateVehicleTradeModal";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
-import { MoveHorizontal } from "lucide-react";
+import { MoveHorizontal, BarChart3 } from "lucide-react";
 import BulkOperationsDialog from "@/components/common/BulkOperationsDialog";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import DetailedReportDialog from "@/components/vehicles/DetailedReportDialog";
 
 
 const TradeinList = () => {
@@ -43,6 +44,7 @@ const TradeinList = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
 
   const { completeUser } = useAuth();
 
@@ -342,6 +344,13 @@ const TradeinList = () => {
   // Prepare action buttons
   const actionButtons = [
     {
+      icon: <BarChart3 className="h-4 w-4" />,
+      tooltip: "Detailed Report",
+      onClick: () => setIsDetailedReportOpen(true),
+      className:
+        "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
+    },
+    {
       icon: <MoveHorizontal className="h-4 w-4" />,
       tooltip: "Bulk Operations",
       onClick: () => setIsBulkDialogOpen(true),
@@ -599,6 +608,12 @@ const TradeinList = () => {
         onOpenChange={setIsFilterDialogOpen}
         filterOptions={STATUS_FILTER_OPTIONS}
         filterLabel="Status"
+      />
+
+      <DetailedReportDialog
+        isOpen={isDetailedReportOpen}
+        onClose={() => setIsDetailedReportOpen(false)}
+        vehicleType="tradein"
       />
     </>
   );

@@ -1402,6 +1402,48 @@ export const integrationServices = {
     apiClient.patch(`/api/integrations/${id}/status`, data),
 };
 
+// Dashboard Report Services
+export const dashboardReportServices = {
+  getVehiclesByStatus: (params?: any) =>
+    apiClient.get("/api/dashboard-report/vehicles-by-status", { params }),
+
+  getWorkshopQuotesByStatus: (params?: any) =>
+    apiClient.get("/api/dashboard-report/workshop-quotes-by-status", { params }),
+
+  getLicenseExpiryTracking: (params?: any) =>
+    apiClient.get("/api/dashboard-report/license-expiry", { params }),
+
+  getReportCompletion: (params?: any) =>
+    apiClient.get("/api/dashboard-report/report-completion", { params }),
+
+  getWorkshopProgress: (params?: any) =>
+    apiClient.get("/api/dashboard-report/workshop-progress", { params }),
+
+  getCostAnalysis: (params?: any) =>
+    apiClient.get("/api/dashboard-report/cost-analysis", { params }),
+
+  getSupplierPerformance: (params?: any) =>
+    apiClient.get("/api/dashboard-report/supplier-performance", { params }),
+
+  getTimelineAnalysis: (params?: any) =>
+    apiClient.get("/api/dashboard-report/timeline-analysis", { params }),
+
+  getQualityMetrics: (params?: any) =>
+    apiClient.get("/api/dashboard-report/quality-metrics", { params }),
+
+  getWorkloadDistribution: (params?: any) =>
+    apiClient.get("/api/dashboard-report/workload-distribution", { params }),
+
+  getCompletionRateAnalysis: (params?: any) =>
+    apiClient.get("/api/dashboard-report/completion-rate", { params }),
+
+  getWorkshopReportsSummary: (params?: any) =>
+    apiClient.get("/api/dashboard-report/workshop-reports-summary", { params }),
+
+  getVehicleRecords: (data: any) =>
+    apiClient.post("/api/dashboard-report/vehicle-records", data),
+};
+
 export default {
   auth: authServices,
   subscription: subscriptionServices,
