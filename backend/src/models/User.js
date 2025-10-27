@@ -43,6 +43,12 @@ const UserSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  // NEW: Group permissions reference
+  group_permissions: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GroupPermission',
+    default: null
+  },
   module_access: [{
     type: String,
     trim: true
@@ -59,7 +65,7 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-    is_primary_admin: {
+  is_primary_admin: {
     type: Boolean,
     default: false
   },
@@ -98,6 +104,7 @@ UserSchema.index({ username: 1 });
 UserSchema.index({ company_id: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ is_active: 1 });
+UserSchema.index({ group_permissions: 1 });
 
 // Update timestamp on save
 UserSchema.pre('save', function(next) {
@@ -124,22 +131,18 @@ UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Alias for comparePassword (from Code 1)
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to get user's full name
 UserSchema.methods.getFullName = function() {
   return `${this.first_name} ${this.last_name}`;
 };
 
-// Check if account is locked
 UserSchema.methods.isAccountLocked = function() {
   return !!(this.account_locked_until && this.account_locked_until > Date.now());
 };
 
-// Increment login attempts
 UserSchema.methods.incrementLoginAttempts = function() {
   if (this.account_locked_until && this.account_locked_until < Date.now()) {
     return this.updateOne({
@@ -151,13 +154,12 @@ UserSchema.methods.incrementLoginAttempts = function() {
   const updates = { $inc: { login_attempts: 1 } };
 
   if (this.login_attempts + 1 >= 5 && !this.isAccountLocked()) {
-    updates.$set = { account_locked_until: Date.now() + 2 * 60 * 60 * 1000 }; // 2 hours
+    updates.$set = { account_locked_until: Date.now() + 2 * 60 * 60 * 1000 };
   }
 
   return this.updateOne(updates);
 };
 
-// Reset login attempts
 UserSchema.methods.resetLoginAttempts = function() {
   return this.updateOne({
     $unset: { login_attempts: 1, account_locked_until: 1 }

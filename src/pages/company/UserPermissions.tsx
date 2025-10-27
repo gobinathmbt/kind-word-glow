@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Save, Layers, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Download, Plus, UserPlus, Search, X } from "lucide-react";
+import { Settings, Save, Layers, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Download, Plus, UserPlus, Search, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
@@ -27,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { CompleteUser, useAuth } from "@/auth/AuthContext";
+import GroupPermissionsDialog from "@/components/permissions/GroupPermissionsDialog";
+import AssignGroupPermissionDialog from "@/components/permissions/AssignGroupPermissionDialog";
 
 interface Permission {
   _id: string;
@@ -47,6 +47,7 @@ interface User {
   is_active: boolean;
   permissions: string[];
   module_access?: string[];
+  group_permissions?: string;
 }
 
 interface UserPermission {
@@ -67,6 +68,8 @@ const UserPermissions = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [isGroupPermissionsDialogOpen, setIsGroupPermissionsDialogOpen] = useState(false);
+  const [isAssignGroupDialogOpen, setIsAssignGroupDialogOpen] = useState(false);
   const [paginationEnabled, setPaginationEnabled] = useState(true);
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -74,7 +77,6 @@ const UserPermissions = () => {
   
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
 
-  // Function to fetch all users when pagination is disabled
   const fetchAllUsers = async () => {
     try {
       let allData = [];
@@ -161,7 +163,6 @@ const UserPermissions = () => {
 
   const users = usersData?.data || [];
 
-  // Sort users when not using pagination
   const sortedUsers = React.useMemo(() => {
     if (!sortField) return users;
 
@@ -169,7 +170,6 @@ const UserPermissions = () => {
       let aValue = a[sortField];
       let bValue = b[sortField];
 
-      // Handle nested properties
       if (sortField === "name") {
         aValue = `${a.first_name} ${a.last_name}`;
         bValue = `${b.first_name} ${b.last_name}`;
@@ -215,7 +215,6 @@ const UserPermissions = () => {
   const handleManagePermissions = (user: User) => {
     setSelectedUser(user);
 
-    // Initialize permissions state
     if (availablePermissions) {
       const initialPermissions: UserPermission[] = availablePermissions.map(
         (permission: Permission) => {
@@ -242,7 +241,11 @@ const UserPermissions = () => {
     setIsModuleDialogOpen(true);
   };
 
-  // Check if user can manage modules (only for company_admin role)
+  const handleAssignGroupPermission = (user: User) => {
+    setSelectedUser(user);
+    setIsAssignGroupDialogOpen(true);
+  };
+
   const canManageModules = (completeUser: CompleteUser) => {
     return completeUser.role === "company_super_admin";
   };
@@ -298,21 +301,15 @@ const UserPermissions = () => {
     toast.info("Import feature coming soon");
   };
 
-  const handleAddUser = () => {
-    toast.info("Add user feature coming soon");
-  };
-
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
 
-  // Calculate counts for chips
   const totalUsers = usersData?.pagination?.total_records || usersData?.total || 0;
   const activeCount = users.filter((u: User) => u.is_active).length;
   const inactiveCount = users.filter((u: User) => !u.is_active).length;
   const adminCount = users.filter((u: User) => u.role.includes("admin")).length;
 
-  // Prepare stat chips
   const statChips = [
     {
       label: "Total",
@@ -346,8 +343,13 @@ const UserPermissions = () => {
     },
   ];
 
-  // Prepare action buttons
   const actionButtons = [
+    {
+      icon: <Users className="h-4 w-4" />,
+      tooltip: "Group Permissions",
+      onClick: () => setIsGroupPermissionsDialogOpen(true),
+      className: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
+    },
     {
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
@@ -361,13 +363,6 @@ const UserPermissions = () => {
       className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
     },
     {
-      icon: <UserPlus className="h-4 w-4" />,
-      tooltip: "Add User",
-      onClick: handleAddUser,
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
-    {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Import Users",
       onClick: handleImport,
@@ -376,7 +371,6 @@ const UserPermissions = () => {
     },
   ];
 
-  // Render table header
   const renderTableHeader = () => (
     <TableRow>
       <TableHead className="bg-muted/50">S.No</TableHead>
@@ -438,7 +432,6 @@ const UserPermissions = () => {
     </TableRow>
   );
 
-  // Render table body
   const renderTableBody = () => (
     <>
       {sortedUsers.map((user: User, index: number) => (
@@ -483,7 +476,7 @@ const UserPermissions = () => {
             </Badge>
           </TableCell>
           <TableCell>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -493,12 +486,21 @@ const UserPermissions = () => {
                 <Settings className="h-4 w-4 mr-1" />
                 Permissions
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAssignGroupPermission(user)}
+                className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+              >
+                <Users className="h-4 w-4 mr-1" />
+                Group
+              </Button>
               {canManageModules(completeUser) && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleManageModules(user)}
-                  className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                  className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100"
                 >
                   <Layers className="h-4 w-4 mr-1" />
                   Modules
@@ -511,7 +513,6 @@ const UserPermissions = () => {
     </>
   );
 
-  // Group permissions by module
   const groupedPermissions = userPermissions.reduce((acc, permission) => {
     const module = permission.module_name;
     if (!acc[module]) {
@@ -543,8 +544,8 @@ const UserPermissions = () => {
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
         onRefresh={handleRefresh}
-        cookieName="permission_pagination_enabled" // Custom cookie name
-        cookieMaxAge={60 * 60 * 24 * 30} // 30 days
+        cookieName="permission_pagination_enabled"
+        cookieMaxAge={60 * 60 * 24 * 30}
       />
 
       {/* Search and Filters Dialog */}
@@ -555,7 +556,6 @@ const UserPermissions = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            {/* Search Input */}
             <div className="space-y-2">
               <Label htmlFor="search">Search Users</Label>
               <div className="relative">
@@ -580,7 +580,6 @@ const UserPermissions = () => {
               </div>
             </div>
 
-            {/* Status Filter */}
             <div className="space-y-2">
               <Label htmlFor="status-filter">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -699,6 +698,19 @@ const UserPermissions = () => {
       <ManageModuleDialog
         open={isModuleDialogOpen}
         onOpenChange={setIsModuleDialogOpen}
+        user={selectedUser}
+      />
+
+      {/* Group Permissions Dialog */}
+      <GroupPermissionsDialog
+        open={isGroupPermissionsDialogOpen}
+        onOpenChange={setIsGroupPermissionsDialogOpen}
+      />
+
+      {/* Assign Group Permission Dialog */}
+      <AssignGroupPermissionDialog
+        open={isAssignGroupDialogOpen}
+        onOpenChange={setIsAssignGroupDialogOpen}
         user={selectedUser}
       />
     </>

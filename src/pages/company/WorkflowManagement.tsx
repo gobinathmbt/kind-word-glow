@@ -1,35 +1,73 @@
-import React, { useState } from 'react';
-import { Plus, Play, Pause, Trash2, Edit, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { workflowServices } from '@/api/services';
-import WorkflowBuilder from '@/components/workflows/WorkflowBuilder';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import DataTableLayout from '@/components/common/DataTableLayout';
+import React, { useState } from "react";
+import {
+  Plus,
+  Play,
+  Pause,
+  Trash2,
+  Edit,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  Download,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { workflowServices } from "@/api/services";
+import WorkflowBuilder from "@/components/workflows/WorkflowBuilder";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { toast as sonnerToast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast as sonnerToast } from "sonner";
+import { BASE_URL } from "@/lib/config";
 
 const WorkflowManagement = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [paginationEnabled, setPaginationEnabled] = useState(true);
-  const [sortField, setSortField] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<any>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -46,12 +84,12 @@ const WorkflowManagement = () => {
         };
 
         if (searchTerm) params.search = searchTerm;
-        if (statusFilter !== 'all') params.status = statusFilter;
-        if (typeFilter !== 'all') params.type = typeFilter;
+        if (statusFilter !== "all") params.status = statusFilter;
+        if (typeFilter !== "all") params.type = typeFilter;
 
         const response = await workflowServices.getWorkflows(params);
         const workflows = response.data?.data?.workflows || [];
-        
+
         allData = [...allData, ...workflows];
 
         if (workflows.length < 100) {
@@ -70,10 +108,21 @@ const WorkflowManagement = () => {
     }
   };
 
-  const { data: workflowsData, isLoading: workflowsLoading, refetch } = useQuery({
+  const {
+    data: workflowsData,
+    isLoading: workflowsLoading,
+    refetch,
+  } = useQuery({
     queryKey: paginationEnabled
-      ? ['workflows-paginated', page, searchTerm, statusFilter, typeFilter, rowsPerPage]
-      : ['workflows-all', searchTerm, statusFilter, typeFilter],
+      ? [
+          "workflows-paginated",
+          page,
+          searchTerm,
+          statusFilter,
+          typeFilter,
+          rowsPerPage,
+        ]
+      : ["workflows-all", searchTerm, statusFilter, typeFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllWorkflows();
@@ -85,8 +134,8 @@ const WorkflowManagement = () => {
       };
 
       if (searchTerm) params.search = searchTerm;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (typeFilter !== 'all') params.type = typeFilter;
+      if (statusFilter !== "all") params.status = statusFilter;
+      if (typeFilter !== "all") params.type = typeFilter;
 
       const response = await workflowServices.getWorkflows(params);
       return {
@@ -99,17 +148,18 @@ const WorkflowManagement = () => {
   });
 
   const { data: statsData } = useQuery({
-    queryKey: ['workflow-stats'],
+    queryKey: ["workflow-stats"],
     queryFn: () => workflowServices.getWorkflowStats(),
   });
 
   const deleteWorkflowMutation = useMutation({
-    mutationFn: (workflowId: string) => workflowServices.deleteWorkflow(workflowId),
+    mutationFn: (workflowId: string) =>
+      workflowServices.deleteWorkflow(workflowId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      queryClient.invalidateQueries({ queryKey: ['workflows-paginated'] });
-      queryClient.invalidateQueries({ queryKey: ['workflows-all'] });
-      queryClient.invalidateQueries({ queryKey: ['workflow-stats'] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflows-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["workflows-all"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-stats"] });
       toast({
         title: "Success",
         description: "Workflow deleted successfully",
@@ -118,29 +168,36 @@ const WorkflowManagement = () => {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to delete workflow",
+        description:
+          error.response?.data?.message || "Failed to delete workflow",
         variant: "destructive",
       });
     },
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: ({ workflowId, status }: { workflowId: string; status: string }) => 
-      workflowServices.toggleWorkflowStatus(workflowId, { status }),
+    mutationFn: ({
+      workflowId,
+      status,
+    }: {
+      workflowId: string;
+      status: string;
+    }) => workflowServices.toggleWorkflowStatus(workflowId, { status }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      queryClient.invalidateQueries({ queryKey: ['workflows-paginated'] });
-      queryClient.invalidateQueries({ queryKey: ['workflows-all'] });
-      queryClient.invalidateQueries({ queryKey: ['workflow-stats'] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["workflows-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["workflows-all"] });
+      queryClient.invalidateQueries({ queryKey: ["workflow-stats"] });
       toast({
-        title: "Success", 
+        title: "Success",
         description: "Workflow status updated successfully",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to update workflow status",
+        description:
+          error.response?.data?.message || "Failed to update workflow status",
         variant: "destructive",
       });
     },
@@ -155,22 +212,28 @@ const WorkflowManagement = () => {
       let aValue = a[sortField];
       let bValue = b[sortField];
 
-      if (sortField === 'execution_rate') {
+      if (sortField === "execution_rate") {
         aValue = a.execution_stats?.total_executions || 0;
         bValue = b.execution_stats?.total_executions || 0;
-      } else if (sortField === 'success_rate') {
+      } else if (sortField === "success_rate") {
         const aTotal = a.execution_stats?.total_executions || 0;
         const bTotal = b.execution_stats?.total_executions || 0;
-        aValue = aTotal > 0 ? ((a.execution_stats?.successful_executions || 0) / aTotal) * 100 : 0;
-        bValue = bTotal > 0 ? ((b.execution_stats?.successful_executions || 0) / bTotal) * 100 : 0;
+        aValue =
+          aTotal > 0
+            ? ((a.execution_stats?.successful_executions || 0) / aTotal) * 100
+            : 0;
+        bValue =
+          bTotal > 0
+            ? ((b.execution_stats?.successful_executions || 0) / bTotal) * 100
+            : 0;
       }
 
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (sortOrder === 'asc') {
+      if (sortOrder === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
         return aValue < bValue ? 1 : -1;
@@ -180,16 +243,16 @@ const WorkflowManagement = () => {
 
   const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
   };
 
   const getSortIcon = (field: string) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1" />;
-    return sortOrder === 'asc' ? (
+    return sortOrder === "asc" ? (
       <ArrowUp className="h-3 w-3 ml-1" />
     ) : (
       <ArrowDown className="h-3 w-3 ml-1" />
@@ -206,7 +269,7 @@ const WorkflowManagement = () => {
     setIsBuilderOpen(true);
   };
 
-    const handleDeleteWorkflow = (workflowId: string, workflowName: string) => {
+  const handleDeleteWorkflow = (workflowId: string, workflowName: string) => {
     setWorkflowToDelete({ id: workflowId, name: workflowName });
     setDeleteConfirmOpen(true);
   };
@@ -220,27 +283,27 @@ const WorkflowManagement = () => {
   };
 
   const handleToggleStatus = (workflowId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
     toggleStatusMutation.mutate({ workflowId, status: newStatus });
   };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'default';
-      case 'inactive':
-        return 'secondary';
-      case 'draft':
-        return 'outline';
+      case "active":
+        return "default";
+      case "inactive":
+        return "secondary";
+      case "draft":
+        return "outline";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   const getWorkflowTypeLabel = (type: string) => {
     switch (type) {
-      case 'vehicle_inbound':
-        return 'Vehicle Inbound';
+      case "vehicle_inbound":
+        return "Vehicle Inbound";
       default:
         return type;
     }
@@ -269,17 +332,21 @@ const WorkflowManagement = () => {
   };
 
   const handleClearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setTypeFilter('all');
+    setSearchTerm("");
+    setStatusFilter("all");
+    setTypeFilter("all");
     setPage(1);
     refetch();
   };
 
   const totalWorkflows = workflowsData?.total || 0;
-  const activeCount = workflows.filter((w: any) => w.status === 'active').length;
-  const inactiveCount = workflows.filter((w: any) => w.status === 'inactive').length;
-  const draftCount = workflows.filter((w: any) => w.status === 'draft').length;
+  const activeCount = workflows.filter(
+    (w: any) => w.status === "active"
+  ).length;
+  const inactiveCount = workflows.filter(
+    (w: any) => w.status === "inactive"
+  ).length;
+  const draftCount = workflows.filter((w: any) => w.status === "draft").length;
 
   const statChips = [
     {
@@ -331,7 +398,8 @@ const WorkflowManagement = () => {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Workflow",
       onClick: handleCreateWorkflow,
-      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+      className:
+        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
     },
   ];
 
@@ -340,56 +408,56 @@ const WorkflowManagement = () => {
       <TableHead className="bg-muted/50">S.No</TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('name')}
+        onClick={() => handleSort("name")}
       >
         <div className="flex items-center">
           Workflow Name
-          {getSortIcon('name')}
+          {getSortIcon("name")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('workflow_type')}
+        onClick={() => handleSort("workflow_type")}
       >
         <div className="flex items-center">
           Type
-          {getSortIcon('workflow_type')}
+          {getSortIcon("workflow_type")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('status')}
+        onClick={() => handleSort("status")}
       >
         <div className="flex items-center">
           Status
-          {getSortIcon('status')}
+          {getSortIcon("status")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('execution_rate')}
+        onClick={() => handleSort("execution_rate")}
       >
         <div className="flex items-center">
           Total Executions
-          {getSortIcon('execution_rate')}
+          {getSortIcon("execution_rate")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('success_rate')}
+        onClick={() => handleSort("success_rate")}
       >
         <div className="flex items-center">
           Success Rate
-          {getSortIcon('success_rate')}
+          {getSortIcon("success_rate")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('created_at')}
+        onClick={() => handleSort("created_at")}
       >
         <div className="flex items-center">
           Created
-          {getSortIcon('created_at')}
+          {getSortIcon("created_at")}
         </div>
       </TableHead>
       <TableHead className="bg-muted/50">Actions</TableHead>
@@ -416,7 +484,7 @@ const WorkflowManagement = () => {
               )}
               {workflow.custom_endpoint && (
                 <p className="text-xs text-blue-600 mt-1">
-                  /api/workflow-execute/{workflow.custom_endpoint}
+                  {BASE_URL}/api/workflow-execute/{workflow.custom_endpoint}
                 </p>
               )}
             </div>
@@ -430,9 +498,9 @@ const WorkflowManagement = () => {
             <Badge
               variant={getStatusBadgeVariant(workflow.status)}
               className={
-                workflow.status === 'active'
+                workflow.status === "active"
                   ? "bg-green-100 text-green-800 hover:bg-green-100"
-                  : workflow.status === 'inactive'
+                  : workflow.status === "inactive"
                   ? "bg-gray-100 text-gray-800 hover:bg-gray-100"
                   : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
               }
@@ -453,7 +521,8 @@ const WorkflowManagement = () => {
                       workflow.execution_stats.total_executions) *
                       100
                   )
-                : 0}%
+                : 0}
+              %
             </span>
           </TableCell>
           <TableCell>
@@ -467,68 +536,75 @@ const WorkflowManagement = () => {
             </div>
           </TableCell>
           <TableCell>
-           <div className="flex items-center gap-2">
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleEditWorkflow(workflow)}
-          className="h-8 w-8 p-0"
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Edit Workflow</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditWorkflow(workflow)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit Workflow</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleToggleStatus(workflow._id, workflow.status)}
-          disabled={toggleStatusMutation.isPending}
-          className="h-8 w-8 p-0"
-        >
-          {workflow.status === 'active' ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{workflow.status === 'active' ? 'Pause Workflow' : 'Play Workflow'}</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handleToggleStatus(workflow._id, workflow.status)
+                      }
+                      disabled={toggleStatusMutation.isPending}
+                      className="h-8 w-8 p-0"
+                    >
+                      {workflow.status === "active" ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {workflow.status === "active"
+                        ? "Pause Workflow"
+                        : "Play Workflow"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleDeleteWorkflow(workflow._id, workflow.name)}
-          disabled={deleteWorkflowMutation.isPending}
-          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Delete Workflow</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-</div>
-
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handleDeleteWorkflow(workflow._id, workflow.name)
+                      }
+                      disabled={deleteWorkflowMutation.isPending}
+                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete Workflow</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </TableCell>
         </TableRow>
       ))}
@@ -569,10 +645,15 @@ const WorkflowManagement = () => {
               Delete Workflow
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-foreground">"{workflowToDelete?.name}"</span>?
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-foreground">
+                "{workflowToDelete?.name}"
+              </span>
+              ?
               <br />
               <br />
-              This action cannot be undone. All workflow executions and configurations will be permanently removed.
+              This action cannot be undone. All workflow executions and
+              configurations will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -586,26 +667,29 @@ const WorkflowManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>
-              {selectedWorkflow ? 'Edit Workflow' : 'Create New Workflow'}
+              {selectedWorkflow ? "Edit Workflow" : "Create New Workflow"}
             </DialogTitle>
             <DialogDescription>
-              Use the visual workflow builder to create and configure your automation
+              Use the visual workflow builder to create and configure your
+              automation
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
-            <WorkflowBuilder 
+            <WorkflowBuilder
               workflow={selectedWorkflow}
               onSave={() => {
                 setIsBuilderOpen(false);
-                queryClient.invalidateQueries({ queryKey: ['workflows'] });
-                queryClient.invalidateQueries({ queryKey: ['workflows-paginated'] });
-                queryClient.invalidateQueries({ queryKey: ['workflows-all'] });
-                queryClient.invalidateQueries({ queryKey: ['workflow-stats'] });
+                queryClient.invalidateQueries({ queryKey: ["workflows"] });
+                queryClient.invalidateQueries({
+                  queryKey: ["workflows-paginated"],
+                });
+                queryClient.invalidateQueries({ queryKey: ["workflows-all"] });
+                queryClient.invalidateQueries({ queryKey: ["workflow-stats"] });
               }}
               onCancel={() => setIsBuilderOpen(false)}
             />
@@ -655,23 +739,25 @@ const WorkflowManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="vehicle_inbound">Vehicle Inbound</SelectItem>
+                  <SelectItem value="vehicle_inbound">
+                    Vehicle Inbound
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button 
+              <Button
                 onClick={() => {
                   setIsFilterDialogOpen(false);
                   refetch();
-                }} 
+                }}
                 className="flex-1"
               >
                 Apply Filters
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleClearFilters} 
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
                 className="flex-1"
               >
                 Clear All

@@ -1301,13 +1301,13 @@ const MasterInspection: React.FC<MasterInspectionProps> = ({
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              No, Save Without PDF
+            Without Report
             </Button>
             <Button onClick={() => saveData(true)} disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Yes, Regenerate PDF & Save
+           With Report
             </Button>
           </div>
         </DialogContent>

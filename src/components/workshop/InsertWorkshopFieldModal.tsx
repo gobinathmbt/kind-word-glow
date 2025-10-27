@@ -65,6 +65,7 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
     field_name: "",
     field_type: "text",
     is_required: false,
+    workshop_work_required:true,
     placeholder: "",
     help_text: "",
     dropdown_config: {
@@ -111,6 +112,7 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
         is_required: existingField.is_required || false,
         placeholder: existingField.placeholder || "",
         help_text: existingField.help_text || "",
+        workshop_work_required:true,
         dropdown_config: existingField.dropdown_config || {
           dropdown_name: "",
           allow_multiple: false,
@@ -213,6 +215,7 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
           : `workshop_field_${Date.now()}`,
         field_name: formData.field_name,
         field_type: formData.field_type,
+        workshop_work_required:true,
         is_required: formData.is_required,
         placeholder: formData.placeholder,
         help_text: formData.help_text,
@@ -260,6 +263,7 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
     setFormData({
       field_name: "",
       field_type: "text",
+      workshop_work_required:true,
       is_required: false,
       placeholder: "",
       help_text: "",

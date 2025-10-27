@@ -54,8 +54,8 @@ const getWorkshopVehicles = async (req, res) => {
       });
     }
 
-    // Define the fields to select
-    const selectedFields = {
+    // Define the fields to select with additional fields for odometer and registration
+    const projection = {
       vehicle_stock_id: 1,
       make: 1,
       model: 1,
@@ -67,12 +67,21 @@ const getWorkshopVehicles = async (req, res) => {
       vehicle_hero_image: 1,
       created_at: 1,
       dealership_id: 1,
+      status: 1,
+      // Get latest odometer reading
+      "vehicle_odometer": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+      // Get latest registration details
+      "vehicle_registration": {
+        $slice: 1 // Get only the first (latest) entry
+      },
     };
 
     // Use parallel execution for count and data retrieval
     const [vehicles, total] = await Promise.all([
       Vehicle.find(filter)
-        .select(selectedFields)
+        .select(projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
@@ -80,9 +89,37 @@ const getWorkshopVehicles = async (req, res) => {
       Vehicle.countDocuments(filter),
     ]);
 
+    // Process vehicles to extract odometer and license expiry details
+    const processedVehicles = vehicles.map(vehicle => {
+      // Get latest odometer reading
+      const latestOdometer = vehicle.vehicle_odometer?.[0]?.reading || null;
+
+      // Get latest license expiry date
+      const latestRegistration = vehicle.vehicle_registration?.[0];
+      const licenseExpiryDate = latestRegistration?.license_expiry_date || null;
+
+      return {
+        _id: vehicle._id,
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+        vin: vehicle.vin,
+        name: vehicle.name,
+        vehicle_hero_image: vehicle.vehicle_hero_image,
+        created_at: vehicle.created_at,
+        dealership_id: vehicle.dealership_id,
+        status: vehicle.status || 'active', // Default status if not present
+        latest_odometer: latestOdometer,
+        license_expiry_date: licenseExpiryDate,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: vehicles,
+      data: processedVehicles,
       total,
       pagination: {
         current_page: numericPage,

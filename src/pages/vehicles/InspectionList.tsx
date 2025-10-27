@@ -293,6 +293,31 @@ const InspectionList = () => {
     toast.success("Export started");
   };
 
+  const getExpiryStatus = (licenseExpiryDate: string) => {
+    if (!licenseExpiryDate) return null;
+
+    const today = new Date();
+    const expiryDate = new Date(licenseExpiryDate);
+    const diffTime = expiryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return "expired";
+    if (diffDays <= 3) return "expiring-soon";
+    return "valid";
+  };
+
+  const getRowClassName = (vehicle: any) => {
+    const status = getExpiryStatus(vehicle.license_expiry_date);
+    if (status === "expired") return "bg-red-50 hover:bg-red-100";
+    if (status === "expiring-soon") return "bg-orange-50 hover:bg-orange-100";
+    return "";
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-GB");
+  };
+
   // Calculate counts for chips
   const totalVehicles = vehiclesData?.total || 0;
   const pendingCount = vehicles.filter(
@@ -438,6 +463,33 @@ const InspectionList = () => {
           {getSortIcon("dealership_id")}
         </div>
       </TableHead>
+            <TableHead
+              className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+              onClick={() => handleSort("vin")}
+            >
+              <div className="flex items-center">
+                VIN
+                {getSortIcon("vin")}
+              </div>
+            </TableHead>
+      <TableHead
+              className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+              onClick={() => handleSort("mileage")}
+            >
+              <div className="flex items-center">
+                Mileage
+                {getSortIcon("mileage")}
+              </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("license_expiry")}
+      >
+        <div className="flex items-center">
+          License Expiry
+          {getSortIcon("license_expiry")}
+        </div>
+      </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
         onClick={() => handleSort("year")}
@@ -445,15 +497,6 @@ const InspectionList = () => {
         <div className="flex items-center">
           Year
           {getSortIcon("year")}
-        </div>
-      </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("mileage")}
-      >
-        <div className="flex items-center">
-          Mileage
-          {getSortIcon("mileage")}
         </div>
       </TableHead>
       <TableHead
@@ -471,7 +514,7 @@ const InspectionList = () => {
   const renderTableBody = () => (
     <>
       {sortedVehicles.map((vehicle: any, index: number) => (
-        <TableRow key={vehicle._id}>
+        <TableRow key={vehicle._id} className={getRowClassName(vehicle)}>
           <TableCell>
             {paginationEnabled
               ? (page - 1) * rowsPerPage + index + 1
@@ -524,11 +567,31 @@ const InspectionList = () => {
               </Badge>
             </div>
           </TableCell>
-
-          <TableCell>{vehicle.year}</TableCell>
           <TableCell>
-            {vehicle.vehicle_odometer?.[0]?.reading?.toLocaleString()} km
+                      <p className="font-mono text-sm">{vehicle.vin || "-"}</p>
+                    </TableCell>
+          <TableCell>
+                      {vehicle.latest_odometer
+                        ? `${vehicle.latest_odometer.toLocaleString()} km`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+            <div className="flex flex-col">
+              <p className="font-medium">
+                {formatDate(vehicle.license_expiry_date)}
+              </p>
+              {getExpiryStatus(vehicle.license_expiry_date) === "expired" && (
+                <p className="text-xs text-red-600 font-semibold">Expired</p>
+              )}
+              {getExpiryStatus(vehicle.license_expiry_date) ===
+                "expiring-soon" && (
+                <p className="text-xs text-orange-600 font-semibold">
+                  Expiring Soon
+                </p>
+              )}
+            </div>
           </TableCell>
+          <TableCell>{vehicle.year}</TableCell>
           <TableCell>
             <Badge
               variant={getStatusColor(vehicle.inspection_status)}

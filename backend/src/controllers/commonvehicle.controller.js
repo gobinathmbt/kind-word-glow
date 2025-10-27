@@ -255,8 +255,8 @@ const getPricingReadyVehicles = async (req, res) => {
       filter.$text = { $search: search };
     }
 
-    // Define fields to return - added vehicle_source.purchase_type
-    const fields = {
+    // Define fields to return - updated to match tradein structure
+    const projection = {
       vehicle_stock_id: 1,
       make: 1,
       model: 1,
@@ -275,17 +275,25 @@ const getPricingReadyVehicles = async (req, res) => {
         "vehicle_other_details": {
         $slice: 1 // Get only the first (latest) entry
       },
+      // Get latest odometer reading
+      "vehicle_odometer": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+      // Get latest registration details
+      "vehicle_registration": {
+        $slice: 1 // Get only the first (latest) entry
+      },
       vehicle_source: { $arrayElemAt: ["$vehicle_source", 0] }, // Get first element from vehicle_source array
     };
 
     // Fetch from both Vehicle and MasterVehicle collections
     const [vehicleResults, masterVehicleResults, vehicleCount, masterVehicleCount] = await Promise.all([
-      Vehicle.find(filter, fields)
+      Vehicle.find(filter, projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
         .lean(),
-      MasterVehicle.find(filter, fields)
+      MasterVehicle.find(filter, projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
@@ -294,16 +302,43 @@ const getPricingReadyVehicles = async (req, res) => {
       MasterVehicle.countDocuments(filter),
     ]);
 
-    // Process results to extract purchase_type and flatten the structure
+    // Process results to extract purchase_type and add odometer/registration details
     const processResults = (results) => {
       return results.map(vehicle => {
-        const processedVehicle = { ...vehicle };
+        // Get latest odometer reading
+        const latestOdometer = vehicle.vehicle_odometer?.[0]?.reading || null;
+
+        // Get latest license expiry date
+        const latestRegistration = vehicle.vehicle_registration?.[0];
+        const licenseExpiryDate = latestRegistration?.license_expiry_date || null;
+
+        const processedVehicle = {
+          _id: vehicle._id,
+          vehicle_stock_id: vehicle.vehicle_stock_id,
+          vehicle_type: vehicle.vehicle_type,
+          vehicle_hero_image: vehicle.vehicle_hero_image,
+          vin: vehicle.vin,
+          plate_no: vehicle.plate_no,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year,
+          variant: vehicle.variant,
+          dealership_id: vehicle.dealership_id,
+          status: vehicle.status,
+          is_pricing_ready: vehicle.is_pricing_ready,
+          cost_details: vehicle.cost_details,
+          created_at: vehicle.created_at,
+          latest_odometer: latestOdometer,
+          license_expiry_date: licenseExpiryDate,
+        };
+
+        // Add purchase_type from vehicle_source if available
         if (vehicle.vehicle_source) {
           processedVehicle.purchase_type = vehicle.vehicle_source.purchase_type;
         } else {
           processedVehicle.purchase_type = null;
         }
-        delete processedVehicle.vehicle_source;
+
         return processedVehicle;
       });
     };

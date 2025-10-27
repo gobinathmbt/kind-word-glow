@@ -1,4 +1,3 @@
-// components/common/DealershipManager.tsx
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -15,6 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/auth/AuthContext";
 import { dealershipServices, commonVehicleServices } from "@/api/services";
 import { toast } from "sonner";
@@ -42,7 +47,7 @@ interface Dealership {
 export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = ({
   vehicleData,
   variant = "outline",
-  size = "sm",
+  size = "icon",
   onSuccess,
   className = "",
 }) => {
@@ -52,17 +57,26 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [currentDealershipName, setCurrentDealershipName] = useState("Assign Dealership");
 
-  // Fetch dealerships when dialog opens
+  // Fetch dealerships on component mount and when vehicleData changes
+  useEffect(() => {
+    fetchDealerships();
+  }, [vehicleData.currentDealership]);
+
+  // Also fetch when dialog opens to ensure fresh data
   useEffect(() => {
     if (isDialogOpen) {
       fetchDealerships();
-      // Set current dealership if exists
-      if (vehicleData.currentDealership) {
-        setSelectedDealership(vehicleData.currentDealership);
-      }
     }
-  }, [isDialogOpen, vehicleData.currentDealership]);
+  }, [isDialogOpen]);
+
+  // Update selected dealership when vehicle data changes
+  useEffect(() => {
+    if (vehicleData.currentDealership) {
+      setSelectedDealership(vehicleData.currentDealership);
+    }
+  }, [vehicleData.currentDealership]);
 
   const fetchDealerships = async () => {
     setIsLoading(true);
@@ -81,9 +95,28 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
       }
 
       setDealerships(dealershipsData);
+
+      // Update current dealership name if a dealership is assigned
+      if (vehicleData.currentDealership) {
+        const currentDealership = dealershipsData.find(
+          (dealer: Dealership) => dealer._id === vehicleData.currentDealership
+        );
+        if (currentDealership) {
+          setCurrentDealershipName(
+            `${currentDealership.dealership_name}${
+              currentDealership.dealership_code ? ` (${currentDealership.dealership_code})` : ''
+            }`
+          );
+        } else {
+          setCurrentDealershipName("Assign Dealership");
+        }
+      } else {
+        setCurrentDealershipName("Assign Dealership");
+      }
     } catch (error) {
       console.error("Error fetching dealerships:", error);
       toast.error("Failed to load dealerships");
+      setCurrentDealershipName("Assign Dealership");
     } finally {
       setIsLoading(false);
     }
@@ -110,8 +143,19 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
 
       toast.success("Dealership updated successfully");
       setIsDialogOpen(false);
-      setSelectedDealership("");
       
+      // Update the current dealership name after successful update
+      const updatedDealership = dealerships.find(
+        (dealer) => dealer._id === selectedDealership
+      );
+      if (updatedDealership) {
+        setCurrentDealershipName(
+          `${updatedDealership.dealership_name}${
+            updatedDealership.dealership_code ? ` (${updatedDealership.dealership_code})` : ''
+          }`
+        );
+      }
+
       if (onSuccess) {
         onSuccess();
       }
@@ -125,26 +169,36 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
     }
   };
 
-  const getCurrentDealershipName = () => {
-    if (!vehicleData.currentDealership) return "Assign Dealership";
-    
-    const currentDealership = dealerships.find(
-      (dealer) => dealer._id === vehicleData.currentDealership
-    );
-    return currentDealership ? currentDealership.dealership_name : "Assign Dealership";
-  };
-
   return (
     <>
-      <Button
-        variant={variant}
-        size={size}
-        onClick={() => setIsDialogOpen(true)}
-        className={`flex items-center gap-2 ${className}`}
-      >
-        <Building className="h-4 w-4" />
-        {getCurrentDealershipName()}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={variant}
+              size={size}
+              onClick={() => setIsDialogOpen(true)}
+              className={`flex items-center gap-2 ${className}`}
+              disabled={isLoading}
+            >
+              <Building className="h-4 w-4" />
+              {size !== "icon" && (
+                isLoading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  currentDealershipName
+                )
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{currentDealershipName}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">

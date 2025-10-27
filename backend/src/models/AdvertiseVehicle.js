@@ -205,12 +205,6 @@ const VehicleSchema = new mongoose.Schema({
       },
     },
   ],
-  // Vehicle Safety Features - Fixed to be an array as per the original schema
-  vehicle_safety_features: [
-    {
-      features: [String],
-    },
-  ],
 
   // Vehicle Ownership - Fixed to be an array as per the original schema
   vehicle_ownership: [

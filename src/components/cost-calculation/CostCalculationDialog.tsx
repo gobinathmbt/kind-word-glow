@@ -35,7 +35,7 @@ const CostCalculationDialog: React.FC<CostCalculationDialogProps> = ({ open, onC
   const { data: costConfig, isLoading: isLoadingConfig } = useQuery({
     queryKey: ["cost-configuration", vehicle?.vehicle_type],
     queryFn: async () => {
-      const vehiclePurchaseType = vehicle.purchase_type;
+      const vehiclePurchaseType = vehicle.vehicle_source[0].purchase_type;
       const response = await companyServices.getCostConfigurationByVehicleType(vehiclePurchaseType);
       return response.data.data;
     },

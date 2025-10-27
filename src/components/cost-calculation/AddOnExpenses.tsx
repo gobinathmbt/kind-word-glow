@@ -130,7 +130,7 @@ const AddOnExpenses: React.FC<AddOnExpensesProps> = ({
       const response = await workshopServices.getWorkshopReports(vehicleId, vehicleType);
       return response.data.data;
     },
-    enabled: false,
+    enabled: !!vehicleId && !!vehicleType,
   });
 
   const suppliers = suppliersData?.data || [];

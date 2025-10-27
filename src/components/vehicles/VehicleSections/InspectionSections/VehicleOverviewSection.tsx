@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Edit3, Save, X } from "lucide-react";
+import { Edit3, Save, X, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { vehicleServices } from "@/api/services";
-import MediaViewer, { MediaItem } from "@/components/common/MediaViewer"; // Import MediaViewer
+import MediaViewer, { MediaItem } from "@/components/common/MediaViewer";
+import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 
 interface VehicleOverviewSectionProps {
   vehicle: any;
@@ -21,6 +21,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
   onUpdate,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     make: vehicle.make || "",
     model: vehicle.model || "",
@@ -33,18 +34,91 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
     vehicle_category: vehicle.vehicle_category || "",
   });
 
+  // Add state for image upload
+  const [heroImage, setHeroImage] = useState<File | null>(null);
+  const [heroImagePreview, setHeroImagePreview] = useState<string>(vehicle.vehicle_hero_image || "");
+
   // Media viewer state
   const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
   const [currentMediaId, setCurrentMediaId] = useState<string>("");
 
+  // Handler functions for VehicleMetadataSelector
+  const handleMakeChange = (displayName: string) => {
+    setFormData({ ...formData, make: displayName });
+  };
+
+  const handleModelChange = (displayName: string) => {
+    setFormData({ ...formData, model: displayName });
+  };
+
+  const handleVariantChange = (displayName: string) => {
+    setFormData({ ...formData, variant: displayName });
+  };
+
+  const handleYearChange = (displayName: string) => {
+    setFormData({ ...formData, year: displayName });
+  };
+
+  const handleBodyChange = (displayName: string) => {
+    setFormData({ ...formData, body_style: displayName });
+  };
+
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please select a valid image file");
+        return;
+      }
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      setHeroImage(file);
+      const previewUrl = URL.createObjectURL(file);
+      setHeroImagePreview(previewUrl);
+    }
+  };
+
   const handleSave = async () => {
+    setIsLoading(true);
     try {
-      await vehicleServices.updateVehicleOverview(vehicle._id,vehicle.vehicle_type, formData);
+      // Update vehicle overview data
+      const overviewResponse = await vehicleServices.updateVehicleOverview(
+        vehicle._id, 
+        vehicle.vehicle_type, 
+        formData
+      );
+      
+      // Upload image if there's a new one
+      // if (heroImage) {
+      //   const imageFormData = new FormData();
+      //   imageFormData.append('hero_image', heroImage);
+      //   const imageResponse = await vehicleServices.uploadVehicleHeroImage(vehicle._id, imageFormData);
+        
+      //   // Update the preview with the new image URL from response
+      //   if (imageResponse.data?.vehicle_hero_image) {
+      //     setHeroImagePreview(imageResponse.data.vehicle_hero_image);
+      //   }
+      // }
+      
       toast.success("Vehicle overview updated successfully");
       setIsEditing(false);
+      
+      // Call onUpdate to refresh parent component data
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update vehicle overview");
+      
+    } catch (error: any) {
+      console.error('Update error:', error);
+      const errorMessage = error.response?.data?.message || "Failed to update vehicle overview";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -60,23 +134,25 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       body_style: vehicle.body_style || "",
       vehicle_category: vehicle.vehicle_category || "",
     });
+    setHeroImage(null);
+    setHeroImagePreview(vehicle.vehicle_hero_image || "");
     setIsEditing(false);
   };
 
   // Prepare media items for the MediaViewer
-  const mediaItems: MediaItem[] = vehicle.vehicle_hero_image ? [
+  const mediaItems: MediaItem[] = heroImagePreview ? [
     {
       id: "hero-image",
-      url: vehicle.vehicle_hero_image,
+      url: heroImagePreview,
       type: "image",
-      title: `${vehicle.make} ${vehicle.model} ${vehicle.year}`,
+      title: `${formData.make} ${formData.model} ${formData.year}`,
       description: "Vehicle hero image"
     }
   ] : [];
 
   // Function to open media viewer
   const openMediaViewer = () => {
-    if (vehicle.vehicle_hero_image) {
+    if (heroImagePreview) {
       setCurrentMediaId("hero-image");
       setIsMediaViewerOpen(true);
     }
@@ -107,11 +183,11 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
             <Card>
               <CardContent className="pt-6">
                 {/* Hero Image */}
-                {vehicle.vehicle_hero_image && (
+                {heroImagePreview && (
                   <div className="mb-6 cursor-pointer" onClick={openMediaViewer}>
                     <AspectRatio ratio={16 / 9} className="bg-muted rounded-lg overflow-hidden">
                       <img
-                        src={vehicle.vehicle_hero_image}
+                        src={heroImagePreview}
                         alt="Vehicle"
                         className="w-full h-full object-cover"
                       />
@@ -121,46 +197,68 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
 
                 {isEditing ? (
                   <div className="space-y-4">
+                    {/* Image Upload Section */}
+                    <div className="mb-4">
+                      <Label htmlFor="hero-image-upload">Vehicle Hero Image</Label>
+                      <div className="mt-2 flex items-center gap-4">
+                        <Input
+                          id="hero-image-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="max-w-sm"
+                          disabled={isLoading}
+                        />
+                        {heroImagePreview && (
+                          <div className="w-16 h-16 rounded border overflow-hidden">
+                            <img
+                              src={heroImagePreview}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Supported formats: JPEG, PNG, WebP. Max size: 5MB
+                      </p>
+                    </div>
+
+                    {/* Vehicle Metadata Selector */}
+                    <div className="mb-4">
+                      <VehicleMetadataSelector
+                        selectedMake={formData.make}
+                        selectedModel={formData.model}
+                        selectedVariant={formData.variant}
+                        selectedYear={formData.year}
+                        selectedBody={formData.body_style}
+                        onMakeChange={handleMakeChange}
+                        onModelChange={handleModelChange}
+                        onVariantChange={handleVariantChange}
+                        onYearChange={handleYearChange}
+                        onBodyChange={handleBodyChange}
+                        showLabels={true}
+                        layout="grid-3"
+                        isEdit={true}
+                        editableFields={{
+                          make: false,
+                          model: false,
+                          variant: true,
+                          year: true,
+                          body: true,
+                        }}
+                        disabled={isLoading}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="make">Make</Label>
-                        <Input
-                          id="make"
-                          value={formData.make}
-                          onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="model">Model</Label>
-                        <Input
-                          id="model"
-                          value={formData.model}
-                          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="variant">Variant</Label>
-                        <Input
-                          id="variant"
-                          value={formData.variant}
-                          onChange={(e) => setFormData({ ...formData, variant: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="year">Year</Label>
-                        <Input
-                          id="year"
-                          type="number"
-                          value={formData.year}
-                          onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                        />
-                      </div>
                       <div>
                         <Label htmlFor="vin">VIN</Label>
                         <Input
                           id="vin"
                           value={formData.vin}
                           onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
+                          disabled={isLoading}
                         />
                       </div>
                       <div>
@@ -169,6 +267,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                           id="plate_no"
                           value={formData.plate_no}
                           onChange={(e) => setFormData({ ...formData, plate_no: e.target.value })}
+                          disabled={isLoading}
                         />
                       </div>
                       <div>
@@ -177,25 +276,34 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                           id="chassis_no"
                           value={formData.chassis_no}
                           onChange={(e) => setFormData({ ...formData, chassis_no: e.target.value })}
+                          disabled={isLoading}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="body_style">Body Style</Label>
+                        <Label htmlFor="vehicle_category">Category</Label>
                         <Input
-                          id="body_style"
-                          value={formData.body_style}
-                          onChange={(e) => setFormData({ ...formData, body_style: e.target.value })}
+                          id="vehicle_category"
+                          value={formData.vehicle_category}
+                          onChange={(e) => setFormData({ ...formData, vehicle_category: e.target.value })}
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
-                      <Button variant="outline" onClick={handleCancel}>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleCancel}
+                        disabled={isLoading}
+                      >
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleSave}>
+                      <Button 
+                        onClick={handleSave}
+                        disabled={isLoading}
+                      >
                         <Save className="h-4 w-4 mr-2" />
-                        Save
+                        {isLoading ? "Saving..." : "Save"}
                       </Button>
                     </div>
                   </div>

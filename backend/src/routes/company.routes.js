@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
 const {
@@ -49,6 +48,15 @@ const {
   getUsersWithPermissions
 } = require('../controllers/userPermission.controller');
 
+const {
+  getGroupPermissions,
+  getGroupPermission,
+  createGroupPermission,
+  updateGroupPermission,
+  deleteGroupPermission,
+  assignGroupPermissionToUser
+} = require('../controllers/groupPermission.controller');
+
 const { 
   createController, 
   modifyController, 
@@ -95,6 +103,14 @@ router.put('/users/:userId/permissions', authorize('company_super_admin'), updat
 router.get('/users/:userId/modules', authorize('company_super_admin'), getUserModules);
 router.put('/users/:userId/modules', authorize('company_super_admin'), updateUserModules);
 
+// Group Permission routes (only super admin)
+router.get('/group-permissions', authorize('company_super_admin'), getGroupPermissions);
+router.get('/group-permissions/:id', authorize('company_super_admin'), getGroupPermission);
+router.post('/group-permissions', authorize('company_super_admin'), createGroupPermission);
+router.put('/group-permissions/:id', authorize('company_super_admin'), updateGroupPermission);
+router.delete('/group-permissions/:id', authorize('company_super_admin'), deleteGroupPermission);
+router.put('/users/:userId/group-permission', authorize('company_super_admin'), assignGroupPermissionToUser);
+
 // Settings routes (only super admin)
 router.get('/settings/s3', authorize('company_super_admin','company_admin'), getS3Config);
 router.get('/settings/callback', authorize('company_super_admin'), getCallbackConfig);
@@ -111,11 +127,9 @@ router.put('/password', authorize('company_super_admin'), updateCompanyPassword)
 
 router.post('/create/:type', authorize('company_super_admin' , 'company_admin'), createController.create);
 
-
 router.post('/company_dropdowns/dropdowns/dropdown_values', authorize('company_super_admin','company_admin'), getCompanyMasterdropdownvalues);
 
 router.use('/company/dropdowns', authorize('company_super_admin'), require('./master.dropdown.routes'));
 router.get('/company/meta-data', authorize('company_super_admin'), retrieveController.dropdown);
-
 
 module.exports = router;

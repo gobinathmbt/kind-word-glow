@@ -20,6 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Car, Wrench, ClipboardList, Calculator, FileText } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
@@ -33,7 +39,6 @@ import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/Ma
 import VehicleImportSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleSpecificationsSection";
-import VehicleSafetySection from "@/components/vehicles/VehicleSections/MasterSections/VehicleSafetySection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOdometerSection";
 import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleAttachmentsSection";
@@ -391,23 +396,35 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                       stockNumber: vehicle.vehicle_stock_id,
                     }}
                     variant="outline"
-                    size="sm"
+                    size="icon"
                     onSuccess={onUpdate}
                   />
 
-                  <Button
-                    variant={isPricingReady ? "default" : "outline"}
-                    size="sm"
-                    onClick={handleTogglePricingReady}
-                    className={
-                      isPricingReady
-                        ? "bg-green-500 hover:bg-green-600 text-white"
-                        : ""
-                    }
-                  >
-                    <Calculator className="h-4 w-4 mr-2" />
-                    {isPricingReady ? "Pricing Ready" : "Mark Pricing Ready"}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={isPricingReady ? "default" : "outline"}
+                          size="icon"
+                          onClick={handleTogglePricingReady}
+                          className={`h-9 w-9 ${
+                            isPricingReady
+                              ? "bg-green-500 hover:bg-green-600 text-white"
+                              : ""
+                          }`}
+                        >
+                          <Calculator className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {isPricingReady
+                            ? "Pricing Ready"
+                            : "Mark Pricing Ready"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
@@ -440,7 +457,6 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleSafetySection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>

@@ -50,7 +50,6 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-
 interface ActionButton {
   icon: React.ReactNode;
   tooltip: string;
@@ -59,7 +58,6 @@ interface ActionButton {
   className?: string;
   disabled?: boolean;
 }
-
 
 interface DataTableLayoutProps {
   title: string;

@@ -391,8 +391,7 @@ export const masterDropdownServices = {
 };
 
 // Company Services
-export const companyServices = {
-  // Dashboard
+export const companyServices = { 
   getDashboardStats: (params?: any) =>
     apiClient.get("/api/company/dashboard/stats", { params }),
 
@@ -431,8 +430,6 @@ export const companyServices = {
 
   getRecentActivity: (params?: any) =>
     apiClient.get("/api/company/dashboard/recent-activity", { params }),
-
-  // ... keep existing code (users, permissions, settings)
 
   // Users
   getUsers: (params?: any) => apiClient.get("/api/company/users", { params }),
@@ -481,6 +478,25 @@ export const companyServices = {
 
   updateUserModules: (userId: string, data: any) =>
     apiClient.put(`/api/company/users/${userId}/modules`, data),
+
+  // Group Permissions
+  getGroupPermissions: (params?: any) =>
+    apiClient.get("/api/company/group-permissions", { params }),
+
+  getGroupPermission: (id: string) =>
+    apiClient.get(`/api/company/group-permissions/${id}`),
+
+  createGroupPermission: (data: any) =>
+    apiClient.post("/api/company/group-permissions", data),
+
+  updateGroupPermission: (id: string, data: any) =>
+    apiClient.put(`/api/company/group-permissions/${id}`, data),
+
+  deleteGroupPermission: (id: string) =>
+    apiClient.delete(`/api/company/group-permissions/${id}`),
+
+  assignGroupPermissionToUser: (userId: string, data: any) =>
+    apiClient.put(`/api/company/users/${userId}/group-permission`, data),
 
   // Settings
   getS3Config: () => apiClient.get("/api/company/settings/s3"),
@@ -945,12 +961,6 @@ export const vehicleServices = {
       `/api/vehicle/${vehicleId}/${vehicleType}/specifications`,
       data
     ),
-
-  updateVehicleSafetyFeatures: (
-    vehicleId: string,
-    vehicleType: string,
-    data: any
-  ) => apiClient.put(`/api/vehicle/${vehicleId}/${vehicleType}/safety`, data),
 
   updateVehicleOdometer: (vehicleId: string, vehicleType: string, data: any) =>
     apiClient.put(`/api/vehicle/${vehicleId}/${vehicleType}/odometer`, data),

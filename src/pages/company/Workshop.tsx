@@ -147,6 +147,15 @@ const Workshop = () => {
       } else if (sortField === "created_at") {
         aValue = new Date(a.created_at).getTime();
         bValue = new Date(b.created_at).getTime();
+      } else if (sortField === "vin") {
+        aValue = a.vin || "";
+        bValue = b.vin || "";
+      } else if (sortField === "mileage") {
+        aValue = a.latest_odometer || 0;
+        bValue = b.latest_odometer || 0;
+      } else if (sortField === "license_expiry") {
+        aValue = a.license_expiry_date || "";
+        bValue = b.license_expiry_date || "";
       }
 
       if (typeof aValue === "string") {
@@ -219,6 +228,32 @@ const Workshop = () => {
     toast.success("Export started");
   };
 
+  // Helper functions for new columns
+  const getExpiryStatus = (licenseExpiryDate: string) => {
+    if (!licenseExpiryDate) return null;
+
+    const today = new Date();
+    const expiryDate = new Date(licenseExpiryDate);
+    const diffTime = expiryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return "expired";
+    if (diffDays <= 3) return "expiring-soon";
+    return "valid";
+  };
+
+  const getRowClassName = (vehicle: any) => {
+    const status = getExpiryStatus(vehicle.license_expiry_date);
+    if (status === "expired") return "bg-red-50 hover:bg-red-100";
+    if (status === "expiring-soon") return "bg-orange-50 hover:bg-orange-100";
+    return "";
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-GB");
+  };
+
   // Calculate counts for chips
   const totalVehicles = vehiclesData?.total || 0;
   const inspectionCount = vehicles.filter(
@@ -281,6 +316,15 @@ const Workshop = () => {
   const renderTableHeader = () => (
     <TableRow>
       <TableHead className="bg-muted/50">S.No</TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("vehicle_stock_id")}
+      >
+        <div className="flex items-center">
+          Stock ID
+          {getSortIcon("vehicle_stock_id")}
+        </div>
+      </TableHead>
       <TableHead className="bg-muted/50">Image</TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
@@ -293,11 +337,11 @@ const Workshop = () => {
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("vehicle_stock_id")}
+        onClick={() => handleSort("vin")}
       >
         <div className="flex items-center">
-          Stock ID
-          {getSortIcon("vehicle_stock_id")}
+          VIN
+          {getSortIcon("vin")}
         </div>
       </TableHead>
       <TableHead
@@ -320,6 +364,24 @@ const Workshop = () => {
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("mileage")}
+      >
+        <div className="flex items-center">
+          Mileage
+          {getSortIcon("mileage")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("license_expiry")}
+      >
+        <div className="flex items-center">
+          License Expiry
+          {getSortIcon("license_expiry")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
         onClick={() => handleSort("vehicle_type")}
       >
         <div className="flex items-center">
@@ -327,16 +389,6 @@ const Workshop = () => {
           {getSortIcon("vehicle_type")}
         </div>
       </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("created_at")}
-      >
-        <div className="flex items-center">
-          Created At
-          {getSortIcon("created_at")}
-        </div>
-      </TableHead>
-      <TableHead className="bg-muted/50">Action</TableHead>
     </TableRow>
   );
 
@@ -345,11 +397,19 @@ const Workshop = () => {
     <>
       {sortedVehicles.length > 0 ? (
         sortedVehicles.map((vehicle: any, index: number) => (
-          <TableRow key={vehicle._id}>
+          <TableRow key={vehicle._id} className={`cursor-pointer ${getRowClassName(vehicle)}`}>
             <TableCell>
               {paginationEnabled
                 ? (page - 1) * rowsPerPage + index + 1
                 : index + 1}
+            </TableCell>
+            <TableCell>
+              <Link
+                to={`/company/workshop-config/${vehicle.vehicle_stock_id}/${vehicle.vehicle_type}`}
+                className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+              >
+                {vehicle.vehicle_stock_id}
+              </Link>
             </TableCell>
             <TableCell>
               <img
@@ -372,9 +432,7 @@ const Workshop = () => {
               </div>
             </TableCell>
             <TableCell>
-              <div>
-                <p className="font-medium">{vehicle.vehicle_stock_id}</p>
-              </div>
+              <p className="font-mono text-sm">{vehicle.vin || "-"}</p>
             </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
@@ -386,6 +444,30 @@ const Workshop = () => {
             <TableCell>
               <div>
                 <p className="font-medium">{vehicle.plate_no}</p>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div>
+                <p className="font-medium">
+                  {vehicle.latest_odometer 
+                    ? `${vehicle.latest_odometer.toLocaleString()} km`
+                    : "-"}
+                </p>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <p className="font-medium">
+                  {formatDate(vehicle.license_expiry_date)}
+                </p>
+                {getExpiryStatus(vehicle.license_expiry_date) === "expired" && (
+                  <p className="text-xs text-red-600 font-semibold">Expired</p>
+                )}
+                {getExpiryStatus(vehicle.license_expiry_date) === "expiring-soon" && (
+                  <p className="text-xs text-orange-600 font-semibold">
+                    Expiring Soon
+                  </p>
+                )}
               </div>
             </TableCell>
             <TableCell>
@@ -404,44 +486,11 @@ const Workshop = () => {
                 {vehicle.vehicle_type}
               </Badge>
             </TableCell>
-            <TableCell>
-              <div>
-                <p className="font-medium">
-                  {new Date(vehicle.created_at).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(vehicle.created_at).toLocaleTimeString()}
-                </p>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Link
-                to={`/company/workshop-config/${vehicle.vehicle_stock_id}/${vehicle.vehicle_type}`}
-              >
-               <TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-      >
-        <Eye className="h-4 w-4" />
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>View Dealership</p>
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
-
-              </Link>
-            </TableCell>
           </TableRow>
         ))
       ) : (
         <TableRow>
-          <TableCell colSpan={8} className="text-center py-16">
+          <TableCell colSpan={11} className="text-center py-16">
             <div className="flex flex-col items-center">
               <Car className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No Vehicles Found</h3>

@@ -64,7 +64,7 @@ const SCHEMA_FIELDS = [
   // Nested object fields
   'vehicle_other_details', 'vehicle_source', 'vehicle_registration', 
   'vehicle_import_details', 'vehicle_attachments', 'vehicle_eng_transmission',
-  'vehicle_specifications', 'vehicle_safety_features', 'vehicle_odometer', 
+  'vehicle_specifications', 'vehicle_odometer', 
   'vehicle_ownership',
   
   // Workshop fields
@@ -190,7 +190,7 @@ const validateNestedObjectStructure = (fieldName, fieldValue) => {
     'vehicle_import_details': ['delivery_port', 'vessel_name', 'voyage', 'etd', 'eta', 'date_on_yard', 'imported_as_damaged'],
     'vehicle_eng_transmission': ['engine_no', 'engine_type', 'transmission_type', 'primary_fuel_type', 'no_of_cylinders', 'turbo', 'engine_size', 'engine_size_unit', 'engine_features'],
     'vehicle_specifications': ['number_of_seats', 'number_of_doors', 'interior_color', 'exterior_primary_color', 'exterior_secondary_color', 'steering_type', 'wheels_composition', 'sunroof', 'interior_trim', 'seat_material', 'tyre_size', 'interior_features', 'exterior_features'],
-    'vehicle_safety_features': ['features'],
+
     'vehicle_ownership': ['origin', 'no_of_previous_owners', 'security_interest_on_ppsr', 'comments']
   };
 

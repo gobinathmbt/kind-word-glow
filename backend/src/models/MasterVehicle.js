@@ -209,12 +209,6 @@ const MasterVehicleSchema = new mongoose.Schema({
     },
   ],
 
-  // Vehicle Safety Features
-  vehicle_safety_features: [
-    {
-      features: [String],
-    },
-  ],
 
   // Vehicle Odometer
   vehicle_odometer: [

@@ -18,7 +18,6 @@ const {
   updateVehicleImport,
   updateVehicleEngine,
   updateVehicleSpecifications,
-  updateVehicleSafetyFeatures,
   updateVehicleOdometer,
   updateVehicleOwnership,
   getVehicleAttachments,
@@ -57,7 +56,6 @@ router.put('/:id/:vehicleType/registration', updateVehicleRegistration);
 router.put('/:id/:vehicleType/import', updateVehicleImport);
 router.put('/:id/:vehicleType/engine', updateVehicleEngine);
 router.put('/:id/:vehicleType/specifications', updateVehicleSpecifications);
-router.put('/:id/:vehicleType/safety', updateVehicleSafetyFeatures);
 router.put('/:id/:vehicleType/odometer', updateVehicleOdometer);
 router.put('/:id/:vehicleType/ownership', updateVehicleOwnership);
 

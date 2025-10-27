@@ -10,26 +10,26 @@ import {
   ArrowDown,
   SlidersHorizontal,
   RefreshCw,
-  Calculator,
-} from "lucide-react";
+} from "lucide-react"; // Remove Calculator import
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import {
   commonVehicleServices,
   dealershipServices,
   authServices,
+  vehicleServices,
 } from "@/api/services";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { formatApiNames } from "@/utils/GlobalUtils";
-import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
+// Remove CostCalculationDialog import
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
+import VehiclePricingSideModal from "@/components/vehicles/VehicleSideModals/VehiclePricingSideModal";
 
 interface StatChip {
   label: string;
@@ -38,9 +38,8 @@ interface StatChip {
   bgColor: string;
   textColor: string;
   hoverColor: string;
-  onClick?: () => void; // optional handler
+  onClick?: () => void;
 }
-
 
 const VehiclePricingList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,8 +51,7 @@ const VehiclePricingList = () => {
   const [paginationEnabled, setPaginationEnabled] = useState(true);
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [costCalculationOpen, setCostCalculationOpen] = useState(false);
-  const [selectedVehicleForCost, setSelectedVehicleForCost] = useState<any>(null);
+  // Remove cost calculation states
   const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
@@ -168,6 +166,12 @@ const VehiclePricingList = () => {
       if (sortField === "vehicle_name") {
         aValue = `${a.make} ${a.model}`;
         bValue = `${b.make} ${b.model}`;
+      } else if (sortField === "mileage") {
+        aValue = a.latest_odometer || 0;
+        bValue = b.latest_odometer || 0;
+      } else if (sortField === "license_expiry") {
+        aValue = a.license_expiry_date || "";
+        bValue = b.license_expiry_date || "";
       }
 
       if (typeof aValue === "string") {
@@ -182,6 +186,31 @@ const VehiclePricingList = () => {
       }
     });
   }, [vehicles, sortField, sortOrder]);
+
+  const getExpiryStatus = (licenseExpiryDate: string) => {
+    if (!licenseExpiryDate) return null;
+
+    const today = new Date();
+    const expiryDate = new Date(licenseExpiryDate);
+    const diffTime = expiryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return "expired";
+    if (diffDays <= 3) return "expiring-soon";
+    return "valid";
+  };
+
+  const getRowClassName = (vehicle: any) => {
+    const status = getExpiryStatus(vehicle.license_expiry_date);
+    if (status === "expired") return "bg-red-50 hover:bg-red-100";
+    if (status === "expiring-soon") return "bg-orange-50 hover:bg-orange-100";
+    return "";
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-GB");
+  };
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -201,22 +230,25 @@ const VehiclePricingList = () => {
     );
   };
 
-  const handleViewDetails = (vehicle: any) => {
-    setSelectedVehicle(vehicle);
+  const handleViewDetails = async (vehicleId: string, vehicleType: string) => {
+    try {
+      const response = await vehicleServices.getVehicleDetail(
+        vehicleId,
+        vehicleType
+      );
+      setSelectedVehicle(response.data.data);
+    } catch (error) {
+      toast.error("Failed to load vehicle details");
+    }
   };
 
-  const handleOpenCostCalculation = (vehicle: any, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedVehicleForCost(vehicle);
-    setCostCalculationOpen(true);
-  };
-
+  // Remove handleOpenCostCalculation function
 
   const getDealershipName = (dealershipId: string) => {
     const dealership = dealerships?.find(
       (dealer: any) => dealer._id === dealershipId
     );
-    return dealership ? formatApiNames(dealership.dealership_name)  : "Unknown";
+    return dealership ? formatApiNames(dealership.dealership_name) : "Unknown";
   };
 
   const handleRowsPerPageChange = (value: string) => {
@@ -286,7 +318,6 @@ const VehiclePricingList = () => {
 
   const visibleStatChips = allStatChips.slice(0, 4);
 
-
   // Prepare action buttons
   const actionButtons = [
     {
@@ -299,7 +330,8 @@ const VehiclePricingList = () => {
       icon: <Download className="h-4 w-4" />,
       tooltip: "Export Report",
       onClick: handleExport,
-      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+      className:
+        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
     },
   ];
 
@@ -310,7 +342,7 @@ const VehiclePricingList = () => {
     { value: "completed", label: "Completed" },
   ];
 
-  // Render table header
+  // Render table header - Remove Actions column
   const renderTableHeader = () => (
     <TableRow>
       <TableHead className="bg-muted/50">S.No</TableHead>
@@ -334,6 +366,15 @@ const VehiclePricingList = () => {
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("vin")}
+      >
+        <div className="flex items-center">
+          VIN
+          {getSortIcon("vin")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
         onClick={() => handleSort("plate_no")}
       >
         <div className="flex items-center">
@@ -348,6 +389,33 @@ const VehiclePricingList = () => {
         <div className="flex items-center">
           Dealership
           {getSortIcon("dealership_id")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("mileage")}
+      >
+        <div className="flex items-center">
+          Mileage
+          {getSortIcon("mileage")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("license_expiry")}
+      >
+        <div className="flex items-center">
+          License Expiry
+          {getSortIcon("license_expiry")}
+        </div>
+      </TableHead>
+      <TableHead
+        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
+        onClick={() => handleSort("status")}
+      >
+        <div className="flex items-center">
+          Status
+          {getSortIcon("status")}
         </div>
       </TableHead>
       <TableHead
@@ -368,15 +436,21 @@ const VehiclePricingList = () => {
           {getSortIcon("vehicle_type")}
         </div>
       </TableHead>
-      <TableHead className="bg-muted/50">Actions</TableHead>
+      {/* Remove Actions TableHead */}
     </TableRow>
   );
 
-  // Render table body
+  // Render table body - Remove Actions column
   const renderTableBody = () => (
     <>
       {sortedVehicles.map((vehicle: any, index: number) => (
-        <TableRow key={vehicle._id} onClick={() => handleViewDetails(vehicle)} className="cursor-pointer hover:bg-muted/50">
+        <TableRow
+          key={vehicle._id}
+          onClick={() =>
+            handleViewDetails(vehicle.vehicle_stock_id, vehicle.vehicle_type)
+          }
+          className={`cursor-pointer ${getRowClassName(vehicle)}`}
+        >
           <TableCell>
             {paginationEnabled
               ? (page - 1) * rowsPerPage + index + 1
@@ -384,7 +458,16 @@ const VehiclePricingList = () => {
           </TableCell>
           <TableCell>
             <div>
-              <p className="font-medium text-blue-600 hover:text-blue-600 cursor-pointer">
+              <p
+                className="font-medium text-blue-600 hover:text-blue-600 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleViewDetails(
+                    vehicle.vehicle_stock_id,
+                    vehicle.vehicle_type
+                  );
+                }}
+              >
                 {vehicle.vehicle_stock_id}
               </p>
             </div>
@@ -413,6 +496,9 @@ const VehiclePricingList = () => {
             </div>
           </TableCell>
           <TableCell>
+            <p className="font-mono text-sm">{vehicle.vin || "-"}</p>
+          </TableCell>
+          <TableCell>
             <div>
               <p className="font-medium">{vehicle.plate_no}</p>
             </div>
@@ -424,32 +510,43 @@ const VehiclePricingList = () => {
               </Badge>
             </div>
           </TableCell>
+          <TableCell>
+            {vehicle.latest_odometer
+              ? `${vehicle.latest_odometer.toLocaleString()} km`
+              : "-"}
+          </TableCell>
+          <TableCell>
+            <div className="flex flex-col">
+              <p className="font-medium">
+                {formatDate(vehicle.license_expiry_date)}
+              </p>
+              {getExpiryStatus(vehicle.license_expiry_date) === "expired" && (
+                <p className="text-xs text-red-600 font-semibold">Expired</p>
+              )}
+              {getExpiryStatus(vehicle.license_expiry_date) ===
+                "expiring-soon" && (
+                <p className="text-xs text-orange-600 font-semibold">
+                  Expiring Soon
+                </p>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+              {formatApiNames(vehicle.status || "pending")}
+            </Badge>
+          </TableCell>
           <TableCell>{vehicle.year}</TableCell>
           <TableCell>
-            <Badge
-              variant="outline"
-              className="capitalize"
-            >
+            <Badge variant="outline" className="capitalize">
               {vehicle.vehicle_type}
             </Badge>
           </TableCell>
-          <TableCell>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!vehicle.purchase_type}
-              onClick={(e) => handleOpenCostCalculation(vehicle, e)}
-              className="gap-2"
-            >
-              <Calculator className="h-4 w-4" />
-              Pricing Calculation
-            </Button>
-          </TableCell>
+          {/* Remove Actions TableCell */}
         </TableRow>
       ))}
     </>
   );
-
 
   return (
     <>
@@ -458,7 +555,7 @@ const VehiclePricingList = () => {
         data={sortedVehicles}
         isLoading={isLoading}
         totalCount={vehiclesData?.total || 0}
-           statChips={visibleStatChips}
+        statChips={visibleStatChips}
         actionButtons={actionButtons}
         page={page}
         rowsPerPage={rowsPerPage}
@@ -476,16 +573,9 @@ const VehiclePricingList = () => {
         cookieName="vehicle_pricing_pagination"
       />
 
-      <CostCalculationDialog
-      completeUser={completeUser}
-        open={costCalculationOpen}
-        onClose={() => {
-          setCostCalculationOpen(false);
-          setSelectedVehicleForCost(null);
-        }}
-        vehicle={selectedVehicleForCost}
-      />
-        <Dialog open={showAllStatusChips} onOpenChange={setShowAllStatusChips}>
+      {/* Remove CostCalculationDialog component */}
+
+      <Dialog open={showAllStatusChips} onOpenChange={setShowAllStatusChips}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>All Status Counts</DialogTitle>
@@ -507,6 +597,12 @@ const VehiclePricingList = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <VehiclePricingSideModal
+        vehicle={selectedVehicle}
+        isOpen={!!selectedVehicle}
+        onClose={() => setSelectedVehicle(null)}
+        onUpdate={refetch}
+      />
     </>
   );
 };

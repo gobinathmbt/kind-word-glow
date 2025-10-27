@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,9 +12,16 @@ import {
 } from "@/components/ui/accordion";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { vehicleServices, companyServices } from "@/api/services";
 import { Pencil } from "lucide-react";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface VehicleGeneralInfoSectionProps {
   vehicle: any;
@@ -179,6 +187,23 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     setIsEditing(false);
   };
 
+  const { data: vehicleStatus } = useQuery({
+    queryKey: ["vehicle-status"],
+    queryFn: async () => {
+      const response = await companyServices.getCompanyMasterdropdownvalues({
+        dropdown_name: ["vehicle_status"],
+      });
+      return response.data?.data[0]?.values || [];
+    },
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   return (
     <Accordion type="single" collapsible>
       <AccordionItem value="general-info">
@@ -231,15 +256,34 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
-                      <Input
-                        id="status"
+                      <Select
                         value={formData.status}
-                        onChange={(e) =>
-                          setFormData({ ...formData, status: e.target.value })
+                        onValueChange={(value) =>
+                          handleInputChange("status", value)
                         }
-                      />
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vehicleStatus?.map((status: any) => (
+                            <SelectItem
+                              key={status._id}
+                              value={status.option_value}
+                            >
+                              {status.display_value}
+                            </SelectItem>
+                          ))}
+                          {(!vehicleStatus || vehicleStatus.length === 0) && (
+                            <SelectItem value="" disabled>
+                              No status options available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="vehicle_type">Vehicle Type</Label>

@@ -26,11 +26,15 @@ const getVehicleStock = async (req, res) => {
     let filter = { company_id: req.user.company_id };
 
     // Handle dealership-based access for non-primary company_super_admin
-    if (!req.user.is_primary_admin &&
-      req.user.dealership_ids && req.user.dealership_ids.length > 0) {
-
+    if (
+      !req.user.is_primary_admin &&
+      req.user.dealership_ids &&
+      req.user.dealership_ids.length > 0
+    ) {
       // Extract dealership ObjectIds from the user's dealership_ids array
-      const dealershipObjectIds = req.user.dealership_ids.map(dealer => dealer._id);
+      const dealershipObjectIds = req.user.dealership_ids.map(
+        (dealer) => dealer._id
+      );
 
       // Add dealership filter to only show vehicles from authorized dealerships
       filter.dealership_id = { $in: dealershipObjectIds };
@@ -44,42 +48,104 @@ const getVehicleStock = async (req, res) => {
       filter.status = status;
     }
 
-    // Use text search if available, otherwise use regex fallback
+    // Use text search if available
     if (search) {
       if (search.trim().length > 0) {
         filter.$text = { $search: search };
       }
     }
 
-    // Define the fields to exclude (from vehicle_category to vehicle_odometer)
-    const excludedFields = {
-      inspection_result: 0,
-      trade_in_result: 0,
-      vehicle_other_details: 0,
-      vehicle_source: 0,
-      vehicle_registration: 0,
-      vehicle_import_details: 0,
-      vehicle_attachments: 0,
-      vehicle_eng_transmission: 0,
-      vehicle_specifications: 0,
-      vehicle_safety_features: 0,
-      vehicle_odometer: 0,
+    // Define the projection to include necessary fields for inspection vehicles
+    const projection = {
+      _id: 1,
+      vehicle_stock_id: 1,
+      vehicle_type: 1,
+      vehicle_hero_image: 1,
+      vin: 1,
+      plate_no: 1,
+      make: 1,
+      model: 1,
+      year: 1,
+      variant: 1,
+      body_style: 1,
+      dealership_id: 1,
+      status: 1,
+      inspection_result: 1,
+      // Get latest odometer reading
+      "vehicle_odometer": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+      // Get latest registration details
+      "vehicle_registration": {
+        $slice: 1 // Get only the first (latest) entry
+      },
     };
 
-    // Use parallel execution for count and data retrieval
-    const [vehicles, total] = await Promise.all([
-      Vehicle.find(filter, excludedFields)
+    // Execute queries in parallel
+    const [vehicles, total, statusCounts] = await Promise.all([
+      Vehicle.find(filter, projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
-        .lean(), // Use lean for faster queries
+        .lean(),
       Vehicle.countDocuments(filter),
+      // Aggregate to get status counts
+      Vehicle.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
+
+    // Transform vehicles data to flatten nested arrays and add computed fields
+    const transformedVehicles = vehicles.map((vehicle) => {
+      // Get latest odometer reading
+      const latestOdometer = vehicle.vehicle_odometer?.[0]?.reading || null;
+
+      // Get latest license expiry date
+      const latestRegistration = vehicle.vehicle_registration?.[0];
+      const licenseExpiryDate = latestRegistration?.license_expiry_date || null;
+
+      // Get inspection result details
+      const inspectionResult = vehicle.inspection_result?.[0] || null;
+
+      return {
+        _id: vehicle._id,
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        vehicle_type: vehicle.vehicle_type,
+        vehicle_hero_image: vehicle.vehicle_hero_image,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        variant: vehicle.variant,
+        body_style: vehicle.body_style,
+        dealership_id: vehicle.dealership_id,
+        status: vehicle.status,
+        latest_odometer: latestOdometer,
+        license_expiry_date: licenseExpiryDate,
+        inspection_result: inspectionResult,
+        inspection_status: inspectionResult?.status || 'pending',
+        inspection_date: inspectionResult?.inspection_date || null,
+      };
+    });
+
+    // Transform status counts into an object
+    const statusCountsObject = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
 
     res.status(200).json({
       success: true,
-      data: vehicles,
+      data: transformedVehicles,
       total,
+      statusCounts: statusCountsObject,
       pagination: {
         current_page: numericPage,
         total_pages: Math.ceil(total / numericLimit),
@@ -88,10 +154,10 @@ const getVehicleStock = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get vehicle stock error:", error);
+    console.error("Get inspection vehicles error:", error);
     res.status(500).json({
       success: false,
-      message: "Error retrieving vehicle stock",
+      message: "Error retrieving inspection vehicles",
     });
   }
 };
@@ -165,11 +231,6 @@ const createVehicleStock = async (req, res) => {
       dealership: "Dealership",
       status: "Status",
       purchase_type: "Purchase type",
-      // New required fields
-      odometer_reading: "Odometer reading",
-      purchase_price: "Purchase price",
-      rego_expiry_date: "Registration expiry date",
-      warranty_expiry_date: "Manufacture warranty expiry date"
     };
 
     const missingFields = [];
@@ -371,11 +432,14 @@ const bulkImportVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicle = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Find the vehicle first
+    const vehicle = await Vehicle.findOne({ 
+      _id: id, 
+      company_id: req.user.company_id 
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -383,6 +447,51 @@ const updateVehicle = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    // Handle inspection_result update
+    if (updateData.inspection_result) {
+      const updatedInspectionResult = [...vehicle.inspection_result];
+      
+      updateData.inspection_result.forEach(updatedCategory => {
+        const existingCategoryIndex = updatedInspectionResult.findIndex(
+          cat => cat.category_id === updatedCategory.category_id
+        );
+        
+        if (existingCategoryIndex !== -1) {
+          // Update existing category
+          updatedInspectionResult[existingCategoryIndex] = updatedCategory;
+        } else {
+          // Add new category (if needed)
+          updatedInspectionResult.push(updatedCategory);
+        }
+      });
+      
+      vehicle.inspection_result = updatedInspectionResult;
+    }
+
+    // Handle trade_in_result update  
+    if (updateData.trade_in_result) {
+      const updatedTradeInResult = [...vehicle.trade_in_result];
+      
+      updateData.trade_in_result.forEach(updatedCategory => {
+        const existingCategoryIndex = updatedTradeInResult.findIndex(
+          cat => cat.category_id === updatedCategory.category_id
+        );
+        
+        if (existingCategoryIndex !== -1) {
+          // Update existing category
+          updatedTradeInResult[existingCategoryIndex] = updatedCategory;
+        } else {
+          // Add new category (if needed)
+          updatedTradeInResult.push(updatedCategory);
+        }
+      });
+      
+      vehicle.trade_in_result = updatedTradeInResult;
+    }
+
+    // Save the updated vehicle
+    await vehicle.save();
 
     res.status(200).json({
       success: true,
@@ -917,36 +1026,7 @@ const updateVehicleSpecifications = async (req, res) => {
   }
 };
 
-// @desc    Update vehicle safety features section
-// @route   PUT /api/vehicle/:id/safety
-// @access  Private (Company Admin/Super Admin)
-const updateVehicleSafetyFeatures = async (req, res) => {
-  try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_safety_features: req.body.vehicle_safety_features },
-      { new: true, runValidators: true }
-    );
 
-    if (!vehicle) {
-      return res.status(404).json({
-        success: false,
-        message: "Vehicle not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: vehicle,
-    });
-  } catch (error) {
-    console.error("Update vehicle safety features error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating vehicle safety features",
-    });
-  }
-};
 
 // @desc    Update vehicle odometer section
 // @route   PUT /api/vehicle/:id/odometer
@@ -1373,7 +1453,6 @@ module.exports = {
   updateVehicleImport,
   updateVehicleEngine,
   updateVehicleSpecifications,
-  updateVehicleSafetyFeatures,
   updateVehicleOdometer,
   updateVehicleOwnership,
   getVehicleAttachments,

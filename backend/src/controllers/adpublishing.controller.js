@@ -33,28 +33,95 @@ const getAdVehicles = async (req, res) => {
     }
 
     if (search) {
-      filter.$or = [
-        { make: { $regex: search, $options: 'i' } },
-        { model: { $regex: search, $options: 'i' } },
-        { plate_no: { $regex: search, $options: 'i' } },
-        { vin: { $regex: search, $options: 'i' } }
-      ];
+      if (search.trim().length > 0) {
+        filter.$text = { $search: search };
+      }
     }
 
-    // Use parallel execution for count and data retrieval
-    const [adVehicles, total] = await Promise.all([
-      AdVehicle.find(filter)
+    // Define the projection to include necessary fields including VIN, mileage, license expiry
+    const projection = {
+      _id: 1,
+      vehicle_stock_id: 1,
+      vehicle_type: 1,
+      vehicle_hero_image: 1,
+      vin: 1,
+      plate_no: 1,
+      make: 1,
+      model: 1,
+      year: 1,
+      variant: 1,
+      body_style: 1,
+      dealership_id: 1,
+      status: 1,
+      // Get latest odometer reading
+      "vehicle_odometer": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+      // Get latest registration details
+      "vehicle_registration": {
+        $slice: 1 // Get only the first (latest) entry
+      },
+    };
+
+    // Use parallel execution for count, data retrieval, and status counts
+    const [adVehicles, total, statusCounts] = await Promise.all([
+      AdVehicle.find(filter, projection)
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
         .lean(), // Use lean for faster queries
       AdVehicle.countDocuments(filter),
+      // Aggregate to get status counts
+      AdVehicle.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
+
+    // Transform vehicles data to flatten nested arrays and add computed fields
+    const transformedVehicles = adVehicles.map((vehicle) => {
+      // Get latest odometer reading (mileage)
+      const latestOdometer = vehicle.vehicle_odometer?.[0]?.reading || null;
+
+      // Get latest license expiry date
+      const latestRegistration = vehicle.vehicle_registration?.[0];
+      const licenseExpiryDate = latestRegistration?.license_expiry_date || null;
+
+      return {
+        _id: vehicle._id,
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        vehicle_type: vehicle.vehicle_type,
+        vehicle_hero_image: vehicle.vehicle_hero_image,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        variant: vehicle.variant,
+        body_style: vehicle.body_style,
+        dealership_id: vehicle.dealership_id,
+        status: vehicle.status,
+        latest_odometer: latestOdometer,
+        license_expiry_date: licenseExpiryDate,
+      };
+    });
+
+    // Transform status counts into an object
+    const statusCountsObject = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
 
     res.status(200).json({
       success: true,
-      data: adVehicles,
+      data: transformedVehicles,
       total,
+      statusCounts: statusCountsObject,
       pagination: {
         current_page: numericPage,
         total_pages: Math.ceil(total / numericLimit),
@@ -268,7 +335,7 @@ const updateAdVehicle = async (req, res) => {
   try {
     const adVehicle = await AdVehicle.findOneAndUpdate(
       {
-        vehicle_stock_id: req.params.id,
+        _id: req.params.id,
         company_id: req.user.company_id,
         vehicle_type: 'advertisement'
       },

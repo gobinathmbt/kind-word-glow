@@ -70,39 +70,6 @@ const validateVehicleInboundConfig = (workflow, testPayload) => {
   return { valid: errors.length === 0, errors };
 };
 
-const validatePropertyTriggerConfig = (workflow) => {
-  const errors = [];
-  const { trigger_events, webhook_url } = workflow.config.trigger_config;
-
-  if (!trigger_events || trigger_events.length === 0) {
-    errors.push("No trigger events configured");
-  }
-
-  if (!webhook_url) {
-    errors.push("Webhook URL not configured");
-  }
-
-  return { valid: errors.length === 0, errors };
-};
-
-const validateEmailConfig = (workflow) => {
-  const errors = [];
-  const { email_settings, template_config } = workflow.config.email_config;
-
-  if (!template_config.from_email) {
-    errors.push("From email not configured");
-  }
-
-  if (!template_config.subject_template) {
-    errors.push("Subject template not configured");
-  }
-
-  if (!template_config.body_template) {
-    errors.push("Body template not configured");
-  }
-
-  return { valid: errors.length === 0, errors };
-};
 
 // Get all workflows for a company
 const getWorkflows = async (req, res) => {
@@ -555,12 +522,6 @@ const testWorkflow = async (req, res) => {
       case "vehicle_inbound":
         validationResult = validateVehicleInboundConfig(workflow, test_payload);
         break;
-      case "vehicle_property_trigger":
-        validationResult = validatePropertyTriggerConfig(workflow);
-        break;
-      case "email_automation":
-        validationResult = validateEmailConfig(workflow);
-        break;
       default:
         validationResult = { valid: false, errors: ["Invalid workflow type"] };
     }
@@ -598,6 +559,4 @@ module.exports = {
   getMongoDBStateName,
   processVehicleInboundWorkflow,
   validateVehicleInboundConfig,
-  validatePropertyTriggerConfig,
-  validateEmailConfig,
 };

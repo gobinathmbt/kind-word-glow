@@ -253,7 +253,8 @@ const getUsersWithPermissions = async (req, res) => {
     }
 
     const users = await User.find(filter)
-      .select('_id username email first_name last_name role is_active permissions module_access is_primary_admin dealership_ids')
+      .select('_id username email first_name last_name role is_active permissions module_access is_primary_admin dealership_ids group_permissions')
+      .populate('group_permissions', 'name description permissions')
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(parseInt(limit));
