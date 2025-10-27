@@ -30,8 +30,6 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const emailServices = [
     { value: 'gmail', label: 'Gmail' },
     { value: 'sendgrid', label: 'SendGrid' },
-    { value: 'mailgun', label: 'Mailgun' },
-    { value: 'smtp', label: 'Custom SMTP' }
   ];
 
   const templateVariables = [

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Settings, FileJson, Trash2, Plus, AlertTriangle, Code, Check, X } from 'lucide-react';
+import { MapPin, Settings, Trash2, Plus, AlertTriangle, Code, Check, X, FileJson } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { workflowServices } from '@/api/services';
@@ -26,6 +26,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const [sampleJson, setSampleJson] = useState('');
   const [parsedFields, setParsedFields] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [jsonError, setJsonError] = useState<string>('');
   const { toast } = useToast();
 
   // Get vehicle schema fields
@@ -41,35 +42,41 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
     setSampleJson(config.sample_json || '');
   }, [config.sample_json]);
 
-  const parseSampleJSON = () => {
+  // Auto-parse JSON when it changes
+  useEffect(() => {
+    if (!sampleJson.trim()) {
+      setParsedFields([]);
+      setJsonError('');
+      return;
+    }
+
     try {
       const parsed = JSON.parse(sampleJson);
       const fields = extractFieldsFromObject(parsed, '', parsed);
       setParsedFields(fields);
+      setJsonError('');
       
-      // Auto-map fields
-      const autoMappings = autoMapFields(fields);
-      
-      setConfig(prev => ({ 
-        ...prev, 
-        sample_json: sampleJson,
-        mappings: autoMappings 
-      }));
-      
-      validateMappings(autoMappings);
-      
-      toast({
-        title: "JSON Parsed Successfully",
-        description: `Found ${fields.length} fields, ${autoMappings.filter(m => m.target_field && m.target_field !== 'custom_fields').length} auto-mapped`,
-      });
+      // Auto-map fields only if we don't have mappings yet or if mappings are empty
+      if (config.mappings.length === 0) {
+        const autoMappings = autoMapFields(fields);
+        setConfig(prev => ({ 
+          ...prev, 
+          sample_json: sampleJson,
+          mappings: autoMappings 
+        }));
+        validateMappings(autoMappings);
+      } else {
+        // Just update the sample_json in config
+        setConfig(prev => ({ 
+          ...prev, 
+          sample_json: sampleJson
+        }));
+      }
     } catch (error) {
-      toast({
-        title: "Invalid JSON",
-        description: "Please check your JSON syntax",
-        variant: "destructive",
-      });
+      setJsonError('Invalid JSON syntax. Please check your JSON format.');
+      setParsedFields([]);
     }
-  };
+  }, [sampleJson]);
 
   const extractFieldsFromObject = (obj: any, prefix = '', rootObj: any): any[] => {
     let fields: any[] = [];
@@ -262,6 +269,21 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
     validateMappings(updatedMappings);
   };
 
+  const remapFields = () => {
+    if (parsedFields.length > 0) {
+      const autoMappings = autoMapFields(parsedFields);
+      setConfig(prev => ({ 
+        ...prev, 
+        mappings: autoMappings 
+      }));
+      validateMappings(autoMappings);
+      toast({
+        title: "Fields Remapped",
+        description: `${autoMappings.length} fields automatically mapped`,
+      });
+    }
+  };
+
   const handleConfigSave = () => {
     if (!validateMappings(config.mappings)) {
       toast({
@@ -359,9 +381,9 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                 <DialogTitle>Data Mapping Configuration</DialogTitle>
               </DialogHeader>
               
-              <Tabs defaultValue="mapping" className="flex-1 flex flex-col min-h-0 px-6">
+              <Tabs defaultValue="json" className="flex-1 flex flex-col min-h-0 px-6">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="json" className="text-xs">Sample JSON</TabsTrigger>
+                  <TabsTrigger value="json" className="text-xs">Sample JSON & Fields</TabsTrigger>
                   <TabsTrigger value="mapping" className="text-xs">Field Mappings</TabsTrigger>
                   <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
                 </TabsList>
@@ -370,33 +392,54 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                   <ScrollArea className="h-[calc(90vh-240px)]">
                     <div className="space-y-4 pr-4">
                       <div>
-                        <Label htmlFor="sample_json" className="text-sm mb-2 block">Sample JSON Payload</Label>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label htmlFor="sample_json" className="text-sm">Sample JSON Payload</Label>
+                          {parsedFields.length > 0 && (
+                            <Button 
+                              onClick={remapFields}
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                            >
+                              <FileJson className="w-3 h-3 mr-1.5" />
+                              Re-map All Fields
+                            </Button>
+                          )}
+                        </div>
                         <Textarea
                           id="sample_json"
                           value={sampleJson}
                           onChange={(e) => setSampleJson(e.target.value)}
-                          placeholder="Paste your sample JSON here..."
+                          placeholder='{"vehicle": {"make": "Toyota", "model": "Camry", "year": 2024}}'
                           className="font-mono text-xs h-64 resize-none"
                         />
-                        <Button 
-                          onClick={parseSampleJSON}
-                          className="mt-3 w-full"
-                          variant="outline"
-                          size="sm"
-                        >
-                          <FileJson className="w-3 h-3 mr-2" />
-                          Parse JSON & Auto-Map Fields
-                        </Button>
+                        {jsonError && (
+                          <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded flex items-start gap-2 border border-red-200">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span>{jsonError}</span>
+                          </div>
+                        )}
+                        {!jsonError && parsedFields.length > 0 && (
+                          <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded flex items-start gap-2 border border-green-200">
+                            <Check className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span>Valid JSON - {parsedFields.length} fields detected</span>
+                          </div>
+                        )}
                       </div>
 
                       {parsedFields.length > 0 && (
                         <div>
-                          <Label className="text-sm mb-2 block">Detected Fields ({parsedFields.length})</Label>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-sm">Detected Fields ({parsedFields.length})</Label>
+                            <Badge variant="outline" className="text-xs">
+                              Auto-extracted
+                            </Badge>
+                          </div>
                           <div className="border rounded-md">
-                            <ScrollArea className="h-48">
+                            <ScrollArea className="h-64">
                               <div className="space-y-1 p-2">
                                 {parsedFields.map((field, index) => (
-                                  <div key={index} className="text-xs font-mono bg-muted px-3 py-2 rounded flex justify-between items-center gap-2">
+                                  <div key={index} className="text-xs font-mono bg-muted px-3 py-2 rounded flex justify-between items-center gap-2 hover:bg-muted/80 transition-colors">
                                     <span className="truncate flex-1">{field.path}</span>
                                     <div className="flex gap-1 flex-shrink-0">
                                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
@@ -413,6 +456,16 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                               </div>
                             </ScrollArea>
                           </div>
+                        </div>
+                      )}
+
+                      {!sampleJson.trim() && (
+                        <div className="border border-dashed rounded-lg p-8 text-center">
+                          <FileJson className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground mb-1">No sample JSON provided</p>
+                          <p className="text-xs text-muted-foreground">
+                            Paste your JSON above to automatically detect and map fields
+                          </p>
                         </div>
                       )}
                     </div>
@@ -438,118 +491,138 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
                     <ScrollArea className="flex-1">
                       <div className="space-y-3 pr-4">
-                        {config.mappings.map((mapping: any, index: number) => (
-                          <Card key={index} className={`p-4 ${mapping.is_required && !mapping.source_field ? 'border-red-500' : ''}`}>
-                            <div className="space-y-3">
-                              <div className="flex items-start gap-3">
-                                <div className="flex-1 space-y-3 min-w-0">
-                                  <div>
-                                    <Label className="text-xs mb-1.5 block">Source Field (JSON Path)</Label>
-                                    <Select 
-                                      value={mapping.source_field}
-                                      onValueChange={(value) => updateMapping(index, 'source_field', value)}
-                                    >
-                                      <SelectTrigger className="h-9 text-xs">
-                                        <SelectValue placeholder="Select source field" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {parsedFields.map(field => (
-                                          <SelectItem key={field.path} value={field.path} className="text-xs">
-                                            <div className="flex items-center gap-2">
-                                              <span className="font-mono truncate">{field.path}</span>
-                                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">
-                                                {field.type}
-                                              </Badge>
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div>
-                                    <Label className="text-xs mb-1.5 block">Target Field (Vehicle Schema)</Label>
-                                    <Select 
-                                      value={mapping.target_field}
-                                      onValueChange={(value) => updateMapping(index, 'target_field', value)}
-                                    >
-                                      <SelectTrigger className="h-9 text-xs">
-                                        <SelectValue placeholder="Select target field" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="custom_fields" className="text-xs">
-                                          <div className="flex items-center gap-2">
-                                            <Code className="w-3 h-3" />
-                                            <span>Custom Fields</span>
-                                          </div>
-                                        </SelectItem>
-                                        <Separator />
-                                        {vehicleFields.map(field => (
-                                          <SelectItem key={field.field_name} value={field.field_name} className="text-xs">
-                                            <div className="flex items-center gap-2">
-                                              <span className="truncate">{field.field_name}</span>
-                                              {field.is_required && (
-                                                <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />
-                                              )}
-                                              {field.is_array && (
-                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">[]</Badge>
-                                              )}
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  {mapping.target_field === 'custom_fields' && (
+                        {config.mappings.length === 0 ? (
+                          <div className="border border-dashed rounded-lg p-8 text-center">
+                            <MapPin className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground mb-1">No mappings configured</p>
+                            <p className="text-xs text-muted-foreground mb-4">
+                              Add sample JSON in the first tab to auto-generate mappings
+                            </p>
+                            <Button variant="outline" size="sm" onClick={addMapping}>
+                              <Plus className="w-3 h-3 mr-1.5" />
+                              Add Manual Mapping
+                            </Button>
+                          </div>
+                        ) : (
+                          config.mappings.map((mapping: any, index: number) => (
+                            <Card key={index} className={`p-4 ${mapping.is_required && !mapping.source_field ? 'border-red-500' : ''}`}>
+                              <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1 space-y-3 min-w-0">
                                     <div>
-                                      <Label className="text-xs mb-1.5 block">Custom Field Key</Label>
-                                      <Input
-                                        value={mapping.custom_field_key || ''}
-                                        onChange={(e) => updateMapping(index, 'custom_field_key', e.target.value)}
-                                        placeholder="Enter custom field key"
-                                        className="h-9 text-xs"
-                                      />
+                                      <Label className="text-xs mb-1.5 block">Source Field (JSON Path)</Label>
+                                      <Select 
+                                        value={mapping.source_field}
+                                        onValueChange={(value) => updateMapping(index, 'source_field', value)}
+                                      >
+                                        <SelectTrigger className="h-9 text-xs">
+                                          <SelectValue placeholder="Select source field" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {parsedFields.length === 0 ? (
+                                            <SelectItem value="__placeholder__" disabled className="text-xs text-muted-foreground">
+                                              Add sample JSON to see fields
+                                            </SelectItem>
+                                          ) : (
+                                            parsedFields.map(field => (
+                                              <SelectItem key={field.path} value={field.path} className="text-xs">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-mono truncate">{field.path}</span>
+                                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">
+                                                    {field.type}
+                                                  </Badge>
+                                                </div>
+                                              </SelectItem>
+                                            ))
+                                          )}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
-                                  )}
+
+                                    <div>
+                                      <Label className="text-xs mb-1.5 block">Target Field (Vehicle Schema)</Label>
+                                      <Select 
+                                        value={mapping.target_field}
+                                        onValueChange={(value) => updateMapping(index, 'target_field', value)}
+                                      >
+                                        <SelectTrigger className="h-9 text-xs">
+                                          <SelectValue placeholder="Select target field" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="custom_fields" className="text-xs">
+                                            <div className="flex items-center gap-2">
+                                              <Code className="w-3 h-3" />
+                                              <span>Custom Fields</span>
+                                            </div>
+                                          </SelectItem>
+                                          <Separator />
+                                          {vehicleFields.map(field => (
+                                            <SelectItem key={field.field_name} value={field.field_name} className="text-xs">
+                                              <div className="flex items-center gap-2">
+                                                <span className="truncate">{field.field_name}</span>
+                                                {field.is_required && (
+                                                  <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                                                )}
+                                                {field.is_array && (
+                                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">[]</Badge>
+                                                )}
+                                              </div>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    {mapping.target_field === 'custom_fields' && (
+                                      <div>
+                                        <Label className="text-xs mb-1.5 block">Custom Field Key</Label>
+                                        <Input
+                                          value={mapping.custom_field_key || ''}
+                                          onChange={(e) => updateMapping(index, 'custom_field_key', e.target.value)}
+                                          placeholder="Enter custom field key"
+                                          className="h-9 text-xs"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeMapping(index)}
+                                    className="h-9 w-9 p-0 flex-shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
                                 </div>
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeMapping(index)}
-                                  className="h-9 w-9 p-0 flex-shrink-0"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-
-                              <div className="flex gap-1.5 flex-wrap">
-                                <Badge variant={mapping.is_required ? "destructive" : "secondary"} className="text-[10px] px-2 py-0.5">
-                                  {mapping.is_required ? "Required" : "Optional"}
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                                  {mapping.data_type}
-                                </Badge>
-                                {mapping.is_array && (
-                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5">Array</Badge>
-                                )}
-                                {mapping.is_custom && (
-                                  <Badge variant="outline" className="bg-blue-50 text-[10px] px-2 py-0.5">
-                                    Custom Field
+                                <div className="flex gap-1.5 flex-wrap">
+                                  <Badge variant={mapping.is_required ? "destructive" : "secondary"} className="text-[10px] px-2 py-0.5">
+                                    {mapping.is_required ? "Required" : "Optional"}
                                   </Badge>
-                                )}
-                                {mapping.sample_value && (
-                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 max-w-[200px]">
-                                    <span className="truncate">
-                                      Sample: {JSON.stringify(mapping.sample_value).slice(0, 30)}...
-                                    </span>
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                    {mapping.data_type}
                                   </Badge>
-                                )}
+                                  {mapping.is_array && (
+                                    <Badge variant="outline" className="text-[10px] px-2 py-0.5">Array</Badge>
+                                  )}
+                                  {mapping.is_custom && (
+                                    <Badge variant="outline" className="bg-blue-50 text-[10px] px-2 py-0.5">
+                                      Custom Field
+                                    </Badge>
+                                  )}
+                                  {mapping.sample_value && (
+                                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 max-w-[200px]">
+                                      <span className="truncate">
+                                        Sample: {JSON.stringify(mapping.sample_value).slice(0, 30)}...
+                                      </span>
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </Card>
-                        ))}
+                            </Card>
+                          ))
+                        )}
                       </div>
                     </ScrollArea>
                   </div>
@@ -614,6 +687,17 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                           )}
                         </div>
                       </Card>
+
+                      {parsedFields.length > 0 && (
+                        <Card className="p-4">
+                          <h3 className="font-semibold text-sm mb-3">Sample JSON Structure</h3>
+                          <div className="bg-muted rounded p-3">
+                            <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                              {JSON.stringify(JSON.parse(sampleJson || '{}'), null, 2)}
+                            </pre>
+                          </div>
+                        </Card>
+                      )}
                     </div>
                   </ScrollArea>
                 </TabsContent>

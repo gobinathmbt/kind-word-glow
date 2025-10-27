@@ -122,7 +122,7 @@ const WorkflowSchema = new mongoose.Schema({
     email_config: {
       email_provider: {
         type: String,
-        enum: ["smtp", "sendgrid", "mailgun", "aws_ses"],
+        enum: ["smtp", "sendgrid",],
         default: "smtp",
       },
       email_settings: {
