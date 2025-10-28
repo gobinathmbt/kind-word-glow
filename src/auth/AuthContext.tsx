@@ -65,6 +65,8 @@ export interface CompleteUser {
   subscription_days_remaining?: number;
   username?: string;
   company_name?: string;
+  permissions?: string[];
+  hasFullAccess?: boolean;
 }
 
 
@@ -91,6 +93,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  updateUserPermissions: (permissions: string[], hasFullAccess: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -164,15 +167,27 @@ const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
 
   const logout = () => {
     setUser(null);
+    setCompleteUser(null);
     setToken(null);
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
     delete axios.defaults.headers.common["Authorization"];
   };
 
+  const updateUserPermissions = (permissions: string[], hasFullAccess: boolean) => {
+    setCompleteUser((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        permissions,
+        hasFullAccess,
+      };
+    });
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isLoading, completeUser }}
+      value={{ user, token, login, logout, isLoading, completeUser, updateUserPermissions }}
     >
       {children}
     </AuthContext.Provider>

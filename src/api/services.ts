@@ -10,7 +10,10 @@ export const authServices = {
 
   getMe: () => apiClient.get("/api/auth/me"),
 
-  getCurrentUserPermissions: () => apiClient.get("/api/auth/me/permissions"),
+  getCurrentUserPermissions: (module_name?: string) => 
+    apiClient.get("/api/auth/me/permissions", { 
+      params: module_name ? { module_name } : {} 
+    }),
 
   getCurrentUserModule: () => apiClient.get("/api/auth/me/module"),
 };

@@ -84,19 +84,25 @@ router.post(
 // @route   GET /api/auth/me
 router.get("/me", protect, getMe);
 
-// @route   GET /api/auth/me/permissions
+// @route   GET /api/auth/me/permissions?module_name=vehicle_inspection
 router.get("/me/permissions", protect, async (req, res) => {
   try {
+    const { module_name } = req.query;
+
+    // Master admin and primary company super admin don't need permission filtering
     if (req.user.role === "master_admin") {
       return res.status(200).json({
         success: true,
         data: {
-          permissions: ["all"], // Master admin has all permissions
+          permissions: [],
+          hasFullAccess: true,
         },
       });
     }
 
-    const user = await User.findById(req.user.id).select("permissions");
+    const user = await User.findById(req.user.id)
+      .select("permissions group_permissions role is_primary_admin")
+      .populate("group_permissions", "permissions");
 
     if (!user) {
       return res.status(404).json({
@@ -105,10 +111,57 @@ router.get("/me/permissions", protect, async (req, res) => {
       });
     }
 
+    // Primary company super admin has full access
+    if (user.role === "company_super_admin" && user.is_primary_admin) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          permissions: [],
+          hasFullAccess: true,
+        },
+      });
+    }
+
+    // Combine permissions from user and group
+    let allPermissionStrings = [...(user.permissions || [])];
+    
+    // Add permissions from group if exists
+    if (user.group_permissions && user.group_permissions.permissions) {
+      allPermissionStrings = [
+        ...allPermissionStrings,
+        ...user.group_permissions.permissions,
+      ];
+    }
+
+    // Remove duplicates
+    allPermissionStrings = [...new Set(allPermissionStrings)];
+
+    // If no module_name specified, return all permissions
+    if (!module_name) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          permissions: allPermissionStrings,
+          hasFullAccess: false,
+        },
+      });
+    }
+
+    // Filter permissions by module_name using Permission schema
+    const Permission = require("../models/Permission");
+    const modulePermissions = await Permission.find({
+      module_name: module_name,
+      internal_name: { $in: allPermissionStrings },
+      is_active: true,
+    }).select("internal_name");
+
+    const filteredPermissions = modulePermissions.map((p) => p.internal_name);
+
     res.status(200).json({
       success: true,
       data: {
-        permissions: user.permissions || [],
+        permissions: filteredPermissions,
+        hasFullAccess: false,
       },
     });
   } catch (error) {
@@ -117,7 +170,7 @@ router.get("/me/permissions", protect, async (req, res) => {
       success: false,
       message: "Error retrieving user permissions",
     });
-  } 
+  }
 });
 
 router.get("/me/module", protect, async (req, res) => {

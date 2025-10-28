@@ -107,7 +107,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
 }) => {
-  const { user, logout, completeUser } = useAuth();
+  const { user, logout, completeUser, updateUserPermissions } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
@@ -116,6 +116,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [clickedMenu, setClickedMenu] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [currentModule, setCurrentModule] = useState<string | null>(null);
 
   const sidebarCookieKey = getUserSpecificKey("sidebar-collapsed", user?.email);
   const expandedMenusCookieKey = getUserSpecificKey(
@@ -475,6 +476,59 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       }
     }
   }, [location.pathname, isSidebarCollapsed, expandedMenusCookieKey]);
+
+  // Detect current module based on location and fetch permissions
+  useEffect(() => {
+    // Only fetch permissions for company_admin and non-primary company_super_admin
+    const shouldFetchPermissions =
+      user?.role === "company_admin" ||
+      (user?.role === "company_super_admin" && !completeUser?.is_primary_admin);
+
+    if (!shouldFetchPermissions) {
+      return;
+    }
+
+    // Find the current module based on location
+    let detectedModule: string | null = null;
+    for (const item of navigationItems) {
+      if (item.module) {
+        if (item.path === location.pathname) {
+          detectedModule = item.module;
+          break;
+        }
+        if (item.children) {
+          const childMatch = item.children.find(
+            (child) => child.path === location.pathname
+          );
+          if (childMatch) {
+            detectedModule = item.module;
+            break;
+          }
+        }
+      }
+    }
+
+    // If module changed, fetch permissions for that module
+    if (detectedModule && detectedModule !== currentModule) {
+      setCurrentModule(detectedModule);
+      
+      authServices
+        .getCurrentUserPermissions(detectedModule)
+        .then((response) => {
+          const { permissions, hasFullAccess } = response.data.data;
+          updateUserPermissions(permissions || [], hasFullAccess || false);
+        })
+        .catch((error) => {
+          console.error("Error fetching permissions:", error);
+        });
+    }
+  }, [
+    location.pathname,
+    user?.role,
+    completeUser?.is_primary_admin,
+    navigationItems,
+    currentModule,
+  ]);
 
   const NoAccessContent = () => (
     <div className="flex-1 flex items-center justify-center">
