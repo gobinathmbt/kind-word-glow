@@ -63,15 +63,6 @@ const MasterVehicleList = () => {
 
   const { completeUser } = useAuth();
 
-  // Fetch current user's permissions
-  const { data: userPermissions } = useQuery({
-    queryKey: ["user-permissions"],
-    queryFn: async () => {
-      const response = await authServices.getCurrentUserPermissions();
-      return response.data;
-    },
-  });
-
   const { data: dealerships } = useQuery({
     queryKey: ["dealerships-dropdown", completeUser?.is_primary_admin],
     queryFn: async () => {

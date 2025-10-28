@@ -87,8 +87,6 @@ router.get("/me", protect, getMe);
 // @route   GET /api/auth/me/permissions
 router.get("/me/permissions", protect, async (req, res) => {
   try {
-    const User = require("../models/User");
-
     if (req.user.role === "master_admin") {
       return res.status(200).json({
         success: true,
