@@ -79,44 +79,14 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   };
 
   const getDefaultTemplate = () => {
+    const htmlContent = '<html>\n<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">\n  <h2 style="color: #333;">Vehicle Processing Notification</h2>\n  \n  <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Vehicle Details:</h3>\n    <p><strong>Stock ID:</strong> {{vehicle.stock_id}}</p>\n    <p><strong>Vehicle:</strong> {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}</p>\n    <p><strong>VIN:</strong> {{vehicle.vin}}</p>\n  </div>\n  \n  <div style="background: {{response.status === "200" ? "#d4edda" : "#f8d7da"}}; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Processing Status:</h3>\n    <p><strong>Status:</strong> {{response.status}}</p>\n    <p><strong>Message:</strong> {{response.message}}</p>\n    {{#if error.message}}\n    <p><strong>Error:</strong> {{error.message}}</p>\n    {{/if}}\n  </div>\n  \n  <p><small>Processed at {{timestamp}} by {{company.name}}</small></p>\n</body>\n</html>';
+    
+    const textContent = 'Vehicle Processing Notification\n\nVehicle Details:\n- Stock ID: {{vehicle.stock_id}}\n- Vehicle: {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}\n- VIN: {{vehicle.vin}}\n\nProcessing Status: {{response.status}}\nMessage: {{response.message}}\n{{#if error.message}}Error: {{error.message}}{{/if}}\n\nProcessed at {{timestamp}} by {{company.name}}';
+    
     return {
       subject: 'Vehicle Processing {{response.status === "200" ? "Successful" : "Failed"}}',
-      html_content: `
-<html>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #333;">Vehicle Processing Notification</h2>
-  
-  <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
-    <h3>Vehicle Details:</h3>
-    <p><strong>Stock ID:</strong> {{vehicle.stock_id}}</p>
-    <p><strong>Vehicle:</strong> {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}</p>
-    <p><strong>VIN:</strong> {{vehicle.vin}}</p>
-  </div>
-  
-  <div style="background: {{response.status === "200" ? "#d4edda" : "#f8d7da"}}; padding: 15px; border-radius: 5px; margin: 15px 0;">
-    <h3>Processing Status:</h3>
-    <p><strong>Status:</strong> {{response.status}}</p>
-    <p><strong>Message:</strong> {{response.message}}</p>
-    {{#if error.message}}
-    <p><strong>Error:</strong> {{error.message}}</p>
-    {{/if}}
-  </div>
-  
-  <p><small>Processed at {{timestamp}} by {{company.name}}</small></p>
-</body>
-</html>`,
-      text_content: `Vehicle Processing Notification
-
-Vehicle Details:
-- Stock ID: {{vehicle.stock_id}}
-- Vehicle: {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}
-- VIN: {{vehicle.vin}}
-
-Processing Status: {{response.status}}
-Message: {{response.message}}
-{{#if error.message}}Error: {{error.message}}{{/if}}
-
-Processed at {{timestamp}} by {{company.name}}`
+      html_content: htmlContent,
+      text_content: textContent
     };
   };
 
