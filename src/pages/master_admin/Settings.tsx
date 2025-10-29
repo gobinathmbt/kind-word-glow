@@ -32,8 +32,8 @@ const MasterSettings = () => {
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
-    auth_user: "",
-    auth_pass: "",
+    user: "",
+    password: "",
     from_name: "Auto Erp Platform",
     from_email: "",
   });
@@ -335,15 +335,15 @@ const MasterSettings = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="auth_user">Email Address</Label>
+                      <Label htmlFor="user">Email Address</Label>
                       <Input
-                        id="auth_user"
+                        id="user"
                         type="email"
-                        value={smtpSettings.auth_user}
+                        value={smtpSettings.user}
                         onChange={(e) =>
                           setSmtpSettings({
                             ...smtpSettings,
-                            auth_user: e.target.value,
+                            user: e.target.value,
                           })
                         }
                         placeholder="your-email@gmail.com"
@@ -351,15 +351,15 @@ const MasterSettings = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="auth_pass">App Password</Label>
+                      <Label htmlFor="password">App Password</Label>
                       <Input
-                        id="auth_pass"
+                        id="password"
                         type="password"
-                        value={smtpSettings.auth_pass}
+                        value={smtpSettings.password}
                         onChange={(e) =>
                           setSmtpSettings({
                             ...smtpSettings,
-                            auth_pass: e.target.value,
+                            password: e.target.value,
                           })
                         }
                         placeholder="Your Gmail app password"

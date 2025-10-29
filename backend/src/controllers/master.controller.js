@@ -5,7 +5,7 @@ const User = require('../models/User');
 const Plan = require('../models/Plan');
 const bcrypt = require('bcryptjs');
 const { logEvent } = require('./logs.controller');
-const { sendEmail } = require('../config/mailer');
+const mailService = require('../config/mailer');
 
 // Get dashboard data
 const getDashboard = async (req, res) => {
@@ -499,27 +499,68 @@ const updateSmtpSettings = async (req, res) => {
 };
 
 // Test SMTP connection
+// Test SMTP connection
 const testSmtp = async (req, res) => {
   try {
-    const testResult = await sendEmail(
-      'test@example.com',
-      'SMTP Test',
-      'This is a test email to verify SMTP configuration.',
-      req.body
-    );
+    
+    // Force reinitialize to get latest SMTP settings from database
+    mailService.transporter = null;
+    await mailService.init();
+    
+    // Send test email
+    await mailService.sendEmail({
+      to: 'gobinath@qrsolutions.in',
+      subject: 'SMTP Test - Auto ERP Platform',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3b82f6;">SMTP Configuration Test</h2>
+          <p>This is a test email to verify your SMTP configuration.</p>
+          <p>If you received this email, your SMTP settings are working correctly!</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #6b7280; font-size: 14px;">
+            Sent from Auto ERP Platform<br>
+            ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `,
+      text: 'This is a test email to verify SMTP configuration. If you received this, your settings are working!'
+    });
+
+    // Log the event
+    await logEvent({
+      event_type: 'system_operation',
+      event_action: 'smtp_test',
+      event_description: 'SMTP connection tested successfully',
+      user_id: req.user.id,
+      user_role: req.user.role,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
 
     res.json({
       success: true,
-      message: 'SMTP test successful'
+      message: 'SMTP test successful! Check your inbox at gobinath@qrsolutions.in'
     });
   } catch (error) {
     console.error('SMTP test error:', error);
+    
+    // Log the failed attempt
+    await logEvent({
+      event_type: 'system_operation',
+      event_action: 'smtp_test_failed',
+      event_description: `SMTP test failed: ${error.message}`,
+      user_id: req.user.id,
+      user_role: req.user.role,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+    
     res.status(500).json({
       success: false,
       message: 'SMTP test failed: ' + error.message
     });
   }
-};
+}; 
 
 // Update AWS settings
 const updateAwsSettings = async (req, res) => {

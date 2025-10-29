@@ -1,39 +1,97 @@
-
 const nodemailer = require('nodemailer');
-const config = require('./env');
+const MasterAdmin = require('../models/MasterAdmin'); // Adjust path as needed
 
 class MailService {
   constructor() {
     this.transporter = null;
-    this.init();
+    this.fromEmail = null;
+    this.fromName = null;
   }
 
   async init() {
     try {
+      // Get SMTP configuration from database
+      const emailConfig = await this.getEmailClient();
+      
+      // Create transporter with retrieved credentials
       this.transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.secure,
         auth: {
-          user: config.GMAIL_USER,
-          pass: config.GMAIL_PASSWORD
+          user: emailConfig.auth.user,
+          pass: emailConfig.auth.pass
+        },
+        tls: {
+          rejectUnauthorized: false
         }
       });
 
+      // Store from email details
+      this.fromEmail = emailConfig.from_email;
+      this.fromName = emailConfig.from_name;
+
       // Verify connection
       await this.transporter.verify();
-      console.log('✅ Email service connected');
+      console.log('✅ Email service connected successfully');
+      
+      return true;
     } catch (error) {
-      console.error('❌ Email service error:', error.message);
+      console.error('❌ Email service initialization error:', error.message);
+      throw error;
+    }
+  }
+
+  async getEmailClient() {
+    try {
+      const masterAdmin = await MasterAdmin.findOne({ role: 'master_admin' });
+      
+      if (!masterAdmin) {
+        throw new Error('SMTP configuration not found: MasterAdmin record not found');
+      }
+
+      if (!masterAdmin.smtp_settings) {
+        throw new Error('SMTP settings not configured in master admin');
+      }
+
+      const smtpSettings = masterAdmin.smtp_settings;
+
+      // Validate required SMTP settings
+      if (!smtpSettings.host || !smtpSettings.port || !smtpSettings.user || !smtpSettings.password) {
+        throw new Error('Invalid SMTP configuration: Missing required fields');
+      }
+
+      if (!smtpSettings.from_email) {
+        throw new Error('Invalid SMTP configuration: Missing from_email field');
+      }
+
+      return {
+        host: smtpSettings.host,
+        port: smtpSettings.port,
+        secure: smtpSettings.secure || false,
+        auth: {
+          user: smtpSettings.user,
+          pass: smtpSettings.password
+        },
+        from_email: smtpSettings.from_email,
+        from_name: smtpSettings.from_name || 'Auto Erp Platform'
+      };
+
+    } catch (error) {
+      console.error('Error retrieving SMTP configuration:', error.message);
+      throw error;
     }
   }
 
   async sendEmail({ to, subject, html, text }) {
     try {
+      // Initialize if not already done
       if (!this.transporter) {
-        throw new Error('Email transporter not initialized');
+        await this.init();
       }
 
       const mailOptions = {
-        from: `Auto Erp Platform <${config.GMAIL_USER}>`,
+        from: `${this.fromName} <${this.fromEmail}>`,
         to,
         subject,
         html,
@@ -49,9 +107,8 @@ class MailService {
     }
   }
 
-  // Template methods
   async sendWelcomeEmail(companyData) {
-    const { email, company_name, login_credentials } = companyData;
+    const { email, company_name, login_credentials, frontend_url } = companyData;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -66,7 +123,7 @@ class MailService {
         </div>
         
         <p>Please log in and change your password immediately for security purposes.</p>
-        <p>You can access your dashboard at: <a href="${config.FRONTEND_URL}/login">Login Here</a></p>
+        <p>You can access your dashboard at: <a href="${frontend_url}/login">Login Here</a></p>
         
         <p>Best regards,<br>Auto Erp Team</p>
       </div>
@@ -80,7 +137,7 @@ class MailService {
   }
 
   async sendUserCreatedEmail(userData) {
-    const { email, username, password, created_by_company } = userData;
+    const { email, username, password, created_by_company, frontend_url } = userData;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -94,7 +151,7 @@ class MailService {
         </div>
         
         <p>Please log in and change your password on first login.</p>
-        <p>You can access the platform at: <a href="${config.FRONTEND_URL}/login">Login Here</a></p>
+        <p>You can access the platform at: <a href="${frontend_url}/login">Login Here</a></p>
         
         <p>Best regards,<br>Auto Erp Team</p>
       </div>
