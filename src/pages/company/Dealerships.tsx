@@ -274,29 +274,18 @@ const Dealerships = () => {
   // Prepare action buttons
   const actionButtons = [
     {
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: 'Search & Filters',
-      onClick: () => setIsFilterDialogOpen(true),
-      className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: 'Export Report',
-      onClick: handleExport,
-      className: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200',
-    },
-    {
       icon: <Plus className="h-4 w-4" />,
       tooltip: 'Add Dealership',
       onClick: () => setIsDialogOpen(true),
       className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
     },
     {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: 'Import Dealerships',
-      onClick: () => toast.info('Import feature coming soon'),
-      className: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200',
+      icon: <SlidersHorizontal className="h-4 w-4" />,
+      tooltip: 'Search & Filters',
+      onClick: () => setIsFilterDialogOpen(true),
+      className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
     },
+    
   ];
 
   // Render table header
@@ -317,7 +306,7 @@ const Dealerships = () => {
         onClick={() => handleSort('dealership_name')}
       >
         <div className="flex items-center">
-          Name
+          Dealership Name
           {getSortIcon('dealership_name')}
         </div>
       </TableHead>
@@ -364,14 +353,19 @@ const Dealerships = () => {
               : index + 1}
           </TableCell>
           <TableCell>
-            <Badge variant="outline" className="font-mono">
+            <span className="text-sm">
               {dealership.dealership_id}
-            </Badge>
+            </span>
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{dealership.dealership_name}</span>
+              <Badge 
+                className="font-medium" 
+                style={{ backgroundColor: '#F97316', color: 'white' }}
+              >
+                {dealership.dealership_name}
+              </Badge>
             </div>
           </TableCell>
           <TableCell>
@@ -424,6 +418,7 @@ const Dealerships = () => {
                     <Button
                       variant="ghost"
                       size="sm"
+                       className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                       onClick={() => {
                         setEditDealership(dealership);
                         setIsEditDialogOpen(true);
@@ -444,6 +439,7 @@ const Dealerships = () => {
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-100"
                       onClick={() => confirmDeleteDealership(dealership._id)}
                     >
                       <Trash2 className="h-4 w-4" />
