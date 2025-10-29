@@ -435,62 +435,402 @@ const getVehicleSchemaFields = async (req, res) => {
 
 // Execute workflow (for custom endpoints)
 const executeWorkflow = async (req, res) => {
+  const executionStartTime = Date.now();
+  let workflowExecutionLog = null;
+  
   try {
     const { endpoint } = req.params;
-    const payload = req.body;
-
-    const workflow = await Workflow.findOne({
-      custom_endpoint: endpoint,
-      status: "active",
-    });
-
+    let payload = req.body;
+    
+    // Normalize payload - support both single vehicle and bulk vehicles
+    const vehicles = Array.isArray(payload) ? payload : [payload];
+    
+    // Find workflow by custom endpoint
+    const workflow = await Workflow.findOne({ custom_endpoint: endpoint }).populate('company_id');
+    
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        message: "Workflow endpoint not found or inactive",
+        message: "Workflow not found",
       });
     }
-
-    // Update execution stats
-    workflow.execution_stats.total_executions += 1;
-    workflow.execution_stats.last_execution = new Date();
-
-    try {
-      // Process based on workflow type
-      let result;
-
-      if (workflow.workflow_type === "vehicle_inbound") {
-        result = await processVehicleInboundWorkflow(workflow, payload);
-      }
-
-      workflow.execution_stats.successful_executions += 1;
-      workflow.execution_stats.last_execution_status = "success";
-
-      await workflow.save();
-
-      res.json({
-        success: true,
-        message: "Workflow executed successfully",
-        data: result,
-      });
-    } catch (executionError) {
-      workflow.execution_stats.failed_executions += 1;
-      workflow.execution_stats.last_execution_status = "failed";
-      workflow.execution_stats.last_execution_error = executionError.message;
-
-      await workflow.save();
-
-      res.status(500).json({
+    
+    // Check if workflow is active
+    if (workflow.status !== "active") {
+      return res.status(400).json({
         success: false,
-        message: "Workflow execution failed",
-        error: executionError.message,
+        message: "Workflow is not active",
       });
     }
+    
+    // Initialize execution log
+    const WorkflowExecution = require('../models/WorkflowExecution');
+    workflowExecutionLog = new WorkflowExecution({
+      workflow_id: workflow._id,
+      company_id: workflow.company_id._id,
+      execution_started_at: new Date(),
+      request_payload: payload,
+      total_vehicles: vehicles.length,
+      successful_vehicles: 0,
+      failed_vehicles: 0,
+      vehicle_results: [],
+      database_changes: {
+        vehicles_created: 0,
+        vehicles_updated: 0,
+        created_vehicle_ids: [],
+        updated_vehicle_ids: [],
+      },
+    });
+    
+    // Validate workflow type
+    if (workflow.workflow_type !== "vehicle_inbound") {
+      workflowExecutionLog.execution_status = 'failed';
+      workflowExecutionLog.error_message = `Workflow type ${workflow.workflow_type} not supported`;
+      workflowExecutionLog.execution_completed_at = new Date();
+      workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+      await workflowExecutionLog.save();
+      
+      return res.status(400).json({
+        success: false,
+        message: `Workflow type ${workflow.workflow_type} not supported`,
+      });
+    }
+    
+    // STEP 1: AUTHENTICATION
+    const { verifyJWTToken, extractBearerToken, verifyStaticToken, verifyStandardAuth } = require('../utils/jwt.utils');
+    const authNode = workflow.flow_data.nodes.find(node => node.type === 'authenticationNode');
+    const authConfig = authNode?.data?.config || { type: 'none' };
+    
+    workflowExecutionLog.authentication_used = authConfig.type;
+    
+    if (authConfig.type !== 'none') {
+      let authPassed = false;
+      let authError = '';
+      
+      if (authConfig.type === 'jwt_token') {
+        const authHeader = req.headers.authorization;
+        const token = extractBearerToken(authHeader);
+        
+        if (!token) {
+          authError = 'Missing Bearer token in Authorization header';
+        } else {
+          authPassed = verifyJWTToken(token, authConfig.jwt_token);
+          if (!authPassed) {
+            authError = 'Invalid JWT token';
+          }
+        }
+      } else if (authConfig.type === 'standard') {
+        const apiKey = req.headers['x-api-key'];
+        const apiSecret = req.headers['x-api-secret'];
+        
+        if (!apiKey || !apiSecret) {
+          authError = 'Missing x-api-key or x-api-secret headers';
+        } else {
+          authPassed = verifyStandardAuth(apiKey, apiSecret, authConfig.api_key, authConfig.api_secret);
+          if (!authPassed) {
+            authError = 'Invalid API credentials';
+          }
+        }
+      } else if (authConfig.type === 'static') {
+        const authHeader = req.headers.authorization;
+        const token = extractBearerToken(authHeader) || req.headers['x-static-token'];
+        
+        if (!token) {
+          authError = 'Missing authentication token';
+        } else {
+          authPassed = verifyStaticToken(token, authConfig.static_token);
+          if (!authPassed) {
+            authError = 'Invalid static token';
+          }
+        }
+      }
+      
+      workflowExecutionLog.authentication_passed = authPassed;
+      
+      if (!authPassed) {
+        workflowExecutionLog.execution_status = 'failed';
+        workflowExecutionLog.error_message = authError;
+        workflowExecutionLog.execution_completed_at = new Date();
+        workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+        await workflowExecutionLog.save();
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication failed',
+          error: authError,
+        });
+      }
+    } else {
+      workflowExecutionLog.authentication_passed = true;
+    }
+    
+    // STEP 2: DATA MAPPING & VEHICLE PROCESSING
+    const Vehicle = require('../models/Vehicle');
+    const AdvertiseVehicle = require('../models/AdvertiseVehicle');
+    const MasterVehicle = require('../models/MasterVehicle');
+    const Company = require('../models/Company');
+    
+    const getVehicleModel = (vehicleType) => {
+      switch (vehicleType) {
+        case "advertisement":
+          return AdvertiseVehicle;
+        case "master":
+          return MasterVehicle;
+        case "inspection":
+        case "tradein":
+        default:
+          return Vehicle;
+      }
+    };
+    
+    const mappingNode = workflow.flow_data.nodes.find(node => node.type === 'dataMappingNode');
+    const mappings = mappingNode?.data?.config?.mappings || [];
+    
+    const vehicleResults = [];
+    
+    for (const vehiclePayload of vehicles) {
+      const vehicleResult = {
+        vehicle_stock_id: vehiclePayload.vehicle_stock_id || 'unknown',
+        status: 'failed',
+        database_operation: 'none',
+        error_message: null,
+        missing_fields: [],
+        validation_errors: [],
+      };
+      
+      try {
+        // Map payload to vehicle data
+        const vehicleData = {};
+        const customFields = {};
+        
+        for (const mapping of mappings) {
+          const sourceValue = vehiclePayload[mapping.source_field];
+          
+          if (mapping.is_required && (sourceValue === undefined || sourceValue === null || sourceValue === '')) {
+            vehicleResult.missing_fields.push(mapping.source_field);
+          }
+          
+          if (sourceValue !== undefined && sourceValue !== null) {
+            if (mapping.is_custom) {
+              customFields[mapping.custom_field_key || mapping.source_field] = sourceValue;
+            } else {
+              vehicleData[mapping.target_field] = sourceValue;
+            }
+          }
+        }
+        
+        if (Object.keys(customFields).length > 0) {
+          vehicleData.custom_fields = customFields;
+        }
+        
+        // Validate required fields
+        if (vehicleResult.missing_fields.length > 0) {
+          vehicleResult.error_message = `Missing required fields: ${vehicleResult.missing_fields.join(', ')}`;
+          vehicleResults.push(vehicleResult);
+          workflowExecutionLog.failed_vehicles += 1;
+          continue;
+        }
+        
+        // Validate vehicle_type
+        const validVehicleTypes = ['inspection', 'tradein', 'advertisement', 'master'];
+        if (!vehicleData.vehicle_type || !validVehicleTypes.includes(vehicleData.vehicle_type)) {
+          vehicleResult.error_message = `Invalid vehicle_type. Must be one of: ${validVehicleTypes.join(', ')}`;
+          vehicleResult.validation_errors.push('Invalid vehicle_type');
+          vehicleResults.push(vehicleResult);
+          workflowExecutionLog.failed_vehicles += 1;
+          continue;
+        }
+        
+        // Validate company_id
+        const company = await Company.findById(vehicleData.company_id);
+        if (!company) {
+          vehicleResult.error_message = 'Invalid company_id';
+          vehicleResult.validation_errors.push('Company not found');
+          vehicleResults.push(vehicleResult);
+          workflowExecutionLog.failed_vehicles += 1;
+          continue;
+        }
+        
+        // Get correct model based on vehicle_type
+        const VehicleModel = getVehicleModel(vehicleData.vehicle_type);
+        
+        // Check if vehicle exists (by vehicle_stock_id, company_id, and vehicle_type)
+        const existingVehicle = await VehicleModel.findOne({
+          vehicle_stock_id: vehicleData.vehicle_stock_id,
+          company_id: vehicleData.company_id,
+          vehicle_type: vehicleData.vehicle_type,
+        });
+        
+        let savedVehicle;
+        if (existingVehicle) {
+          // Update existing vehicle
+          Object.assign(existingVehicle, vehicleData);
+          existingVehicle.updated_at = new Date();
+          savedVehicle = await existingVehicle.save();
+          
+          vehicleResult.database_operation = 'updated';
+          workflowExecutionLog.database_changes.vehicles_updated += 1;
+          workflowExecutionLog.database_changes.updated_vehicle_ids.push(savedVehicle._id);
+        } else {
+          // Create new vehicle
+          savedVehicle = await VehicleModel.create(vehicleData);
+          
+          vehicleResult.database_operation = 'created';
+          workflowExecutionLog.database_changes.vehicles_created += 1;
+          workflowExecutionLog.database_changes.created_vehicle_ids.push(savedVehicle._id);
+        }
+        
+        vehicleResult.status = 'success';
+        vehicleResult.vehicle_id = savedVehicle._id;
+        vehicleResult.vehicle_type = savedVehicle.vehicle_type;
+        vehicleResults.push(vehicleResult);
+        workflowExecutionLog.successful_vehicles += 1;
+        
+      } catch (error) {
+        console.error('Vehicle processing error:', error);
+        vehicleResult.error_message = error.message;
+        if (error.errors) {
+          vehicleResult.validation_errors = Object.keys(error.errors).map(key => 
+            `${key}: ${error.errors[key].message}`
+          );
+        }
+        vehicleResults.push(vehicleResult);
+        workflowExecutionLog.failed_vehicles += 1;
+      }
+    }
+    
+    workflowExecutionLog.vehicle_results = vehicleResults;
+    
+    // Determine overall execution status
+    if (workflowExecutionLog.successful_vehicles === workflowExecutionLog.total_vehicles) {
+      workflowExecutionLog.execution_status = 'success';
+    } else if (workflowExecutionLog.successful_vehicles > 0) {
+      workflowExecutionLog.execution_status = 'partial_success';
+    } else {
+      workflowExecutionLog.execution_status = 'failed';
+    }
+    
+    // STEP 3: SEND EMAIL NOTIFICATIONS
+    const { sendWorkflowEmail } = require('../utils/email.utils');
+    
+    const conditionNode = workflow.flow_data.nodes.find(node => node.type === 'enhancedConditionNode');
+    const emailSuccessNode = workflow.flow_data.nodes.find(node => 
+      node.id.includes('success') && node.type === 'enhancedEmailNode'
+    );
+    const emailErrorNode = workflow.flow_data.nodes.find(node => 
+      node.id.includes('error') && node.type === 'enhancedEmailNode'
+    );
+    
+    const emailData = {
+      vehicle: vehicleResults[0] || {},
+      response: {
+        status: workflowExecutionLog.execution_status === 'success' ? '200' : '500',
+        message: workflowExecutionLog.execution_status === 'success' 
+          ? `Successfully processed ${workflowExecutionLog.successful_vehicles}/${workflowExecutionLog.total_vehicles} vehicles`
+          : `Failed to process ${workflowExecutionLog.failed_vehicles}/${workflowExecutionLog.total_vehicles} vehicles`,
+      },
+      error: {
+        message: workflowExecutionLog.execution_status !== 'success' 
+          ? vehicleResults.filter(v => v.status === 'failed').map(v => 
+              `Vehicle ${v.vehicle_stock_id}: ${v.error_message}`
+            ).join('; ')
+          : '',
+      },
+      company: {
+        name: workflow.company_id.company_name,
+      },
+      timestamp: new Date().toISOString(),
+      vehicles_summary: {
+        total: workflowExecutionLog.total_vehicles,
+        successful: workflowExecutionLog.successful_vehicles,
+        failed: workflowExecutionLog.failed_vehicles,
+        created: workflowExecutionLog.database_changes.vehicles_created,
+        updated: workflowExecutionLog.database_changes.vehicles_updated,
+      },
+      failed_vehicles: vehicleResults.filter(v => v.status === 'failed'),
+    };
+    
+    workflowExecutionLog.email_status = { success_email: {}, error_email: {} };
+    
+    if (workflowExecutionLog.execution_status === 'success' && emailSuccessNode?.data?.config) {
+      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData);
+      workflowExecutionLog.email_status.success_email = {
+        sent: emailResult.success,
+        error: emailResult.error || null,
+        sent_at: new Date(),
+      };
+      workflowExecutionLog.email_sent = emailResult.success;
+    }
+    
+    if (workflowExecutionLog.execution_status !== 'success' && emailErrorNode?.data?.config) {
+      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData);
+      workflowExecutionLog.email_status.error_email = {
+        sent: emailResult.success,
+        error: emailResult.error || null,
+        sent_at: new Date(),
+      };
+      workflowExecutionLog.email_sent = emailResult.success;
+    }
+    
+    // Create execution summary
+    const successCount = workflowExecutionLog.successful_vehicles;
+    const failedCount = workflowExecutionLog.failed_vehicles;
+    const createdCount = workflowExecutionLog.database_changes.vehicles_created;
+    const updatedCount = workflowExecutionLog.database_changes.vehicles_updated;
+    
+    workflowExecutionLog.execution_summary = 
+      `Processed ${workflowExecutionLog.total_vehicles} vehicles: ` +
+      `${successCount} successful, ${failedCount} failed. ` +
+      `Database: ${createdCount} created, ${updatedCount} updated.`;
+    
+    // Complete execution log
+    workflowExecutionLog.execution_completed_at = new Date();
+    workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+    await workflowExecutionLog.save();
+    
+    // Update workflow stats
+    workflow.execution_stats.total_executions += 1;
+    if (workflowExecutionLog.execution_status === 'success') {
+      workflow.execution_stats.successful_executions += 1;
+    } else {
+      workflow.execution_stats.failed_executions += 1;
+    }
+    workflow.execution_stats.last_execution = new Date();
+    workflow.execution_stats.last_execution_status = workflowExecutionLog.execution_status;
+    workflow.execution_stats.last_execution_error = workflowExecutionLog.error_message || '';
+    await workflow.save();
+    
+    // Return response
+    return res.status(workflowExecutionLog.execution_status === 'success' ? 200 : 207).json({
+      success: workflowExecutionLog.execution_status !== 'failed',
+      message: workflowExecutionLog.execution_summary,
+      execution_id: workflowExecutionLog._id,
+      data: {
+        total_vehicles: workflowExecutionLog.total_vehicles,
+        successful_vehicles: workflowExecutionLog.successful_vehicles,
+        failed_vehicles: workflowExecutionLog.failed_vehicles,
+        database_changes: workflowExecutionLog.database_changes,
+        vehicle_results: vehicleResults,
+        execution_time_ms: workflowExecutionLog.execution_duration_ms,
+      },
+    });
+    
   } catch (error) {
-    console.error("Execute workflow error:", error);
-    res.status(500).json({
+    console.error('Execute workflow error:', error);
+    
+    // Log error to execution log
+    if (workflowExecutionLog) {
+      workflowExecutionLog.execution_status = 'failed';
+      workflowExecutionLog.error_message = error.message;
+      workflowExecutionLog.error_stack = error.stack;
+      workflowExecutionLog.execution_completed_at = new Date();
+      workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+      await workflowExecutionLog.save();
+    }
+    
+    return res.status(500).json({
       success: false,
-      message: "Failed to execute workflow",
+      message: "Error executing workflow",
       error: error.message,
     });
   }
@@ -543,6 +883,55 @@ const testWorkflow = async (req, res) => {
   }
 };
 
+// @desc    Get workflow execution logs
+// @route   GET /api/workflow-execute/logs/:workflowId
+const getWorkflowExecutionLogs = async (req, res) => {
+  try {
+    const { workflowId } = req.params;
+    const { page = 1, limit = 20, status } = req.query;
+    
+    const skip = (page - 1) * limit;
+    const numericLimit = parseInt(limit);
+    
+    const WorkflowExecution = require('../models/WorkflowExecution');
+    
+    const filter = { workflow_id: workflowId };
+    if (status && status !== 'all') {
+      filter.execution_status = status;
+    }
+    
+    const [logs, total] = await Promise.all([
+      WorkflowExecution.find(filter)
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(numericLimit)
+        .lean(),
+      WorkflowExecution.countDocuments(filter),
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        logs,
+        total,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: Math.ceil(total / numericLimit),
+          total_records: total,
+          per_page: numericLimit,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get workflow execution logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving workflow execution logs',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getWorkflows,
   getWorkflow,
@@ -554,8 +943,7 @@ module.exports = {
   getVehicleSchemaFields,
   executeWorkflow,
   testWorkflow,
-
-  // Helper functions (if needed externally)
+  getWorkflowExecutionLogs,
   getMongoDBStateName,
   processVehicleInboundWorkflow,
   validateVehicleInboundConfig,

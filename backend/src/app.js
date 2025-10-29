@@ -10,6 +10,7 @@ const connectDB = require("./config/db");
 const { startSubscriptionCronJob } = require("./jobs/subscriptionCron");
 const { startGlobalLogCleanupCron } = require("./jobs/globalLogsCron");
 const { startNotificationCleanupCron } = require("./jobs/notificationCleanupCron");
+const { startWorkflowExecutionCleanupCron } = require("./jobs/workflowExecutionCleanupCron");
 const { startQueueConsumer } = require('./controllers/sqs.controller');
 const { startWorkshopQueueConsumer } = require('./controllers/workshopReportSqs.controller');
 const mongoose = require("mongoose");
@@ -62,6 +63,7 @@ connectDB();
 startSubscriptionCronJob();
 startGlobalLogCleanupCron();
 startNotificationCleanupCron();
+startWorkflowExecutionCleanupCron();
 // Start main vehicle processing queue consumer
 startQueueConsumer();
 

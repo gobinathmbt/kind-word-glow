@@ -10,6 +10,7 @@ import {
   ArrowDown,
   SlidersHorizontal,
   Download,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { workflowServices } from "@/api/services";
 import WorkflowBuilder from "@/components/workflows/WorkflowBuilder";
+import WorkflowExecutionLogsDialog from "@/components/workflows/WorkflowExecutionLogsDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +69,8 @@ const WorkflowManagement = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<any>(null);
+  const [logsDialogOpen, setLogsDialogOpen] = useState(false);
+  const [selectedWorkflowForLogs, setSelectedWorkflowForLogs] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

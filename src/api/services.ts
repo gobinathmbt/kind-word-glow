@@ -306,14 +306,11 @@ export const notificationServices = {
 
 // Workflow Services
 export const workflowServices = {
-  // Get all workflows
   getWorkflows: (params?: any) => apiClient.get("/api/workflows", { params }),
-
-  // Get workflow by ID
   getWorkflow: (id: string) => apiClient.get(`/api/workflows/${id}`),
-
-  // Create workflow
   createWorkflow: (data: any) => apiClient.post("/api/workflows", data),
+  getWorkflowExecutionLogs: (workflowId: string, params?: any) => 
+    apiClient.get(`/api/workflow-execute/logs/${workflowId}`, { params }),
 
   // Update workflow
   updateWorkflow: (id: string, data: any) =>
