@@ -6,11 +6,76 @@ const replaceTemplateVariables = (template, data) => {
   
   let result = template;
   
-  // Replace {{vehicle.*}} variables
+  // Handle status color based on response
+  const statusColor = data.response?.status === '200' ? '#d4edda' : '#f8d7da';
+  result = result.replace(/\{\{status_color\}\}/g, statusColor);
+  
+  // Handle error section conditionals
+  if (data.error && data.error.message) {
+    result = result.replace(/\{\{error_section\}\}/g, `<p><strong>Error:</strong> ${data.error.message}</p>`);
+    result = result.replace(/\{\{error_text\}\}/g, `Error: ${data.error.message}`);
+  } else {
+    result = result.replace(/\{\{error_section\}\}/g, '');
+    result = result.replace(/\{\{error_text\}\}/g, '');
+  }
+  
+  // Handle vehicle loops for multiple vehicles
+  const vehicleLoopStartRegex = /\{\{vehicles_loop_start\}\}([\s\S]*?)\{\{vehicles_loop_end\}\}/g;
+  const vehicleLoopMatch = result.match(vehicleLoopStartRegex);
+  
+  if (vehicleLoopMatch && data.vehicle_results && Array.isArray(data.vehicle_results)) {
+    let vehiclesHtml = '';
+    
+    data.vehicle_results.forEach(vehicle => {
+      let vehicleTemplate = vehicleLoopMatch[0]
+        .replace(/\{\{vehicles_loop_start\}\}/g, '')
+        .replace(/\{\{vehicles_loop_end\}\}/g, '');
+      
+      // Vehicle-specific colors
+      const vehicleStatusColor = vehicle.status === 'success' ? '#f0fdf4' : '#fef2f2';
+      const vehicleBorderColor = vehicle.status === 'success' ? '#22c55e' : '#ef4444';
+      vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_status_color\}\}/g, vehicleStatusColor);
+      vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_border_color\}\}/g, vehicleBorderColor);
+      
+      // Replace vehicle-specific variables
+      Object.keys(vehicle).forEach(key => {
+        const regex = new RegExp(`\\{\\{vehicle\\.${key}\\}\\}`, 'g');
+        vehicleTemplate = vehicleTemplate.replace(regex, vehicle[key] || '');
+      });
+      
+      // Handle vehicle error section
+      if (vehicle.error_message) {
+        vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_error_section\}\}/g, 
+          `<p style="margin: 5px 0; color: #dc2626;"><strong>Error:</strong> ${vehicle.error_message}</p>`);
+        vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_error_text\}\}/g, 
+          `Error: ${vehicle.error_message}`);
+      } else {
+        vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_error_section\}\}/g, '');
+        vehicleTemplate = vehicleTemplate.replace(/\{\{vehicle_error_text\}\}/g, '');
+      }
+      
+      vehiclesHtml += vehicleTemplate;
+    });
+    
+    result = result.replace(vehicleLoopStartRegex, vehiclesHtml);
+  } else {
+    // Remove loop markers if no vehicle results
+    result = result.replace(vehicleLoopStartRegex, '');
+  }
+  
+  // Replace {{vehicle.*}} variables for single vehicle
   if (data.vehicle) {
     Object.keys(data.vehicle).forEach(key => {
       const regex = new RegExp(`\\{\\{vehicle\\.${key}\\}\\}`, 'g');
       result = result.replace(regex, data.vehicle[key] || '');
+    });
+  }
+  
+  // Replace {{vehicles_summary.*}} variables
+  if (data.vehicles_summary) {
+    Object.keys(data.vehicles_summary).forEach(key => {
+      const regex = new RegExp(`\\{\\{vehicles_summary\\.${key}\\}\\}`, 'g');
+      result = result.replace(regex, data.vehicles_summary[key] || '0');
     });
   }
   

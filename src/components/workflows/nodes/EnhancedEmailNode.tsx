@@ -33,11 +33,16 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   ];
 
   const templateVariables = [
-    { value: '{{vehicle.make}}', label: 'Vehicle Make' },
-    { value: '{{vehicle.model}}', label: 'Vehicle Model' },
-    { value: '{{vehicle.year}}', label: 'Vehicle Year' },
-    { value: '{{vehicle.vin}}', label: 'Vehicle VIN' },
-    { value: '{{vehicle.stock_id}}', label: 'Stock ID' },
+    { value: '{{vehicle.make}}', label: 'Vehicle Make (Single)' },
+    { value: '{{vehicle.model}}', label: 'Vehicle Model (Single)' },
+    { value: '{{vehicle.year}}', label: 'Vehicle Year (Single)' },
+    { value: '{{vehicle.vin}}', label: 'Vehicle VIN (Single)' },
+    { value: '{{vehicle.vehicle_stock_id}}', label: 'Stock ID (Single)' },
+    { value: '{{vehicles_summary.total}}', label: 'Total Vehicles' },
+    { value: '{{vehicles_summary.successful}}', label: 'Successful Count' },
+    { value: '{{vehicles_summary.failed}}', label: 'Failed Count' },
+    { value: '{{vehicles_summary.created}}', label: 'Created Count' },
+    { value: '{{vehicles_summary.updated}}', label: 'Updated Count' },
     { value: '{{response.status}}', label: 'Response Status' },
     { value: '{{response.message}}', label: 'Response Message' },
     { value: '{{error.message}}', label: 'Error Message' },
@@ -79,14 +84,20 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   };
 
   const getDefaultTemplate = () => {
-    const htmlContent = '<html>\n<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">\n  <h2 style="color: #333;">Vehicle Processing Notification</h2>\n  \n  <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Vehicle Details:</h3>\n    <p><strong>Stock ID:</strong> {{vehicle.stock_id}}</p>\n    <p><strong>Vehicle:</strong> {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}</p>\n    <p><strong>VIN:</strong> {{vehicle.vin}}</p>\n  </div>\n  \n  <div style="background: {{response.status === "200" ? "#d4edda" : "#f8d7da"}}; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Processing Status:</h3>\n    <p><strong>Status:</strong> {{response.status}}</p>\n    <p><strong>Message:</strong> {{response.message}}</p>\n    {{#if error.message}}\n    <p><strong>Error:</strong> {{error.message}}</p>\n    {{/if}}\n  </div>\n  \n  <p><small>Processed at {{timestamp}} by {{company.name}}</small></p>\n</body>\n</html>';
+    // Template for single vehicle
+    const singleVehicleHtml = '<html>\n<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n  <h2 style="color: #333;">Vehicle Processing Notification</h2>\n  \n  <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Vehicle Details:</h3>\n    <p><strong>Stock ID:</strong> {{vehicle.vehicle_stock_id}}</p>\n    <p><strong>Vehicle:</strong> {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}</p>\n    <p><strong>VIN:</strong> {{vehicle.vin}}</p>\n  </div>\n  \n  <div style="background: {{status_color}}; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Processing Status:</h3>\n    <p><strong>Status:</strong> {{response.status}}</p>\n    <p><strong>Message:</strong> {{response.message}}</p>\n    {{error_section}}\n  </div>\n  \n  <p style="color: #666;"><small>Processed at {{timestamp}} by {{company.name}}</small></p>\n</body>\n</html>';
     
-    const textContent = 'Vehicle Processing Notification\n\nVehicle Details:\n- Stock ID: {{vehicle.stock_id}}\n- Vehicle: {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}\n- VIN: {{vehicle.vin}}\n\nProcessing Status: {{response.status}}\nMessage: {{response.message}}\n{{#if error.message}}Error: {{error.message}}{{/if}}\n\nProcessed at {{timestamp}} by {{company.name}}';
+    // Template for multiple vehicles
+    const multipleVehicleHtml = '<html>\n<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">\n  <h2 style="color: #333;">Bulk Vehicle Processing Notification</h2>\n  \n  <div style="background: {{status_color}}; padding: 15px; border-radius: 5px; margin: 15px 0;">\n    <h3>Processing Summary:</h3>\n    <p><strong>Total Vehicles:</strong> {{vehicles_summary.total}}</p>\n    <p><strong>Successful:</strong> {{vehicles_summary.successful}}</p>\n    <p><strong>Failed:</strong> {{vehicles_summary.failed}}</p>\n    <p><strong>Created:</strong> {{vehicles_summary.created}}</p>\n    <p><strong>Updated:</strong> {{vehicles_summary.updated}}</p>\n  </div>\n  \n  {{vehicles_loop_start}}\n  <div style="background: {{vehicle_status_color}}; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid {{vehicle_border_color}};">\n    <h4 style="margin: 0 0 10px 0;">{{vehicle.vehicle_stock_id}} - {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}</h4>\n    <p style="margin: 5px 0;"><strong>VIN:</strong> {{vehicle.vin}}</p>\n    <p style="margin: 5px 0;"><strong>Status:</strong> {{vehicle.status}}</p>\n    <p style="margin: 5px 0;"><strong>Operation:</strong> {{vehicle.database_operation}}</p>\n    {{vehicle_error_section}}\n  </div>\n  {{vehicles_loop_end}}\n  \n  <p style="color: #666; margin-top: 20px;"><small>Processed at {{timestamp}} by {{company.name}}</small></p>\n</body>\n</html>';
+    
+    const singleVehicleText = 'Vehicle Processing Notification\n\n=== Vehicle Details ===\nStock ID: {{vehicle.vehicle_stock_id}}\nVehicle: {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}\nVIN: {{vehicle.vin}}\n\n=== Processing Status ===\nStatus: {{response.status}}\nMessage: {{response.message}}\n{{error_text}}\n\nProcessed at {{timestamp}} by {{company.name}}';
+    
+    const multipleVehicleText = 'Bulk Vehicle Processing Notification\n\n=== Processing Summary ===\nTotal Vehicles: {{vehicles_summary.total}}\nSuccessful: {{vehicles_summary.successful}}\nFailed: {{vehicles_summary.failed}}\nCreated: {{vehicles_summary.created}}\nUpdated: {{vehicles_summary.updated}}\n\n=== Vehicle Details ===\n{{vehicles_loop_start}}\n- Stock ID: {{vehicle.vehicle_stock_id}} | {{vehicle.year}} {{vehicle.make}} {{vehicle.model}}\n  VIN: {{vehicle.vin}}\n  Status: {{vehicle.status}}\n  Operation: {{vehicle.database_operation}}\n  {{vehicle_error_text}}\n{{vehicles_loop_end}}\n\nProcessed at {{timestamp}} by {{company.name}}';
     
     return {
-      subject: 'Vehicle Processing {{response.status === "200" ? "Successful" : "Failed"}}',
-      html_content: htmlContent,
-      text_content: textContent
+      subject: 'Vehicle Processing Status - {{vehicles_summary.successful}}/{{vehicles_summary.total}} Successful',
+      html_content: multipleVehicleHtml,
+      text_content: multipleVehicleText
     };
   };
 

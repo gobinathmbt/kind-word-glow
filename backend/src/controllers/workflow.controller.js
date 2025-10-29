@@ -721,8 +721,27 @@ const executeWorkflow = async (req, res) => {
       node.id.includes('error') && node.type === 'enhancedEmailNode'
     );
     
+    // Prepare email data with full vehicle information
+    const firstSuccessfulVehicle = vehicleResults.find(v => v.status === 'success');
+    const firstVehiclePayload = vehicles[0] || {};
+    
     const emailData = {
-      vehicle: vehicleResults[0] || {},
+      // Single vehicle data (for single vehicle templates)
+      vehicle: {
+        ...firstVehiclePayload,
+        vehicle_stock_id: firstSuccessfulVehicle?.vehicle_stock_id || firstVehiclePayload.vehicle_stock_id,
+        status: firstSuccessfulVehicle?.status || 'unknown',
+        database_operation: firstSuccessfulVehicle?.database_operation || 'none',
+      },
+      // All vehicles data (for multiple vehicle templates)
+      vehicle_results: vehicleResults.map((result, index) => ({
+        ...vehicles[index],
+        ...result,
+        vehicle_stock_id: result.vehicle_stock_id,
+        status: result.status,
+        database_operation: result.database_operation,
+        error_message: result.error_message,
+      })),
       response: {
         status: workflowExecutionLog.execution_status === 'success' ? '200' : '500',
         message: workflowExecutionLog.execution_status === 'success' 
