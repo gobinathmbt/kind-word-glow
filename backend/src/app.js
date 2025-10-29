@@ -98,7 +98,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // Data sanitization
 app.use(mongoSanitize());
-app.use(xss());
+// Apply XSS sanitization conditionally - skip for workflow routes that need HTML templates
+app.use((req, res, next) => {
+  // Skip XSS cleaning for workflow routes that handle HTML email templates
+  if (req.path.includes('/api/workflows') || req.path.includes('/api/workflow-execute')) {
+    return next();
+  }
+  xss()(req, res, next);
+});
 
 // Compression middleware
 app.use(compression());
