@@ -175,7 +175,7 @@ const WorkflowSchema = new mongoose.Schema({
     last_execution: Date,
     last_execution_status: {
       type: String,
-      enum: ["success", "failed", "pending"],
+      enum: ["success", "failed", "pending","partial_success"],
     },
     last_execution_error: String,
   },

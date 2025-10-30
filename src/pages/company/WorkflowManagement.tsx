@@ -291,6 +291,11 @@ const WorkflowManagement = () => {
     toggleStatusMutation.mutate({ workflowId, status: newStatus });
   };
 
+  const handleViewLogs = (workflow: any) => {
+    setSelectedWorkflowForLogs(workflow);
+    setLogsDialogOpen(true);
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "active":
@@ -468,7 +473,6 @@ const WorkflowManagement = () => {
     </TableRow>
   );
 
-  // Render table body
   const renderTableBody = () => (
     <>
       {sortedWorkflows.map((workflow: any, index: number) => (
@@ -541,6 +545,24 @@ const WorkflowManagement = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewLogs(workflow)}
+                      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View Execution Logs</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -770,6 +792,15 @@ const WorkflowManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {selectedWorkflowForLogs && (
+        <WorkflowExecutionLogsDialog
+          workflowId={selectedWorkflowForLogs._id}
+          workflowName={selectedWorkflowForLogs.name}
+          open={logsDialogOpen}
+          onOpenChange={setLogsDialogOpen}
+        />
+      )}
     </>
   );
 };
