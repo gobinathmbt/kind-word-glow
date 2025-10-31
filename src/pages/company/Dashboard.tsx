@@ -23,7 +23,7 @@ interface DashboardStats {
 
 interface VehicleStats {
   distribution?: Array<{
-    name: string;
+    name: string; 
     value: number;
     color?: string;
   }>;
