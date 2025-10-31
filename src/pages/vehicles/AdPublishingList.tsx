@@ -80,7 +80,7 @@ const AdPublishingList = () => {
     },
     enabled: !!completeUser,
   });
-
+ 
   // Function to fetch all vehicles when pagination is disabled
   const fetchAllVehicles = async () => {
     try {
