@@ -224,9 +224,6 @@ const Workshop = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
 
   // Helper functions for new columns
   const getExpiryStatus = (licenseExpiryDate: string) => {
@@ -297,19 +294,8 @@ const Workshop = () => {
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Vehicles",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+    
+    
   ];
 
   // Render table header
