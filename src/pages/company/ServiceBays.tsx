@@ -605,7 +605,14 @@ const ServiceBays = () => {
               </div>
             )}
           </TableCell>
-          <TableCell>{bay.dealership_id?.dealership_name || "N/A"}</TableCell>
+          <TableCell>
+            <Badge 
+              style={{ backgroundColor: '#F97316' }}
+              className="text-white"
+            >
+              {bay.dealership_id?.dealership_name || "N/A"}
+            </Badge>
+          </TableCell>
           <TableCell>
             <div>
               {bay.primary_admin?.first_name} {bay.primary_admin?.last_name}
