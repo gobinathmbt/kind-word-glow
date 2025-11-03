@@ -193,9 +193,7 @@ const Integration = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
+ 
 
   const handleClearFilters = () => {
     setSearchTerm("");
@@ -256,31 +254,20 @@ const Integration = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Add Integration",
-      onClick: () => setShowAddIntegration(true),
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    
     {
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => toast.info("Filter feature coming soon"),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Integrations",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Integrations",
-      onClick: () => toast.info("Import feature coming soon"),
+   
+   {
+      icon: <Plus className="h-4 w-4" />,
+      tooltip: "Add Integration",
+      onClick: () => setShowAddIntegration(true),
       className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
+        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
     },
   ];
 
@@ -370,7 +357,7 @@ const Integration = () => {
                 }
                 className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
               >
-                <Settings className="h-4 w-4 mr-1" />
+                <Settings className="h-4 w-4 " />
                 Configure
               </Button>
             </div>
