@@ -637,10 +637,11 @@ const ServiceBays = () => {
       <TooltipTrigger asChild>
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
           onClick={() => handleEdit(bay)}
         >
-          <Edit className="h-3 w-3" />
+          <Edit className="h-4 w-4" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>
@@ -654,10 +655,11 @@ const ServiceBays = () => {
       <TooltipTrigger asChild>
         <Button
           size="sm"
-          variant="destructive"
+          variant="ghost"
+          className="text-red-600 hover:text-red-700 hover:bg-red-100"
           onClick={() => handleDelete(bay._id)}
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>
