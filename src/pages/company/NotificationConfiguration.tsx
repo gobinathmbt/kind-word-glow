@@ -359,12 +359,7 @@ const NotificationConfiguration: React.FC = () => {
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
+    
     {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Configuration",
@@ -507,28 +502,25 @@ const NotificationConfiguration: React.FC = () => {
               {config.created_by?.first_name} {config.created_by?.last_name}
             </div>
           </TableCell>
-          <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleEdit(config)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleDelete(config._id, config.name)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
+        <TableCell className="flex items-center gap-2">
+  <Button 
+    variant="ghost" 
+    size="sm" 
+    onClick={() => handleEdit(config)}
+    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+  >
+    <Edit className="h-4 w-4" />
+  </Button>
+
+  <Button 
+    variant="ghost" 
+    size="sm" 
+    onClick={() => handleDelete(config._id, config.name)}
+    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+  >
+    <Trash2 className="h-4 w-4" />
+  </Button>
+</TableCell>
         </TableRow>
       ))}
     </>
