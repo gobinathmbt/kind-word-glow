@@ -29,8 +29,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Download,
-  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -424,24 +422,11 @@ const CompanyUsers = () => {
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     },
     {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Users",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add User",
       onClick: () => setIsDialogOpen(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Users",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
     },
   ];
 
@@ -591,9 +576,12 @@ const CompanyUsers = () => {
         <Button
           variant="ghost"
           size="sm"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
           onClick={() => openEditDialog(user)}
+
+          
         >
-          <Edit className="h-4 w-4" />
+          <Edit  className="h-4 w-4" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>
@@ -609,6 +597,7 @@ const CompanyUsers = () => {
         <Button
           variant="ghost"
           size="sm"
+         className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
           onClick={() => sendWelcomeEmail(user._id)}
         >
           <Mail className="h-4 w-4" />
@@ -627,11 +616,12 @@ const CompanyUsers = () => {
         <Button
           variant="ghost"
           size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-100"
           onClick={() =>
             openDeleteDialog(user._id, `${user.first_name} ${user.last_name}`)
           }
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4 " />
         </Button>
       </TooltipTrigger>
       <TooltipContent>

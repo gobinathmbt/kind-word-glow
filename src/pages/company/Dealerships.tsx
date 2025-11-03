@@ -273,17 +273,18 @@ const Dealerships = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: 'Add Dealership',
-      onClick: () => setIsDialogOpen(true),
-      className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
-    },
+   
     {
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: 'Search & Filters',
       onClick: () => setIsFilterDialogOpen(true),
       className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
+    },
+     {
+      icon: <Plus className="h-4 w-4" />,
+      tooltip: 'Add Dealership',
+      onClick: () => setIsDialogOpen(true),
+      className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
     },
     
   ];
