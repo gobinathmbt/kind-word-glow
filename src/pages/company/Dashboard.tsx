@@ -23,7 +23,7 @@ interface DashboardStats {
 
 interface VehicleStats {
   distribution?: Array<{
-    name: string; 
+    name: string;
     value: number;
     color?: string;
   }>;
@@ -106,7 +106,7 @@ const CompanyDashboard: React.FC = () => {
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     to: new Date()
   });
-  
+
   const [loading, setLoading] = useState<boolean>(false);
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     stats: {},
@@ -193,7 +193,7 @@ const CompanyDashboard: React.FC = () => {
             <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
             <p className="text-muted-foreground">Overview of your company's performance</p>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
@@ -377,7 +377,7 @@ const CompanyDashboard: React.FC = () => {
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
-                    label={({ name, percent }: { name: string; percent: number }) => 
+                    label={({ name, percent }: { name: string; percent: number }) =>
                       `${name}: ${(percent * 100).toFixed(0)}%`
                     }
                   >
@@ -446,9 +446,9 @@ const CompanyDashboard: React.FC = () => {
                 <div key={activity.id || index} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      {activity.type === 'Inspection' ? <Activity className="h-5 w-5 text-primary" /> : 
-                       activity.type === 'Appraisal' ? <CheckCircle className="h-5 w-5 text-primary" /> :
-                       <Car className="h-5 w-5 text-primary" />}
+                      {activity.type === 'Inspection' ? <Activity className="h-5 w-5 text-primary" /> :
+                        activity.type === 'Appraisal' ? <CheckCircle className="h-5 w-5 text-primary" /> :
+                          <Car className="h-5 w-5 text-primary" />}
                     </div>
                     <div>
                       <p className="font-medium">{activity.description || activity.vehicle}</p>
@@ -458,10 +458,10 @@ const CompanyDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge 
+                    <Badge
                       variant={
                         activity.status === 'Completed' ? 'default' :
-                        activity.status === 'In Progress' ? 'secondary' : 'outline'
+                          activity.status === 'In Progress' ? 'secondary' : 'outline'
                       }
                     >
                       {activity.status}

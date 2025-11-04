@@ -34,6 +34,7 @@ import NotificationConfiguration from "./pages/company/NotificationConfiguration
 
 // Company Pages  
 import CompanyDashboard from "./pages/company/Dashboard";
+import AnalyticsDashboard from "./pages/company/AnalyticsDashboard";
 import Dealerships from "./pages/company/Dealerships";
 import CompanyUsers from "./pages/company/Users";
 import CompanySettings from "./pages/company/Settings";
@@ -161,6 +162,7 @@ const App = () => {
       <Route path="/company/dashboard" element={
         <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="vehicle_dashboard">
           <CompanyDashboard />
+          {/* <AnalyticsDashboard /> */}
         </ProtectedRoute>
       } />
       <Route path="/company/dealerships" element={
