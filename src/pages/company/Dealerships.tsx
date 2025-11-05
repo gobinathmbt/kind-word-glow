@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { dealershipServices } from '@/api/services';
 import DeleteConfirmationDialog from '@/components/dialogs/DeleteConfirmationDialog';
 import DataTableLayout from '@/components/common/DataTableLayout';
+import { useAuth } from "@/auth/AuthContext";
 
 const Dealerships = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -29,6 +30,10 @@ const Dealerships = () => {
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState(null);
+
+  const { completeUser } = useAuth();
+
+  console.log(completeUser)
 
   const [formData, setFormData] = useState({
     dealership_name: '',
