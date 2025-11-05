@@ -100,9 +100,10 @@ export const SupplierPerformanceRankingReport: React.FC<SupplierPerformanceRanki
         <div>
           <h4 className="text-sm font-medium mb-4">Supplier Performance Ranking</h4>
           <ComparisonChart
-            data={rankingData}
-            nameKey="supplierName"
-            valueKey="performanceScore"
+            data={rankingData.map((item: any) => ({
+              name: item.supplierName,
+              value: item.performanceScore
+            }))}
             height={300}
           />
         </div>
