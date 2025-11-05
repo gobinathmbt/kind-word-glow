@@ -31,10 +31,7 @@ const Dealerships = () => {
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState(null);
-
   const { completeUser } = useAuth();
-
-  console.log(completeUser)
 
   const [formData, setFormData] = useState({
     dealership_name: '',
