@@ -31,7 +31,15 @@ const Dealerships = () => {
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState(null);
+
+
   const { completeUser } = useAuth();
+  const canRefresh = hasPermission(completeUser, 'multi_dealership_refresh');
+  const canAdd = hasPermission(completeUser, 'multi_dealership_create');
+  const canEdit = hasPermission(completeUser, 'multi_dealership_update');
+  const canDelete = hasPermission(completeUser, 'multi_dealership_delete');
+  const canToggleStatus = hasPermission(completeUser, 'multi_dealership_status_toggle');
+  
 
   const [formData, setFormData] = useState({
     dealership_name: '',
@@ -274,12 +282,6 @@ const Dealerships = () => {
     },
   ];
 
-  // Check permissions
-  const canRefresh = hasPermission(completeUser, 'multi_dealership_refresh');
-  const canAdd = hasPermission(completeUser, 'multi_dealership_create');
-  const canEdit = hasPermission(completeUser, 'multi_dealership_update');
-  const canDelete = hasPermission(completeUser, 'multi_dealership_delete');
-  const canToggleStatus = hasPermission(completeUser, 'multi_dealership_status_toggle');
 
   // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
