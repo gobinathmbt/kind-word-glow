@@ -8,7 +8,7 @@ import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, Plus, Edit, Trash2, MapPin, Mail, User, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload, SlidersHorizontal } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, MapPin, Mail, User,  ArrowUpDown, ArrowUp, ArrowDown, X, SlidersHorizontal ,  } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { dealershipServices } from '@/api/services';
@@ -16,6 +16,7 @@ import DeleteConfirmationDialog from '@/components/dialogs/DeleteConfirmationDia
 import DataTableLayout from '@/components/common/DataTableLayout';
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/utils/permissionController";
+
 
 const Dealerships = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,8 +37,9 @@ const Dealerships = () => {
   const { completeUser } = useAuth();
   const canRefresh = hasPermission(completeUser, 'multi_dealership_refresh');
   const canAdd = hasPermission(completeUser, 'multi_dealership_create');
-  const canEdit = hasPermission(completeUser, 'multi_dealership_update');
+  const canEdit = hasPermission(completeUser, 'multi_dealership_edit');
   const canDelete = hasPermission(completeUser, 'multi_dealership_delete');
+  const canSearchFilter = hasPermission(completeUser, 'multi_dealership_search_filter');
   const canToggleStatus = hasPermission(completeUser, 'multi_dealership_status_toggle');
   
 
@@ -247,9 +249,7 @@ const Dealerships = () => {
     toast.success('Data refreshed');
   };
 
-  const handleExport = () => {
-    toast.success('Export started');
-  };
+ 
 
   // Calculate counts for chips
   const totalDealerships = dealershipsData?.total || stats.totalDealerships || 0;
@@ -285,12 +285,13 @@ const Dealerships = () => {
 
   // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    {
+
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: 'Search & Filters',
       onClick: () => setIsFilterDialogOpen(true),
       className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
-    },
+     }] : []),
     ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: 'Add Dealership',
