@@ -39,6 +39,7 @@ import UserEditDialog from "../../components/dialogs/UserEditDialog";
 import Select from "react-select";
 import { useAuth } from "@/auth/AuthContext";
 import DataTableLayout from "@/components/common/DataTableLayout";
+import { hasPermission } from "@/utils/permissionController";
 
 const CompanyUsers = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +53,15 @@ const CompanyUsers = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   
   const { completeUser } = useAuth();
+  
+  // Permission checks
+  const canSearchFilter = hasPermission(completeUser, 'user_search_filter');
+  const canAdd = hasPermission(completeUser, 'user_create');
+  const canEdit = hasPermission(completeUser, 'user_edit');
+  const canMail = hasPermission(completeUser, 'user_mail');
+  const canDelete = hasPermission(completeUser, 'user_delete');
+  const canToggleStatus = hasPermission(completeUser, 'user_status_toggle');
+  const canRefresh = hasPermission(completeUser, 'user_refresh');
   
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
@@ -413,21 +423,20 @@ const CompanyUsers = () => {
     },
   ];
 
-  // Prepare action buttons
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
+    }] : []),
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add User",
       onClick: () => setIsDialogOpen(true),
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+    }] : []),
   ];
 
   // Render table header
@@ -551,12 +560,14 @@ const CompanyUsers = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <Switch
-                checked={user.is_active}
-                onCheckedChange={() =>
-                  handleToggleStatus(user._id, user.is_active)
-                }
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={user.is_active}
+                  onCheckedChange={() =>
+                    handleToggleStatus(user._id, user.is_active)
+                  }
+                />
+              )}
               <span className="text-sm">
                 {user.is_active ? "Active" : "Inactive"}
               </span>
@@ -570,65 +581,73 @@ const CompanyUsers = () => {
           <TableCell>
         <div className="flex items-center space-x-2">
   {/* Edit User */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-          onClick={() => openEditDialog(user)}
-
-          
-        >
-          <Edit  className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Edit User</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canEdit && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+            onClick={() => openEditDialog(user)}
+          >
+            <Edit  className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Edit User</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
 
   {/* Send Welcome Email */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-         className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
-          onClick={() => sendWelcomeEmail(user._id)}
-        >
-          <Mail className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Send Welcome Email</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canMail && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+           className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+            onClick={() => sendWelcomeEmail(user._id)}
+          >
+            <Mail className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Send Welcome Email</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
 
   {/* Delete User */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-            className="text-red-600 hover:text-red-700 hover:bg-red-100"
-          onClick={() =>
-            openDeleteDialog(user._id, `${user.first_name} ${user.last_name}`)
-          }
-        >
-          <Trash2 className="h-4 w-4 " />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Delete User</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canDelete && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-100"
+            onClick={() =>
+              openDeleteDialog(user._id, `${user.first_name} ${user.last_name}`)
+            }
+          >
+            <Trash2 className="h-4 w-4 " />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Delete User</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
+  
+  {!canEdit && !canMail && !canDelete && (
+    <span className="text-sm text-muted-foreground">No actions</span>
+  )}
 </div>
           </TableCell>
         </TableRow>
@@ -657,7 +676,7 @@ const CompanyUsers = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="user_pagination_enabled" // Custom cookie name
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
