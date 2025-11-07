@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { hasPermission } from "@/utils/permissionController";
 
 interface StatChip {
   label: string;
@@ -64,6 +65,13 @@ const TradeinList = () => {
   const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
+
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'trade_in_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'trade_in_search_filter');
+  const canDetailedReport = hasPermission(completeUser, 'trade_in_detailed_report');
+  const canBulkOperation = hasPermission(completeUser, 'trade_in_bulk_operation');
+  const canCreate = hasPermission(completeUser, 'trade_in_create');
 
   const { data: dealerships } = useQuery({
     queryKey: ["dealerships-dropdown", completeUser?.is_primary_admin],
@@ -326,36 +334,38 @@ const TradeinList = () => {
 
   const visibleStatChips = allStatChips.slice(0, 4);
 
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
+      icon: <SlidersHorizontal className="h-4 w-4" />,
+      tooltip: "Search & Filters",
+      onClick: () => setIsFilterDialogOpen(true),
+      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+    }] : []),
+    
+    ...(canDetailedReport ? [{
       icon: <BarChart3 className="h-4 w-4" />,
       tooltip: "Detailed Report",
       onClick: () => setIsDetailedReportOpen(true),
       className:
         "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
-    },
-    {
+    }] : []),
+    
+    ...(canBulkOperation ? [{
       icon: <MoveHorizontal className="h-4 w-4" />,
       tooltip: "Bulk Operations",
       onClick: () => setIsBulkDialogOpen(true),
       className:
         "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
-    },
-    {
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
+    }] : []),
     
-    {
+    ...(canCreate ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Vehicle Stock",
       onClick: () => setShowCreateModal(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
-   
+    }] : []),
   ];
 
   const STATUS_FILTER_OPTIONS = [
@@ -548,7 +558,7 @@ const TradeinList = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="trade_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />
