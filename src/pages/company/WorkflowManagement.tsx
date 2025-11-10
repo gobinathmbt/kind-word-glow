@@ -54,6 +54,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast as sonnerToast } from "sonner";
 import { BASE_URL } from "@/lib/config";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
 
 const WorkflowManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,6 +76,16 @@ const WorkflowManagement = () => {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { completeUser } = useAuth();
+
+  // Permissions
+  const canRefresh = hasPermission(completeUser, 'workflow_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'workflow_search_filter');
+  const canAdd = hasPermission(completeUser, 'workflow_add');
+  const canLogs = hasPermission(completeUser, 'workflow_logs');
+  const canEdit = hasPermission(completeUser, 'workflow_edit');
+  const canPlayPause = hasPermission(completeUser, 'workflow_play_pause');
+  const canDelete = hasPermission(completeUser, 'workflow_delete');
 
   const fetchAllWorkflows = async () => {
     try {
@@ -388,20 +400,20 @@ const WorkflowManagement = () => {
   ];
 
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
+    }] : []),
     
-    {
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Workflow",
       onClick: handleCreateWorkflow,
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
   ];
 
   const renderTableHeader = () => (
@@ -537,97 +549,108 @@ const WorkflowManagement = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewLogs(workflow)}
-                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>View Execution Logs</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canLogs && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewLogs(workflow)}
+                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>View Execution Logs</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-                      onClick={() => handleEditWorkflow(workflow)}
-                     
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Edit Workflow</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canEdit && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        onClick={() => handleEditWorkflow(workflow)}
+                       
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit Workflow</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-             <TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() =>
-          handleToggleStatus(workflow._id, workflow.status)
-        }
-        disabled={toggleStatusMutation.isPending}
-        className={`${
-          workflow.status === "active"
-            ? "text-orange-600 hover:text-orange-700 hover:bg-orange-100"
-            : "text-green-600 hover:text-green-700 hover:bg-green-100"
-        }`}
-      >
-        {workflow.status === "active" ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4" />
-        )}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>
-        {workflow.status === "active"
-          ? "Pause Workflow"
-          : "Play Workflow"}
-      </p>
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+              {canPlayPause && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          handleToggleStatus(workflow._id, workflow.status)
+                        }
+                        disabled={toggleStatusMutation.isPending}
+                        className={`${
+                          workflow.status === "active"
+                            ? "text-orange-600 hover:text-orange-700 hover:bg-orange-100"
+                            : "text-green-600 hover:text-green-700 hover:bg-green-100"
+                        }`}
+                      >
+                        {workflow.status === "active" ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {workflow.status === "active"
+                          ? "Pause Workflow"
+                          : "Play Workflow"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
+              {canDelete && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          handleDeleteWorkflow(workflow._id, workflow.name)
+                        }
+                        disabled={deleteWorkflowMutation.isPending}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Workflow</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        handleDeleteWorkflow(workflow._id, workflow.name)
-                      }
-                      disabled={deleteWorkflowMutation.isPending}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-100"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete Workflow</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {!canLogs && !canEdit && !canPlayPause && !canDelete && (
+                <span className="text-sm text-muted-foreground">No actions</span>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -656,7 +679,7 @@ const WorkflowManagement = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="workflow_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />
