@@ -187,6 +187,8 @@ const SupplierManagement = () => {
   const canRefresh = hasPermission(completeUser, 'workshop_supplier_refresh');
   const canSearchFilter = hasPermission(completeUser, 'workshop_supplier_search_filter');
   const canAdd = hasPermission(completeUser, 'workshop_supplier_add');
+  const canToggleStatus = hasPermission(completeUser, 'workshop_supplier_toggle_status');
+  const canEdit = hasPermission(completeUser, 'workflow_supplier_edit');
 
   const [formData, setFormData] = useState({
     name: "",
@@ -538,10 +540,12 @@ const SupplierManagement = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
-              <Switch
-                checked={supplier.is_active}
-                onCheckedChange={() => handleToggleStatus(supplier)}
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={supplier.is_active}
+                  onCheckedChange={() => handleToggleStatus(supplier)}
+                />
+              )}
               <Badge
                 variant={supplier.is_active ? "default" : "secondary"}
               >
@@ -551,26 +555,29 @@ const SupplierManagement = () => {
           </TableCell>
           <TableCell>
            <div className="flex items-center gap-2">
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-
-          onClick={() => handleEditSupplier(supplier)}
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Edit Supplier</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-</div>
-
+              {canEdit && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        onClick={() => handleEditSupplier(supplier)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit Supplier</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {!canEdit && (
+                <span className="text-sm text-muted-foreground">No actions</span>
+              )}
+            </div>
           </TableCell>
         </TableRow>
       ))}
