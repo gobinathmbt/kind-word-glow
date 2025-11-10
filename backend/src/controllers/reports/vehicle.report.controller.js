@@ -1,16 +1,54 @@
-﻿/**
+/**
  * Vehicle Report Controller
  * Handles all vehicle-related analytics and reporting endpoints
  */
 
 const Vehicle = require('../../models/Vehicle');
-const { 
-  getDealershipFilter, 
-  getDateFilter, 
-  formatReportResponse, 
+const MasterVehicle = require('../../models/MasterVehicle');
+const AdvertiseVehicle = require('../../models/AdvertiseVehicle');
+const {
+  getDealershipFilter,
+  getDateFilter,
+  formatReportResponse,
   handleReportError,
-  buildBasePipeline 
+  buildBasePipeline
 } = require('../../utils/reportHelpers');
+
+/**
+ * Helper function to aggregate data across all three vehicle schemas
+ * @param {Object} baseMatch - Base match criteria
+ * @param {Array} pipeline - Aggregation pipeline stages
+ * @returns {Promise<Array>} Combined results from all schemas
+ */
+const aggregateAcrossSchemas = async (baseMatch, pipeline) => {
+  const results = [];
+
+  // Query Vehicle schema for inspection and tradein
+  const vehicleMatch = { ...baseMatch, vehicle_type: { $in: ['inspection', 'tradein'] } };
+  const vehicleResults = await Vehicle.aggregate([
+    { $match: vehicleMatch },
+    ...pipeline
+  ]);
+  results.push(...vehicleResults);
+
+  // Query MasterVehicle schema for master
+  const masterMatch = { ...baseMatch, vehicle_type: 'master' };
+  const masterResults = await MasterVehicle.aggregate([
+    { $match: masterMatch },
+    ...pipeline
+  ]);
+  results.push(...masterResults);
+
+  // Query AdvertiseVehicle schema for advertisement
+  const advertiseMatch = { ...baseMatch, vehicle_type: 'advertisement' };
+  const advertiseResults = await AdvertiseVehicle.aggregate([
+    { $match: advertiseMatch },
+    ...pipeline
+  ]);
+  results.push(...advertiseResults);
+
+  return results;
+};
 
 /**
  * Get Vehicle Overview by Type
@@ -32,10 +70,9 @@ const getVehicleOverviewByType = async (req, res) => {
       ...dealershipFilter,
       ...dateFilter
     };
-console.log(baseMatch)
+    console.log(baseMatch)
     // 1. Type Distribution with Status Breakdown
-    const typeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const typeDistributionRaw = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -43,38 +80,50 @@ console.log(baseMatch)
             status: '$status'
           },
           count: { $sum: 1 },
-          avgRetailPrice: { 
-            $avg: { 
-              $arrayElemAt: ['$vehicle_other_details.retail_price', 0] 
-            } 
+          avgRetailPrice: {
+            $avg: {
+              $arrayElemAt: ['$vehicle_other_details.retail_price', 0]
+            }
           },
-          avgPurchasePrice: { 
-            $avg: { 
-              $arrayElemAt: ['$vehicle_other_details.purchase_price', 0] 
-            } 
-          }
-        }
-      },
-      {
-        $group: {
-          _id: '$_id.type',
-          totalCount: { $sum: '$count' },
-          avgRetailPrice: { $avg: '$avgRetailPrice' },
-          avgPurchasePrice: { $avg: '$avgPurchasePrice' },
-          statusBreakdown: {
-            $push: {
-              status: '$_id.status',
-              count: '$count'
+          avgPurchasePrice: {
+            $avg: {
+              $arrayElemAt: ['$vehicle_other_details.purchase_price', 0]
             }
           }
         }
-      },
-      { $sort: { totalCount: -1 } }
+      }
     ]);
+    console.log(typeDistributionRaw)
+    // Merge and group results by type
+    const typeDistribution = Object.values(
+      typeDistributionRaw.reduce((acc, item) => {
+        const type = item._id.type;
+        if (!acc[type]) {
+          acc[type] = {
+            _id: type,
+            totalCount: 0,
+            avgRetailPrice: 0,
+            avgPurchasePrice: 0,
+            statusBreakdown: []
+          };
+        }
+        acc[type].totalCount += item.count;
+        acc[type].avgRetailPrice += item.avgRetailPrice * item.count;
+        acc[type].avgPurchasePrice += item.avgPurchasePrice * item.count;
+        acc[type].statusBreakdown.push({
+          status: item._id.status,
+          count: item.count
+        });
+        return acc;
+      }, {})
+    ).map(item => ({
+      ...item,
+      avgRetailPrice: item.avgRetailPrice / item.totalCount,
+      avgPurchasePrice: item.avgPurchasePrice / item.totalCount
+    })).sort((a, b) => b.totalCount - a.totalCount);
 
     // 2. Monthly Trends
-    const monthlyTrends = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const monthlyTrendsRaw = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -87,24 +136,27 @@ console.log(baseMatch)
       },
       {
         $sort: { '_id.year': 1, '_id.month': 1 }
-      },
-      {
-        $group: {
-          _id: '$_id.type',
-          trends: {
-            $push: {
-              year: '$_id.year',
-              month: '$_id.month',
-              count: '$count'
-            }
-          }
-        }
       }
     ]);
 
+    // Group trends by type
+    const monthlyTrends = Object.values(
+      monthlyTrendsRaw.reduce((acc, item) => {
+        const type = item._id.type;
+        if (!acc[type]) {
+          acc[type] = { _id: type, trends: [] };
+        }
+        acc[type].trends.push({
+          year: item._id.year,
+          month: item._id.month,
+          count: item.count
+        });
+        return acc;
+      }, {})
+    );
+
     // 3. Dealership Comparison (if multiple dealerships)
-    const dealershipComparison = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipComparisonRaw = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -113,25 +165,31 @@ console.log(baseMatch)
           },
           count: { $sum: 1 }
         }
-      },
-      {
-        $group: {
-          _id: '$_id.dealership',
-          typeBreakdown: {
-            $push: {
-              type: '$_id.type',
-              count: '$count'
-            }
-          },
-          totalVehicles: { $sum: '$count' }
-        }
-      },
-      { $sort: { totalVehicles: -1 } }
+      }
     ]);
 
+    // Group by dealership
+    const dealershipComparison = Object.values(
+      dealershipComparisonRaw.reduce((acc, item) => {
+        const dealership = item._id.dealership;
+        if (!acc[dealership]) {
+          acc[dealership] = {
+            _id: dealership,
+            typeBreakdown: [],
+            totalVehicles: 0
+          };
+        }
+        acc[dealership].typeBreakdown.push({
+          type: item._id.type,
+          count: item.count
+        });
+        acc[dealership].totalVehicles += item.count;
+        return acc;
+      }, {})
+    ).sort((a, b) => b.totalVehicles - a.totalVehicles);
+
     // 4. Heat Map Data (Day of Week vs Hour of Day for vehicle creation)
-    const heatMapData = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const heatMapDataRaw = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -141,24 +199,27 @@ console.log(baseMatch)
           },
           count: { $sum: 1 }
         }
-      },
-      {
-        $group: {
-          _id: '$_id.type',
-          heatMap: {
-            $push: {
-              dayOfWeek: '$_id.dayOfWeek',
-              hour: '$_id.hour',
-              count: '$count'
-            }
-          }
-        }
       }
     ]);
 
+    // Group by type
+    const heatMapData = Object.values(
+      heatMapDataRaw.reduce((acc, item) => {
+        const type = item._id.type;
+        if (!acc[type]) {
+          acc[type] = { _id: type, heatMap: [] };
+        }
+        acc[type].heatMap.push({
+          dayOfWeek: item._id.dayOfWeek,
+          hour: item._id.hour,
+          count: item.count
+        });
+        return acc;
+      }, {})
+    );
+
     // 5. Detailed Breakdown by Make, Year, and Pricing
-    const detailedBreakdown = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const detailedBreakdown = (await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -167,34 +228,27 @@ console.log(baseMatch)
             year: '$year'
           },
           count: { $sum: 1 },
-          avgRetailPrice: { 
-            $avg: { 
-              $arrayElemAt: ['$vehicle_other_details.retail_price', 0] 
-            } 
+          avgRetailPrice: {
+            $avg: {
+              $arrayElemAt: ['$vehicle_other_details.retail_price', 0]
+            }
           },
-          minRetailPrice: { 
-            $min: { 
-              $arrayElemAt: ['$vehicle_other_details.retail_price', 0] 
-            } 
+          minRetailPrice: {
+            $min: {
+              $arrayElemAt: ['$vehicle_other_details.retail_price', 0]
+            }
           },
-          maxRetailPrice: { 
-            $max: { 
-              $arrayElemAt: ['$vehicle_other_details.retail_price', 0] 
-            } 
+          maxRetailPrice: {
+            $max: {
+              $arrayElemAt: ['$vehicle_other_details.retail_price', 0]
+            }
           }
         }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 50 // Top 50 combinations
       }
-    ]);
+    ])).sort((a, b) => b.count - a.count).slice(0, 50);
 
     // 6. Overall Summary Statistics
-    const summary = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const summaryRaw = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: null,
@@ -205,19 +259,18 @@ console.log(baseMatch)
           minYear: { $min: '$year' },
           maxYear: { $max: '$year' }
         }
-      },
-      {
-        $project: {
-          _id: 0,
-          totalVehicles: 1,
-          uniqueMakesCount: { $size: '$uniqueMakes' },
-          uniqueModelsCount: { $size: '$uniqueModels' },
-          avgYear: { $round: ['$avgYear', 0] },
-          minYear: 1,
-          maxYear: 1
-        }
       }
     ]);
+
+    // Merge summary results
+    const summary = summaryRaw.length > 0 ? [{
+      totalVehicles: summaryRaw.reduce((sum, s) => sum + s.totalVehicles, 0),
+      uniqueMakesCount: new Set(summaryRaw.flatMap(s => s.uniqueMakes)).size,
+      uniqueModelsCount: new Set(summaryRaw.flatMap(s => s.uniqueModels)).size,
+      avgYear: Math.round(summaryRaw.reduce((sum, s) => sum + (s.avgYear * s.totalVehicles), 0) / summaryRaw.reduce((sum, s) => sum + s.totalVehicles, 0)),
+      minYear: Math.min(...summaryRaw.map(s => s.minYear)),
+      maxYear: Math.max(...summaryRaw.map(s => s.maxYear))
+    }] : [];
 
     // Compile response
     const responseData = {
@@ -270,8 +323,7 @@ const getVehicleImportTimeline = async (req, res) => {
     };
 
     // 1. Import Overview
-    const importOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const importOverview = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_import_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -305,13 +357,35 @@ const getVehicleImportTimeline = async (req, res) => {
           importedAsDamaged: 1,
           importRate: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithImportDetails', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithImportDetails', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           damagedRate: {
             $round: [
-              { $multiply: [{ $divide: ['$importedAsDamaged', '$vehiclesWithImportDetails'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$vehiclesWithImportDetails', 0] },
+                      { $divide: ['$importedAsDamaged', '$vehiclesWithImportDetails'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -320,8 +394,7 @@ const getVehicleImportTimeline = async (req, res) => {
     ]);
 
     // 2. Port Distribution
-    const portDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const portDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_import_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -350,8 +423,7 @@ const getVehicleImportTimeline = async (req, res) => {
     ]);
 
     // 3. ETD/ETA Analysis
-    const etdEtaAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const etdEtaAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_import_details', preserveNullAndEmptyArrays: true } },
       {
         $project: {
@@ -396,8 +468,7 @@ const getVehicleImportTimeline = async (req, res) => {
     ]);
 
     // 4. Vessel Analysis
-    const vesselAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const vesselAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_import_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -414,8 +485,7 @@ const getVehicleImportTimeline = async (req, res) => {
     ]);
 
     // 5. Import Timeline Trends
-    const importTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const importTimeline = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_import_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -479,8 +549,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     };
 
     // 1. Engine Type Distribution
-    const engineTypeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const engineTypeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -520,8 +589,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 2. Transmission Type Distribution
-    const transmissionDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const transmissionDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -534,8 +602,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 3. Fuel Type Analysis
-    const fuelTypeAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const fuelTypeAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -562,8 +629,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 4. Turbo Analysis
-    const turboAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const turboAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -575,8 +641,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 5. Engine Size Distribution (Bucketing)
-    const engineSizeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const engineSizeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $bucket: {
@@ -592,8 +657,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 6. Cylinder Count Distribution
-    const cylinderDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const cylinderDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -613,8 +677,7 @@ const getVehicleEngineSpecifications = async (req, res) => {
     ]);
 
     // 7. Engine Features Analysis
-    const engineFeaturesAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const engineFeaturesAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_eng_transmission', preserveNullAndEmptyArrays: true } },
       { $unwind: { path: '$vehicle_eng_transmission.engine_features', preserveNullAndEmptyArrays: true } },
       {
@@ -669,8 +732,7 @@ const getVehicleOdometerTrends = async (req, res) => {
     };
 
     // 1. Odometer Overview
-    const odometerOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const odometerOverview = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_odometer', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -693,8 +755,7 @@ const getVehicleOdometerTrends = async (req, res) => {
     ]);
 
     // 2. Odometer Range Distribution
-    const odometerRangeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const odometerRangeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_odometer', preserveNullAndEmptyArrays: true } },
       {
         $bucket: {
@@ -710,8 +771,7 @@ const getVehicleOdometerTrends = async (req, res) => {
     ]);
 
     // 3. Odometer by Vehicle Age
-    const odometerByAge = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const odometerByAge = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_odometer', preserveNullAndEmptyArrays: true } },
       {
         $project: {
@@ -751,8 +811,7 @@ const getVehicleOdometerTrends = async (req, res) => {
     ]);
 
     // 4. Odometer Certification Status
-    const certificationStatus = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const certificationStatus = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -767,8 +826,7 @@ const getVehicleOdometerTrends = async (req, res) => {
     ]);
 
     // 5. Odometer Trends Over Time
-    const odometerTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const odometerTimeline = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_odometer', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -831,8 +889,7 @@ const getVehicleOwnershipHistory = async (req, res) => {
     };
 
     // 1. Ownership Overview
-    const ownershipOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const ownershipOverview = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_ownership', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -858,7 +915,18 @@ const getVehicleOwnershipHistory = async (req, res) => {
           withPpsrInterest: 1,
           ppsrInterestRate: {
             $round: [
-              { $multiply: [{ $divide: ['$withPpsrInterest', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$withPpsrInterest', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -867,8 +935,7 @@ const getVehicleOwnershipHistory = async (req, res) => {
     ]);
 
     // 2. Previous Owners Distribution
-    const previousOwnersDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const previousOwnersDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_ownership', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -881,8 +948,7 @@ const getVehicleOwnershipHistory = async (req, res) => {
     ]);
 
     // 3. Origin Distribution
-    const originDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const originDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_ownership', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -902,8 +968,7 @@ const getVehicleOwnershipHistory = async (req, res) => {
     ]);
 
     // 4. PPSR Security Interest Analysis
-    const ppsrAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const ppsrAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_ownership', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -929,8 +994,7 @@ const getVehicleOwnershipHistory = async (req, res) => {
     ]);
 
     // 5. Ownership by Make and Model
-    const ownershipByMakeModel = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const ownershipByMakeModel = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_ownership', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -959,7 +1023,18 @@ const getVehicleOwnershipHistory = async (req, res) => {
           ppsrCount: 1,
           ppsrRate: {
             $round: [
-              { $multiply: [{ $divide: ['$ppsrCount', '$count'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$count', 0] },
+                      { $divide: ['$ppsrCount', '$count'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -1010,8 +1085,7 @@ const getVehicleQueueProcessing = async (req, res) => {
     };
 
     // 1. Queue Status Overview
-    const queueStatusOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const queueStatusOverview = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1047,8 +1121,7 @@ const getVehicleQueueProcessing = async (req, res) => {
     ]);
 
     // 2. Processing Attempts Distribution
-    const processingAttemptsDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const processingAttemptsDistribution = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$processing_attempts',
@@ -1060,13 +1133,8 @@ const getVehicleQueueProcessing = async (req, res) => {
     ]);
 
     // 3. Failed Processing Analysis
-    const failedProcessingAnalysis = await Vehicle.aggregate([
-      { 
-        $match: { 
-          ...baseMatch,
-          queue_status: 'failed'
-        } 
-      },
+    const failedBaseMatch = { ...baseMatch, queue_status: 'failed' };
+    const failedProcessingAnalysis = await aggregateAcrossSchemas(failedBaseMatch, [
       {
         $group: {
           _id: {
@@ -1091,8 +1159,7 @@ const getVehicleQueueProcessing = async (req, res) => {
     ]);
 
     // 4. Queue Processing Timeline
-    const processingTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const processingTimeline = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1107,8 +1174,7 @@ const getVehicleQueueProcessing = async (req, res) => {
     ]);
 
     // 5. Dealership Queue Performance
-    const dealershipQueuePerformance = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipQueuePerformance = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$dealership_id',
@@ -1163,13 +1229,35 @@ const getVehicleQueueProcessing = async (req, res) => {
           avgProcessingAttempts: { $round: ['$avgProcessingAttempts', 1] },
           successRate: {
             $round: [
-              { $multiply: [{ $divide: ['$processed', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$processed', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           failureRate: {
             $round: [
-              { $multiply: [{ $divide: ['$failed', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$failed', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -1219,8 +1307,7 @@ const getVehicleCostDetails = async (req, res) => {
     };
 
     // 1. Cost Configuration Overview
-    const costConfigOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const costConfigOverview = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$vehicle_type',
@@ -1253,13 +1340,35 @@ const getVehicleCostDetails = async (req, res) => {
           vehiclesWithPricingReady: 1,
           costConfigRate: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithCostDetails', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithCostDetails', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           pricingReadyRate: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithPricingReady', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithPricingReady', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -1268,8 +1377,7 @@ const getVehicleCostDetails = async (req, res) => {
     ]);
 
     // 2. Pricing Readiness by Status
-    const pricingReadinessByStatus = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const pricingReadinessByStatus = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1295,13 +1403,8 @@ const getVehicleCostDetails = async (req, res) => {
     ]);
 
     // 3. Cost Details Effectiveness
-    const costEffectiveness = await Vehicle.aggregate([
-      { 
-        $match: { 
-          ...baseMatch,
-          cost_details: { $ne: null }
-        } 
-      },
+    const costDetailsBaseMatch = { ...baseMatch, cost_details: { $ne: null } };
+    const costEffectiveness = await aggregateAcrossSchemas(costDetailsBaseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1333,13 +1436,30 @@ const getVehicleCostDetails = async (req, res) => {
           gstInclusiveCount: 1,
           gstInclusiveRate: {
             $round: [
-              { $multiply: [{ $divide: ['$gstInclusiveCount', '$count'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$count', 0] },
+                      { $divide: ['$gstInclusiveCount', '$count'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           expenseToRevenueRatio: {
             $round: [
-              { $divide: ['$avgExactExpenses', '$avgRetailPrice'] },
+              {
+                $cond: [
+                  { $and: [{ $ne: ['$avgRetailPrice', null] }, { $gt: ['$avgRetailPrice', 0] }] },
+                  { $divide: ['$avgExactExpenses', '$avgRetailPrice'] },
+                  0
+                ]
+              },
               3
             ]
           }
@@ -1348,8 +1468,7 @@ const getVehicleCostDetails = async (req, res) => {
     ]);
 
     // 4. Dealership Cost Configuration Performance
-    const dealershipCostPerformance = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipCostPerformance = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$dealership_id',
@@ -1382,13 +1501,35 @@ const getVehicleCostDetails = async (req, res) => {
           pricingReady: 1,
           costConfigRate: {
             $round: [
-              { $multiply: [{ $divide: ['$withCostDetails', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$withCostDetails', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           pricingReadyRate: {
             $round: [
-              { $multiply: [{ $divide: ['$pricingReady', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$pricingReady', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -1398,8 +1539,7 @@ const getVehicleCostDetails = async (req, res) => {
     ]);
 
     // 5. Cost Configuration Timeline
-    const costConfigTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const costConfigTimeline = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1474,8 +1614,7 @@ const getVehiclePricingAnalysis = async (req, res) => {
     };
 
     // 1. Pricing Analysis by Vehicle Type
-    const pricingByType = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const pricingByType = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1514,9 +1653,15 @@ const getVehiclePricingAnalysis = async (req, res) => {
               {
                 $multiply: [
                   {
-                    $divide: [
-                      { $subtract: ['$avgSoldPrice', '$avgPurchasePrice'] },
-                      '$avgPurchasePrice'
+                    $cond: [
+                      { $and: [{ $ne: ['$avgPurchasePrice', null] }, { $gt: ['$avgPurchasePrice', 0] }] },
+                      {
+                        $divide: [
+                          { $subtract: ['$avgSoldPrice', '$avgPurchasePrice'] },
+                          '$avgPurchasePrice'
+                        ]
+                      },
+                      0
                     ]
                   },
                   100
@@ -1530,9 +1675,15 @@ const getVehiclePricingAnalysis = async (req, res) => {
               {
                 $multiply: [
                   {
-                    $divide: [
-                      { $subtract: ['$avgRetailPrice', '$avgPurchasePrice'] },
-                      '$avgPurchasePrice'
+                    $cond: [
+                      { $and: [{ $ne: ['$avgPurchasePrice', null] }, { $gt: ['$avgPurchasePrice', 0] }] },
+                      {
+                        $divide: [
+                          { $subtract: ['$avgRetailPrice', '$avgPurchasePrice'] },
+                          '$avgPurchasePrice'
+                        ]
+                      },
+                      0
                     ]
                   },
                   100
@@ -1561,8 +1712,7 @@ const getVehiclePricingAnalysis = async (req, res) => {
     ]);
 
     // 2. Price Range Distribution (bucketing)
-    const priceRangeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const priceRangeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $bucket: {
@@ -1579,8 +1729,7 @@ const getVehiclePricingAnalysis = async (req, res) => {
     ]);
 
     // 3. Pricing Trends Over Time
-    const pricingTrends = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const pricingTrends = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1601,8 +1750,7 @@ const getVehiclePricingAnalysis = async (req, res) => {
     ]);
 
     // 4. Pricing by Make and Model (Top performers)
-    const pricingByMakeModel = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const pricingByMakeModel = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1630,9 +1778,15 @@ const getVehiclePricingAnalysis = async (req, res) => {
               {
                 $multiply: [
                   {
-                    $divide: [
-                      { $subtract: ['$avgSoldPrice', '$avgPurchasePrice'] },
-                      '$avgPurchasePrice'
+                    $cond: [
+                      { $and: [{ $ne: ['$avgPurchasePrice', null] }, { $gt: ['$avgPurchasePrice', 0] }] },
+                      {
+                        $divide: [
+                          { $subtract: ['$avgSoldPrice', '$avgPurchasePrice'] },
+                          '$avgPurchasePrice'
+                        ]
+                      },
+                      0
                     ]
                   },
                   100
@@ -1648,8 +1802,7 @@ const getVehiclePricingAnalysis = async (req, res) => {
     ]);
 
     // 5. Revenue Metrics Summary
-    const revenueMetrics = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const revenueMetrics = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1685,11 +1838,11 @@ const getVehiclePricingAnalysis = async (req, res) => {
           },
           netProfit: {
             $round: [
-              { 
+              {
                 $subtract: [
-                  '$totalRevenue', 
+                  '$totalRevenue',
                   { $add: ['$totalPurchaseCost', '$totalExactExpenses'] }
-                ] 
+                ]
               },
               2
             ]
@@ -1697,9 +1850,15 @@ const getVehiclePricingAnalysis = async (req, res) => {
           avgProfitPerVehicle: {
             $round: [
               {
-                $divide: [
-                  { $subtract: ['$totalRevenue', '$totalPurchaseCost'] },
-                  '$vehiclesWithSoldPrice'
+                $cond: [
+                  { $gt: ['$vehiclesWithSoldPrice', 0] },
+                  {
+                    $divide: [
+                      { $subtract: ['$totalRevenue', '$totalPurchaseCost'] },
+                      '$vehiclesWithSoldPrice'
+                    ]
+                  },
+                  0
                 ]
               },
               2
@@ -1758,8 +1917,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     };
 
     // 1. Overall Status Distribution
-    const statusDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const statusDistribution = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$status',
@@ -1771,8 +1929,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 2. Status Distribution by Vehicle Type
-    const statusByType = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const statusByType = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1798,8 +1955,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 3. Status Transition Timeline (based on created_at and updated_at)
-    const statusTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const statusTimeline = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1824,8 +1980,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 4. Dealership-wise Status Breakdown
-    const dealershipStatusBreakdown = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipStatusBreakdown = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1851,8 +2006,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 5. Status with Additional Metrics
-    const statusMetrics = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const statusMetrics = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_other_details', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -1899,13 +2053,35 @@ const getVehicleStatusDistribution = async (req, res) => {
           vehiclesWithAttachments: 1,
           workshopPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithWorkshop', '$count'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$count', 0] },
+                      { $divide: ['$vehiclesWithWorkshop', '$count'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           attachmentPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithAttachments', '$count'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$count', 0] },
+                      { $divide: ['$vehiclesWithAttachments', '$count'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -1915,8 +2091,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 6. Queue Status Distribution
-    const queueStatusDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const queueStatusDistribution = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: {
@@ -1944,8 +2119,7 @@ const getVehicleStatusDistribution = async (req, res) => {
     ]);
 
     // 7. Summary Statistics
-    const summary = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const summary = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: null,
@@ -2029,8 +2203,7 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     };
 
     // 1. Workshop Status Overview
-    const workshopStatusOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const workshopStatusOverview = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$vehicle_type',
@@ -2073,19 +2246,52 @@ const getVehicleWorkshopIntegration = async (req, res) => {
           vehiclesWithReportPreparing: 1,
           workshopPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesInWorkshop', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesInWorkshop', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           reportReadyPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithReportReady', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithReportReady', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           reportPreparingPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithReportPreparing', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithReportPreparing', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -2094,13 +2300,8 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     ]);
 
     // 2. Workshop Progress Analysis
-    const workshopProgressAnalysis = await Vehicle.aggregate([
-      { 
-        $match: { 
-          ...baseMatch,
-          is_workshop: { $ne: false }
-        } 
-      },
+    const workshopBaseMatch = { ...baseMatch, is_workshop: { $ne: false } };
+    const workshopProgressAnalysis = await aggregateAcrossSchemas(workshopBaseMatch, [
       {
         $group: {
           _id: {
@@ -2125,8 +2326,7 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     ]);
 
     // 3. Workshop Readiness Metrics by Vehicle Type
-    const workshopReadinessMetrics = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const workshopReadinessMetrics = await aggregateAcrossSchemas(baseMatch, [
       {
         $facet: {
           inspectionTradein: [
@@ -2205,13 +2405,8 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     ]);
 
     // 4. Workshop Report Preparation Status
-    const reportPreparationStatus = await Vehicle.aggregate([
-      { 
-        $match: { 
-          ...baseMatch,
-          vehicle_type: { $in: ['inspection', 'tradein'] }
-        } 
-      },
+    const reportPrepBaseMatch = { ...baseMatch, vehicle_type: { $in: ['inspection', 'tradein'] } };
+    const reportPreparationStatus = await aggregateAcrossSchemas(reportPrepBaseMatch, [
       {
         $project: {
           vehicle_type: 1,
@@ -2267,7 +2462,18 @@ const getVehicleWorkshopIntegration = async (req, res) => {
           vehiclesWithMultipleStages: 1,
           multipleStagesPercentage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithMultipleStages', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithMultipleStages', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -2276,8 +2482,7 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     ]);
 
     // 5. Dealership Workshop Performance
-    const dealershipWorkshopPerformance = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipWorkshopPerformance = await aggregateAcrossSchemas(baseMatch, [
       {
         $group: {
           _id: '$dealership_id',
@@ -2330,13 +2535,35 @@ const getVehicleWorkshopIntegration = async (req, res) => {
           tradeinVehicles: 1,
           workshopUtilization: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesInWorkshop', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesInWorkshop', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           reportCompletionRate: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithReportReady', '$vehiclesInWorkshop'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$vehiclesInWorkshop', 0] },
+                      { $divide: ['$vehiclesWithReportReady', '$vehiclesInWorkshop'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -2346,13 +2573,8 @@ const getVehicleWorkshopIntegration = async (req, res) => {
     ]);
 
     // 6. Workshop Timeline Analysis
-    const workshopTimelineAnalysis = await Vehicle.aggregate([
-      { 
-        $match: { 
-          ...baseMatch,
-          is_workshop: { $ne: false }
-        } 
-      },
+    const workshopTimelineBaseMatch = { ...baseMatch, is_workshop: { $ne: false } };
+    const workshopTimelineAnalysis = await aggregateAcrossSchemas(workshopTimelineBaseMatch, [
       {
         $group: {
           _id: {
@@ -2420,8 +2642,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     };
 
     // 1. Attachment Overview by Type
-    const attachmentOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const attachmentOverview = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -2446,8 +2667,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 2. Average Attachments per Vehicle
-    const avgAttachmentsPerVehicle = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const avgAttachmentsPerVehicle = await aggregateAcrossSchemas(baseMatch, [
       {
         $project: {
           vehicle_type: 1,
@@ -2512,7 +2732,18 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
           vehiclesWithoutAttachments: 1,
           attachmentCoverage: {
             $round: [
-              { $multiply: [{ $divide: ['$vehiclesWithAttachments', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$vehiclesWithAttachments', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -2521,8 +2752,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 3. Attachment Categories Analysis (Images)
-    const imageCategoryAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const imageCategoryAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $match: {
@@ -2549,8 +2779,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 4. Attachment Categories Analysis (Files)
-    const fileCategoryAnalysis = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const fileCategoryAnalysis = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $match: {
@@ -2577,8 +2806,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 5. MIME Type Distribution
-    const mimeTypeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const mimeTypeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -2599,8 +2827,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 6. Attachment Size Distribution (Bucketing)
-    const sizeDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const sizeDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $bucket: {
@@ -2616,8 +2843,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 7. Attachment Upload Timeline
-    const uploadTimeline = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const uploadTimeline = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_attachments', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -2643,8 +2869,7 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
     ]);
 
     // 8. Dealership Attachment Comparison
-    const dealershipComparison = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipComparison = await aggregateAcrossSchemas(baseMatch, [
       {
         $project: {
           dealership_id: 1,
@@ -2680,7 +2905,13 @@ const getVehicleAttachmentAnalysis = async (req, res) => {
           totalStorageSizeMB: { $round: [{ $divide: ['$totalStorageSize', 1048576] }, 2] },
           avgStoragePerVehicleMB: {
             $round: [
-              { $divide: [{ $divide: ['$totalStorageSize', 1048576] }, '$totalVehicles'] },
+              {
+                $cond: [
+                  { $gt: ['$totalVehicles', 0] },
+                  { $divide: [{ $divide: ['$totalStorageSize', 1048576] }, '$totalVehicles'] },
+                  0
+                ]
+              },
               2
             ]
           }
@@ -2738,8 +2969,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     const ninetyDaysFromNow = new Date(currentDate.getTime() + 90 * 24 * 60 * 60 * 1000);
 
     // 1. Registration Status Overview
-    const registrationOverview = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const registrationOverview = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -2793,13 +3023,35 @@ const getVehicleRegistrationCompliance = async (req, res) => {
           withWofCofExpiry: 1,
           localRegistrationRate: {
             $round: [
-              { $multiply: [{ $divide: ['$registeredLocal', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$registeredLocal', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           reRegistrationRate: {
             $round: [
-              { $multiply: [{ $divide: ['$reRegistered', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$reRegistered', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -2808,8 +3060,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 2. Expiring Licenses (within 30 and 90 days)
-    const expiringLicenses = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const expiringLicenses = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $project: {
@@ -2889,8 +3140,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 3. Expiring WOF/COF (within 30 and 90 days)
-    const expiringWofCof = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const expiringWofCof = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $project: {
@@ -2970,8 +3220,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 4. Local vs Imported Registration Patterns
-    const localVsImported = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const localVsImported = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -3003,8 +3252,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 5. Road User Charges Analysis
-    const roadUserCharges = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const roadUserCharges = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -3040,13 +3288,35 @@ const getVehicleRegistrationCompliance = async (req, res) => {
           avgRucEndDistance: { $round: ['$avgRucEndDistance', 0] },
           rucApplicableRate: {
             $round: [
-              { $multiply: [{ $divide: ['$rucApplies', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$rucApplies', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           },
           outstandingRucRate: {
             $round: [
-              { $multiply: [{ $divide: ['$outstandingRuc', '$rucApplies'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$rucApplies', 0] },
+                      { $divide: ['$outstandingRuc', '$rucApplies'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }
@@ -3055,8 +3325,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 6. Registration Country Distribution
-    const countryDistribution = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const countryDistribution = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -3070,8 +3339,7 @@ const getVehicleRegistrationCompliance = async (req, res) => {
     ]);
 
     // 7. Compliance Summary by Dealership
-    const dealershipCompliance = await Vehicle.aggregate([
-      { $match: baseMatch },
+    const dealershipCompliance = await aggregateAcrossSchemas(baseMatch, [
       { $unwind: { path: '$vehicle_registration', preserveNullAndEmptyArrays: true } },
       {
         $project: {
@@ -3122,7 +3390,18 @@ const getVehicleRegistrationCompliance = async (req, res) => {
           compliantVehicles: 1,
           complianceRate: {
             $round: [
-              { $multiply: [{ $divide: ['$compliantVehicles', '$totalVehicles'] }, 100] },
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $gt: ['$totalVehicles', 0] },
+                      { $divide: ['$compliantVehicles', '$totalVehicles'] },
+                      0
+                    ]
+                  },
+                  100
+                ]
+              },
               1
             ]
           }

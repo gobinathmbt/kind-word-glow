@@ -42,7 +42,11 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleOverviewByType(params);
-      setData(response.data);
+      console.log('Vehicle Overview API Response:', response);
+      console.log('Vehicle Overview Data:', response.data?.data);
+      console.log('Type Distribution:', response.data?.data?.typeDistribution);
+      console.log('Summary:', response.data?.data?.summary);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load vehicle overview data');
     } finally {
@@ -63,43 +67,139 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data) {
+      console.log('renderMetrics: No data available');
+      return null;
+    }
+
+    console.log('renderMetrics: Data available', data);
+    const inspectionData = data.typeDistribution?.find((t: any) => t._id === 'inspection');
+    const tradeinData = data.typeDistribution?.find((t: any) => t._id === 'tradein');
+    const masterData = data.typeDistribution?.find((t: any) => t._id === 'master');
+    const advertisementData = data.typeDistribution?.find((t: any) => t._id === 'advertisement');
+
+    console.log('Metrics Data:', { inspectionData, tradeinData, masterData, advertisementData });
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Vehicles"
-          value={data.metrics.totalVehicles || 0}
+          value={data.summary?.totalVehicles || 0}
           icon={<Car className="h-5 w-5" />}
-          trend={data.metrics.vehicleGrowth}
+          subtitle={`${data.summary?.uniqueMakesCount || 0} makes, ${data.summary?.uniqueModelsCount || 0} models`}
         />
         <MetricCard
           title="Inspection"
-          value={data.metrics.inspectionCount || 0}
+          value={inspectionData?.totalCount || 0}
+          subtitle={`Avg: $${Math.round(inspectionData?.avgRetailPrice || 0).toLocaleString()}`}
         />
         <MetricCard
           title="Trade-in"
-          value={data.metrics.tradeinCount || 0}
+          value={tradeinData?.totalCount || 0}
+          subtitle={`Avg: $${Math.round(tradeinData?.avgRetailPrice || 0).toLocaleString()}`}
         />
         <MetricCard
-          title="Master"
-          value={data.metrics.masterCount || 0}
+          title="Master & Ads"
+          value={(masterData?.totalCount || 0) + (advertisementData?.totalCount || 0)}
+          subtitle={`Master: ${masterData?.totalCount || 0}, Ads: ${advertisementData?.totalCount || 0}`}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data) return null;
+    if (!data) {
+      console.log('renderCharts: No data available');
+      return null;
+    }
 
-    const typeData: PieChartData[] = data.typeDistribution?.map((item: any) => ({
-      name: item.type,
-      value: item.count,
-    })) || [];
+    console.log('renderCharts: Processing data', data);
 
-    const statusByTypeData = data.statusByType || [];
-    const monthlyTrendData = data.monthlyTrend || [];
-    const dealershipComparisonData = data.dealershipComparison || [];
-    const heatMapData = data.heatMapData || [];
+    // Type Distribution Pie Chart
+    const typeColors: Record<string, string> = {
+      'Inspection': '#3b82f6',
+      'Tradein': '#10b981',
+      'Master': '#f59e0b',
+      'Advertisement': '#8b5cf6',
+    };
+
+    const typeData: PieChartData[] = data.typeDistribution?.map((item: any) => {
+      const name = item._id.charAt(0).toUpperCase() + item._id.slice(1);
+      return {
+        name,
+        value: item.totalCount,
+        color: typeColors[name] || '#6b7280',
+      };
+    }) || [];
+
+    console.log('Type Data for Pie Chart:', typeData);
+
+    // Status by Type Stacked Bar Chart
+    const statusByTypeData = data.typeDistribution?.map((item: any) => {
+      const statusObj: any = { type: item._id.charAt(0).toUpperCase() + item._id.slice(1) };
+      item.statusBreakdown?.forEach((status: any) => {
+        statusObj[status.status] = status.count;
+      });
+      return statusObj;
+    }) || [];
+
+    // Monthly Trend Line Chart - Transform data
+    const monthlyTrendData: any[] = [];
+    const monthMap = new Map<string, any>();
+
+    data.monthlyTrends?.forEach((typeData: any) => {
+      typeData.trends?.forEach((trend: any) => {
+        const key = `${trend.year}-${String(trend.month).padStart(2, '0')}`;
+        if (!monthMap.has(key)) {
+          monthMap.set(key, { month: key, year: trend.year, monthNum: trend.month });
+        }
+        monthMap.get(key)[typeData._id] = trend.count;
+      });
+    });
+
+    monthlyTrendData.push(...Array.from(monthMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthNum - b.monthNum;
+    }));
+
+    // Dealership Comparison Stacked Bar Chart
+    const dealershipComparisonData = data.dealershipComparison?.map((item: any, index: number) => {
+      const dealershipObj: any = {
+        dealership: item._id || `Dealership ${index + 1}`,
+        total: item.totalVehicles
+      };
+      item.typeBreakdown?.forEach((type: any) => {
+        dealershipObj[type.type] = type.count;
+      });
+      return dealershipObj;
+    }) || [];
+
+    // Heat Map Data - Transform for each type
+    const heatMapByType = data.heatMapData?.map((typeData: any) => {
+      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+      // Create HeatMapCell array
+      const cells: any[] = [];
+
+      typeData.heatMap?.forEach((item: any) => {
+        if (item.dayOfWeek >= 0 && item.dayOfWeek < 7 && item.hour >= 0 && item.hour < 24) {
+          cells.push({
+            x: hourLabels[item.hour],
+            y: dayLabels[item.dayOfWeek],
+            value: item.count,
+            label: `${dayLabels[item.dayOfWeek]} ${hourLabels[item.hour]}: ${item.count} vehicles`,
+          });
+        }
+      });
+
+      return {
+        type: typeData._id,
+        xLabels: hourLabels,
+        yLabels: dayLabels,
+        cells: cells,
+      };
+    }) || [];
 
     return (
       <div className="space-y-6">
@@ -114,9 +214,10 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
               data={statusByTypeData}
               xAxisKey="type"
               series={[
-                { dataKey: 'active', name: 'Active' },
-                { dataKey: 'pending', name: 'Pending' },
-                { dataKey: 'completed', name: 'Completed' },
+                { dataKey: 'completed', name: 'Completed', color: '#10b981' },
+                { dataKey: 'available', name: 'Available', color: '#3b82f6' },
+                { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
+                { dataKey: 'sold', name: 'Sold', color: '#8b5cf6' },
               ]}
               height={300}
             />
@@ -129,9 +230,10 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
               data={monthlyTrendData}
               xAxisKey="month"
               lines={[
-                { dataKey: 'inspection', name: 'Inspection' },
-                { dataKey: 'tradein', name: 'Trade-in' },
-                { dataKey: 'master', name: 'Master' },
+                { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
+                { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
+                { dataKey: 'master', name: 'Master', color: '#f59e0b' },
+                { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
               ]}
               height={300}
             />
@@ -142,23 +244,29 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
               data={dealershipComparisonData}
               xAxisKey="dealership"
               series={[
-                { dataKey: 'inspection', name: 'Inspection' },
-                { dataKey: 'tradein', name: 'Trade-in' },
-                { dataKey: 'master', name: 'Master' },
+                { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
+                { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
+                { dataKey: 'master', name: 'Master', color: '#f59e0b' },
+                { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
               ]}
               height={300}
             />
           </div>
         </div>
-        {heatMapData.length > 0 && heatMapData[0]?.xLabels && heatMapData[0]?.yLabels && (
-          <div>
-            <h4 className="text-sm font-medium mb-4">Time-based Analysis</h4>
-            <HeatMap 
-              data={heatMapData[0].cells || []} 
-              xLabels={heatMapData[0].xLabels || []} 
-              yLabels={heatMapData[0].yLabels || []} 
-              height={200} 
-            />
+        {heatMapByType.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium">Activity Heat Map by Type</h4>
+            {heatMapByType.map((heatMapItem: any) => (
+              <div key={heatMapItem.type}>
+                <h5 className="text-xs font-medium mb-2 capitalize">{heatMapItem.type}</h5>
+                <HeatMap
+                  data={heatMapItem.cells}
+                  xLabels={heatMapItem.xLabels}
+                  yLabels={heatMapItem.yLabels}
+                  height={200}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -166,19 +274,29 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.detailedBreakdown) return null;
 
     const columns = [
-      { key: 'type', label: 'Vehicle Type' },
+      { key: 'type', label: 'Type' },
+      { key: 'make', label: 'Make' },
+      { key: 'year', label: 'Year' },
       { key: 'count', label: 'Count' },
-      { key: 'percentage', label: 'Percentage' },
-      { key: 'avgRetailPrice', label: 'Avg Retail Price' },
-      { key: 'activeStatus', label: 'Active' },
-      { key: 'pendingStatus', label: 'Pending' },
-      { key: 'completedStatus', label: 'Completed' },
+      { key: 'avgRetailPrice', label: 'Avg Retail' },
+      { key: 'minRetailPrice', label: 'Min Retail' },
+      { key: 'maxRetailPrice', label: 'Max Retail' },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.detailedBreakdown.map((item: any) => ({
+      type: item._id.type.charAt(0).toUpperCase() + item._id.type.slice(1),
+      make: item._id.make,
+      year: item._id.year,
+      count: item.count,
+      avgRetailPrice: `$${Math.round(item.avgRetailPrice).toLocaleString()}`,
+      minRetailPrice: `$${Math.round(item.minRetailPrice).toLocaleString()}`,
+      maxRetailPrice: `$${Math.round(item.maxRetailPrice).toLocaleString()}`,
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (

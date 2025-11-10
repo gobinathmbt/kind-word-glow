@@ -41,7 +41,9 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleStatusDistribution(params);
-      setData(response.data);
+      console.log('Status Distribution API Response:', response);
+      console.log('Status Distribution Data:', response.data?.data);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load status distribution data');
     } finally {
@@ -62,25 +64,36 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data?.summary) return null;
+    
+    const completedCount = data.statusByType?.find((s: any) => s._id === 'completed')?.totalCount || 0;
+    const pendingCount = data.statusByType?.filter((s: any) => s._id === 'pending')
+      .reduce((sum: number, item: any) => sum + item.totalCount, 0) || 0;
+    const soldCount = data.statusByType?.find((s: any) => s._id === 'sold')?.totalCount || 0;
+    const availableCount = data.statusByType?.find((s: any) => s._id === 'available')?.totalCount || 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
-          title="Active"
-          value={data.metrics.activeCount || 0}
+          title="Total Vehicles"
+          value={data.summary.totalVehicles || 0}
           icon={<Activity className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Pending"
-          value={data.metrics.pendingCount || 0}
+          subtitle={`${data.summary.uniqueStatusCount} unique statuses`}
         />
         <MetricCard
           title="Completed"
-          value={data.metrics.completedCount || 0}
+          value={completedCount}
+          subtitle={`${((completedCount / data.summary.totalVehicles) * 100).toFixed(1)}%`}
         />
         <MetricCard
-          title="In Progress"
-          value={data.metrics.inProgressCount || 0}
+          title="Pending"
+          value={pendingCount}
+          subtitle={`${((pendingCount / data.summary.totalVehicles) * 100).toFixed(1)}%`}
+        />
+        <MetricCard
+          title="Sold & Available"
+          value={soldCount + availableCount}
+          subtitle={`Sold: ${soldCount}, Available: ${availableCount}`}
         />
       </div>
     );
@@ -89,13 +102,69 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusData: PieChartData[] = data.statusDistribution?.map((item: any) => ({
-      name: item.status,
-      value: item.count,
-    })) || [];
+    // Status Distribution Pie Chart
+    const statusColors: Record<string, string> = {
+      'Completed': '#10b981',
+      'Pending': '#f59e0b',
+      'Sold': '#8b5cf6',
+      'Available': '#3b82f6',
+    };
 
-    const statusTimelineData = data.statusTimeline || [];
-    const dealershipStatusData = data.dealershipStatus || [];
+    const statusData: PieChartData[] = data.statusByType?.map((item: any) => {
+      const name = item._id.charAt(0).toUpperCase() + item._id.slice(1);
+      return {
+        name,
+        value: item.totalCount,
+        color: statusColors[name] || '#6b7280',
+      };
+    }) || [];
+
+    // Status Timeline - Transform data
+    const timelineData: any[] = [];
+    const monthMap = new Map<string, any>();
+    
+    data.statusTimeline?.forEach((item: any) => {
+      const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+      if (!monthMap.has(key)) {
+        monthMap.set(key, { 
+          month: key, 
+          year: item._id.year, 
+          monthNum: item._id.month 
+        });
+      }
+      const monthData = monthMap.get(key);
+      monthData[item._id.status] = item.count;
+      monthData[`${item._id.status}_avgDays`] = item.avgDaysSinceCreation;
+    });
+    
+    timelineData.push(...Array.from(monthMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthNum - b.monthNum;
+    }));
+
+    // Dealership Status Breakdown
+    const dealershipStatusData = data.dealershipStatusBreakdown?.map((item: any) => {
+      const dealershipObj: any = { 
+        dealership: item._id || 'No Dealership',
+        total: item.totalVehicles 
+      };
+      item.statusBreakdown?.forEach((status: any) => {
+        dealershipObj[status.status] = status.count;
+      });
+      return dealershipObj;
+    }) || [];
+
+    // Status by Type Breakdown
+    const statusByTypeData = data.statusByType?.map((item: any) => {
+      const statusObj: any = { 
+        status: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+        total: item.totalCount
+      };
+      item.typeBreakdown?.forEach((type: any) => {
+        statusObj[type.type] = type.count;
+      });
+      return statusObj;
+    }) || [];
 
     return (
       <div className="space-y-6">
@@ -105,49 +174,78 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
             <InteractivePieChart data={statusData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Status Transitions Timeline</h4>
-            <LineChart
-              data={statusTimelineData}
-              xAxisKey="date"
-              lines={[
-                { dataKey: 'active', name: 'Active' },
-                { dataKey: 'pending', name: 'Pending' },
-                { dataKey: 'completed', name: 'Completed' },
+            <h4 className="text-sm font-medium mb-4">Status by Vehicle Type</h4>
+            <StackedBarChart
+              data={statusByTypeData}
+              xAxisKey="status"
+              series={[
+                { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
+                { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
+                { dataKey: 'master', name: 'Master', color: '#f59e0b' },
+                { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
               ]}
               height={300}
             />
           </div>
         </div>
-        <div>
-          <h4 className="text-sm font-medium mb-4">Dealership-wise Status Breakdown</h4>
-          <StackedBarChart
-            data={dealershipStatusData}
-            xAxisKey="dealership"
-            series={[
-              { dataKey: 'active', name: 'Active' },
-              { dataKey: 'pending', name: 'Pending' },
-              { dataKey: 'completed', name: 'Completed' },
-              { dataKey: 'inProgress', name: 'In Progress' },
-            ]}
-            height={300}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Status Timeline</h4>
+            <LineChart
+              data={timelineData}
+              xAxisKey="month"
+              lines={[
+                { dataKey: 'completed', name: 'Completed', color: '#10b981' },
+                { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
+                { dataKey: 'sold', name: 'Sold', color: '#8b5cf6' },
+                { dataKey: 'available', name: 'Available', color: '#3b82f6' },
+              ]}
+              height={300}
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Dealership Status Breakdown</h4>
+            <StackedBarChart
+              data={dealershipStatusData}
+              xAxisKey="dealership"
+              series={[
+                { dataKey: 'completed', name: 'Completed', color: '#10b981' },
+                { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
+                { dataKey: 'sold', name: 'Sold', color: '#8b5cf6' },
+                { dataKey: 'available', name: 'Available', color: '#3b82f6' },
+              ]}
+              height={300}
+            />
+          </div>
         </div>
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.statusMetrics) return null;
 
     const columns = [
-      { key: 'status', label: 'Status' },
-      { key: 'count', label: 'Count' },
-      { key: 'percentage', label: 'Percentage' },
-      { key: 'avgDuration', label: 'Avg Duration (days)' },
-      { key: 'trend', label: 'Trend' },
+      { key: 'status', label: 'Status', sortable: true },
+      { key: 'count', label: 'Count', sortable: true },
+      { key: 'avgRetailPrice', label: 'Avg Retail Price', sortable: true },
+      { key: 'avgPurchasePrice', label: 'Avg Purchase Price', sortable: true },
+      { key: 'avgDaysSinceCreation', label: 'Avg Days', sortable: true },
+      { key: 'workshopPercentage', label: 'Workshop %', sortable: true },
+      { key: 'attachmentPercentage', label: 'Attachment %', sortable: true },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.statusMetrics.map((item: any) => ({
+      status: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      count: item.count,
+      avgRetailPrice: `$${Math.round(item.avgRetailPrice).toLocaleString()}`,
+      avgPurchasePrice: `$${Math.round(item.avgPurchasePrice).toLocaleString()}`,
+      avgDaysSinceCreation: Math.round(item.avgDaysSinceCreation),
+      workshopPercentage: `${item.workshopPercentage.toFixed(1)}%`,
+      attachmentPercentage: `${item.attachmentPercentage.toFixed(1)}%`,
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (

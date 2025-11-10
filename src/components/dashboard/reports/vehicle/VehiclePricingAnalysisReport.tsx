@@ -40,7 +40,9 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehiclePricingAnalysis(params);
-      setData(response.data);
+      console.log('Pricing Analysis API Response:', response);
+      console.log('Pricing Analysis Data:', response.data?.data);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load pricing analysis data');
     } finally {
@@ -61,26 +63,32 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data?.revenueMetrics) return null;
+
+    const metrics = data.revenueMetrics;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
-          title="Avg Purchase Price"
-          value={`$${data.metrics.avgPurchasePrice?.toLocaleString() || 0}`}
+          title="Total Revenue"
+          value={`$${Math.round(metrics.totalRevenue).toLocaleString()}`}
           icon={<DollarSign className="h-5 w-5" />}
+          subtitle={`${metrics.vehiclesWithSoldPrice} vehicles sold`}
         />
         <MetricCard
-          title="Avg Retail Price"
-          value={`$${data.metrics.avgRetailPrice?.toLocaleString() || 0}`}
+          title="Gross Profit"
+          value={`$${Math.round(metrics.grossProfit).toLocaleString()}`}
+          subtitle={`Net: $${Math.round(metrics.netProfit).toLocaleString()}`}
         />
         <MetricCard
-          title="Avg Sold Price"
-          value={`$${data.metrics.avgSoldPrice?.toLocaleString() || 0}`}
+          title="Avg Profit/Vehicle"
+          value={`$${Math.round(metrics.avgProfitPerVehicle).toLocaleString()}`}
+          subtitle={`${metrics.totalVehicles} total vehicles`}
         />
         <MetricCard
-          title="Avg Profit Margin"
-          value={`${data.metrics.avgProfitMargin?.toFixed(1) || 0}%`}
-          trend={data.metrics.profitMarginTrend}
+          title="Total Retail Value"
+          value={`$${Math.round(metrics.totalRetailValue).toLocaleString()}`}
+          subtitle={`Purchase: $${Math.round(metrics.totalPurchaseCost).toLocaleString()}`}
         />
       </div>
     );
@@ -89,10 +97,66 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
   const renderCharts = () => {
     if (!data) return null;
 
-    const priceTrendData = data.priceTrends || [];
-    const priceComparisonData = data.priceComparison || [];
-    const profitMarginData = data.profitMargins || [];
-    const priceRangeData = data.priceRangeDistribution || [];
+    // Pricing Trends Over Time - Transform monthly data
+    const priceTrendData: any[] = [];
+    const monthMap = new Map<string, any>();
+
+    data.pricingTrends?.forEach((item: any) => {
+      const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+      if (!monthMap.has(key)) {
+        monthMap.set(key, {
+          month: key,
+          year: item._id.year,
+          monthNum: item._id.month
+        });
+      }
+      const monthData = monthMap.get(key);
+      const type = item._id.type;
+      monthData[`${type}_purchase`] = item.avgPurchasePrice;
+      monthData[`${type}_retail`] = item.avgRetailPrice;
+      monthData[`${type}_sold`] = item.avgSoldPrice;
+    });
+
+    priceTrendData.push(...Array.from(monthMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthNum - b.monthNum;
+    }));
+
+    // Price Comparison by Type
+    const priceComparisonData = data.pricingByType?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      purchasePrice: Math.round(item.avgPurchasePrice),
+      retailPrice: Math.round(item.avgRetailPrice),
+      soldPrice: Math.round(item.avgSoldPrice),
+      count: item.count,
+    })) || [];
+
+    // Profit Margin by Type
+    const profitMarginData = data.pricingByType?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      profitMargin: item.profitMargin,
+      retailMarkup: item.retailMarkup,
+      count: item.count,
+    })) || [];
+
+    // Price Range Distribution
+    const priceRangeData = data.priceRangeDistribution?.map((item: any) => {
+      let rangeLabel = '';
+      if (item._id === '500000+') {
+        rangeLabel = '$500K+';
+      } else if (item._id === 0) {
+        rangeLabel = '$0-10K';
+      } else {
+        const start = item._id / 1000;
+        const end = start + (item._id < 100000 ? 10 : item._id < 200000 ? 25 : 50);
+        rangeLabel = `$${start}K-${end}K`;
+      }
+      return {
+        range: rangeLabel,
+        count: item.count,
+        avgPrice: item.avgPrice ? Math.round(item.avgPrice) : 0,
+      };
+    }).filter((item: any) => item.count > 0) || [];
 
     return (
       <div className="space-y-6">
@@ -103,9 +167,10 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
               data={priceTrendData}
               xAxisKey="month"
               lines={[
-                { dataKey: 'purchasePrice', name: 'Purchase' },
-                { dataKey: 'retailPrice', name: 'Retail' },
-                { dataKey: 'soldPrice', name: 'Sold' },
+                { dataKey: 'inspection_retail', name: 'Inspection Retail', color: '#3b82f6' },
+                { dataKey: 'tradein_retail', name: 'Trade-in Retail', color: '#10b981' },
+                { dataKey: 'inspection_sold', name: 'Inspection Sold', color: '#8b5cf6' },
+                { dataKey: 'tradein_sold', name: 'Trade-in Sold', color: '#f59e0b' },
               ]}
               height={300}
             />
@@ -116,9 +181,9 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
               data={priceComparisonData}
               xAxisKey="type"
               series={[
-                { dataKey: 'purchasePrice', name: 'Purchase' },
-                { dataKey: 'retailPrice', name: 'Retail' },
-                { dataKey: 'soldPrice', name: 'Sold' },
+                { dataKey: 'purchasePrice', name: 'Purchase', color: '#ef4444' },
+                { dataKey: 'retailPrice', name: 'Retail', color: '#3b82f6' },
+                { dataKey: 'soldPrice', name: 'Sold', color: '#10b981' },
               ]}
               height={300}
             />
@@ -126,12 +191,13 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Profit Margin Analysis</h4>
-            <LineChart
+            <h4 className="text-sm font-medium mb-4">Profit Margin by Type</h4>
+            <StackedBarChart
               data={profitMarginData}
-              xAxisKey="month"
-              lines={[
-                { dataKey: 'profitMargin', name: 'Profit Margin %' },
+              xAxisKey="type"
+              series={[
+                { dataKey: 'profitMargin', name: 'Profit Margin', color: '#10b981' },
+                { dataKey: 'retailMarkup', name: 'Retail Markup', color: '#3b82f6' },
               ]}
               height={300}
             />
@@ -142,7 +208,7 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
               data={priceRangeData}
               xAxisKey="range"
               series={[
-                { dataKey: 'count', name: 'Vehicles' },
+                { dataKey: 'count', name: 'Vehicles', color: '#3b82f6' },
               ]}
               height={300}
             />
@@ -153,18 +219,31 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.pricingByMakeModel) return null;
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'avgPurchasePrice', label: 'Avg Purchase' },
-      { key: 'avgRetailPrice', label: 'Avg Retail' },
-      { key: 'avgSoldPrice', label: 'Avg Sold' },
-      { key: 'profitMargin', label: 'Profit Margin %' },
-      { key: 'totalRevenue', label: 'Total Revenue' },
+      { key: 'make', label: 'Make', sortable: true },
+      { key: 'model', label: 'Model', sortable: true },
+      { key: 'count', label: 'Count', sortable: true },
+      { key: 'avgPurchasePrice', label: 'Avg Purchase', sortable: true },
+      { key: 'avgRetailPrice', label: 'Avg Retail', sortable: true },
+      { key: 'avgSoldPrice', label: 'Avg Sold', sortable: true },
+      { key: 'totalRevenue', label: 'Total Revenue', sortable: true },
+      { key: 'profitMargin', label: 'Profit Margin', sortable: true },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.pricingByMakeModel.map((item: any) => ({
+      make: item._id.make,
+      model: item._id.model,
+      count: item.count,
+      avgPurchasePrice: `$${Math.round(item.avgPurchasePrice).toLocaleString()}`,
+      avgRetailPrice: `$${Math.round(item.avgRetailPrice).toLocaleString()}`,
+      avgSoldPrice: `$${Math.round(item.avgSoldPrice).toLocaleString()}`,
+      totalRevenue: `$${Math.round(item.totalRevenue).toLocaleString()}`,
+      profitMargin: `$${Math.round(item.profitMargin).toLocaleString()}`,
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (
