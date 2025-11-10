@@ -56,6 +56,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
 
 interface MultiSelectOption {
   option_value: string;
@@ -179,6 +181,12 @@ const SupplierManagement = () => {
   const [paginationEnabled, setPaginationEnabled] = useState(true);
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const { completeUser } = useAuth();
+  
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'workshop_supplier_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'workshop_supplier_search_filter');
+  const canAdd = hasPermission(completeUser, 'workshop_supplier_add');
 
   const [formData, setFormData] = useState({
     name: "",
@@ -428,18 +436,18 @@ const SupplierManagement = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
+    }] : []),
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add Supplier",
       onClick: handleCreateSupplier,
       className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
   ];
 
   // Render table header
@@ -590,7 +598,7 @@ const SupplierManagement = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="supplier_pagination_enabled" // Custom cookie name
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
