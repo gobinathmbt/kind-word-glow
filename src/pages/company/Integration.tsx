@@ -22,6 +22,7 @@ import SendGridConfigDialog from "@/components/integrations/SendGridConfigDialog
 import AutoGrabConfigDialog from "@/components/integrations/AutoGrabConfigDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { hasPermission } from "@/utils/permissionController";
 
 interface Integration {
   _id: string;
@@ -46,6 +47,12 @@ const Integration = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddIntegration, setShowAddIntegration] = useState(false);
+
+  // Permissions
+  const canRefresh = hasPermission(completeUser, 'vehicle_integration_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'vehicle_integration_search_filter');
+  const canAdd = hasPermission(completeUser, 'vehicle_integration_add');
+  const canConfigure = hasPermission(completeUser, 'vehicle_integration_configure');
 
   // Fetch company integration modules
   const { data: modulesData } = useQuery({
@@ -254,21 +261,20 @@ const Integration = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => toast.info("Filter feature coming soon"),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
+    }] : []),
    
-   {
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add Integration",
       onClick: () => setShowAddIntegration(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
   ];
 
   // Render table header
@@ -349,17 +355,22 @@ const Integration = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  handleConfigureModule(integration.integration_type)
-                }
-                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-              >
-                <Settings className="h-4 w-4 " />
-                Configure
-              </Button>
+              {canConfigure && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    handleConfigureModule(integration.integration_type)
+                  }
+                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                >
+                  <Settings className="h-4 w-4 " />
+                  Configure
+                </Button>
+              )}
+              {!canConfigure && (
+                <span className="text-sm text-muted-foreground">No actions</span>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -388,7 +399,7 @@ const Integration = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="integration_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />
