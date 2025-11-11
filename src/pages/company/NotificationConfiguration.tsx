@@ -16,6 +16,8 @@ import EnhancedNotificationConfigForm from '@/components/notifications/EnhancedN
 import { toast as sonnerToast } from 'sonner';
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
 
 interface NotificationConfiguration {
   _id: string;
@@ -29,6 +31,7 @@ interface NotificationConfiguration {
     value: any;
     condition: 'and' | 'or';
   }>;
+  
   target_users: {
     type: 'all' | 'specific_users' | 'role_based' | 'department_based' | 'dealership_based';
     user_ids: string[];
@@ -63,6 +66,7 @@ interface NotificationConfiguration {
 const NotificationConfiguration: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { completeUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -76,6 +80,14 @@ const NotificationConfiguration: React.FC = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [configToDelete, setConfigToDelete] = useState<any>(null);
+
+  // Permissions
+  const canRefresh = hasPermission(completeUser, 'notification_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'notification_search_filter');
+  const canAdd = hasPermission(completeUser, 'notification_add');
+  const canToggleStatus = hasPermission(completeUser, 'notification_toggle_status');
+  const canEdit = hasPermission(completeUser, 'notification_edit');
+  const canDelete = hasPermission(completeUser, 'notification_delete');
 
   const fetchAllConfigurations = async () => {
     try {
@@ -353,24 +365,19 @@ const NotificationConfiguration: React.FC = () => {
   ];
 
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
+    }] : []),
+    
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Configuration",
       onClick: () => setIsCreateDialogOpen(true),
       className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
   ];
 
   const renderTableHeader = () => (
@@ -492,11 +499,13 @@ const NotificationConfiguration: React.FC = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <Switch
-                checked={config.is_active}
-                onCheckedChange={() => handleToggleStatus(config)}
-                disabled={toggleStatusMutation.isPending}
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={config.is_active}
+                  onCheckedChange={() => handleToggleStatus(config)}
+                  disabled={toggleStatusMutation.isPending}
+                />
+              )}
               <span className="text-sm text-muted-foreground">
                 {config.is_active ? 'Active' : 'Inactive'}
               </span>
@@ -507,28 +516,33 @@ const NotificationConfiguration: React.FC = () => {
               {config.created_by?.first_name} {config.created_by?.last_name}
             </div>
           </TableCell>
-          <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleEdit(config)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleDelete(config._id, config.name)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
+        <TableCell className="flex items-center gap-2">
+          {canEdit && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleEdit(config)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+
+          {canDelete && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleDelete(config._id, config.name)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {!canEdit && !canDelete && (
+            <span className="text-sm text-muted-foreground">No actions</span>
+          )}
+        </TableCell>
         </TableRow>
       ))}
     </>
@@ -555,7 +569,7 @@ const NotificationConfiguration: React.FC = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="notification_config_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />

@@ -29,6 +29,7 @@ import {
 import { CompleteUser, useAuth } from "@/auth/AuthContext";
 import GroupPermissionsDialog from "@/components/permissions/GroupPermissionsDialog";
 import AssignGroupPermissionDialog from "@/components/permissions/AssignGroupPermissionDialog";
+import { hasPermission } from "@/utils/permissionController";
 
 interface Permission {
   _id: string;
@@ -75,6 +76,14 @@ const UserPermissions = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const { completeUser } = useAuth();
   
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'user_permission_refresh');
+  const canGroupPermission = hasPermission(completeUser, 'user_permission_group_permission');
+  const canSearchFilter = hasPermission(completeUser, 'user_permission_search_filter');
+  const canSettings = hasPermission(completeUser, 'user_permission_settings');
+  const canGroup = hasPermission(completeUser, 'user_permission_group');
+  const canModules = hasPermission(completeUser, 'user_permission_modules');
+
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
 
   const fetchAllUsers = async () => {
@@ -293,13 +302,9 @@ const UserPermissions = () => {
     refetch();
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
+  
 
-  const handleImport = () => {
-    toast.info("Import feature coming soon");
-  };
+ 
 
   useEffect(() => {
     setPage(1);
@@ -344,31 +349,20 @@ const UserPermissions = () => {
   ];
 
   const actionButtons = [
-    {
+    ...(canGroupPermission ? [{
       icon: <Users className="h-4 w-4" />,
       tooltip: "Group Permissions",
       onClick: () => setIsGroupPermissionsDialogOpen(true),
       className: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
-    },
-    {
+    }] : []),
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Import Users",
-      onClick: handleImport,
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+    }] : []),
+   
+   
   ];
 
   const renderTableHeader = () => (
@@ -477,25 +471,29 @@ const UserPermissions = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleManagePermissions(user)}
-                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Permissions
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAssignGroupPermission(user)}
-                className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
-              >
-                <Users className="h-4 w-4 mr-1" />
-                Group
-              </Button>
-              {canManageModules(completeUser) && (
+              {canSettings && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleManagePermissions(user)}
+                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Permissions
+                </Button>
+              )}
+              {canGroup && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAssignGroupPermission(user)}
+                  className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  Group
+                </Button>
+              )}
+              {canModules && canManageModules(completeUser) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -505,6 +503,9 @@ const UserPermissions = () => {
                   <Layers className="h-4 w-4 mr-1" />
                   Modules
                 </Button>
+              )}
+              {!canSettings && !canGroup && !canModules && (
+                <span className="text-sm text-muted-foreground">No actions</span>
               )}
             </div>
           </TableCell>
@@ -543,7 +544,7 @@ const UserPermissions = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="permission_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />

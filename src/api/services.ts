@@ -1458,6 +1458,296 @@ export const dashboardReportServices = {
     apiClient.post("/api/dashboard-report/vehicle-records", data),
 };
 
+// Advanced Dashboard Analytics Services
+export const dashboardAnalyticsServices = {
+  // Vehicle Reports (12 endpoints)
+  getVehicleOverviewByType: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/overview-by-type", { params }),
+  
+  getVehiclePricingAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/pricing-analysis", { params }),
+  
+  getVehicleStatusDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/status-distribution", { params }),
+  
+  getVehicleWorkshopIntegration: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/workshop-integration", { params }),
+  
+  getVehicleAttachmentAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/attachment-analysis", { params }),
+  
+  getVehicleRegistrationCompliance: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/registration-compliance", { params }),
+  
+  getVehicleImportTimeline: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/import-timeline", { params }),
+  
+  getVehicleEngineSpecifications: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/engine-specifications", { params }),
+  
+  getVehicleOdometerTrends: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/odometer-trends", { params }),
+  
+  getVehicleOwnershipHistory: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/ownership-history", { params }),
+  
+  getVehicleQueueProcessing: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/queue-processing", { params }),
+  
+  getVehicleCostDetails: (params?: any) =>
+    apiClient.get("/api/company/reports/vehicle/cost-details", { params }),
+
+  // MasterVehicle Reports (5 endpoints)
+  getMasterVehicleInventory: (params?: any) =>
+    apiClient.get("/api/company/reports/master-vehicle/inventory", { params }),
+  
+  getMasterVehicleSpecifications: (params?: any) =>
+    apiClient.get("/api/company/reports/master-vehicle/specifications", { params }),
+  
+  getMasterVehicleSourceAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/master-vehicle/source-analysis", { params }),
+  
+  getMasterVehicleWorkshopStatus: (params?: any) =>
+    apiClient.get("/api/company/reports/master-vehicle/workshop-status", { params }),
+  
+  getMasterVehiclePricingStrategy: (params?: any) =>
+    apiClient.get("/api/company/reports/master-vehicle/pricing-strategy", { params }),
+
+  // AdvertiseVehicle Reports (5 endpoints)
+  getAdvertisementPerformance: (params?: any) =>
+    apiClient.get("/api/company/reports/advertise-vehicle/performance", { params }),
+  
+  getAdvertisementPricingAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/advertise-vehicle/pricing-analysis", { params }),
+  
+  getAdvertisementAttachmentQuality: (params?: any) =>
+    apiClient.get("/api/company/reports/advertise-vehicle/attachment-quality", { params }),
+  
+  getAdvertisementStatusTracking: (params?: any) =>
+    apiClient.get("/api/company/reports/advertise-vehicle/status-tracking", { params }),
+  
+  getAdvertisementConversionRates: (params?: any) =>
+    apiClient.get("/api/company/reports/advertise-vehicle/conversion-rates", { params }),
+
+  // WorkshopQuote Reports (12 endpoints)
+  getQuoteOverviewByStatus: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/overview-by-status", { params }),
+  
+  getQuoteLifecycleAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/lifecycle-analysis", { params }),
+  
+  getQuoteSupplierPerformance: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/supplier-performance", { params }),
+  
+  getQuoteCostAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/cost-analysis", { params }),
+  
+  getQuoteApprovalRates: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/approval-rates", { params }),
+  
+  getQuoteResponseTimeAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/response-time-analysis", { params }),
+  
+  getQuoteTypeDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/type-distribution", { params }),
+  
+  getQuoteBayBookingAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/bay-booking-analysis", { params }),
+  
+  getQuoteWorkEntryAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/work-entry-analysis", { params }),
+  
+  getQuoteInvoiceAccuracy: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/invoice-accuracy", { params }),
+  
+  getQuoteReworkPatterns: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/rework-patterns", { params }),
+  
+  getQuoteConversationMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-quote/conversation-metrics", { params }),
+
+  // WorkshopReport Reports (8 endpoints)
+  getWorkshopReportOverview: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/overview", { params }),
+  
+  getWorkshopCostBreakdown: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/cost-breakdown", { params }),
+  
+  getWorkshopQualityMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/quality-metrics", { params }),
+  
+  getWorkshopTechnicianPerformance: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/technician-performance", { params }),
+  
+  getWorkshopSupplierScorecard: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/supplier-scorecard", { params }),
+  
+  getWorkshopWarrantyTracking: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/warranty-tracking", { params }),
+  
+  getWorkshopCompletionTimeAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/completion-time-analysis", { params }),
+  
+  getWorkshopRevenueAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/workshop-report/revenue-analysis", { params }),
+
+  // Dealership Reports (6 endpoints)
+  getDealershipOverview: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/overview", { params }),
+  
+  getDealershipVehicleDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/vehicle-distribution", { params }),
+  
+  getDealershipWorkshopPerformance: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/workshop-performance", { params }),
+  
+  getDealershipUserActivity: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/user-activity", { params }),
+  
+  getDealershipRevenueComparison: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/revenue-comparison", { params }),
+  
+  getDealershipServiceBayUtilization: (params?: any) =>
+    apiClient.get("/api/company/reports/dealership/service-bay-utilization", { params }),
+
+  // User Reports (5 endpoints)
+  getUserPerformanceMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/user/performance-metrics", { params }),
+  
+  getUserLoginPatterns: (params?: any) =>
+    apiClient.get("/api/company/reports/user/login-patterns", { params }),
+  
+  getUserRoleDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/user/role-distribution", { params }),
+  
+  getUserDealershipAssignment: (params?: any) =>
+    apiClient.get("/api/company/reports/user/dealership-assignment", { params }),
+  
+  getUserPermissionUtilization: (params?: any) =>
+    apiClient.get("/api/company/reports/user/permission-utilization", { params }),
+
+  // Supplier Reports (4 endpoints)
+  getSupplierOverview: (params?: any) =>
+    apiClient.get("/api/company/reports/supplier/overview", { params }),
+  
+  getSupplierPerformanceRanking: (params?: any) =>
+    apiClient.get("/api/company/reports/supplier/performance-ranking", { params }),
+  
+  getSupplierTagAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/supplier/tag-analysis", { params }),
+  
+  getSupplierRelationshipMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/supplier/relationship-metrics", { params }),
+
+  // ServiceBay Reports (4 endpoints)
+  getServiceBayUtilization: (params?: any) =>
+    apiClient.get("/api/company/reports/service-bay/utilization", { params }),
+  
+  getServiceBayBookingPatterns: (params?: any) =>
+    apiClient.get("/api/company/reports/service-bay/booking-patterns", { params }),
+  
+  getServiceBayUserAssignment: (params?: any) =>
+    apiClient.get("/api/company/reports/service-bay/user-assignment", { params }),
+  
+  getServiceBayHolidayImpact: (params?: any) =>
+    apiClient.get("/api/company/reports/service-bay/holiday-impact", { params }),
+
+  // Conversation Reports (3 endpoints)
+  getConversationVolumeAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/conversation/volume-analysis", { params }),
+  
+  getConversationResponseTimes: (params?: any) =>
+    apiClient.get("/api/company/reports/conversation/response-times", { params }),
+  
+  getConversationEngagementMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/conversation/engagement-metrics", { params }),
+
+  // CostConfiguration Reports (3 endpoints)
+  getCostTypeUtilization: (params?: any) =>
+    apiClient.get("/api/company/reports/cost-configuration/type-utilization", { params }),
+  
+  getCostSetterEffectiveness: (params?: any) =>
+    apiClient.get("/api/company/reports/cost-configuration/setter-effectiveness", { params }),
+  
+  getCostCurrencyDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/cost-configuration/currency-distribution", { params }),
+
+  // DropdownMaster Reports (3 endpoints)
+  getDropdownUsageAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/dropdown-master/usage-analysis", { params }),
+  
+  getDropdownValueDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/dropdown-master/value-distribution", { params }),
+  
+  getDropdownConfigurationHealth: (params?: any) =>
+    apiClient.get("/api/company/reports/dropdown-master/configuration-health", { params }),
+
+  // InspectionConfig Reports (3 endpoints)
+  getInspectionConfigUsage: (params?: any) =>
+    apiClient.get("/api/company/reports/inspection-config/usage", { params }),
+  
+  getInspectionFieldAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/inspection-config/field-analysis", { params }),
+  
+  getInspectionCategoryEffectiveness: (params?: any) =>
+    apiClient.get("/api/company/reports/inspection-config/category-effectiveness", { params }),
+
+  // TradeinConfig Reports (3 endpoints)
+  getTradeinConfigUsage: (params?: any) =>
+    apiClient.get("/api/company/reports/tradein-config/usage", { params }),
+  
+  getTradeinFieldAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/tradein-config/field-analysis", { params }),
+  
+  getTradeinCategoryEffectiveness: (params?: any) =>
+    apiClient.get("/api/company/reports/tradein-config/category-effectiveness", { params }),
+
+  // Integration Reports (3 endpoints)
+  getIntegrationStatusOverview: (params?: any) =>
+    apiClient.get("/api/company/reports/integration/status-overview", { params }),
+  
+  getIntegrationEnvironmentUsage: (params?: any) =>
+    apiClient.get("/api/company/reports/integration/environment-usage", { params }),
+  
+  getIntegrationTypeDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/integration/type-distribution", { params }),
+
+  // NotificationConfiguration Reports (3 endpoints)
+  getNotificationEngagementMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/notification-config/engagement-metrics", { params }),
+  
+  getNotificationTriggerAnalysis: (params?: any) =>
+    apiClient.get("/api/company/reports/notification-config/trigger-analysis", { params }),
+  
+  getNotificationChannelPerformance: (params?: any) =>
+    apiClient.get("/api/company/reports/notification-config/channel-performance", { params }),
+
+  // GroupPermission Reports (2 endpoints)
+  getGroupPermissionUsage: (params?: any) =>
+    apiClient.get("/api/company/reports/group-permission/usage", { params }),
+  
+  getGroupPermissionEffectiveness: (params?: any) =>
+    apiClient.get("/api/company/reports/group-permission/effectiveness", { params }),
+
+  // Workflow Reports (3 endpoints)
+  getWorkflowExecutionMetrics: (params?: any) =>
+    apiClient.get("/api/company/reports/workflow/execution-metrics", { params }),
+  
+  getWorkflowTypeDistribution: (params?: any) =>
+    apiClient.get("/api/company/reports/workflow/type-distribution", { params }),
+  
+  getWorkflowSuccessRates: (params?: any) =>
+    apiClient.get("/api/company/reports/workflow/success-rates", { params }),
+
+  // Export functionality
+  exportReport: (reportType: string, format: 'csv' | 'pdf' | 'excel', params?: any) =>
+    apiClient.get(`/api/company/reports/export/${reportType}`, {
+      params: { ...params, format },
+      responseType: 'blob',
+      timeout: 300000, // 5 minute timeout for exports
+    }),
+};
+
 export default {
   auth: authServices,
   subscription: subscriptionServices,
@@ -1478,8 +1768,9 @@ export default {
   masterInspectionServices: masterInspectionServices,
   masterVehicle: masterVehicleServices,
   adPublishing: adPublishingServices,
-  commonVehicle:commonVehicleServices,
-  serviceBayServices:serviceBayServices,
-  bayQuoteServices:bayQuoteServices,
-  dashboardReportServices:dashboardReportServices,
+  commonVehicle: commonVehicleServices,
+  serviceBayServices: serviceBayServices,
+  bayQuoteServices: bayQuoteServices,
+  dashboardReportServices: dashboardReportServices,
+  dashboardAnalytics: dashboardAnalyticsServices,
 };

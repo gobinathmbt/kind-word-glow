@@ -43,6 +43,7 @@ import ValueManagementDialog from "../../components/dropdown/ValueManagementDial
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import { hasPermission } from "@/utils/permissionController";
 
 const DropdownMaster = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -65,6 +66,16 @@ const DropdownMaster = () => {
   const { completeUser } = useAuth();
   const isPrimaryAdmin = completeUser?.is_primary_admin;
   const userDealerships = completeUser?.dealership_ids || [];
+
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'drop_down_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'drop_down_search_filter');
+  const canCreate = hasPermission(completeUser, 'drop_down_create');
+  const canToggleStatus = hasPermission(completeUser, 'drop_down_status_toggle');
+  const canManageValuesSettings = hasPermission(completeUser, 'drop_down_manage_values_settings');
+  const canEdit = hasPermission(completeUser, 'drop_down_edit');
+  const canDelete = hasPermission(completeUser, 'drop_down_delete');
+  const canAddValue = hasPermission(completeUser, 'drop_down_addvalue');
 
   const [formData, setFormData] = useState({
     dropdown_name: "",
@@ -267,9 +278,7 @@ const DropdownMaster = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
+
 
   const handleClearFilters = () => {
     setSearchTerm("");
@@ -322,32 +331,21 @@ const DropdownMaster = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
+    }] : []),
+   
+    ...(canCreate ? [{
       icon: <Database className="h-4 w-4" />,
       tooltip: "Create Dropdown",
       onClick: () => setIsDialogOpen(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Dropdowns",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+    }] : []),
+   
   ];
 
   const { data: dealerships } = useQuery({
@@ -452,18 +450,20 @@ const DropdownMaster = () => {
                   +{dropdown.values.length - 3} more
                 </Badge>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedDropdown(dropdown);
-                  setIsValueDialogOpen(true);
-                }}
-                className="h-6 px-2"
-                title="Add Value"
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
+              {canAddValue && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedDropdown(dropdown);
+                    setIsValueDialogOpen(true);
+                  }}
+                  className="h-6 px-2"
+                  title="Add Value"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </TableCell>
           <TableCell>
@@ -487,12 +487,14 @@ const DropdownMaster = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <Switch
-                checked={dropdown.is_active}
-                onCheckedChange={() =>
-                  handleToggleStatus(dropdown._id, dropdown.is_active)
-                }
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={dropdown.is_active}
+                  onCheckedChange={() =>
+                    handleToggleStatus(dropdown._id, dropdown.is_active)
+                  }
+                />
+              )}
               <Badge
                 variant={dropdown.is_active ? "default" : "secondary"}
                 className={
@@ -508,67 +510,77 @@ const DropdownMaster = () => {
           <TableCell>
            <div className="flex items-center space-x-2">
   {/* Manage Values */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setSelectedDropdown(dropdown);
-            setIsValueDialogOpen(true);
-          }}
-          className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Manage Values</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canManageValuesSettings && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSelectedDropdown(dropdown);
+              setIsValueDialogOpen(true);
+            }}
+            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Manage Values</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
 
   {/* Edit Dropdown */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setEditDropdown(dropdown);
-            setIsEditDialogOpen(true);
-          }}
-          className="text-green-600 hover:text-green-800 hover:bg-green-100"
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Edit Dropdown</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canEdit && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEditDropdown(dropdown);
+              setIsEditDialogOpen(true);
+            }}
+            className="text-green-600 hover:text-green-800 hover:bg-green-100"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Edit Dropdown</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
 
   {/* Delete Dropdown */}
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => confirmDeleteDropdown(dropdown._id)}
-          className="text-red-600 hover:text-red-800 hover:bg-red-100"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Delete Dropdown</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  {canDelete && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => confirmDeleteDropdown(dropdown._id)}
+            className="text-red-600 hover:text-red-800 hover:bg-red-100"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Delete Dropdown</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
+
+  {!canManageValuesSettings && !canEdit && !canDelete && (
+    <span className="text-sm text-muted-foreground">No actions</span>
+  )}
 </div>
 
           </TableCell>
@@ -598,7 +610,7 @@ const DropdownMaster = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="dropdownmaster_pagination_enabled" // Custom cookie name
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />

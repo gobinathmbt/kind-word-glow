@@ -39,6 +39,7 @@ import { Link } from "react-router-dom";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { formatApiNames } from "@/utils/GlobalUtils";
+import { hasPermission } from "@/utils/permissionController";
 
 const Workshop = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +51,11 @@ const Workshop = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const { completeUser } = useAuth();
+  
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'workshop_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'workshop_search_filter');
+
   // Function to fetch all vehicles when pagination is disabled
   const fetchAllVehicles = async () => {
     try {
@@ -224,9 +230,6 @@ const Workshop = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
 
   // Helper functions for new columns
   const getExpiryStatus = (licenseExpiryDate: string) => {
@@ -291,25 +294,12 @@ const Workshop = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Vehicles",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+    }] : []),
   ];
 
   // Render table header
@@ -526,7 +516,7 @@ const Workshop = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="workshop_pagination_enabled" // Custom cookie name
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />

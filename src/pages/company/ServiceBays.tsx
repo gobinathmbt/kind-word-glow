@@ -39,6 +39,7 @@ import { useAuth } from "@/auth/AuthContext";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import ReactSelect from "react-select";
 import apiClient from "@/api/axios";
+import { hasPermission } from "@/utils/permissionController";
 
 const daysOfWeek = [
   { value: "monday", label: "Monday" },
@@ -65,6 +66,14 @@ const ServiceBays = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   const { completeUser } = useAuth();
+
+  // Permission checks
+  const canRefresh = hasPermission(completeUser, 'service_bay_refresh');
+  const canAdd = hasPermission(completeUser, 'service_bay_create');
+  const canEdit = hasPermission(completeUser, 'service_bay_edit');
+  const canDelete = hasPermission(completeUser, 'service_bay_delete');
+  const canSearchFilter = hasPermission(completeUser, 'service_bay_search_filter');
+  const canToggleStatus = hasPermission(completeUser, 'service_bay_status_toggle');
 
   const [formData, setFormData] = useState({
     bay_name: "",
@@ -543,13 +552,13 @@ const ServiceBays = () => {
   ];
 
   const actionButtons = [
-    {
+    ...(canAdd ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Add Service Bay",
       onClick: () => setIsDialogOpen(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
   ];
 
   const renderTableHeader = () => (
@@ -605,7 +614,14 @@ const ServiceBays = () => {
               </div>
             )}
           </TableCell>
-          <TableCell>{bay.dealership_id?.dealership_name || "N/A"}</TableCell>
+          <TableCell>
+            <Badge 
+              style={{ backgroundColor: '#F97316' }}
+              className="text-white"
+            >
+              {bay.dealership_id?.dealership_name || "N/A"}
+            </Badge>
+          </TableCell>
           <TableCell>
             <div>
               {bay.primary_admin?.first_name} {bay.primary_admin?.last_name}
@@ -619,12 +635,14 @@ const ServiceBays = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
-              <Switch
-                checked={bay.is_active}
-                onCheckedChange={() =>
-                  handleToggleStatus(bay._id, bay.is_active)
-                }
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={bay.is_active}
+                  onCheckedChange={() =>
+                    handleToggleStatus(bay._id, bay.is_active)
+                  }
+                />
+              )}
               <span className="text-sm">
                 {bay.is_active ? "Active" : "Inactive"}
               </span>
@@ -632,41 +650,50 @@ const ServiceBays = () => {
           </TableCell>
           <TableCell>
             <div className="flex gap-2">
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleEdit(bay)}
-        >
-          <Edit className="h-3 w-3" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Edit Bay</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+              {canEdit && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        onClick={() => handleEdit(bay)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit Bay</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => handleDelete(bay._id)}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Delete Bay</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-</div>
+              {canDelete && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                        onClick={() => handleDelete(bay._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Bay</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
+              {!canEdit && !canDelete && (
+                <span className="text-sm text-muted-foreground">No actions</span>
+              )}
+            </div>
           </TableCell>
         </TableRow>
       ))}
@@ -924,7 +951,7 @@ const ServiceBays = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="service_bay_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />

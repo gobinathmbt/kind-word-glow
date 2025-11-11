@@ -8,12 +8,15 @@ import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, Plus, Edit, Trash2, MapPin, Mail, User, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload, SlidersHorizontal } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, MapPin, Mail, User,  ArrowUpDown, ArrowUp, ArrowDown, X, SlidersHorizontal ,  } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { dealershipServices } from '@/api/services';
 import DeleteConfirmationDialog from '@/components/dialogs/DeleteConfirmationDialog';
 import DataTableLayout from '@/components/common/DataTableLayout';
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
+
 
 const Dealerships = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -29,6 +32,16 @@ const Dealerships = () => {
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState(null);
+
+
+  const { completeUser } = useAuth();
+  const canRefresh = hasPermission(completeUser, 'multi_dealership_refresh');
+  const canAdd = hasPermission(completeUser, 'multi_dealership_create');
+  const canEdit = hasPermission(completeUser, 'multi_dealership_edit');
+  const canDelete = hasPermission(completeUser, 'multi_dealership_delete');
+  const canSearchFilter = hasPermission(completeUser, 'multi_dealership_search_filter');
+  const canToggleStatus = hasPermission(completeUser, 'multi_dealership_status_toggle');
+  
 
   const [formData, setFormData] = useState({
     dealership_name: '',
@@ -236,9 +249,7 @@ const Dealerships = () => {
     toast.success('Data refreshed');
   };
 
-  const handleExport = () => {
-    toast.success('Export started');
-  };
+ 
 
   // Calculate counts for chips
   const totalDealerships = dealershipsData?.total || stats.totalDealerships || 0;
@@ -271,21 +282,22 @@ const Dealerships = () => {
     },
   ];
 
-  // Prepare action buttons
+
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    {
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: 'Add Dealership',
-      onClick: () => setIsDialogOpen(true),
-      className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
-    },
-    {
+
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: 'Search & Filters',
       onClick: () => setIsFilterDialogOpen(true),
       className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
-    },
-    
+     }] : []),
+    ...(canAdd ? [{
+      icon: <Plus className="h-4 w-4" />,
+      tooltip: 'Add Dealership',
+      onClick: () => setIsDialogOpen(true),
+      className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
+    }] : []),
   ];
 
   // Render table header
@@ -386,10 +398,12 @@ const Dealerships = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <Switch
-                checked={dealership.is_active}
-                onCheckedChange={() => handleToggleStatus(dealership._id, dealership.is_active)}
-              />
+              {canToggleStatus && (
+                <Switch
+                  checked={dealership.is_active}
+                  onCheckedChange={() => handleToggleStatus(dealership._id, dealership.is_active)}
+                />
+              )}
               <Badge
                 variant={dealership.is_active ? 'default' : 'secondary'}
                 className={
@@ -412,44 +426,52 @@ const Dealerships = () => {
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                       className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-                      onClick={() => {
-                        setEditDealership(dealership);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Edit Dealership</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canEdit && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        onClick={() => {
+                          setEditDealership(dealership);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit Dealership</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-100"
-                      onClick={() => confirmDeleteDealership(dealership._id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete Dealership</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canDelete && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                        onClick={() => confirmDeleteDealership(dealership._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Dealership</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              
+              {!canEdit && !canDelete && (
+                <span className="text-sm text-muted-foreground">No actions</span>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -478,9 +500,9 @@ const Dealerships = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
-        cookieName="dealership_pagination_enabled" // Custom cookie name
-        cookieMaxAge={60 * 60 * 24 * 30} // 30 days
+        onRefresh={canRefresh ? handleRefresh : undefined}
+        cookieName="dealership_pagination_enabled"
+        cookieMaxAge={60 * 60 * 24 * 30}
       />
 
       {/* Search & Filter Dialog */}

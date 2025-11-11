@@ -211,3 +211,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--accent));
 }
+
+
+/* Make scrollbar thinner ONLY for this scroll area */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 4px; /* adjust as needed */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

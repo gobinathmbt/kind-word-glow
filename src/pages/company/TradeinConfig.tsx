@@ -674,10 +674,7 @@ const TradeinConfig = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
-
+ 
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
@@ -980,12 +977,7 @@ const TradeinConfig = () => {
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Configurations",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
+    
     {
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Configuration",
@@ -993,13 +985,7 @@ const TradeinConfig = () => {
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
     },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Configurations",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+   
   ];
 
   const STATUS_FILTER_OPTIONS = [

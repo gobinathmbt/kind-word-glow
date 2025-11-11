@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { hasPermission } from "@/utils/permissionController";
 
 
 interface StatChip {
@@ -62,6 +63,12 @@ const AdPublishingList = () => {
   const [showAllStatusChips, setShowAllStatusChips] = useState(false);
   const { completeUser } = useAuth();
 
+  // Permissions
+  const canRefresh = hasPermission(completeUser, 'vehicle_advertisement_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'vehicle_advertisement_search_filter');
+  const canBulkOperations = hasPermission(completeUser, 'vehicle_advertisement_bulk_operation');
+  const canCreate = hasPermission(completeUser, 'vehicle_advertisement_create');
+
   const { data: dealerships } = useQuery({
     queryKey: ["dealerships-dropdown", completeUser?.is_primary_admin],
     queryFn: async () => {
@@ -80,7 +87,7 @@ const AdPublishingList = () => {
     },
     enabled: !!completeUser,
   });
-
+ 
   // Function to fetch all vehicles when pagination is disabled
   const fetchAllVehicles = async () => {
     try {
@@ -256,9 +263,7 @@ const AdPublishingList = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
+ 
 
   const getExpiryStatus = (licenseExpiryDate: string) => {
     if (!licenseExpiryDate) return null;
@@ -355,41 +360,33 @@ const AdPublishingList = () => {
   const visibleStatChips = allStatChips.slice(0, 4);
 
 
-  // Prepare action buttons
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    {
+
+    ...(canSearchFilter ? [{
+      icon: <SlidersHorizontal className="h-4 w-4" />,
+      tooltip: "Search & Filters",
+      onClick: () => setIsFilterDialogOpen(true),
+      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+    }] : []),
+
+    
+    ...(canBulkOperations ? [{
       icon: <MoveHorizontal className="h-4 w-4" />,
       tooltip: "Bulk Operations",
       onClick: () => setIsBulkDialogOpen(true),
       className:
         "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
-    },
-    {
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
-    },
-    {
+    }] : []),
+
+    
+    ...(canCreate ? [{
       icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Advertisement",
       onClick: () => setIsCreateModalOpen(true),
       className:
         "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
-    {
-      icon: <Upload className="h-4 w-4" />,
-      tooltip: "Import Vehicles",
-      onClick: () => toast.info("Import feature coming soon"),
-      className:
-        "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200",
-    },
+    }] : []),
   ];
 
   const STATUS_FILTER_OPTIONS = [
@@ -607,7 +604,7 @@ const AdPublishingList = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="ad_pagination_enabled" // Custom cookie name
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
