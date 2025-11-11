@@ -16,10 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { workflowServices } from '@/api/services';
 
-const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
+const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }: any) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [config, setConfig] = useState(data.config || { 
-    mappings: [], 
+  const [config, setConfig] = useState(data.config || {
+    mappings: [],
     sample_json: '',
     transformation_rules: []
   });
@@ -27,7 +27,12 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const [parsedFields, setParsedFields] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [jsonError, setJsonError] = useState<string>('');
+  const [isJsonEditing, setIsJsonEditing] = useState(false);
   const { toast } = useToast();
+
+  // Check if schema is selected (for vehicle_outbound workflows)
+  const isSchemaSelected = workflowType === 'vehicle_outbound' ? (data.isSchemaSelected || false) : true;
+  const schemaType = data.schemaType || '';
 
   // Get vehicle schema fields
   const { data: vehicleSchemaData } = useQuery({
@@ -42,7 +47,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
     setSampleJson(config.sample_json || '');
   }, [config.sample_json]);
 
-  // Auto-parse JSON when it changes
+  // Auto-parse JSON when it changes (with debounce to prevent lag)
   useEffect(() => {
     if (!sampleJson.trim()) {
       setParsedFields([]);
@@ -50,42 +55,47 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(sampleJson);
-      const fields = extractFieldsFromObject(parsed, '', parsed);
-      setParsedFields(fields);
-      setJsonError('');
-      
-      // Auto-map fields only if we don't have mappings yet or if mappings are empty
-      if (config.mappings.length === 0) {
-        const autoMappings = autoMapFields(fields);
-        setConfig(prev => ({ 
-          ...prev, 
-          sample_json: sampleJson,
-          mappings: autoMappings 
-        }));
-        validateMappings(autoMappings);
-      } else {
-        // Just update the sample_json in config
-        setConfig(prev => ({ 
-          ...prev, 
-          sample_json: sampleJson
-        }));
+    // Debounce JSON parsing to prevent lag during typing
+    const timeoutId = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(sampleJson);
+        const fields = extractFieldsFromObject(parsed, '', parsed);
+        setParsedFields(fields);
+        setJsonError('');
+
+        // Auto-map fields only if we don't have mappings yet or if mappings are empty
+        if (config.mappings.length === 0) {
+          const autoMappings = autoMapFields(fields);
+          setConfig(prev => ({
+            ...prev,
+            sample_json: sampleJson,
+            mappings: autoMappings
+          }));
+          validateMappings(autoMappings);
+        } else {
+          // Just update the sample_json in config
+          setConfig(prev => ({
+            ...prev,
+            sample_json: sampleJson
+          }));
+        }
+      } catch (error) {
+        setJsonError('Invalid JSON syntax. Please check your JSON format.');
+        setParsedFields([]);
       }
-    } catch (error) {
-      setJsonError('Invalid JSON syntax. Please check your JSON format.');
-      setParsedFields([]);
-    }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [sampleJson]);
 
   const extractFieldsFromObject = (obj: any, prefix = '', rootObj: any): any[] => {
     let fields: any[] = [];
-    
+
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         const fullKey = prefix ? `${prefix}.${key}` : key;
         const value = obj[key];
-        
+
         if (Array.isArray(value)) {
           if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
             fields.push({
@@ -121,7 +131,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
         }
       }
     }
-    
+
     return fields;
   };
 
@@ -136,18 +146,35 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
       const fieldName = field.path.split('.').pop();
       const matchingVehicleField = findMatchingField(fieldName, field, vehicleFields);
-      
+
       if (matchingVehicleField) {
-        mappings.push({
-          source_field: field.path,
-          target_field: matchingVehicleField.field_name,
-          data_type: matchingVehicleField.field_type,
-          is_required: matchingVehicleField.is_required || false,
-          is_array: matchingVehicleField.is_array || field.isArray,
-          is_custom: false,
-          transformation: 'direct',
-          sample_value: field.sample_value
-        });
+        // For outbound workflows, reverse the mapping direction
+        // source_field should be the external field name (from JSON)
+        // target_field should be the internal field name (from vehicle schema)
+        if (workflowType === 'vehicle_outbound') {
+          mappings.push({
+            source_field: field.path, // External field name (e.g., "vehicle_id")
+            target_field: matchingVehicleField.field_name, // Internal field name (e.g., "vehicle_stock_id")
+            data_type: matchingVehicleField.field_type,
+            is_required: matchingVehicleField.is_required || false,
+            is_array: matchingVehicleField.is_array || field.isArray,
+            is_custom: false,
+            transformation: 'direct',
+            sample_value: field.sample_value
+          });
+        } else {
+          // For inbound workflows, keep the original mapping direction
+          mappings.push({
+            source_field: field.path,
+            target_field: matchingVehicleField.field_name,
+            data_type: matchingVehicleField.field_type,
+            is_required: matchingVehicleField.is_required || false,
+            is_array: matchingVehicleField.is_array || field.isArray,
+            is_custom: false,
+            transformation: 'direct',
+            sample_value: field.sample_value
+          });
+        }
       } else {
         unmappedFields.push(field);
       }
@@ -172,11 +199,11 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
   const findMatchingField = (fieldName: string, sourceField: any, schemaFields: any[]) => {
     const normalizedName = fieldName?.toLowerCase();
-    
+
     let match = schemaFields.find(f => f.field_name.toLowerCase() === normalizedName);
     if (match) return match;
-    
-    match = schemaFields.find(f => 
+
+    match = schemaFields.find(f =>
       f.field_name.toLowerCase().includes(normalizedName) ||
       normalizedName?.includes(f.field_name.toLowerCase())
     );
@@ -201,11 +228,11 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
   const validateMappings = (mappings: any[]) => {
     const errors: string[] = [];
-    
+
     requiredFields.forEach(rf => {
-      const isMapped = mappings.some(m => 
-        m.target_field === rf.field_name && 
-        m.source_field && 
+      const isMapped = mappings.some(m =>
+        m.target_field === rf.field_name &&
+        m.source_field &&
         !m.is_custom
       );
       if (!isMapped) {
@@ -216,7 +243,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
     const targetFields = mappings
       .filter(m => !m.is_custom)
       .map(m => m.target_field);
-    const duplicates = targetFields.filter((item, index) => 
+    const duplicates = targetFields.filter((item, index) =>
       targetFields.indexOf(item) !== index
     );
     if (duplicates.length > 0) {
@@ -230,7 +257,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const updateMapping = (index: number, field: string, value: any) => {
     const updatedMappings = [...config.mappings];
     updatedMappings[index] = { ...updatedMappings[index], [field]: value };
-    
+
     if (field === 'target_field') {
       const vehicleField = vehicleFields.find(f => f.field_name === value);
       if (vehicleField) {
@@ -241,7 +268,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
         updatedMappings[index].is_custom = true;
       }
     }
-    
+
     setConfig(prev => ({ ...prev, mappings: updatedMappings }));
     validateMappings(updatedMappings);
   };
@@ -257,9 +284,9 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
       transformation: 'direct',
       custom_field_key: ''
     };
-    setConfig(prev => ({ 
-      ...prev, 
-      mappings: [...prev.mappings, newMapping] 
+    setConfig(prev => ({
+      ...prev,
+      mappings: [...prev.mappings, newMapping]
     }));
   };
 
@@ -272,9 +299,9 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   const remapFields = () => {
     if (parsedFields.length > 0) {
       const autoMappings = autoMapFields(parsedFields);
-      setConfig(prev => ({ 
-        ...prev, 
-        mappings: autoMappings 
+      setConfig(prev => ({
+        ...prev,
+        mappings: autoMappings
       }));
       validateMappings(autoMappings);
       toast({
@@ -306,7 +333,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
   const getMappingStats = () => {
     const total = config.mappings.length;
-    const mapped = config.mappings.filter((m: any) => 
+    const mapped = config.mappings.filter((m: any) =>
       m.source_field && m.target_field && !m.is_custom
     ).length;
     const custom = config.mappings.filter((m: any) => m.is_custom).length;
@@ -336,9 +363,12 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
         </CardHeader>
         <CardContent className="pt-0 space-y-3 px-4 pb-4">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Maps incoming JSON to vehicle schema with custom field support
+            {workflowType === 'vehicle_outbound'
+              ? 'Maps vehicle schema fields to external system field names'
+              : 'Maps incoming JSON to vehicle schema with custom field support'
+            }
           </p>
-          
+
           {stats.total > 0 && (
             <div className="grid grid-cols-2 gap-2">
               <div className="text-center p-2 bg-white rounded border">
@@ -360,6 +390,15 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
             </div>
           )}
 
+          {workflowType === 'vehicle_outbound' && !isSchemaSelected && (
+            <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-start gap-2 border border-amber-200">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span className="leading-relaxed">
+                Please select a Target Schema first before configuring data mapping
+              </span>
+            </div>
+          )}
+
           {validationErrors.length > 0 && (
             <div className="text-xs text-red-600 bg-red-50 p-2 rounded flex items-start gap-2 border border-red-200">
               <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -371,16 +410,23 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
 
           <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full text-xs h-8">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full text-xs h-8"
+                disabled={workflowType === 'vehicle_outbound' && !isSchemaSelected}
+              >
                 <Settings className="w-3 h-3 mr-1.5" />
                 Configure Mapping
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
               <DialogHeader className="px-6 pt-6 pb-4">
-                <DialogTitle>Data Mapping Configuration</DialogTitle>
+                <DialogTitle>
+                  {workflowType === 'vehicle_outbound' ? 'Field Mapping Configuration (Outbound)' : 'Data Mapping Configuration'}
+                </DialogTitle>
               </DialogHeader>
-              
+
               <Tabs defaultValue="json" className="flex-1 flex flex-col min-h-0 px-6">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="json" className="text-xs">Sample JSON & Fields</TabsTrigger>
@@ -395,7 +441,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                         <div className="flex items-center justify-between mb-2">
                           <Label htmlFor="sample_json" className="text-sm">Sample JSON Payload</Label>
                           {parsedFields.length > 0 && (
-                            <Button 
+                            <Button
                               onClick={remapFields}
                               variant="outline"
                               size="sm"
@@ -409,9 +455,14 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                         <Textarea
                           id="sample_json"
                           value={sampleJson}
-                          onChange={(e) => setSampleJson(e.target.value)}
+                          onChange={(e) => {
+                            setIsJsonEditing(true);
+                            setSampleJson(e.target.value);
+                          }}
+                          onBlur={() => setIsJsonEditing(false)}
                           placeholder='{"vehicle": {"make": "Toyota", "model": "Camry", "year": 2024}}'
                           className="font-mono text-xs h-64 resize-none"
+                          spellCheck={false}
                         />
                         {jsonError && (
                           <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded flex items-start gap-2 border border-red-200">
@@ -510,8 +561,10 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                                 <div className="flex items-start gap-3">
                                   <div className="flex-1 space-y-3 min-w-0">
                                     <div>
-                                      <Label className="text-xs mb-1.5 block">Source Field (JSON Path)</Label>
-                                      <Select 
+                                      <Label className="text-xs mb-1.5 block">
+                                        {workflowType === 'vehicle_outbound' ? 'External Field (JSON)' : 'Source Field (JSON Path)'}
+                                      </Label>
+                                      <Select
                                         value={mapping.source_field}
                                         onValueChange={(value) => updateMapping(index, 'source_field', value)}
                                       >
@@ -540,8 +593,10 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                                     </div>
 
                                     <div>
-                                      <Label className="text-xs mb-1.5 block">Target Field (Vehicle Schema)</Label>
-                                      <Select 
+                                      <Label className="text-xs mb-1.5 block">
+                                        {workflowType === 'vehicle_outbound' ? 'Internal Field (Vehicle Schema)' : 'Target Field (Vehicle Schema)'}
+                                      </Label>
+                                      <Select
                                         value={mapping.target_field}
                                         onValueChange={(value) => updateMapping(index, 'target_field', value)}
                                       >
@@ -559,12 +614,17 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                                           {vehicleFields.map(field => (
                                             <SelectItem key={field.field_name} value={field.field_name} className="text-xs">
                                               <div className="flex items-center gap-2">
-                                                <span className="truncate">{field.field_name}</span>
+                                                <span className={`truncate ${field.is_nested ? 'ml-4 text-blue-600' : ''}`}>
+                                                  {field.field_name}
+                                                </span>
                                                 {field.is_required && (
                                                   <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />
                                                 )}
                                                 {field.is_array && (
                                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">[]</Badge>
+                                                )}
+                                                {field.is_nested && (
+                                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-blue-50">nested</Badge>
                                                 )}
                                               </div>
                                             </SelectItem>
@@ -574,14 +634,18 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                                     </div>
 
                                     {mapping.target_field === 'custom_fields' && (
-                                      <div>
-                                        <Label className="text-xs mb-1.5 block">Custom Field Key</Label>
+                                      <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                                        <Label className="text-xs mb-1.5 block font-semibold text-blue-900">Custom Field Key</Label>
                                         <Input
                                           value={mapping.custom_field_key || ''}
                                           onChange={(e) => updateMapping(index, 'custom_field_key', e.target.value)}
                                           placeholder="Enter custom field key"
-                                          className="h-9 text-xs"
+                                          className="h-9 text-xs bg-white"
                                         />
+                                        <p className="text-[10px] text-blue-700 mt-1.5 flex items-start gap-1">
+                                          <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                          <span>Field not found in schema — will be stored in custom_fields</span>
+                                        </p>
                                       </div>
                                     )}
                                   </div>
@@ -657,9 +721,19 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                             config.mappings.filter((m: any) => !m.is_custom).map((mapping: any, index: number) => (
                               <div key={index} className="text-xs font-mono bg-muted p-2 rounded break-all">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-blue-600">{mapping.source_field}</span>
-                                  <span className="flex-shrink-0">→</span>
-                                  <span className="text-green-600">{mapping.target_field}</span>
+                                  {workflowType === 'vehicle_outbound' ? (
+                                    <>
+                                      <span className="text-green-600">{mapping.target_field}</span>
+                                      <span className="flex-shrink-0">→</span>
+                                      <span className="text-blue-600">{mapping.source_field}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-blue-600">{mapping.source_field}</span>
+                                      <span className="flex-shrink-0">→</span>
+                                      <span className="text-green-600">{mapping.target_field}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             ))
@@ -676,9 +750,19 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
                             config.mappings.filter((m: any) => m.is_custom).map((mapping: any, index: number) => (
                               <div key={index} className="text-xs font-mono bg-muted p-2 rounded break-all">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-blue-600">{mapping.source_field}</span>
-                                  <span className="flex-shrink-0">→</span>
-                                  <span className="text-purple-600">custom_fields.{mapping.custom_field_key || getFieldDisplayName(mapping.source_field)}</span>
+                                  {workflowType === 'vehicle_outbound' ? (
+                                    <>
+                                      <span className="text-purple-600">custom_fields.{mapping.custom_field_key || getFieldDisplayName(mapping.source_field)}</span>
+                                      <span className="flex-shrink-0">→</span>
+                                      <span className="text-blue-600">{mapping.source_field}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-blue-600">{mapping.source_field}</span>
+                                      <span className="flex-shrink-0">→</span>
+                                      <span className="text-purple-600">custom_fields.{mapping.custom_field_key || getFieldDisplayName(mapping.source_field)}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             ))
@@ -715,7 +799,7 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
             </DialogContent>
           </Dialog>
         </CardContent>
-        
+
         <Handle
           type="target"
           position={Position.Left}

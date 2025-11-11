@@ -38,6 +38,8 @@ import DataMappingNode from "./nodes/DataMappingNode";
 import EnhancedConditionNode from "./nodes/EnhancedConditionNode";
 import EnhancedEmailNode from "./nodes/EnhancedEmailNode";
 import EndNode from "./nodes/EndNode";
+import TargetSchemaNode from "./nodes/TargetSchemaNode";
+import ExportFieldsNode from "./nodes/ExportFieldsNode";
 
 // Enhanced edge styles
 const edgeStyles = {
@@ -147,29 +149,157 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       },
     ];
   }
+
+  if (workflowType === "vehicle_outbound") {
+    return [
+      {
+        id: "start-1",
+        type: "startNode",
+        position: { x: 50, y: 100 },
+        data: {
+          label: "Start Outbound Workflow",
+        },
+        sourcePosition: Position.Right,
+      },
+      {
+        id: "target-schema-1",
+        type: "targetSchemaNode",
+        position: { x: 300, y: 100 },
+        data: {
+          label: "Target Schema",
+          config: {
+            schema_type: "",
+            trigger_field: "",
+            trigger_operator: "",
+            trigger_value: "",
+            schema_fields: []
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "export-fields-1",
+        type: "exportFieldsNode",
+        position: { x: 550, y: 100 },
+        data: {
+          label: "Export Fields",
+          config: {
+            selected_fields: [],
+            export_format: "json",
+            include_metadata: false
+          },
+          schemaFields: [],
+          schemaType: ""
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "mapping-1",
+        type: "dataMappingNode",
+        position: { x: 800, y: 100 },
+        data: {
+          label: "Data Mapping",
+          config: { mappings: [], sample_json: "" },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "auth-1",
+        type: "authenticationNode",
+        position: { x: 1050, y: 100 },
+        data: {
+          label: "API Authentication",
+          config: {
+            type: "none",
+            api_endpoint: "",
+            http_method: "POST",
+            enable_authentication: false
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "condition-1",
+        type: "enhancedConditionNode",
+        position: { x: 1300, y: 100 },
+        data: {
+          label: "Response Condition",
+          config: {
+            conditions: [
+              {
+                field: "response.status",
+                operator: "equals",
+                value: "200",
+                logic: "AND",
+              },
+            ],
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "email-success-1",
+        type: "enhancedEmailNode",
+        position: { x: 1550, y: 50 },
+        data: {
+          label: "Success Email",
+          config: {},
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "email-error-1",
+        type: "enhancedEmailNode",
+        position: { x: 1550, y: 150 },
+        data: {
+          label: "Error Email",
+          config: {},
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "end-1",
+        type: "endNode",
+        position: { x: 1800, y: 100 },
+        data: {
+          label: "End Workflow",
+        },
+        targetPosition: Position.Left,
+      },
+    ];
+  }
+
+
   return [];
 };
 
 const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
   if (workflowType === "vehicle_inbound") {
     return [
-      { 
-        id: "e1-2", 
-        source: "start-1", 
+      {
+        id: "e1-2",
+        source: "start-1",
         target: "auth-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
-      { 
-        id: "e2-3", 
-        source: "auth-1", 
+      {
+        id: "e2-3",
+        source: "auth-1",
         target: "mapping-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
-      { 
-        id: "e3-4", 
-        source: "mapping-1", 
+      {
+        id: "e3-4",
+        source: "mapping-1",
         target: "condition-1",
         style: edgeStyles.default,
         type: 'smoothstep',
@@ -194,22 +324,97 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
         label: "Error",
         labelStyle: { fill: '#ef4444', fontWeight: 600 },
       },
-      { 
-        id: "e5-7", 
-        source: "email-success-1", 
+      {
+        id: "e5-7",
+        source: "email-success-1",
         target: "end-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
-      { 
-        id: "e6-7", 
-        source: "email-error-1", 
+      {
+        id: "e6-7",
+        source: "email-error-1",
         target: "end-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
     ];
   }
+
+  if (workflowType === "vehicle_outbound") {
+    return [
+      {
+        id: "e1-2",
+        source: "start-1",
+        target: "target-schema-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e2-3",
+        source: "target-schema-1",
+        target: "export-fields-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e3-4",
+        source: "export-fields-1",
+        target: "mapping-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e4-5",
+        source: "mapping-1",
+        target: "auth-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e5-6",
+        source: "auth-1",
+        target: "condition-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e6-7",
+        source: "condition-1",
+        target: "email-success-1",
+        sourceHandle: "true",
+        style: edgeStyles.conditional.true,
+        type: 'smoothstep',
+        label: "Success",
+        labelStyle: { fill: '#10b981', fontWeight: 600 },
+      },
+      {
+        id: "e6-8",
+        source: "condition-1",
+        target: "email-error-1",
+        sourceHandle: "false",
+        style: edgeStyles.conditional.false,
+        type: 'smoothstep',
+        label: "Error",
+        labelStyle: { fill: '#ef4444', fontWeight: 600 },
+      },
+      {
+        id: "e7-9",
+        source: "email-success-1",
+        target: "end-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e8-9",
+        source: "email-error-1",
+        target: "end-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+    ];
+  }
+
   return [];
 };
 
@@ -227,7 +432,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
   const [workflowType, setWorkflowType] = useState(
     workflow?.workflow_type || "vehicle_inbound"
   );
-  
+
   // Use workflow nodes/edges as-is if they exist, otherwise get initial template
   const initialNodes = useMemo(() => {
     if (workflow?.flow_data?.nodes && workflow.flow_data.nodes.length > 0) {
@@ -245,7 +450,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  
+
   const [workflowName, setWorkflowName] = useState(workflow?.name || "");
   const [workflowDescription, setWorkflowDescription] = useState(
     workflow?.description || ""
@@ -270,13 +475,51 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return {
+          const updatedNode = {
             ...node,
             data: {
               ...node.data,
               ...newData,
             },
           };
+
+          // If this is a target schema node update, propagate schema fields to export fields node AND data mapping node
+          if (node.type === 'targetSchemaNode' && newData.config) {
+            const schemaFields = newData.config.schema_fields || [];
+            const schemaType = newData.config.schema_type || '';
+            const isSchemaSelected = !!schemaType;
+
+            // Find and update the export fields node and data mapping node
+            setTimeout(() => {
+              setNodes((currentNodes) =>
+                currentNodes.map((currentNode) => {
+                  if (currentNode.type === 'exportFieldsNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        schemaFields,
+                        schemaType,
+                      },
+                    };
+                  }
+                  if (currentNode.type === 'dataMappingNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        isSchemaSelected,
+                        schemaType,
+                      },
+                    };
+                  }
+                  return currentNode;
+                })
+              );
+            }, 0);
+          }
+
+          return updatedNode;
         }
         return node;
       })
@@ -285,12 +528,14 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
 
   const enhancedNodeTypes = useMemo(() => ({
     startNode: (props: any) => <StartNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-    authenticationNode: (props: any) => <AuthenticationNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-    dataMappingNode: (props: any) => <DataMappingNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    authenticationNode: (props: any) => <AuthenticationNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
+    dataMappingNode: (props: any) => <DataMappingNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
     enhancedConditionNode: (props: any) => <EnhancedConditionNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     enhancedEmailNode: (props: any) => <EnhancedEmailNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     endNode: (props: any) => <EndNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-  }), [handleNodeDataUpdate]);
+    targetSchemaNode: (props: any) => <TargetSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    exportFieldsNode: (props: any) => <ExportFieldsNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+  }), [handleNodeDataUpdate, workflowType]);
 
   // Save workflow mutation
   const saveWorkflowMutation = useMutation({
@@ -329,8 +574,8 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
         description: data.data.validation_result.valid
           ? "Workflow configuration is valid"
           : `Validation errors: ${data.data.validation_result.errors.join(
-              ", "
-            )}`,
+            ", "
+          )}`,
         variant: data.data.validation_result.valid ? "default" : "destructive",
       });
     },
@@ -346,7 +591,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
   // Handle workflow type changes - only reset layout when explicitly changing type
   const handleWorkflowTypeChange = (newType: string) => {
     if (newType === workflowType) return;
-    
+
     setWorkflowType(newType);
     const newNodes = getInitialNodesForWorkflowType(newType);
     const newEdges = getInitialEdgesForWorkflowType(newType);
@@ -436,6 +681,9 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                     <SelectItem value="vehicle_inbound">
                       Vehicle Inbound
                     </SelectItem>
+                    <SelectItem value="vehicle_outbound">
+                      Vehicle Outbound
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -503,14 +751,14 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
           className="bg-gray-50"
         >
           <Controls />
-          <MiniMap 
+          <MiniMap
             nodeStrokeColor="#1e40af"
             nodeColor="#dbeafe"
             maskColor="#f8fafc"
           />
-          <Background 
-            gap={25} 
-            size={1} 
+          <Background
+            gap={25}
+            size={1}
             color="#6b7280"
           />
           <Panel position="top-right">

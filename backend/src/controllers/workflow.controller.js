@@ -409,14 +409,38 @@ const getVehicleSchemaFields = async (req, res) => {
     vehicleSchema.eachPath((pathname, schematype) => {
       if (pathname === "_id" || pathname === "__v") return;
 
+      // Get the actual type name
+      let fieldType = 'string';
+      if (schematype instanceof mongoose.Schema.Types.String) {
+        fieldType = 'string';
+      } else if (schematype instanceof mongoose.Schema.Types.Number) {
+        fieldType = 'number';
+      } else if (schematype instanceof mongoose.Schema.Types.Boolean) {
+        fieldType = 'boolean';
+      } else if (schematype instanceof mongoose.Schema.Types.Date) {
+        fieldType = 'date';
+      } else if (schematype instanceof mongoose.Schema.Types.Array) {
+        fieldType = 'array';
+      } else if (schematype instanceof mongoose.Schema.Types.ObjectId) {
+        fieldType = 'objectid';
+      } else if (schematype instanceof mongoose.Schema.Types.Mixed) {
+        fieldType = 'mixed';
+      }
+
       fields.push({
         field_name: pathname,
-        field_type: schematype.constructor.name.toLowerCase(),
+        field_type: fieldType,
         is_required: schematype.isRequired || false,
         is_array: schematype instanceof mongoose.Schema.Types.Array,
         enum_values: schematype.enumValues || null,
         description: schematype.options.description || null,
       });
+      
+      // Extract nested fields from array types
+      if (schematype instanceof mongoose.Schema.Types.Array) {
+        const nestedFields = extractNestedFieldsFromArray(schematype, pathname);
+        fields.push(...nestedFields);
+      }
     });
 
     res.json({
@@ -428,6 +452,131 @@ const getVehicleSchemaFields = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch vehicle schema fields",
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to extract nested fields from array schema
+const extractNestedFieldsFromArray = (schematype, parentPath) => {
+  const nestedFields = [];
+  
+  // Check if this is an array with a schema (subdocument array)
+  if (schematype instanceof mongoose.Schema.Types.Array && schematype.schema) {
+    const arraySchema = schematype.schema;
+    
+    // Iterate through the nested schema paths
+    arraySchema.eachPath((nestedPath, nestedSchematype) => {
+      if (nestedPath === "_id" || nestedPath === "__v") return;
+      
+      // Get the field type
+      let nestedFieldType = 'string';
+      if (nestedSchematype instanceof mongoose.Schema.Types.String) {
+        nestedFieldType = 'string';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.Number) {
+        nestedFieldType = 'number';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.Boolean) {
+        nestedFieldType = 'boolean';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.Date) {
+        nestedFieldType = 'date';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.Array) {
+        nestedFieldType = 'array';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.ObjectId) {
+        nestedFieldType = 'objectid';
+      } else if (nestedSchematype instanceof mongoose.Schema.Types.Mixed) {
+        nestedFieldType = 'mixed';
+      }
+      
+      nestedFields.push({
+        field_name: `${parentPath}.${nestedPath}`,
+        field_type: nestedFieldType,
+        is_required: nestedSchematype.isRequired || false,
+        is_array: nestedSchematype instanceof mongoose.Schema.Types.Array,
+        is_nested: true,
+        parent_field: parentPath,
+        enum_values: nestedSchematype.enumValues || null,
+        description: nestedSchematype.options.description || null,
+      });
+    });
+  }
+  
+  return nestedFields;
+};
+
+// Get schema fields for target schema node
+const getSchemaFields = async (req, res) => {
+  try {
+    const { schemaType } = req.params;
+    
+    let SchemaModel;
+    switch (schemaType) {
+      case 'vehicle':
+        SchemaModel = Vehicle;
+        break;
+      case 'master_vehicle':
+        const MasterVehicle = require('../models/MasterVehicle');
+        SchemaModel = MasterVehicle;
+        break;
+      case 'advertise_vehicle':
+        const AdvertiseVehicle = require('../models/AdvertiseVehicle');
+        SchemaModel = AdvertiseVehicle;
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: "Invalid schema type. Must be one of: vehicle, master_vehicle, advertise_vehicle",
+        });
+    }
+
+    const schema = SchemaModel.schema;
+    const fields = [];
+
+    schema.eachPath((pathname, schematype) => {
+      if (pathname === "_id" || pathname === "__v") return;
+
+      // Get the actual type name
+      let fieldType = 'string';
+      if (schematype instanceof mongoose.Schema.Types.String) {
+        fieldType = 'string';
+      } else if (schematype instanceof mongoose.Schema.Types.Number) {
+        fieldType = 'number';
+      } else if (schematype instanceof mongoose.Schema.Types.Boolean) {
+        fieldType = 'boolean';
+      } else if (schematype instanceof mongoose.Schema.Types.Date) {
+        fieldType = 'date';
+      } else if (schematype instanceof mongoose.Schema.Types.Array) {
+        fieldType = 'array';
+      } else if (schematype instanceof mongoose.Schema.Types.ObjectId) {
+        fieldType = 'objectid';
+      } else if (schematype instanceof mongoose.Schema.Types.Mixed) {
+        fieldType = 'mixed';
+      }
+
+      fields.push({
+        field_name: pathname,
+        field_type: fieldType,
+        is_required: schematype.isRequired || false,
+        is_array: schematype instanceof mongoose.Schema.Types.Array,
+        enum_values: schematype.enumValues || null,
+        description: schematype.options.description || null,
+      });
+      
+      // Extract nested fields from array types
+      if (schematype instanceof mongoose.Schema.Types.Array) {
+        const nestedFields = extractNestedFieldsFromArray(schematype, pathname);
+        fields.push(...nestedFields);
+      }
+    });
+
+    res.json({
+      success: true,
+      data: { fields },
+    });
+  } catch (error) {
+    console.error("Get schema fields error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch schema fields",
       error: error.message,
     });
   }
@@ -483,7 +632,7 @@ const executeWorkflow = async (req, res) => {
     });
     
     // Validate workflow type
-    if (workflow.workflow_type !== "vehicle_inbound") {
+    if (!["vehicle_inbound", "vehicle_outbound"].includes(workflow.workflow_type)) {
       workflowExecutionLog.execution_status = 'failed';
       workflowExecutionLog.error_message = `Workflow type ${workflow.workflow_type} not supported`;
       workflowExecutionLog.execution_completed_at = new Date();
@@ -501,9 +650,14 @@ const executeWorkflow = async (req, res) => {
     const authNode = workflow.flow_data.nodes.find(node => node.type === 'authenticationNode');
     const authConfig = authNode?.data?.config || { type: 'none' };
     
-    workflowExecutionLog.authentication_used = authConfig.type;
+    // For vehicle outbound workflows, check the enable_authentication toggle
+    const shouldAuthenticate = workflow.workflow_type === 'vehicle_outbound' 
+      ? (authConfig.enable_authentication && authConfig.type !== 'none')
+      : (authConfig.type !== 'none');
     
-    if (authConfig.type !== 'none') {
+    workflowExecutionLog.authentication_used = shouldAuthenticate ? authConfig.type : 'none';
+    
+    if (shouldAuthenticate) {
       let authPassed = false;
       let authError = '';
       
@@ -881,6 +1035,11 @@ const testWorkflow = async (req, res) => {
       case "vehicle_inbound":
         validationResult = validateVehicleInboundConfig(workflow, test_payload);
         break;
+      case "vehicle_outbound":
+        // For now, use the same validation as vehicle_inbound
+        // This can be extended with specific outbound validation later
+        validationResult = validateVehicleInboundConfig(workflow, test_payload);
+        break;
       default:
         validationResult = { valid: false, errors: ["Invalid workflow type"] };
     }
@@ -901,6 +1060,381 @@ const testWorkflow = async (req, res) => {
     });
   }
 };
+
+// Helper function to check trigger conditions for outbound workflows
+const checkTriggerCondition = (fieldValue, operator, triggerValue) => {
+  switch (operator) {
+    case 'equals':
+      return fieldValue == triggerValue;
+    case 'not_equals':
+      return fieldValue != triggerValue;
+    case 'contains':
+      return typeof fieldValue === 'string' && fieldValue.includes(triggerValue);
+    case 'starts_with':
+      return typeof fieldValue === 'string' && fieldValue.startsWith(triggerValue);
+    case 'ends_with':
+      return typeof fieldValue === 'string' && fieldValue.endsWith(triggerValue);
+    case 'is_empty':
+      return !fieldValue || fieldValue === '';
+    case 'is_not_empty':
+      return fieldValue && fieldValue !== '';
+    case 'greater_than':
+      return Number(fieldValue) > Number(triggerValue);
+    case 'less_than':
+      return Number(fieldValue) < Number(triggerValue);
+    case 'greater_than_or_equal':
+      return Number(fieldValue) >= Number(triggerValue);
+    case 'less_than_or_equal':
+      return Number(fieldValue) <= Number(triggerValue);
+    case 'is_true':
+      return fieldValue === true || fieldValue === 'true';
+    case 'is_false':
+      return fieldValue === false || fieldValue === 'false';
+    case 'before':
+      return new Date(fieldValue) < new Date(triggerValue);
+    case 'after':
+      return new Date(fieldValue) > new Date(triggerValue);
+    default:
+      return false;
+  }
+};
+
+// Helper function to get nested field value from object
+const getNestedFieldValue = (obj, fieldPath) => {
+  const keys = fieldPath.split('.');
+  let current = obj;
+  
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    
+    if (current && typeof current === 'object') {
+      // If current value is an array, get the first element
+      if (Array.isArray(current)) {
+        current = current.length > 0 ? current[0] : undefined;
+        if (!current) return undefined;
+      }
+      
+      // Get the next value
+      current = current[key];
+      
+      // If this is the last key and the value is an array, return the array
+      // Otherwise, if it's an array and not the last key, continue with first element
+      if (i === keys.length - 1) {
+        return current;
+      } else if (Array.isArray(current) && current.length > 0) {
+        current = current[0];
+      }
+    } else {
+      return undefined;
+    }
+  }
+  
+  return current;
+};
+
+// Helper function to update workflow execution stats
+const updateWorkflowExecutionStats = async (workflowId, isSuccess, errorMessage = null) => {
+  try {
+    const workflow = await Workflow.findById(workflowId);
+    
+    if (!workflow) {
+      console.error('Workflow not found for stats update:', workflowId);
+      return;
+    }
+
+    // Update execution stats
+    workflow.execution_stats.total_executions = (workflow.execution_stats.total_executions || 0) + 1;
+    
+    if (isSuccess) {
+      workflow.execution_stats.successful_executions = (workflow.execution_stats.successful_executions || 0) + 1;
+      workflow.execution_stats.last_execution_status = 'success';
+      workflow.execution_stats.last_execution_error = '';
+    } else {
+      workflow.execution_stats.failed_executions = (workflow.execution_stats.failed_executions || 0) + 1;
+      workflow.execution_stats.last_execution_status = 'failed';
+      workflow.execution_stats.last_execution_error = errorMessage || 'Unknown error';
+    }
+    
+    workflow.execution_stats.last_execution = new Date();
+    
+    await workflow.save();
+    
+    console.log(`Workflow execution stats updated for workflow ${workflowId}: Total=${workflow.execution_stats.total_executions}, Success=${workflow.execution_stats.successful_executions}, Failed=${workflow.execution_stats.failed_executions}`);
+  } catch (error) {
+    console.error('Error updating workflow execution stats:', error);
+  }
+};
+
+// Helper function to send email notifications for outbound workflows
+const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiResult) => {
+  try {
+    const { sendWorkflowEmail } = require('../utils/email.utils');
+    
+    // Find the email nodes in the workflow
+    const emailSuccessNode = workflow.flow_data?.nodes?.find(node => 
+      node.id.includes('success') && node.type === 'enhancedEmailNode'
+    );
+    const emailErrorNode = workflow.flow_data?.nodes?.find(node => 
+      node.id.includes('error') && node.type === 'enhancedEmailNode'
+    );
+    
+    // Prepare email data
+    const emailData = {
+      // Vehicle data
+      vehicle: {
+        vehicle_stock_id: vehicleData.vehicle_stock_id || 'N/A',
+        make: vehicleData.make || 'N/A',
+        model: vehicleData.model || 'N/A',
+        year: vehicleData.year || 'N/A',
+        vin: vehicleData.vin || 'N/A',
+        plate_no: vehicleData.plate_no || 'N/A',
+        status: vehicleData.status || 'N/A',
+        ...vehicleData
+      },
+      // Mapped data that was sent to API
+      mapped_data: mappedData,
+      // API response data
+      response: {
+        status: apiResult.success ? '200' : '500',
+        message: apiResult.success 
+          ? `Successfully pushed vehicle data to ${apiResult.endpoint}`
+          : `Failed to push vehicle data to ${apiResult.endpoint}`,
+        endpoint: apiResult.endpoint,
+        api_status: apiResult.status || 'N/A',
+        api_data: apiResult.data || null
+      },
+      // Error data (if any)
+      error: {
+        message: apiResult.error || ''
+      },
+      // Company data
+      company: {
+        name: workflow.company_id?.company_name || 'N/A'
+      },
+      // Timestamp
+      timestamp: new Date().toISOString(),
+      // Summary for single vehicle
+      vehicles_summary: {
+        total: 1,
+        successful: apiResult.success ? 1 : 0,
+        failed: apiResult.success ? 0 : 1
+      }
+    };
+    
+    // Send appropriate email based on success/failure
+    if (apiResult.success && emailSuccessNode?.data?.config) {
+      console.log('Sending success email for Vehicle Outbound workflow...');
+      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData);
+      if (emailResult.success) {
+        console.log('Success email sent successfully');
+      } else {
+        console.error('Failed to send success email:', emailResult.error);
+      }
+    } else if (!apiResult.success && emailErrorNode?.data?.config) {
+      console.log('Sending error email for Vehicle Outbound workflow...');
+      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData);
+      if (emailResult.success) {
+        console.log('Error email sent successfully');
+      } else {
+        console.error('Failed to send error email:', emailResult.error);
+      }
+    }
+  } catch (error) {
+    console.error('Error sending outbound workflow email:', error);
+  }
+};
+
+// Helper function to check and trigger outbound workflows
+const checkAndTriggerOutboundWorkflows = async (vehicleData, companyId) => {
+  try {
+    // Find all active "Vehicle Outbound" workflows for this company
+    const outboundWorkflows = await Workflow.find({
+      company_id: companyId,
+      workflow_type: 'vehicle_outbound',
+      status: 'active'
+    });
+
+    for (const workflow of outboundWorkflows) {
+      // Find the target schema node in the workflow
+      const targetSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'targetSchemaNode');
+      
+      if (!targetSchemaNode || !targetSchemaNode.data?.config) {
+        continue;
+      }
+
+      const config = targetSchemaNode.data.config;
+      
+      // Check if trigger configuration is complete
+      if (!config.schema_type || !config.trigger_field || !config.trigger_operator) {
+        continue;
+      }
+
+      // Get the field value from the vehicle data
+      const fieldValue = getNestedFieldValue(vehicleData, config.trigger_field);
+      
+      // Check if the trigger condition is met
+      const triggerActivated = checkTriggerCondition(
+        fieldValue, 
+        config.trigger_operator, 
+        config.trigger_value
+      );
+
+      // Only process when trigger is activated
+      if (triggerActivated) {
+        // Find the Export Fields node to get selected_fields configuration
+        const exportFieldsNode = workflow.flow_data?.nodes?.find(node => node.type === 'exportFieldsNode');
+        
+        if (exportFieldsNode && exportFieldsNode.data?.config?.selected_fields && exportFieldsNode.data.config.selected_fields.length > 0) {
+          // Get the selected fields from the Export Fields configuration
+          const selectedFields = exportFieldsNode.data.config.selected_fields;
+          
+          // Filter vehicle data to only include selected fields
+          const filteredVehicleData = {};
+          selectedFields.forEach(fieldName => {
+            const fieldValue = getNestedFieldValue(vehicleData, fieldName);
+            if (fieldValue !== undefined) {
+              filteredVehicleData[fieldName] = fieldValue;
+            }
+          });
+          
+          // Console log the selected fields BEFORE mapping (Internal System Fields)
+          console.log(`Vehicle Outbound Trigger Activated:`);
+          console.log(filteredVehicleData);
+          
+          // Find the Data Mapping node to get field mappings
+          const dataMappingNode = workflow.flow_data?.nodes?.find(node => node.type === 'dataMappingNode');
+          let mappedVehicleData = {};
+          
+          if (dataMappingNode && dataMappingNode.data?.config?.mappings && dataMappingNode.data.config.mappings.length > 0) {
+            // Apply data mapping to transform internal field names to external field names
+            const mappings = dataMappingNode.data.config.mappings;
+            
+            selectedFields.forEach(fieldName => {
+              const fieldValue = getNestedFieldValue(vehicleData, fieldName);
+              if (fieldValue !== undefined) {
+                // For outbound workflows, we need to reverse the mapping direction
+                // Find mapping where target_field (internal) matches our field name
+                // and use source_field (external) as the output field name
+                const mapping = mappings.find(m => m.target_field === fieldName);
+                if (mapping && mapping.source_field) {
+                  // Use the external field name (source_field in the mapping)
+                  mappedVehicleData[mapping.source_field] = fieldValue;
+                } else {
+                  // If no mapping found, use original field name
+                  mappedVehicleData[fieldName] = fieldValue;
+                }
+              }
+            });
+            
+            // Console log the mapped fields AFTER mapping (External System Fields)
+            console.log(`Mapped External System Fields:`);
+            console.log(mappedVehicleData);
+          } else {
+            // If no mapping found, use filtered data as is
+            mappedVehicleData = filteredVehicleData;
+            console.log(`Mapped External System Fields:`);
+            console.log(mappedVehicleData);
+          }
+
+          // Find the Authentication node to get API endpoint and authentication settings
+          const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
+          
+          if (authNode && authNode.data?.config?.api_endpoint) {
+            const authConfig = authNode.data.config;
+            
+            // Check if we have an API endpoint configured
+            if (authConfig.api_endpoint) {
+              try {
+                // Make API call to the external endpoint
+                await makeOutboundAPICall(authConfig, mappedVehicleData, workflow, vehicleData);
+              } catch (apiError) {
+                console.error('Error making outbound API call:', apiError);
+              }
+            }
+          }
+        } else {
+          // Fallback: if no Export Fields configuration found, log basic info
+          console.log('Vehicle Outbound Trigger Activated:');
+          console.log({
+            vehicle_stock_id: vehicleData.vehicle_stock_id || 'N/A',
+            make: vehicleData.make || 'N/A',
+            model: vehicleData.model || 'N/A'
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking outbound workflow triggers:', error);
+  }
+};
+
+// Helper function to make outbound API calls
+const makeOutboundAPICall = async (authConfig, mappedData, workflow, vehicleData) => {
+  const axios = require('axios');
+  
+  try {
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authentication headers if authentication is enabled
+    if (authConfig.enable_authentication && authConfig.type !== 'none') {
+      if (authConfig.type === 'jwt_token' && authConfig.jwt_token) {
+        headers['Authorization'] = `Bearer ${authConfig.jwt_token}`;
+      } else if (authConfig.type === 'standard' && authConfig.api_key && authConfig.api_secret) {
+        headers['x-api-key'] = authConfig.api_key;
+        headers['x-api-secret'] = authConfig.api_secret;
+      } else if (authConfig.type === 'static' && authConfig.static_token) {
+        headers['Authorization'] = `Bearer ${authConfig.static_token}`;
+      }
+    }
+
+    // Make the POST request
+    const response = await axios.post(authConfig.api_endpoint, mappedData, {
+      headers,
+      timeout: 30000, // 30 second timeout
+    });
+
+    // Log success message
+    console.log(`The details have been pushed successfully to the respective API endpoint: ${authConfig.api_endpoint}`);
+
+    // ✅ Log exactly what details were pushed (your requested behavior)
+    console.log("Payload pushed to the API endpoint:", JSON.stringify(mappedData, null, 2));
+
+    // Send success email notification
+    await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
+      success: true,
+      status: response.status,
+      data: response.data,
+      endpoint: authConfig.api_endpoint
+    });
+
+    // Update workflow execution stats for successful execution
+    await updateWorkflowExecutionStats(workflow._id, true);
+
+    return {
+      success: true,
+      status: response.status,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('API call failed:', error.message);
+    
+    // Send error email notification
+    await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
+      success: false,
+      error: error.message,
+      endpoint: authConfig.api_endpoint
+    });
+    
+    // Update workflow execution stats for failed execution
+    await updateWorkflowExecutionStats(workflow._id, false, error.message);
+    
+    throw error;
+  }
+};
+
 
 // @desc    Get workflow execution logs
 // @route   GET /api/workflow-execute/logs/:workflowId
@@ -960,10 +1494,13 @@ module.exports = {
   toggleWorkflowStatus,
   getWorkflowStats,
   getVehicleSchemaFields,
+  getSchemaFields,
   executeWorkflow,
   testWorkflow,
   getWorkflowExecutionLogs,
   getMongoDBStateName,
   processVehicleInboundWorkflow,
   validateVehicleInboundConfig,
+  checkAndTriggerOutboundWorkflows,
+  updateWorkflowExecutionStats,
 };

@@ -24,7 +24,7 @@ const WorkflowSchema = new mongoose.Schema({
   // Workflow Type
   workflow_type: {
     type: String,
-    enum: ["vehicle_inbound", "vehicle_property_trigger", "email_automation"],
+    enum: ["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"],
     required: true,
   },
 
@@ -219,7 +219,7 @@ WorkflowSchema.pre("save", function (next) {
   this.updated_at = new Date();
 
   // Generate custom endpoint for vehicle_inbound workflows
-  if (this.workflow_type === "vehicle_inbound" && !this.custom_endpoint) {
+  if ((this.workflow_type === "vehicle_inbound" || this.workflow_type === "vehicle_outbound") && !this.custom_endpoint) {
     const randomString =
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15);

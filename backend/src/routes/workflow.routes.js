@@ -9,7 +9,7 @@ const router = express.Router();
 const validateWorkflowCreation = [
   body("name").notEmpty().trim().withMessage("Workflow name is required"),
   body("workflow_type")
-    .isIn(["vehicle_inbound", "vehicle_property_trigger", "email_automation"])
+    .isIn(["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"])
     .withMessage("Invalid workflow type"),
   body("description").optional().trim(),
 ];
@@ -22,7 +22,7 @@ const validateWorkflowUpdate = [
     .withMessage("Workflow name cannot be empty"),
   body("workflow_type")
     .optional()
-    .isIn(["vehicle_inbound", "vehicle_property_trigger", "email_automation"])
+    .isIn(["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"])
     .withMessage("Invalid workflow type"),
   body("status")
     .optional()
@@ -43,6 +43,9 @@ router.get("/stats", workflowController.getWorkflowStats);
 
 // GET /api/workflows/vehicle-schema - Get vehicle schema fields for mapping
 router.get("/vehicle-schema", workflowController.getVehicleSchemaFields);
+
+// GET /api/workflows/schema-fields/:schemaType - Get schema fields for target schema node
+router.get("/schema-fields/:schemaType", workflowController.getSchemaFields);
 
 // GET /api/workflows/:id - Get specific workflow
 router.get("/:id", workflowController.getWorkflow);
