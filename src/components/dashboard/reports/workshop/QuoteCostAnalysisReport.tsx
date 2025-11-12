@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ReportCard, ViewMode } from '@/components/dashboard/common/ReportCard';
 import { MetricCard } from '@/components/dashboard/common/MetricCard';
 import { StackedBarChart } from '@/components/dashboard/charts/StackedBarChart';
-import { InteractivePieChart, PieChartData } from '@/components/dashboard/charts/InteractivePieChart';
 import { DataTable } from '@/components/dashboard/charts/DataTable';
 import { ExportButton } from '@/components/dashboard/common/ExportButton';
 import { RefreshButton } from '@/components/dashboard/common/RefreshButton';
@@ -61,28 +60,32 @@ export const QuoteCostAnalysisReport: React.FC<QuoteCostAnalysisReportProps> = (
   };
 
   const renderMetrics = () => {
-    if (!data?.costVariance || data.costVariance.length === 0) return null;
-    const variance = data.costVariance[0];
+    if (!data?.summary) return null;
+    const summary = data.summary;
+    const overallVariance = summary.overallVariancePercentage || 0;
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
+          title="Total Quotes"
+          value={`${summary.totalQuotes || 0}`}
+          icon={<DollarSign className="h-5 w-5" />}
+          subtitle={`Value: $${(summary.totalQuoteValue || 0).toFixed(2)}`}
+        />
+        <MetricCard
           title="Avg Quote Amount"
-          value={`$${(variance.avgQuoteAmount || 0).toFixed(2)}`}
+          value={`$${(summary.avgQuoteAmount || 0).toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
+          subtitle={`Final: $${(summary.avgFinalPrice || 0).toFixed(2)}`}
         />
         <MetricCard
-          title="Avg Final Price"
-          value={`$${(variance.avgFinalPrice || 0).toFixed(2)}`}
-          icon={<DollarSign className="h-5 w-5" />}
+          title="Total Variance"
+          value={`$${(summary.totalVariance || 0).toFixed(2)}`}
+          icon={overallVariance > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+          subtitle={`${overallVariance.toFixed(1)}%`}
         />
         <MetricCard
-          title="Avg Variance"
-          value={`${(variance.avgVariancePercentage || 0).toFixed(1)}%`}
-          icon={variance.avgVariance > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Accuracy Rate"
-          value={`${(variance.accuracyRate || 0).toFixed(1)}%`}
+          title="Quote Range"
+          value={`$${summary.minQuoteAmount || 0} - $${summary.maxQuoteAmount || 0}`}
           icon={<AlertCircle className="h-5 w-5" />}
         />
       </div>
@@ -92,19 +95,23 @@ export const QuoteCostAnalysisReport: React.FC<QuoteCostAnalysisReportProps> = (
   const renderCharts = () => {
     if (!data) return null;
 
-    const varianceData = data.costVariance?.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      underBudget: item.underBudgetCount || 0,
-      onBudget: item.onBudgetCount || 0,
-      overBudget: item.overBudgetCount || 0,
-    })) || [];
+    const varianceData = data.costVariance
+      ?.filter((item: any) => item._id !== null)
+      .map((item: any) => ({
+        quoteType: item._id || 'Unknown',
+        underBudget: item.underBudgetCount || 0,
+        onBudget: item.onBudgetCount || 0,
+        overBudget: item.overBudgetCount || 0,
+      })) || [];
 
-    const partsLaborData = data.partsLaborBreakdown?.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      parts: item.totalPartsCost || 0,
-      labor: item.totalLaborCost || 0,
-      gst: item.totalGST || 0,
-    })) || [];
+    const partsLaborData = data.partsLaborBreakdown
+      ?.filter((item: any) => item._id !== null)
+      .map((item: any) => ({
+        quoteType: item._id || 'Unknown',
+        parts: item.totalPartsCost || 0,
+        labor: item.totalLaborCost || 0,
+        gst: item.totalGST || 0,
+      })) || [];
 
     return (
       <div className="space-y-6">
@@ -143,22 +150,32 @@ export const QuoteCostAnalysisReport: React.FC<QuoteCostAnalysisReportProps> = (
   const renderTable = () => {
     if (!data?.costVariance) return null;
 
-    const tableData = data.costVariance.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      totalQuotes: item.totalQuotes || 0,
-      avgQuoteAmount: `$${(item.avgQuoteAmount || 0).toFixed(2)}`,
-      avgFinalPrice: `$${(item.avgFinalPrice || 0).toFixed(2)}`,
-      avgVariance: `${(item.avgVariancePercentage || 0).toFixed(1)}%`,
-      accuracyRate: `${(item.accuracyRate || 0).toFixed(1)}%`,
-    }));
+    const tableData = data.costVariance
+      .filter((item: any) => item._id !== null)
+      .map((item: any) => ({
+        quoteType: item._id || 'Unknown',
+        totalQuotes: item.totalQuotes || 0,
+        avgQuoteAmount: `$${(item.avgQuoteAmount || 0).toFixed(2)}`,
+        avgFinalPrice: `$${(item.avgFinalPrice || 0).toFixed(2)}`,
+        avgVariance: `$${(item.avgVariance || 0).toFixed(2)}`,
+        variancePercent: `${(item.avgVariancePercentage || 0).toFixed(1)}%`,
+        accuracyRate: `${(item.accuracyRate || 0).toFixed(1)}%`,
+        underBudget: item.underBudgetCount || 0,
+        onBudget: item.onBudgetCount || 0,
+        overBudget: item.overBudgetCount || 0,
+      }));
 
     const columns = [
       { key: 'quoteType', label: 'Quote Type' },
       { key: 'totalQuotes', label: 'Total Quotes' },
-      { key: 'avgQuoteAmount', label: 'Avg Quote Amount' },
-      { key: 'avgFinalPrice', label: 'Avg Final Price' },
-      { key: 'avgVariance', label: 'Avg Variance' },
-      { key: 'accuracyRate', label: 'Accuracy Rate' },
+      { key: 'avgQuoteAmount', label: 'Avg Quote' },
+      { key: 'avgFinalPrice', label: 'Avg Final' },
+      { key: 'avgVariance', label: 'Variance' },
+      { key: 'variancePercent', label: 'Variance %' },
+      { key: 'accuracyRate', label: 'Accuracy' },
+      { key: 'underBudget', label: 'Under' },
+      { key: 'onBudget', label: 'On' },
+      { key: 'overBudget', label: 'Over' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

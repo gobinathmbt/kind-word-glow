@@ -3,6 +3,7 @@ import { ReportCard, ViewMode } from '@/components/dashboard/common/ReportCard';
 import { MetricCard } from '@/components/dashboard/common/MetricCard';
 import { InteractivePieChart, PieChartData } from '@/components/dashboard/charts/InteractivePieChart';
 import { StackedBarChart } from '@/components/dashboard/charts/StackedBarChart';
+import { LineChart } from '@/components/dashboard/charts/LineChart';
 import { DataTable } from '@/components/dashboard/charts/DataTable';
 import { ExportButton } from '@/components/dashboard/common/ExportButton';
 import { RefreshButton } from '@/components/dashboard/common/RefreshButton';
@@ -40,7 +41,9 @@ export const VehicleWorkshopIntegrationReport: React.FC<VehicleWorkshopIntegrati
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleWorkshopIntegration(params);
-      setData(response.data);
+      console.log('Workshop Integration API Response:', response);
+      console.log('Workshop Integration Data:', response.data?.data);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load workshop integration data');
     } finally {
@@ -61,27 +64,38 @@ export const VehicleWorkshopIntegrationReport: React.FC<VehicleWorkshopIntegrati
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data?.workshopStatusOverview) return null;
+    
+    const totalVehicles = data.workshopStatusOverview.reduce((sum: number, item: any) => sum + item.totalVehicles, 0);
+    const totalInWorkshop = data.workshopStatusOverview.reduce((sum: number, item: any) => sum + item.vehiclesInWorkshop, 0);
+    const totalReportReady = data.workshopStatusOverview.reduce((sum: number, item: any) => sum + item.vehiclesWithReportReady, 0);
+    const totalReportPreparing = data.workshopStatusOverview.reduce((sum: number, item: any) => sum + item.vehiclesWithReportPreparing, 0);
+    
+    const avgWorkshopPercentage = totalVehicles > 0 ? (totalInWorkshop / totalVehicles) * 100 : 0;
+    const avgReportReadyPercentage = totalVehicles > 0 ? (totalReportReady / totalVehicles) * 100 : 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Vehicles"
-          value={data.metrics.totalVehicles || 0}
+          value={totalVehicles}
           icon={<Wrench className="h-5 w-5" />}
+          subtitle={`${totalInWorkshop} in workshop`}
         />
         <MetricCard
-          title="In Workshop"
-          value={data.metrics.inWorkshop || 0}
-          trend={{ value: data.metrics.workshopTrend || 0 }}
+          title="Workshop Utilization"
+          value={`${avgWorkshopPercentage.toFixed(1)}%`}
+          subtitle={`${totalInWorkshop} vehicles`}
         />
         <MetricCard
-          title="Workshop Ready"
-          value={data.metrics.workshopReady || 0}
+          title="Report Ready"
+          value={totalReportReady}
+          subtitle={`${avgReportReadyPercentage.toFixed(1)}% completion`}
         />
         <MetricCard
-          title="Completion Rate"
-          value={`${data.metrics.completionRate || 0}%`}
-          trend={{ value: data.metrics.completionTrend || 0, isPositive: true }}
+          title="Report Preparing"
+          value={totalReportPreparing}
+          subtitle={`${((totalReportPreparing / totalVehicles) * 100).toFixed(1)}%`}
         />
       </div>
     );
@@ -90,29 +104,121 @@ export const VehicleWorkshopIntegrationReport: React.FC<VehicleWorkshopIntegrati
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusData: PieChartData[] = data.statusDistribution?.map((item: any) => ({
-      name: item.status,
-      value: item.count,
+    // Workshop Status by Type
+    const workshopStatusData = data.workshopStatusOverview?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      inWorkshop: item.vehiclesInWorkshop,
+      reportReady: item.vehiclesWithReportReady,
+      reportPreparing: item.vehiclesWithReportPreparing,
+      workshopPercentage: item.workshopPercentage,
     })) || [];
 
-    const progressData = data.progressByType || [];
+    // Workshop Percentage Pie Chart
+    const workshopPercentageData: PieChartData[] = data.workshopStatusOverview?.map((item: any) => {
+      const name = item._id.charAt(0).toUpperCase() + item._id.slice(1);
+      const colors: Record<string, string> = {
+        'Inspection': '#3b82f6',
+        'Tradein': '#10b981',
+        'Master': '#f59e0b',
+        'Advertisement': '#8b5cf6',
+      };
+      return {
+        name,
+        value: item.vehiclesInWorkshop,
+        color: colors[name] || '#6b7280',
+      };
+    }).filter((item: any) => item.value > 0) || [];
+
+    // Dealership Workshop Performance
+    const dealershipPerformanceData = data.dealershipWorkshopPerformance?.map((item: any) => ({
+      dealership: item._id || 'No Dealership',
+      totalVehicles: item.totalVehicles,
+      inWorkshop: item.vehiclesInWorkshop,
+      reportReady: item.vehiclesWithReportReady,
+      workshopUtilization: item.workshopUtilization,
+      inspectionVehicles: item.inspectionVehicles,
+      tradeinVehicles: item.tradeinVehicles,
+    })).filter((item: any) => item.totalVehicles > 0) || [];
+
+    // Workshop Timeline Analysis
+    const timelineData: any[] = [];
+    const monthMap = new Map<string, any>();
+    
+    data.workshopTimelineAnalysis?.forEach((item: any) => {
+      const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+      if (!monthMap.has(key)) {
+        monthMap.set(key, { 
+          month: key, 
+          year: item._id.year, 
+          monthNum: item._id.month 
+        });
+      }
+      const monthData = monthMap.get(key);
+      monthData[`${item._id.type}_count`] = item.count;
+      monthData[`${item._id.type}_ready`] = item.withReportReady;
+    });
+    
+    timelineData.push(...Array.from(monthMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthNum - b.monthNum;
+    }));
+
+    // Report Preparation Status
+    const reportPrepData = data.reportPreparationStatus?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      multipleStages: item.vehiclesWithMultipleStages,
+      avgReportReady: item.avgReportReadyCount,
+      avgReportPreparing: item.avgReportPreparingCount,
+      avgWorkshopStages: item.avgWorkshopStageCount,
+      multipleStagesPercentage: item.multipleStagesPercentage,
+    })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Workshop Status Distribution</h4>
-            <InteractivePieChart data={statusData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Vehicles in Workshop by Type</h4>
+            <InteractivePieChart data={workshopPercentageData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Progress by Vehicle Type</h4>
+            <h4 className="text-sm font-medium mb-4">Workshop Status by Type</h4>
             <StackedBarChart
-              data={progressData}
+              data={workshopStatusData}
               xAxisKey="type"
               series={[
-                { dataKey: 'pending', name: 'Pending' },
-                { dataKey: 'inProgress', name: 'In Progress' },
-                { dataKey: 'completed', name: 'Completed' },
+                { dataKey: 'inWorkshop', name: 'In Workshop', color: '#f59e0b' },
+                { dataKey: 'reportPreparing', name: 'Report Preparing', color: '#3b82f6' },
+                { dataKey: 'reportReady', name: 'Report Ready', color: '#10b981' },
+              ]}
+              height={300}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Workshop Timeline</h4>
+            <LineChart
+              data={timelineData}
+              xAxisKey="month"
+              lines={[
+                { dataKey: 'inspection_count', name: 'Inspection Count', color: '#3b82f6' },
+                { dataKey: 'tradein_count', name: 'Trade-in Count', color: '#10b981' },
+                { dataKey: 'inspection_ready', name: 'Inspection Ready', color: '#8b5cf6' },
+                { dataKey: 'tradein_ready', name: 'Trade-in Ready', color: '#f59e0b' },
+              ]}
+              height={300}
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Dealership Workshop Performance</h4>
+            <StackedBarChart
+              data={dealershipPerformanceData}
+              xAxisKey="dealership"
+              series={[
+                { dataKey: 'inWorkshop', name: 'In Workshop', color: '#f59e0b' },
+                { dataKey: 'reportReady', name: 'Report Ready', color: '#10b981' },
               ]}
               height={300}
             />
@@ -123,24 +229,35 @@ export const VehicleWorkshopIntegrationReport: React.FC<VehicleWorkshopIntegrati
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.workshopStatusOverview) return null;
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'totalVehicles', label: 'Total' },
-      { key: 'workshopReady', label: 'Ready' },
-      { key: 'inWorkshop', label: 'In Workshop' },
-      { key: 'completed', label: 'Completed' },
-      { key: 'completionRate', label: 'Completion %' },
+      { key: 'type', label: 'Vehicle Type', sortable: true },
+      { key: 'totalVehicles', label: 'Total', sortable: true },
+      { key: 'inWorkshop', label: 'In Workshop', sortable: true },
+      { key: 'reportReady', label: 'Report Ready', sortable: true },
+      { key: 'reportPreparing', label: 'Report Preparing', sortable: true },
+      { key: 'workshopPercentage', label: 'Workshop %', sortable: true },
+      { key: 'reportReadyPercentage', label: 'Ready %', sortable: true },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.workshopStatusOverview.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      inWorkshop: item.vehiclesInWorkshop,
+      reportReady: item.vehiclesWithReportReady,
+      reportPreparing: item.vehiclesWithReportPreparing,
+      workshopPercentage: `${item.workshopPercentage.toFixed(1)}%`,
+      reportReadyPercentage: `${item.reportReadyPercentage.toFixed(1)}%`,
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (
     <ReportCard
       title="Vehicle Workshop Integration"
-      subtitle="Workshop status and progress tracking"
+      subtitle="Workshop status, progress tracking, and performance metrics"
       icon={<Wrench className="h-5 w-5" />}
       loading={loading}
       error={error}
