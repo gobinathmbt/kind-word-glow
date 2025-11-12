@@ -49,6 +49,8 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
 
 interface CostType {
   _id: string;
@@ -63,7 +65,7 @@ interface CostType {
 }
 
 // Sortable Cost Type Row Component
-const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
+const SortableCostTypeRow = ({ costType, index, onEdit, onDelete, canEdit, canDelete, canReorder }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: costType._id });
 
@@ -77,23 +79,32 @@ const SortableCostTypeRow = ({ costType, index, onEdit, onDelete }: any) => {
       <td className="p-3 text-center">{index + 1}</td>
       <td className="p-3">
         <div className="flex items-center gap-2">
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing"
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => onEdit(costType)}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(costType._id)}
-          >
-            <Trash2 className="h-4 w-4 text-red-600" />
-          </Button>
+          {canReorder && (
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing"
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+          {canEdit && (
+            <Button variant="ghost" size="sm" onClick={() => onEdit(costType)}>
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(costType._id)}
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </Button>
+          )}
+          {!canEdit && !canDelete && (
+            <span className="text-sm text-muted-foreground">No actions</span>
+          )}
         </div>
       </td>
       <td className="p-3">{costType.cost_type}</td>
@@ -129,6 +140,14 @@ const CostConfiguration = () => {
     new Set(["Unassigned"])
   );
   const [dropdownData, setDropdownData] = useState<any>({});
+
+  const { completeUser } = useAuth();
+  const canManageCurrency = hasPermission(completeUser, 'cost_module_manage_currency');
+  const canCostSetter = hasPermission(completeUser, 'cost_module_cost_setter');
+  const canAddCostType = hasPermission(completeUser, 'cost_module_add_cost_type');
+  const canReorder = hasPermission(completeUser, 'cost_module_reorder');
+  const canEdit = hasPermission(completeUser, 'cost_module_edit');
+  const canDelete = hasPermission(completeUser, 'cost_module_delete');
 
   const [formData, setFormData] = useState({
     cost_type: "",
@@ -365,30 +384,36 @@ const handleEdit = (costType: CostType) => {
                 <CardTitle>Cost Types</CardTitle>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCurrencyDialogOpen(true)}
-                >
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Manage Currencies
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCostSetterDialogOpen(true)}
-                >
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Cost Setter
-                </Button>
-                <Button
-                  onClick={() => {
-                    resetForm();
-                    setEditingCostType(null);
-                    setIsAddDialogOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Cost Type
-                </Button>
+                {canManageCurrency && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCurrencyDialogOpen(true)}
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Manage Currencies
+                  </Button>
+                )}
+                {canCostSetter && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCostSetterDialogOpen(true)}
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Cost Setter
+                  </Button>
+                )}
+                {canAddCostType && (
+                  <Button
+                    onClick={() => {
+                      resetForm();
+                      setEditingCostType(null);
+                      setIsAddDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Cost Type
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -418,16 +443,18 @@ const handleEdit = (costType: CostType) => {
                                 {costTypes.length}
                               </Badge>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                            >
-                              <GripVertical className="h-4 w-4 mr-2" />
-                              Reorder
-                            </Button>
+                            {canReorder && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                              >
+                                <GripVertical className="h-4 w-4 mr-2" />
+                                Reorder
+                              </Button>
+                            )}
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
@@ -471,6 +498,9 @@ const handleEdit = (costType: CostType) => {
                                           index={idx}
                                           onEdit={handleEdit}
                                           onDelete={handleDelete}
+                                          canEdit={canEdit}
+                                          canDelete={canDelete}
+                                          canReorder={canReorder}
                                         />
                                       )
                                     )}

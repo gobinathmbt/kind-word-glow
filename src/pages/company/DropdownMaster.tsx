@@ -339,7 +339,7 @@ const DropdownMaster = () => {
     }] : []),
    
     ...(canCreate ? [{
-      icon: <Database className="h-4 w-4" />,
+      icon: <Plus className="h-4 w-4" />,
       tooltip: "Create Dropdown",
       onClick: () => setIsDialogOpen(true),
       className:
