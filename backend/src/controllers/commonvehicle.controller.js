@@ -2,6 +2,7 @@ const Vehicle = require("../models/Vehicle");
 const AdvertiseVehicle = require("../models/AdvertiseVehicle");
 const MasterVehicle = require("../models/MasterVehicle");
 const { logEvent } = require("./logs.controller");
+const { checkAndTriggerOutboundWorkflows } = require("./workflow.controller");
 
 // Helper function to get the correct model based on vehicle type
 const getVehicleModel = (vehicleType) => {
@@ -418,6 +419,9 @@ const togglePricingReady = async (req, res) => {
       });
     }
 
+    // Check and trigger outbound workflows after vehicle update
+    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
+
     // Log the event
     await logEvent({
       event_type: "vehicle_operation",
@@ -484,6 +488,9 @@ const saveVehicleCostDetails = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    // Check and trigger outbound workflows after vehicle update
+    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
 
     // Log the event
     await logEvent({

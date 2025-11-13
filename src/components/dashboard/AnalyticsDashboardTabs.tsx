@@ -24,8 +24,6 @@ import {
 
 // Import all report components
 import * as VehicleReports from "@/components/dashboard/reports/vehicle";
-import * as MasterVehicleReports from "@/components/dashboard/reports/master-vehicle";
-import * as AdvertiseVehicleReports from "@/components/dashboard/reports/advertise-vehicle";
 import * as WorkshopReports from "@/components/dashboard/reports/workshop";
 import * as DealershipReports from "@/components/dashboard/reports/dealership";
 import * as UserReports from "@/components/dashboard/reports/user";
@@ -197,72 +195,7 @@ const AnalyticsDashboardTabs: React.FC = () => {
         },
       ],
     },
-    {
-      id: "master_vehicle",
-      title: "Master Vehicle Analytics",
-      icon: <Car className="h-6 w-6" />,
-      reports: [
-        {
-          id: "master_inventory",
-          label: "Master Vehicle Inventory",
-          component: MasterVehicleReports.MasterVehicleInventoryReport,
-        },
-        {
-          id: "master_specifications",
-          label: "Master Vehicle Specifications",
-          component: MasterVehicleReports.MasterVehicleSpecificationsReport,
-        },
-        {
-          id: "master_source",
-          label: "Master Vehicle Source Analysis",
-          component: MasterVehicleReports.MasterVehicleSourceAnalysisReport,
-        },
-        {
-          id: "master_workshop_status",
-          label: "Master Vehicle Workshop Status",
-          component: MasterVehicleReports.MasterVehicleWorkshopStatusReport,
-        },
-        {
-          id: "master_pricing",
-          label: "Master Vehicle Pricing Strategy",
-          component: MasterVehicleReports.MasterVehiclePricingStrategyReport,
-        },
-      ],
-    },
-    {
-      id: "advertisement",
-      title: "Advertisement Vehicle Analytics",
-      icon: <Car className="h-6 w-6" />,
-      reports: [
-        {
-          id: "ad_performance",
-          label: "Advertisement Performance",
-          component: AdvertiseVehicleReports.AdvertisementPerformanceReport,
-        },
-        {
-          id: "ad_pricing",
-          label: "Advertisement Pricing Analysis",
-          component: AdvertiseVehicleReports.AdvertisementPricingAnalysisReport,
-        },
-        {
-          id: "ad_attachment",
-          label: "Advertisement Attachment Quality",
-          component:
-            AdvertiseVehicleReports.AdvertisementAttachmentQualityReport,
-        },
-        {
-          id: "ad_status",
-          label: "Advertisement Status Tracking",
-          component: AdvertiseVehicleReports.AdvertisementStatusTrackingReport,
-        },
-        {
-          id: "ad_conversion",
-          label: "Advertisement Conversion Rates",
-          component: AdvertiseVehicleReports.AdvertisementConversionRatesReport,
-        },
-      ],
-    },
-    {
+   {
       id: "workshop_quote",
       title: "Workshop Quote Analytics",
       icon: <Wrench className="h-6 w-6" />,

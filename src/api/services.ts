@@ -329,6 +329,10 @@ export const workflowServices = {
   // Get vehicle schema fields for mapping
   getVehicleSchemaFields: () => apiClient.get("/api/workflows/vehicle-schema"),
 
+  // Get schema fields for target schema node
+  getSchemaFields: (schemaType: string) => 
+    apiClient.get(`/api/workflows/schema-fields/${schemaType}`),
+
   // Test workflow configuration
   testWorkflow: (id: string, data: any) =>
     apiClient.post(`/api/workflows/${id}/test`, data),
@@ -1492,38 +1496,6 @@ export const dashboardAnalyticsServices = {
   
   getVehicleCostDetails: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/cost-details", { params }),
-
-  // MasterVehicle Reports (5 endpoints)
-  getMasterVehicleInventory: (params?: any) =>
-    apiClient.get("/api/company/reports/master-vehicle/inventory", { params }),
-  
-  getMasterVehicleSpecifications: (params?: any) =>
-    apiClient.get("/api/company/reports/master-vehicle/specifications", { params }),
-  
-  getMasterVehicleSourceAnalysis: (params?: any) =>
-    apiClient.get("/api/company/reports/master-vehicle/source-analysis", { params }),
-  
-  getMasterVehicleWorkshopStatus: (params?: any) =>
-    apiClient.get("/api/company/reports/master-vehicle/workshop-status", { params }),
-  
-  getMasterVehiclePricingStrategy: (params?: any) =>
-    apiClient.get("/api/company/reports/master-vehicle/pricing-strategy", { params }),
-
-  // AdvertiseVehicle Reports (5 endpoints)
-  getAdvertisementPerformance: (params?: any) =>
-    apiClient.get("/api/company/reports/advertise-vehicle/performance", { params }),
-  
-  getAdvertisementPricingAnalysis: (params?: any) =>
-    apiClient.get("/api/company/reports/advertise-vehicle/pricing-analysis", { params }),
-  
-  getAdvertisementAttachmentQuality: (params?: any) =>
-    apiClient.get("/api/company/reports/advertise-vehicle/attachment-quality", { params }),
-  
-  getAdvertisementStatusTracking: (params?: any) =>
-    apiClient.get("/api/company/reports/advertise-vehicle/status-tracking", { params }),
-  
-  getAdvertisementConversionRates: (params?: any) =>
-    apiClient.get("/api/company/reports/advertise-vehicle/conversion-rates", { params }),
 
   // WorkshopQuote Reports (12 endpoints)
   getQuoteOverviewByStatus: (params?: any) =>

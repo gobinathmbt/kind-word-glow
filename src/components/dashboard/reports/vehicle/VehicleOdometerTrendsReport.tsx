@@ -3,6 +3,7 @@ import { ReportCard, ViewMode } from '@/components/dashboard/common/ReportCard';
 import { MetricCard } from '@/components/dashboard/common/MetricCard';
 import { LineChart } from '@/components/dashboard/charts/LineChart';
 import { StackedBarChart } from '@/components/dashboard/charts/StackedBarChart';
+import { InteractivePieChart, PieChartData } from '@/components/dashboard/charts/InteractivePieChart';
 import { DataTable } from '@/components/dashboard/charts/DataTable';
 import { ExportButton } from '@/components/dashboard/common/ExportButton';
 import { RefreshButton } from '@/components/dashboard/common/RefreshButton';
@@ -40,7 +41,9 @@ export const VehicleOdometerTrendsReport: React.FC<VehicleOdometerTrendsReportPr
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleOdometerTrends(params);
-      setData(response.data);
+      console.log('Odometer Trends API Response:', response);
+      console.log('Odometer Trends Data:', response.data?.data);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load odometer trends data');
     } finally {
@@ -61,25 +64,38 @@ export const VehicleOdometerTrendsReport: React.FC<VehicleOdometerTrendsReportPr
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data?.odometerOverview) return null;
+    
+    const totalVehicles = data.odometerOverview.reduce((sum: number, item: any) => sum + item.totalVehicles, 0);
+    const avgReading = data.odometerOverview.reduce((sum: number, item: any) => sum + (item.avgReading || 0), 0) / 
+      (data.odometerOverview.filter((item: any) => item.avgReading).length || 1);
+    const minReading = Math.min(...data.odometerOverview.filter((item: any) => item.minReading).map((item: any) => item.minReading));
+    const maxReading = Math.max(...data.odometerOverview.filter((item: any) => item.maxReading).map((item: any) => item.maxReading));
+    
+    const certifiedCount = data.certificationStatus?.find((item: any) => item._id.certified === true)?.count || 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Avg Odometer"
-          value={`${data.metrics.avgOdometer?.toLocaleString() || 0} km`}
+          value={`${Math.round(avgReading).toLocaleString()} km`}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${totalVehicles} vehicles`}
         />
         <MetricCard
-          title="Low Mileage"
-          value={data.metrics.lowMileage || 0}
+          title="Min Reading"
+          value={`${minReading.toLocaleString()} km`}
+          subtitle="Lowest recorded"
         />
         <MetricCard
-          title="Medium Mileage"
-          value={data.metrics.mediumMileage || 0}
+          title="Max Reading"
+          value={`${maxReading.toLocaleString()} km`}
+          subtitle="Highest recorded"
         />
         <MetricCard
-          title="High Mileage"
-          value={data.metrics.highMileage || 0}
+          title="Certified"
+          value={certifiedCount}
+          subtitle={`${((certifiedCount / totalVehicles) * 100).toFixed(1)}% verified`}
         />
       </div>
     );
@@ -88,55 +104,181 @@ export const VehicleOdometerTrendsReport: React.FC<VehicleOdometerTrendsReportPr
   const renderCharts = () => {
     if (!data) return null;
 
-    const trendsData = data.trends || [];
-    const rangeData = data.mileageRanges || [];
+    // Odometer Range Distribution
+    const rangeData = data.odometerRangeDistribution
+      ?.filter((item: any) => item._id !== '1000000+')
+      .map((item: any) => {
+        let rangeLabel = '';
+        if (item._id === 0) {
+          rangeLabel = '0-50K';
+        } else {
+          const start = item._id / 1000;
+          const end = start + 50;
+          rangeLabel = `${start}K-${end}K`;
+        }
+        return {
+          range: rangeLabel,
+          count: item.count,
+        };
+      }) || [];
+
+    // Odometer Range Pie Chart
+    const rangePieData: PieChartData[] = rangeData.map((item: any, index: number) => {
+      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+      return {
+        name: item.range,
+        value: item.count,
+        color: colors[index % colors.length],
+      };
+    });
+
+    // Odometer by Age Group
+    const ageGroupData: any[] = [];
+    const ageGroupMap = new Map<string, any>();
+    
+    data.odometerByAge?.forEach((item: any) => {
+      const ageGroup = item._id.ageGroup;
+      if (!ageGroupMap.has(ageGroup)) {
+        ageGroupMap.set(ageGroup, { ageGroup });
+      }
+      const groupData = ageGroupMap.get(ageGroup);
+      groupData[`${item._id.type}_count`] = item.count;
+      groupData[`${item._id.type}_avg`] = item.avgReading || 0;
+    });
+    
+    ageGroupData.push(...Array.from(ageGroupMap.values()));
+
+    // Sort age groups
+    const ageOrder = ['0-3 years', '4-5 years', '6-10 years', '11-15 years', '15+ years'];
+    ageGroupData.sort((a, b) => ageOrder.indexOf(a.ageGroup) - ageOrder.indexOf(b.ageGroup));
+
+    // Odometer Overview by Type
+    const overviewData = data.odometerOverview
+      ?.filter((item: any) => item.avgReading)
+      .map((item: any) => ({
+        type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+        totalVehicles: item.totalVehicles,
+        minReading: item.minReading,
+        maxReading: item.maxReading,
+        avgReading: item.avgReading,
+      })) || [];
+
+    // Certification Status
+    const certificationData: PieChartData[] = [
+      { 
+        name: 'Certified', 
+        value: data.certificationStatus?.find((item: any) => item._id.certified === true)?.count || 0,
+        color: '#10b981'
+      },
+      { 
+        name: 'Not Certified', 
+        value: data.certificationStatus?.find((item: any) => item._id.certified === false)?.count || 0,
+        color: '#ef4444'
+      },
+    ].filter(item => item.value > 0);
+
+    // Odometer Timeline
+    const timelineData: any[] = [];
+    data.odometerTimeline?.forEach((item: any) => {
+      if (!item._id.year || !item._id.month) return;
+      const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+      timelineData.push({
+        month: key,
+        year: item._id.year,
+        monthNum: item._id.month,
+        count: item.count,
+        avgReading: item.avgReading || 0,
+      });
+    });
+    
+    timelineData.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthNum - b.monthNum;
+    });
 
     return (
       <div className="space-y-6">
-        <div>
-          <h4 className="text-sm font-medium mb-4">Odometer Trends Over Time</h4>
-          <LineChart
-            data={trendsData}
-            xAxisKey="month"
-            lines={[
-              { dataKey: 'avgOdometer', name: 'Avg Odometer' },
-            ]}
-            height={300}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Odometer Range Distribution</h4>
+            <InteractivePieChart data={rangePieData} height={300} />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Certification Status</h4>
+            <InteractivePieChart data={certificationData} height={300} />
+          </div>
         </div>
-        <div>
-          <h4 className="text-sm font-medium mb-4">Mileage Range Distribution</h4>
-          <StackedBarChart
-            data={rangeData}
-            xAxisKey="range"
-            series={[
-              { dataKey: 'count', name: 'Vehicles' },
-            ]}
-            height={300}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Odometer by Vehicle Type</h4>
+            <StackedBarChart
+              data={overviewData}
+              xAxisKey="type"
+              series={[
+                { dataKey: 'avgReading', name: 'Avg Reading (km)', color: '#3b82f6' },
+              ]}
+              height={300}
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Avg Odometer by Age Group</h4>
+            <StackedBarChart
+              data={ageGroupData}
+              xAxisKey="ageGroup"
+              series={[
+                { dataKey: 'inspection_avg', name: 'Inspection', color: '#3b82f6' },
+                { dataKey: 'tradein_avg', name: 'Trade-in', color: '#10b981' },
+              ]}
+              height={300}
+            />
+          </div>
         </div>
+        {timelineData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Odometer Timeline</h4>
+            <LineChart
+              data={timelineData}
+              xAxisKey="month"
+              lines={[
+                { dataKey: 'avgReading', name: 'Avg Reading', color: '#3b82f6' },
+                { dataKey: 'count', name: 'Vehicle Count', color: '#10b981' },
+              ]}
+              height={300}
+            />
+          </div>
+        )}
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.odometerOverview) return null;
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'avgOdometer', label: 'Avg Odometer (km)' },
-      { key: 'minOdometer', label: 'Min (km)' },
-      { key: 'maxOdometer', label: 'Max (km)' },
-      { key: 'totalVehicles', label: 'Total' },
+      { key: 'type', label: 'Vehicle Type', sortable: true },
+      { key: 'totalVehicles', label: 'Total', sortable: true },
+      { key: 'minReading', label: 'Min (km)', sortable: true },
+      { key: 'maxReading', label: 'Max (km)', sortable: true },
+      { key: 'avgReading', label: 'Avg (km)', sortable: true },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.odometerOverview
+      .filter((item: any) => item.avgReading)
+      .map((item: any) => ({
+        type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+        totalVehicles: item.totalVehicles,
+        minReading: item.minReading?.toLocaleString() || 'N/A',
+        maxReading: item.maxReading?.toLocaleString() || 'N/A',
+        avgReading: Math.round(item.avgReading).toLocaleString(),
+      }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (
     <ReportCard
       title="Vehicle Odometer Trends"
-      subtitle="Odometer reading patterns and trends"
+      subtitle="Odometer reading patterns, certification, and age analysis"
       icon={<Activity className="h-5 w-5" />}
       loading={loading}
       error={error}

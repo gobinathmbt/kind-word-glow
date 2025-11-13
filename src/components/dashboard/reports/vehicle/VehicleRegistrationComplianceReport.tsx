@@ -40,7 +40,9 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleRegistrationCompliance(params);
-      setData(response.data);
+      console.log('Registration Compliance API Response:', response);
+      console.log('Registration Compliance Data:', response.data?.data);
+      setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load registration compliance data');
     } finally {
@@ -61,26 +63,38 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data?.registrationOverview) return null;
+    
+    const totalVehicles = data.registrationOverview.reduce((sum: number, item: any) => sum + item.totalVehicles, 0);
+    const totalRegisteredLocal = data.registrationOverview.reduce((sum: number, item: any) => sum + item.registeredLocal, 0);
+    const totalReRegistered = data.registrationOverview.reduce((sum: number, item: any) => sum + item.reRegistered, 0);
+    const totalWithLicenseExpiry = data.registrationOverview.reduce((sum: number, item: any) => sum + item.withLicenseExpiry, 0);
+    
+    const expiredLicenses = data.expiringLicenses?.expiredLicenses?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
+    const expiredWofCof = data.expiringWofCof?.expiredWofCof?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Vehicles"
-          value={data.metrics.totalVehicles || 0}
+          value={totalVehicles}
           icon={<FileCheck className="h-5 w-5" />}
+          subtitle={`${totalRegisteredLocal} registered local`}
         />
         <MetricCard
-          title="Compliant"
-          value={data.metrics.compliant || 0}
-          trend={{ value: data.metrics.complianceTrend || 0, isPositive: true }}
+          title="License Compliance"
+          value={`${((totalWithLicenseExpiry / totalVehicles) * 100).toFixed(1)}%`}
+          subtitle={`${totalWithLicenseExpiry} with expiry data`}
         />
         <MetricCard
-          title="Expiring Soon"
-          value={data.metrics.expiringSoon || 0}
+          title="Expired Licenses"
+          value={expiredLicenses}
+          subtitle={`${((expiredLicenses / totalVehicles) * 100).toFixed(1)}% of total`}
         />
         <MetricCard
-          title="Expired"
-          value={data.metrics.expired || 0}
+          title="Expired WOF/COF"
+          value={expiredWofCof}
+          subtitle={`${((expiredWofCof / totalVehicles) * 100).toFixed(1)}% of total`}
         />
       </div>
     );
@@ -89,28 +103,147 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusData: PieChartData[] = data.complianceStatus?.map((item: any) => ({
-      name: item.status,
-      value: item.count,
+    // Registration Status by Type
+    const registrationStatusData = data.registrationOverview?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      registeredLocal: item.registeredLocal,
+      reRegistered: item.reRegistered,
+      withLicenseExpiry: item.withLicenseExpiry,
+      withWofCofExpiry: item.withWofCofExpiry,
+      localRate: item.localRegistrationRate,
+      reRegRate: item.reRegistrationRate,
     })) || [];
 
-    const registrationData = data.registrationByType || [];
+    // Local vs Imported Distribution
+    const localVsImportedData: PieChartData[] = [];
+    let totalLocal = 0;
+    let totalImported = 0;
+    
+    data.localVsImported?.forEach((item: any) => {
+      item.registrationBreakdown?.forEach((breakdown: any) => {
+        if (breakdown.registeredLocal === true) {
+          totalLocal += breakdown.count;
+        } else if (breakdown.registeredLocal === false) {
+          totalImported += breakdown.count;
+        }
+      });
+    });
+    
+    if (totalLocal > 0) {
+      localVsImportedData.push({ name: 'Local', value: totalLocal, color: '#10b981' });
+    }
+    if (totalImported > 0) {
+      localVsImportedData.push({ name: 'Imported', value: totalImported, color: '#3b82f6' });
+    }
+
+    // Country Distribution
+    const countryData = data.countryDistribution
+      ?.filter((item: any) => item._id && item._id !== '' && item.count > 0)
+      .map((item: any) => ({
+        country: item._id,
+        count: item.count,
+      })) || [];
+
+    // Road User Charges
+    const rucData = data.roadUserCharges?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      rucApplies: item.rucApplies,
+      outstandingRuc: item.outstandingRuc,
+      avgRucEndDistance: item.avgRucEndDistance || 0,
+      rucApplicableRate: item.rucApplicableRate,
+      outstandingRucRate: item.outstandingRucRate,
+    })) || [];
+
+    // Dealership Compliance
+    const dealershipComplianceData = data.dealershipCompliance
+      ?.filter((item: any) => item.totalVehicles > 0)
+      .map((item: any) => ({
+        dealership: item._id || 'No Dealership',
+        totalVehicles: item.totalVehicles,
+        validLicenses: item.validLicenses,
+        validWofCof: item.validWofCof,
+        compliantVehicles: item.compliantVehicles,
+        complianceRate: item.complianceRate,
+      })) || [];
+
+    // Expired Items by Type
+    const expiredLicensesData = data.expiringLicenses?.expiredLicenses?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      count: item.count,
+    })) || [];
+
+    const expiredWofCofData = data.expiringWofCof?.expiredWofCof?.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      count: item.count,
+    })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Compliance Status</h4>
-            <InteractivePieChart data={statusData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Local vs Imported</h4>
+            <InteractivePieChart data={localVsImportedData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Registration by Type</h4>
+            <h4 className="text-sm font-medium mb-4">Registration Status by Type</h4>
             <StackedBarChart
-              data={registrationData}
+              data={registrationStatusData}
               xAxisKey="type"
               series={[
-                { dataKey: 'local', name: 'Local' },
-                { dataKey: 'imported', name: 'Imported' },
+                { dataKey: 'registeredLocal', name: 'Registered Local', color: '#10b981' },
+                { dataKey: 'reRegistered', name: 'Re-Registered', color: '#3b82f6' },
+                { dataKey: 'withLicenseExpiry', name: 'With License Expiry', color: '#f59e0b' },
+              ]}
+              height={300}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Expired Licenses by Type</h4>
+            <StackedBarChart
+              data={expiredLicensesData}
+              xAxisKey="type"
+              series={[
+                { dataKey: 'count', name: 'Expired Licenses', color: '#ef4444' },
+              ]}
+              height={300}
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Expired WOF/COF by Type</h4>
+            <StackedBarChart
+              data={expiredWofCofData}
+              xAxisKey="type"
+              series={[
+                { dataKey: 'count', name: 'Expired WOF/COF', color: '#ef4444' },
+              ]}
+              height={300}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4">Road User Charges</h4>
+            <StackedBarChart
+              data={rucData}
+              xAxisKey="type"
+              series={[
+                { dataKey: 'rucApplies', name: 'RUC Applies', color: '#3b82f6' },
+                { dataKey: 'outstandingRuc', name: 'Outstanding RUC', color: '#ef4444' },
+              ]}
+              height={300}
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Dealership Compliance</h4>
+            <StackedBarChart
+              data={dealershipComplianceData}
+              xAxisKey="dealership"
+              series={[
+                { dataKey: 'compliantVehicles', name: 'Compliant', color: '#10b981' },
               ]}
               height={300}
             />
@@ -121,24 +254,37 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data?.registrationOverview) return null;
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'total', label: 'Total' },
-      { key: 'compliant', label: 'Compliant' },
-      { key: 'expiringSoon', label: 'Expiring Soon' },
-      { key: 'expired', label: 'Expired' },
-      { key: 'complianceRate', label: 'Compliance %' },
+      { key: 'type', label: 'Vehicle Type', sortable: true },
+      { key: 'totalVehicles', label: 'Total', sortable: true },
+      { key: 'registeredLocal', label: 'Local', sortable: true },
+      { key: 'reRegistered', label: 'Re-Registered', sortable: true },
+      { key: 'withLicenseExpiry', label: 'License Expiry', sortable: true },
+      { key: 'withWofCofExpiry', label: 'WOF/COF Expiry', sortable: true },
+      { key: 'localRate', label: 'Local %', sortable: true },
+      { key: 'reRegRate', label: 'Re-Reg %', sortable: true },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = data.registrationOverview.map((item: any) => ({
+      type: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      totalVehicles: item.totalVehicles,
+      registeredLocal: item.registeredLocal,
+      reRegistered: item.reRegistered,
+      withLicenseExpiry: item.withLicenseExpiry,
+      withWofCofExpiry: item.withWofCofExpiry,
+      localRate: `${item.localRegistrationRate.toFixed(1)}%`,
+      reRegRate: `${item.reRegistrationRate.toFixed(1)}%`,
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (
     <ReportCard
       title="Vehicle Registration Compliance"
-      subtitle="Registration status and compliance tracking"
+      subtitle="Registration status, license expiry, and compliance tracking"
       icon={<FileCheck className="h-5 w-5" />}
       loading={loading}
       error={error}

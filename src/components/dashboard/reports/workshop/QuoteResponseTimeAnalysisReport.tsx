@@ -60,50 +60,67 @@ export const QuoteResponseTimeAnalysisReport: React.FC<QuoteResponseTimeAnalysis
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.supplierResponseTimes) return null;
+    
+    // Calculate overall metrics from supplier data
+    const validSuppliers = data.supplierResponseTimes.filter((s: any) => s.avgResponseTime !== null);
+    const totalResponses = data.supplierResponseTimes.reduce((sum: number, s: any) => sum + (s.totalResponses || 0), 0);
+    const avgResponseTime = validSuppliers.length > 0
+      ? validSuppliers.reduce((sum: number, s: any) => sum + (s.avgResponseTime || 0), 0) / validSuppliers.length
+      : 0;
+    const minResponseTime = validSuppliers.length > 0
+      ? Math.min(...validSuppliers.map((s: any) => s.minResponseTime || Infinity))
+      : 0;
+    const maxResponseTime = validSuppliers.length > 0
+      ? Math.max(...validSuppliers.map((s: any) => s.maxResponseTime || 0))
+      : 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Avg Response Time"
-          value={`${(data.summary.avgResponseTime || 0).toFixed(1)}h`}
+          value={`${avgResponseTime.toFixed(1)}h`}
           icon={<Clock className="h-5 w-5" />}
         />
         <MetricCard
           title="Fastest Response"
-          value={`${(data.summary.fastestResponse || 0).toFixed(1)}h`}
+          value={`${minResponseTime.toFixed(1)}h`}
         />
         <MetricCard
           title="Slowest Response"
-          value={`${(data.summary.slowestResponse || 0).toFixed(1)}h`}
+          value={`${maxResponseTime.toFixed(1)}h`}
         />
         <MetricCard
           title="Total Responses"
-          value={data.summary.totalResponses || 0}
+          value={totalResponses}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.responseTimeByType) return null;
+    if (!data?.supplierResponseTimes) return null;
 
-    const chartData = data.responseTimeByType.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      avgResponseTime: item.avgResponseTime || 0,
-      minResponseTime: item.minResponseTime || 0,
-      maxResponseTime: item.maxResponseTime || 0,
-    }));
+    // Filter out entries with null avgResponseTime and map to chart data
+    const chartData = data.supplierResponseTimes
+      .filter((item: any) => item.avgResponseTime !== null)
+      .map((item: any) => ({
+        supplier: item.supplierName || item.supplierId || 'Unknown',
+        minResponseTime: item.minResponseTime || 0,
+        avgResponseTime: item.avgResponseTime || 0,
+        maxResponseTime: item.maxResponseTime || 0,
+      }));
 
     return (
       <div className="space-y-6">
         <div>
-          <h4 className="text-sm font-medium mb-4">Response Time by Quote Type (Hours)</h4>
+          <h4 className="text-sm font-medium mb-4">Response Time by Supplier (Hours)</h4>
           <StackedBarChart
             data={chartData}
-            xAxisKey="quoteType"
+            xAxisKey="supplier"
             series={[
-              { dataKey: 'avgResponseTime', name: 'Average', color: '#3b82f6' },
               { dataKey: 'minResponseTime', name: 'Minimum', color: '#10b981' },
+              { dataKey: 'avgResponseTime', name: 'Average', color: '#3b82f6' },
               { dataKey: 'maxResponseTime', name: 'Maximum', color: '#ef4444' },
             ]}
             height={300}
@@ -114,19 +131,19 @@ export const QuoteResponseTimeAnalysisReport: React.FC<QuoteResponseTimeAnalysis
   };
 
   const renderTable = () => {
-    if (!data?.responseTimeByType) return null;
+    if (!data?.supplierResponseTimes) return null;
 
-    const tableData = data.responseTimeByType.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      totalQuotes: item.totalQuotes || 0,
-      avgResponseTime: `${(item.avgResponseTime || 0).toFixed(2)}h`,
-      minResponseTime: `${(item.minResponseTime || 0).toFixed(2)}h`,
-      maxResponseTime: `${(item.maxResponseTime || 0).toFixed(2)}h`,
+    const tableData = data.supplierResponseTimes.map((item: any) => ({
+      supplier: item.supplierName || item.supplierId || 'Unknown',
+      totalResponses: item.totalResponses || 0,
+      avgResponseTime: item.avgResponseTime !== null ? `${item.avgResponseTime.toFixed(2)}h` : 'N/A',
+      minResponseTime: item.minResponseTime !== null ? `${item.minResponseTime.toFixed(2)}h` : 'N/A',
+      maxResponseTime: item.maxResponseTime !== null ? `${item.maxResponseTime.toFixed(2)}h` : 'N/A',
     }));
 
     const columns = [
-      { key: 'quoteType', label: 'Quote Type' },
-      { key: 'totalQuotes', label: 'Total Quotes' },
+      { key: 'supplier', label: 'Supplier' },
+      { key: 'totalResponses', label: 'Total Responses' },
       { key: 'avgResponseTime', label: 'Avg Response Time' },
       { key: 'minResponseTime', label: 'Min Response Time' },
       { key: 'maxResponseTime', label: 'Max Response Time' },

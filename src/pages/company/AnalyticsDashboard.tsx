@@ -26,24 +26,6 @@ import {
   VehicleCostDetailsReport,
 } from '@/components/dashboard/reports/vehicle';
 
-// Master Vehicle Reports
-import {
-  MasterVehicleInventoryReport,
-  MasterVehicleSpecificationsReport,
-  MasterVehicleSourceAnalysisReport,
-  MasterVehicleWorkshopStatusReport,
-  MasterVehiclePricingStrategyReport,
-} from '@/components/dashboard/reports/master-vehicle';
-
-// Advertise Vehicle Reports
-import {
-  AdvertisementPerformanceReport,
-  AdvertisementPricingAnalysisReport,
-  AdvertisementAttachmentQualityReport,
-  AdvertisementStatusTrackingReport,
-  AdvertisementConversionRatesReport,
-} from '@/components/dashboard/reports/advertise-vehicle';
-
 // Workshop Reports
 import {
   QuoteOverviewByStatusReport,
@@ -216,24 +198,6 @@ const AnalyticsDashboard: React.FC = () => {
           <VehicleOwnershipHistoryReport {...commonProps} />
           <VehicleQueueProcessingReport {...commonProps} />
           <VehicleCostDetailsReport {...commonProps} />
-        </ReportSection>
-
-        {/* Master Vehicle Analytics Section (5 components) */}
-        <ReportSection title="Master Vehicle Analytics" icon={<Car className="h-6 w-6" />}>
-          <MasterVehicleInventoryReport {...commonProps} />
-          <MasterVehicleSpecificationsReport {...commonProps} />
-          <MasterVehicleSourceAnalysisReport {...commonProps} />
-          <MasterVehicleWorkshopStatusReport {...commonProps} />
-          <MasterVehiclePricingStrategyReport {...commonProps} />
-        </ReportSection>
-
-        {/* Advertisement Vehicle Analytics Section (5 components) */}
-        <ReportSection title="Advertisement Vehicle Analytics" icon={<Car className="h-6 w-6" />}>
-          <AdvertisementPerformanceReport {...commonProps} />
-          <AdvertisementPricingAnalysisReport {...commonProps} />
-          <AdvertisementAttachmentQualityReport {...commonProps} />
-          <AdvertisementStatusTrackingReport {...commonProps} />
-          <AdvertisementConversionRatesReport {...commonProps} />
         </ReportSection>
 
         {/* Workshop Quote Analytics Section (12 components) */}

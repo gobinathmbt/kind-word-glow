@@ -92,22 +92,76 @@ export const QuoteOverviewByStatusReport: React.FC<QuoteOverviewByStatusReportPr
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusData: PieChartData[] = data.statusDistribution?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.totalCount || 0,
-    })) || [];
+    // Status Distribution with colors
+    const statusColors: Record<string, string> = {
+      'Completed Jobs': '#10b981',
+      'Work Review': '#3b82f6',
+      'Work In Progress': '#f59e0b',
+      'Quote Request': '#8b5cf6',
+      'Booking Request': '#06b6d4',
+      'Booking Accepted': '#10b981',
+      'Manual Completion In Progress': '#f59e0b',
+    };
 
-    const quoteTypeData: PieChartData[] = data.quoteTypeDistribution?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    const statusData: PieChartData[] = data.statusDistribution?.map((item: any) => {
+      const name = item._id.split('_').map((word: string) => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      return {
+        name,
+        value: item.totalCount || 0,
+        color: statusColors[name] || '#6b7280',
+      };
+    }) || [];
 
-    const dealershipData = data.dealershipAnalysis?.map((item: any) => ({
-      dealership: item.dealershipName || 'Unknown',
-      supplier: item.supplierQuotes || 0,
-      bay: item.bayQuotes || 0,
-      manual: item.manualQuotes || 0,
-    })) || [];
+    // Quote Type Distribution with colors
+    const quoteTypeColors: Record<string, string> = {
+      'Supplier': '#3b82f6',
+      'Bay': '#10b981',
+      'Manual': '#f59e0b',
+      'Unknown': '#6b7280',
+    };
+
+    const quoteTypeData: PieChartData[] = data.quoteTypeDistribution?.map((item: any) => {
+      const name = item._id ? item._id.charAt(0).toUpperCase() + item._id.slice(1) : 'Unknown';
+      return {
+        name,
+        value: item.count || 0,
+        color: quoteTypeColors[name] || '#6b7280',
+      };
+    }) || [];
+
+    // Status by Quote Type
+    const statusByQuoteTypeData = data.statusDistribution?.map((item: any) => {
+      const statusName = item._id.split('_').map((word: string) => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      const statusObj: any = { 
+        status: statusName,
+        total: item.totalCount,
+      };
+      item.quoteTypeBreakdown?.forEach((qt: any) => {
+        const qtName = qt.quoteType || 'unknown';
+        statusObj[qtName] = qt.count;
+      });
+      return statusObj;
+    }) || [];
+
+    // Quote Type with Status Breakdown
+    const quoteTypeStatusData = data.quoteTypeDistribution?.map((item: any) => {
+      const typeName = item._id ? item._id.charAt(0).toUpperCase() + item._id.slice(1) : 'Unknown';
+      const typeObj: any = { 
+        type: typeName,
+        total: item.count,
+        avgAmount: item.avgQuoteAmount,
+      };
+      if (item.statusCounts) {
+        Object.keys(item.statusCounts).forEach((status: string) => {
+          typeObj[status] = item.statusCounts[status];
+        });
+      }
+      return typeObj;
+    }) || [];
 
     return (
       <div className="space-y-6">
@@ -121,21 +175,36 @@ export const QuoteOverviewByStatusReport: React.FC<QuoteOverviewByStatusReportPr
             <InteractivePieChart data={quoteTypeData} height={300} />
           </div>
         </div>
-        {dealershipData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Dealership Comparison</h4>
+            <h4 className="text-sm font-medium mb-4">Status by Quote Type</h4>
             <StackedBarChart
-              data={dealershipData}
-              xAxisKey="dealership"
+              data={statusByQuoteTypeData}
+              xAxisKey="status"
               series={[
-                { dataKey: 'supplier', name: 'Supplier Quotes', color: '#3b82f6' },
-                { dataKey: 'bay', name: 'Bay Quotes', color: '#10b981' },
-                { dataKey: 'manual', name: 'Manual Quotes', color: '#f59e0b' },
+                { dataKey: 'supplier', name: 'Supplier', color: '#3b82f6' },
+                { dataKey: 'bay', name: 'Bay', color: '#10b981' },
+                { dataKey: 'manual', name: 'Manual', color: '#f59e0b' },
+                { dataKey: 'unknown', name: 'Unknown', color: '#6b7280' },
               ]}
               height={300}
             />
           </div>
-        )}
+          <div>
+            <h4 className="text-sm font-medium mb-4">Quote Type Status Breakdown</h4>
+            <StackedBarChart
+              data={quoteTypeStatusData}
+              xAxisKey="type"
+              series={[
+                { dataKey: 'completed_jobs', name: 'Completed', color: '#10b981' },
+                { dataKey: 'work_in_progress', name: 'In Progress', color: '#f59e0b' },
+                { dataKey: 'quote_request', name: 'Quote Request', color: '#8b5cf6' },
+                { dataKey: 'work_review', name: 'Review', color: '#3b82f6' },
+              ]}
+              height={300}
+            />
+          </div>
+        </div>
       </div>
     );
   };
@@ -143,18 +212,23 @@ export const QuoteOverviewByStatusReport: React.FC<QuoteOverviewByStatusReportPr
   const renderTable = () => {
     if (!data?.statusDistribution) return null;
 
-    const tableData = data.statusDistribution.map((item: any) => ({
-      status: item._id || 'Unknown',
-      totalCount: item.totalCount || 0,
-      avgQuoteAmount: item.avgQuoteAmount?.toFixed(2) || '0.00',
-      totalQuoteAmount: item.totalQuoteAmount?.toFixed(2) || '0.00',
-    }));
+    const tableData = data.statusDistribution.map((item: any) => {
+      const statusName = item._id.split('_').map((word: string) => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      return {
+        status: statusName,
+        totalCount: item.totalCount || 0,
+        avgQuoteAmount: `$${item.avgQuoteAmount?.toFixed(2) || '0.00'}`,
+        totalQuoteAmount: `$${item.totalQuoteAmount?.toFixed(2) || '0.00'}`,
+      };
+    });
 
     const columns = [
-      { key: 'status', label: 'Status' },
-      { key: 'totalCount', label: 'Total Count' },
-      { key: 'avgQuoteAmount', label: 'Avg Quote Amount' },
-      { key: 'totalQuoteAmount', label: 'Total Quote Amount' },
+      { key: 'status', label: 'Status', sortable: true },
+      { key: 'totalCount', label: 'Total Count', sortable: true },
+      { key: 'avgQuoteAmount', label: 'Avg Quote Amount', sortable: true },
+      { key: 'totalQuoteAmount', label: 'Total Quote Amount', sortable: true },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

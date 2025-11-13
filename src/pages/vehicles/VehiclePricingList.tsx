@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import VehiclePricingSideModal from "@/components/vehicles/VehicleSideModals/VehiclePricingSideModal";
+import { hasPermission } from "@/utils/permissionController";
 
 interface StatChip {
   label: string;
@@ -55,6 +56,8 @@ const VehiclePricingList = () => {
   const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
+  const canRefresh = hasPermission(completeUser, 'vehicle_pricing_refresh');
+  const canSearchFilter = hasPermission(completeUser, 'vehicle_pricing_search_filter');
 
   const { data: dealerships } = useQuery({
     queryKey: ["dealerships-dropdown", completeUser?.is_primary_admin],
@@ -260,9 +263,7 @@ const VehiclePricingList = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
-  };
+  
 
   // Calculate counts for chips
   const totalVehicles = vehiclesData?.total || 0;
@@ -311,19 +312,13 @@ const VehiclePricingList = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    {
+    ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: "Search & Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    },
-    {
-      icon: <Download className="h-4 w-4" />,
-      tooltip: "Export Report",
-      onClick: handleExport,
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    },
+    }] : []),
+   
   ];
 
   const STATUS_FILTER_OPTIONS = [
@@ -560,7 +555,7 @@ const VehiclePricingList = () => {
         getSortIcon={getSortIcon}
         renderTableHeader={renderTableHeader}
         renderTableBody={renderTableBody}
-        onRefresh={handleRefresh}
+        onRefresh={canRefresh ? handleRefresh : undefined}
         cookieName="vehicle_pricing_pagination"
       />
 

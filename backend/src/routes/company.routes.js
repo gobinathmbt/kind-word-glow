@@ -65,8 +65,6 @@ const {
 
 // Import all report controllers
 const vehicleReports = require('../controllers/reports/vehicle.report.controller');
-const masterVehicleReports = require('../controllers/reports/masterVehicle.report.controller');
-const advertiseVehicleReports = require('../controllers/reports/advertiseVehicle.report.controller');
 const workshopQuoteReports = require('../controllers/reports/workshopQuote.report.controller');
 const workshopReportReports = require('../controllers/reports/workshopReport.report.controller');
 const dealershipReports = require('../controllers/reports/dealership.report.controller');
@@ -169,20 +167,6 @@ router.get('/reports/vehicle/odometer-trends', vehicleReports.getVehicleOdometer
 router.get('/reports/vehicle/ownership-history', vehicleReports.getVehicleOwnershipHistory);
 router.get('/reports/vehicle/queue-processing', vehicleReports.getVehicleQueueProcessing);
 router.get('/reports/vehicle/cost-details', vehicleReports.getVehicleCostDetails);
-
-// MasterVehicle Reports (5 endpoints)
-router.get('/reports/master-vehicle/inventory', masterVehicleReports.getMasterVehicleInventory);
-router.get('/reports/master-vehicle/specifications', masterVehicleReports.getMasterVehicleSpecifications);
-router.get('/reports/master-vehicle/source-analysis', masterVehicleReports.getMasterVehicleSourceAnalysis);
-router.get('/reports/master-vehicle/workshop-status', masterVehicleReports.getMasterVehicleWorkshopStatus);
-router.get('/reports/master-vehicle/pricing-strategy', masterVehicleReports.getMasterVehiclePricingStrategy);
-
-// AdvertiseVehicle Reports (5 endpoints)
-router.get('/reports/advertise-vehicle/performance', advertiseVehicleReports.getAdvertisementPerformance);
-router.get('/reports/advertise-vehicle/pricing-analysis', advertiseVehicleReports.getAdvertisementPricingAnalysis);
-router.get('/reports/advertise-vehicle/attachment-quality', advertiseVehicleReports.getAdvertisementAttachmentQuality);
-router.get('/reports/advertise-vehicle/status-tracking', advertiseVehicleReports.getAdvertisementStatusTracking);
-router.get('/reports/advertise-vehicle/conversion-rates', advertiseVehicleReports.getAdvertisementConversionRates);
 
 // WorkshopQuote Reports (12 endpoints)
 router.get('/reports/workshop-quote/overview-by-status', workshopQuoteReports.getQuoteOverviewByStatus);
