@@ -23,7 +23,7 @@ import {
 import { useAuth } from "@/auth/AuthContext";
 import { dealershipServices, commonVehicleServices } from "@/api/services";
 import { toast } from "sonner";
-import { Building, Loader2 } from "lucide-react";
+import { Building, Loader2, Users } from "lucide-react";
 
 interface DealershipManagerButtonProps {
   vehicleData: {
@@ -181,7 +181,7 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
               className={`flex items-center gap-2 ${className}`}
               disabled={isLoading}
             >
-              <Building className="h-4 w-4" />
+              <Users className="h-4 w-4" />
               {size !== "icon" && (
                 isLoading ? (
                   <>

@@ -21,6 +21,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
   const [formData, setFormData] = useState({
     reading: odometer.reading || "",
     reading_date: odometer.reading_date ? new Date(odometer.reading_date).toISOString().split('T')[0] : "",
+    odometerCertified: odometer.odometerCertified || false,
+    odometerStatus: odometer.odometerStatus || "",
+    created_at: odometer.created_at,
   });
 
   const handleSave = async () => {
@@ -29,6 +32,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         vehicle_odometer: [{
           reading: formData.reading,
           reading_date: formData.reading_date,
+          odometerCertified: formData.odometerCertified,
+          odometerStatus: formData.odometerStatus,
+          created_at: formData.created_at || new Date().toISOString(),
         }]
       });
 
@@ -44,6 +50,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     setFormData({
       reading: odometer.reading || "",
       reading_date: odometer.reading_date ? new Date(odometer.reading_date).toISOString().split('T')[0] : "",
+      odometerCertified: odometer.odometerCertified || false,
+      odometerStatus: odometer.odometerStatus || "",
+      created_at: odometer.created_at,
     });
     setIsEditing(false);
   };

@@ -107,6 +107,17 @@ const VehicleSchema = new mongoose.Schema({
     {
       reading: Number,
       reading_date: Date,
+      odometerCertified: {
+        type: Boolean,
+        default: false,
+      },
+      odometerStatus: {
+        type: String,
+      },
+      created_at: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 
@@ -164,12 +175,13 @@ const VehicleSchema = new mongoose.Schema({
       exterior_secondary_color: String,
       steering_type: String,
       wheels_composition: String,
-      sunroof: Boolean,
+      sunroof: String,
       interior_trim: String,
       seat_material: String,
       tyre_size: String,
+      safety_features: [String],
       interior_features: [String],
-      exterior_features: [String],
+      other_feature: [String],
     },
   ],
 
