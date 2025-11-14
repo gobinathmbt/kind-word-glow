@@ -113,14 +113,18 @@ export const WorkshopReportOverviewReport: React.FC<WorkshopReportOverviewReport
   const renderCharts = () => {
     if (!data) return null;
 
-    const vehicleTypeData: PieChartData[] = data.vehicleTypeDistribution?.map((item: any) => ({
+    const vehicleTypeColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const vehicleTypeData: PieChartData[] = data.vehicleTypeDistribution?.map((item: any, index: number) => ({
       name: item._id || 'Unknown',
       value: item.count || 0,
+      color: vehicleTypeColors[index % vehicleTypeColors.length],
     })) || [];
 
-    const reportTypeData: PieChartData[] = data.reportTypeDistribution?.map((item: any) => ({
+    const reportTypeColors = ['#6366f1', '#ec4899', '#14b8a6', '#f97316'];
+    const reportTypeData: PieChartData[] = data.reportTypeDistribution?.map((item: any, index: number) => ({
       name: item._id || 'Unknown',
       value: item.count || 0,
+      color: reportTypeColors[index % reportTypeColors.length],
     })) || [];
 
     const monthlyTrendData = data.monthlyTrends?.map((item: any) => ({
@@ -131,9 +135,9 @@ export const WorkshopReportOverviewReport: React.FC<WorkshopReportOverviewReport
     })) || [];
 
     const revenueBreakdown = data.revenueMetrics ? [
-      { name: 'Parts', value: data.revenueMetrics.partsRevenue || 0 },
-      { name: 'Labor', value: data.revenueMetrics.laborRevenue || 0 },
-      { name: 'GST', value: data.revenueMetrics.gstRevenue || 0 },
+      { name: 'Parts', value: data.revenueMetrics.partsRevenue || 0, color: '#3b82f6' },
+      { name: 'Labor', value: data.revenueMetrics.laborRevenue || 0, color: '#10b981' },
+      { name: 'GST', value: data.revenueMetrics.gstRevenue || 0, color: '#f59e0b' },
     ] : [];
 
     return (

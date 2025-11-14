@@ -943,87 +943,193 @@ const getWorkshopTechnicianPerformance = async (req, res) => {
     ] : [];
 
     // 1. Technician Performance from Statistics
-    const technicianPerformance = await WorkshopReport.aggregate([
-      { $match: baseMatch },
-      ...dealershipLookupStage,
-      { $unwind: { path: '$statistics.technician_performance', preserveNullAndEmptyArrays: true } },
-      {
-        $group: {
-          _id: '$statistics.technician_performance.technician_name',
-          totalWorkEntries: { $sum: '$statistics.technician_performance.work_entries_completed' },
-          avgCompletionTime: { $avg: '$statistics.technician_performance.avg_completion_time' },
-          avgQualityScore: { $avg: '$statistics.technician_performance.quality_score' },
-          reportsWorkedOn: { $sum: 1 }
-        }
-      },
-      { $sort: { totalWorkEntries: -1 } }
-    ]);
+    let technicianPerformance = [];
+    try {
+      technicianPerformance = await WorkshopReport.aggregate([
+        { $match: baseMatch },
+        ...dealershipLookupStage,
+        { 
+          $match: { 
+            'statistics.technician_performance': { 
+              $exists: true, 
+              $ne: null
+            }
+          }
+        },
+        { $unwind: { path: '$statistics.technician_performance', preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            'statistics.technician_performance': { $ne: null },
+            'statistics.technician_performance.technician_name': { $exists: true, $ne: null, $ne: '' }
+          }
+        },
+        {
+          $group: {
+            _id: '$statistics.technician_performance.technician_name',
+            totalWorkEntries: { 
+              $sum: { 
+                $ifNull: ['$statistics.technician_performance.work_entries_completed', 0] 
+              } 
+            },
+            avgCompletionTime: { 
+              $avg: { 
+                $ifNull: ['$statistics.technician_performance.avg_completion_time', null] 
+              } 
+            },
+            avgQualityScore: { 
+              $avg: { 
+                $ifNull: ['$statistics.technician_performance.quality_score', null] 
+              } 
+            },
+            reportsWorkedOn: { $sum: 1 }
+          }
+        },
+        { $sort: { totalWorkEntries: -1 } }
+      ]);
+    } catch (err) {
+      console.error('Error in technicianPerformance aggregation:', err);
+      technicianPerformance = [];
+    }
 
     // 2. Work Entry Level Technician Analysis
-    const workEntryTechnicianAnalysis = await WorkshopReport.aggregate([
-      { $match: baseMatch },
-      ...dealershipLookupStage,
-      { $unwind: { path: '$quotes_data', preserveNullAndEmptyArrays: true } },
-      { $unwind: { path: '$quotes_data.work_details.work_entries', preserveNullAndEmptyArrays: true } },
-      {
-        $match: {
-          'quotes_data.work_details.work_entries.technician': { $exists: true, $ne: null, $ne: '' }
-        }
-      },
-      {
-        $group: {
-          _id: '$quotes_data.work_details.work_entries.technician',
-          totalWorkEntries: { $sum: 1 },
-          completedWorkEntries: {
-            $sum: {
+    let workEntryTechnicianAnalysis = [];
+    try {
+      workEntryTechnicianAnalysis = await WorkshopReport.aggregate([
+        { $match: baseMatch },
+        ...dealershipLookupStage,
+        {
+          $match: {
+            quotes_data: { 
+              $exists: true, 
+              $ne: null
+            }
+          }
+        },
+        { $unwind: { path: '$quotes_data', preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            'quotes_data.work_details': { $exists: true, $ne: null },
+            'quotes_data.work_details.work_entries': { 
+              $exists: true, 
+              $ne: null
+            }
+          }
+        },
+        { $unwind: { path: '$quotes_data.work_details.work_entries', preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            'quotes_data.work_details.work_entries.technician': { $exists: true, $ne: null, $ne: '' }
+          }
+        },
+        {
+          $group: {
+            _id: '$quotes_data.work_details.work_entries.technician',
+            totalWorkEntries: { $sum: 1 },
+            completedWorkEntries: {
+              $sum: {
+                $cond: [
+                  { $eq: [{ $ifNull: ['$quotes_data.work_details.work_entries.completed', false] }, true] },
+                  1,
+                  0
+                ]
+              }
+            },
+            totalPartsCost: { 
+              $sum: { 
+                $ifNull: ['$quotes_data.work_details.work_entries.parts_cost', 0] 
+              } 
+            },
+            totalLaborCost: { 
+              $sum: { 
+                $ifNull: ['$quotes_data.work_details.work_entries.labor_cost', 0] 
+              } 
+            },
+            avgLaborHours: { 
+              $avg: { 
+                $toDouble: { 
+                  $ifNull: ['$quotes_data.work_details.work_entries.labor_hours', 0] 
+                } 
+              } 
+            }
+          }
+        },
+        {
+          $project: {
+            technicianName: '$_id',
+            totalWorkEntries: 1,
+            completedWorkEntries: 1,
+            totalPartsCost: { $ifNull: ['$totalPartsCost', 0] },
+            totalLaborCost: { $ifNull: ['$totalLaborCost', 0] },
+            avgLaborHours: { $ifNull: ['$avgLaborHours', 0] },
+            completionRate: {
               $cond: [
-                { $eq: ['$quotes_data.work_details.work_entries.completed', true] },
-                1,
+                { $gt: ['$totalWorkEntries', 0] },
+                {
+                  $multiply: [
+                    { $divide: ['$completedWorkEntries', '$totalWorkEntries'] },
+                    100
+                  ]
+                },
                 0
               ]
+            },
+            totalRevenue: { 
+              $add: [
+                { $ifNull: ['$totalPartsCost', 0] }, 
+                { $ifNull: ['$totalLaborCost', 0] }
+              ] 
             }
-          },
-          totalPartsCost: { $sum: '$quotes_data.work_details.work_entries.parts_cost' },
-          totalLaborCost: { $sum: '$quotes_data.work_details.work_entries.labor_cost' },
-          avgLaborHours: { $avg: { $toDouble: '$quotes_data.work_details.work_entries.labor_hours' } }
-        }
-      },
-      {
-        $project: {
-          technicianName: '$_id',
-          totalWorkEntries: 1,
-          completedWorkEntries: 1,
-          totalPartsCost: 1,
-          totalLaborCost: 1,
-          avgLaborHours: 1,
-          completionRate: {
-            $multiply: [
-              { $divide: ['$completedWorkEntries', '$totalWorkEntries'] },
-              100
-            ]
-          },
-          totalRevenue: { $add: ['$totalPartsCost', '$totalLaborCost'] }
-        }
-      },
-      { $sort: { totalRevenue: -1 } }
-    ]);
+          }
+        },
+        { $sort: { totalRevenue: -1 } }
+      ]);
+    } catch (err) {
+      console.error('Error in workEntryTechnicianAnalysis aggregation:', err);
+      workEntryTechnicianAnalysis = [];
+    }
 
     // 3. Top Performing Technicians
-    const topTechnicians = await WorkshopReport.aggregate([
-      { $match: baseMatch },
-      ...dealershipLookupStage,
-      { $unwind: { path: '$statistics.technician_performance', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          technicianName: '$statistics.technician_performance.technician_name',
-          workEntriesCompleted: '$statistics.technician_performance.work_entries_completed',
-          avgCompletionTime: '$statistics.technician_performance.avg_completion_time',
-          qualityScore: '$statistics.technician_performance.quality_score'
-        }
-      },
-      { $sort: { qualityScore: -1, workEntriesCompleted: -1 } },
-      { $limit: 10 }
-    ]);
+    let topTechnicians = [];
+    try {
+      topTechnicians = await WorkshopReport.aggregate([
+        { $match: baseMatch },
+        ...dealershipLookupStage,
+        { 
+          $match: { 
+            'statistics.technician_performance': { 
+              $exists: true, 
+              $ne: null
+            }
+          }
+        },
+        { $unwind: { path: '$statistics.technician_performance', preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            'statistics.technician_performance': { $ne: null },
+            'statistics.technician_performance.technician_name': { $exists: true, $ne: null, $ne: '' }
+          }
+        },
+        {
+          $project: {
+            technicianName: '$statistics.technician_performance.technician_name',
+            workEntriesCompleted: { 
+              $ifNull: ['$statistics.technician_performance.work_entries_completed', 0] 
+            },
+            avgCompletionTime: { 
+              $ifNull: ['$statistics.technician_performance.avg_completion_time', 0] 
+            },
+            qualityScore: { 
+              $ifNull: ['$statistics.technician_performance.quality_score', 0] 
+            }
+          }
+        },
+        { $sort: { qualityScore: -1, workEntriesCompleted: -1 } },
+        { $limit: 10 }
+      ]);
+    } catch (err) {
+      console.error('Error in topTechnicians aggregation:', err);
+      topTechnicians = [];
+    }
 
     const response = formatReportResponse({
       technicianPerformance,
