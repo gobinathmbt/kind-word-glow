@@ -61,49 +61,61 @@ export const QuoteReworkPatternsReport: React.FC<QuoteReworkPatternsReportProps>
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.reworkRates) return null;
+
+    const totalQuotes = data.reworkRates.reduce((sum: number, item: any) => sum + (item.totalQuotes || 0), 0);
+    const totalReworks = data.reworkRates.reduce((sum: number, item: any) => sum + (item.reworkCount || 0), 0);
+    const totalCompleted = data.reworkRates.reduce((sum: number, item: any) => sum + (item.completedCount || 0), 0);
+    const avgReworkRate = data.reworkRates.length > 0
+      ? data.reworkRates.reduce((sum: number, item: any) => sum + (item.reworkRate || 0), 0) / data.reworkRates.length
+      : 0;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Reworks"
-          value={data.summary.totalReworks || 0}
+          value={totalReworks}
           icon={<RefreshCw className="h-5 w-5" />}
         />
         <MetricCard
-          title="Rework Rate"
-          value={`${(data.summary.reworkRate || 0).toFixed(1)}%`}
+          title="Avg Rework Rate"
+          value={`${avgReworkRate.toFixed(1)}%`}
         />
         <MetricCard
-          title="Avg Rework Time"
-          value={`${(data.summary.avgReworkTime || 0).toFixed(1)}h`}
+          title="Total Quotes"
+          value={totalQuotes}
         />
         <MetricCard
-          title="Rework Cost"
-          value={`$${(data.summary.totalReworkCost || 0).toFixed(2)}`}
+          title="Completed Jobs"
+          value={totalCompleted}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.reworkByReason) return null;
+    if (!data?.reworkRates) return null;
 
-    const pieData: PieChartData[] = data.reworkByReason.map((item: any) => ({
+    const typeColors = ['#ef4444', '#f87171', '#fca5a5', '#fecaca', '#fee2e2'];
+
+    const pieData: PieChartData[] = data.reworkRates.map((item: any, index: number) => ({
       name: item._id || 'Unknown',
-      value: item.count || 0,
+      value: item.reworkCount || 0,
+      color: typeColors[index % typeColors.length],
     }));
 
-    const barData = data.reworkByType?.map((item: any) => ({
+    const barData = data.reworkRates.map((item: any) => ({
       type: item._id || 'Unknown',
       reworks: item.reworkCount || 0,
+      completed: item.completedCount || 0,
       rate: item.reworkRate || 0,
-    })) || [];
+    }));
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Rework Reasons</h4>
+            <h4 className="text-sm font-medium mb-4">Rework Count by Quote Type</h4>
             <InteractivePieChart data={pieData} height={300} />
           </div>
           <div>
@@ -116,27 +128,55 @@ export const QuoteReworkPatternsReport: React.FC<QuoteReworkPatternsReportProps>
             />
           </div>
         </div>
+        {data.reworkBySupplier && data.reworkBySupplier.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Supplier Rework Performance</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {data.reworkBySupplier.map((supplier: any, index: number) => (
+                <div key={index} className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+                  <div className="text-lg font-semibold text-gray-800 mb-3">
+                    {supplier.supplierName || 'Unknown'}
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Jobs:</span>
+                      <span className="font-medium">{supplier.totalJobs || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Rework Count:</span>
+                      <span className="font-medium">{supplier.reworkCount || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-600">Rework Rate:</span>
+                      <span className="font-medium text-blue-700">{(supplier.reworkRate || 0).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.reworkByType) return null;
+    if (!data?.reworkRates) return null;
 
-    const tableData = data.reworkByType.map((item: any) => ({
+    const tableData = data.reworkRates.map((item: any) => ({
       quoteType: item._id || 'Unknown',
       totalQuotes: item.totalQuotes || 0,
       reworkCount: item.reworkCount || 0,
+      completedCount: item.completedCount || 0,
       reworkRate: `${(item.reworkRate || 0).toFixed(1)}%`,
-      avgReworkTime: `${(item.avgReworkTime || 0).toFixed(1)}h`,
     }));
 
     const columns = [
       { key: 'quoteType', label: 'Quote Type' },
       { key: 'totalQuotes', label: 'Total Quotes' },
       { key: 'reworkCount', label: 'Rework Count' },
+      { key: 'completedCount', label: 'Completed Count' },
       { key: 'reworkRate', label: 'Rework Rate' },
-      { key: 'avgReworkTime', label: 'Avg Rework Time' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;
