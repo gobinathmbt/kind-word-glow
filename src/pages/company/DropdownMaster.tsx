@@ -54,6 +54,8 @@ const DropdownMaster = () => {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dealershipFilter, setDealershipFilter] = useState("all");
+  const [settingsFilter, setSettingsFilter] = useState("all");
   const [selectedDropdown, setSelectedDropdown] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -69,7 +71,8 @@ const DropdownMaster = () => {
 
   // Permission checks
   const canRefresh = hasPermission(completeUser, 'drop_down_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'drop_down_search_filter');
+  const canSearch = hasPermission(completeUser, 'drop_down_search');
+  const canFilter = hasPermission(completeUser, 'drop_down_filter');
   const canCreate = hasPermission(completeUser, 'drop_down_create');
   const canToggleStatus = hasPermission(completeUser, 'drop_down_status_toggle');
   const canManageValuesSettings = hasPermission(completeUser, 'drop_down_manage_values_settings');
@@ -99,6 +102,7 @@ const DropdownMaster = () => {
           limit: 100,
           search: searchTerm,
           status: statusFilter !== "all" ? statusFilter : undefined,
+          dealership_id: dealershipFilter !== "all" ? dealershipFilter : undefined,
         };
 
         const response = await dropdownServices.getDropdowns(params);
@@ -111,9 +115,21 @@ const DropdownMaster = () => {
         }
       }
 
+      // Apply settings filter on frontend since it's more complex
+      let filteredData = allData;
+      if (settingsFilter !== "all") {
+        if (settingsFilter === "multi_select") {
+          filteredData = allData.filter((d: any) => d.allow_multiple_selection);
+        } else if (settingsFilter === "required") {
+          filteredData = allData.filter((d: any) => d.is_required);
+        } else if (settingsFilter === "multi_select_required") {
+          filteredData = allData.filter((d: any) => d.allow_multiple_selection && d.is_required);
+        }
+      }
+
       return {
-        data: allData,
-        total: allData.length,
+        data: filteredData,
+        total: filteredData.length,
       };
     } catch (error) {
       throw error;
@@ -126,20 +142,40 @@ const DropdownMaster = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["dropdowns", page, searchTerm, statusFilter, rowsPerPage]
-      : ["all-dropdowns", searchTerm, statusFilter],
+      ? ["dropdowns", page, searchTerm, statusFilter, dealershipFilter, settingsFilter, rowsPerPage]
+      : ["all-dropdowns", searchTerm, statusFilter, dealershipFilter, settingsFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllDropdowns();
       }
 
-      const response = await dropdownServices.getDropdowns({
+      const params: any = {
         page: page,
         limit: rowsPerPage,
         search: searchTerm,
         status: statusFilter !== "all" ? statusFilter : undefined,
-      });
-      return response.data;
+        dealership_id: dealershipFilter !== "all" ? dealershipFilter : undefined,
+      };
+
+      const response = await dropdownServices.getDropdowns(params);
+      
+      // Apply settings filter on frontend for paginated data as well
+      let filteredData = response.data.data;
+      if (settingsFilter !== "all") {
+        if (settingsFilter === "multi_select") {
+          filteredData = response.data.data.filter((d: any) => d.allow_multiple_selection);
+        } else if (settingsFilter === "required") {
+          filteredData = response.data.data.filter((d: any) => d.is_required);
+        } else if (settingsFilter === "multi_select_required") {
+          filteredData = response.data.data.filter((d: any) => d.allow_multiple_selection && d.is_required);
+        }
+      }
+
+      return {
+        ...response.data,
+        data: filteredData,
+        total: filteredData.length,
+      };
     },
   });
 
@@ -278,17 +314,37 @@ const DropdownMaster = () => {
     toast.success("Data refreshed");
   };
 
-
-
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setDealershipFilter("all");
+    setSettingsFilter("all");
     setPage(1);
     refetch();
   };
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  // Handle filter change
+  const handleFilterChange = () => {
+    setPage(1);
+    refetch();
+    setIsFilterDialogOpen(false);
+  };
+
   // Calculate counts for chips
-  const totalDropdowns = dropdownsData?.pagination?.total || 0;
+  const totalDropdowns = dropdownsData?.total || 0;
   const activeCount = dropdowns.filter((d: any) => d.is_active).length;
   const inactiveCount = dropdowns.filter((d: any) => !d.is_active).length;
   const multiSelectCount = dropdowns.filter(
@@ -331,21 +387,73 @@ const DropdownMaster = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
-   
-    ...(canCreate ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Create Dropdown",
-      onClick: () => setIsDialogOpen(true),
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    }] : []),
-   
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search dropdowns..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canCreate
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Create Dropdown",
+            onClick: () => setIsDialogOpen(true),
+            className:
+              "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   const { data: dealerships } = useQuery({
@@ -615,34 +723,38 @@ const DropdownMaster = () => {
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
 
-      {/* Search & Filter Dialog */}
+      {/* Filter Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Search & Filter</DialogTitle>
-            <DialogDescription>
-              Search and filter dropdown configurations
-            </DialogDescription>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search dropdowns..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          <div className="space-y-4 py-4">
+            {/* Dealership Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="dealership-filter">Filter by Dealership</Label>
+              <Select value={dealershipFilter} onValueChange={setDealershipFilter}>
+                <SelectTrigger id="dealership-filter">
+                  <SelectValue placeholder="Select dealership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dealerships</SelectItem>
+                  {dealerships?.map((dealership: any) => (
+                    <SelectItem key={dealership._id} value={dealership._id}>
+                      {dealership.dealership_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label htmlFor="status-filter">Status Filter</Label>
+
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Filter by Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
@@ -651,13 +763,43 @@ const DropdownMaster = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleClearFilters}>
-                <X className="h-4 w-4 mr-2" />
-                Clear
+
+            {/* Settings Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="settings-filter">Filter by Settings</Label>
+              <Select value={settingsFilter} onValueChange={setSettingsFilter}>
+                <SelectTrigger id="settings-filter">
+                  <SelectValue placeholder="Select settings" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Settings</SelectItem>
+                  <SelectItem value="multi_select">Multi-Select Only</SelectItem>
+                  <SelectItem value="required">Required Only</SelectItem>
+                  <SelectItem value="multi_select_required">Multi-Select & Required</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
               </Button>
-              <Button onClick={() => setIsFilterDialogOpen(false)}>
-                Apply Filters
+              <Button
+                onClick={handleFilterChange}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
               </Button>
             </div>
           </div>

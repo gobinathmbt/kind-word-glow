@@ -1,4 +1,3 @@
-
 const DropdownMaster = require('../models/DropdownMaster');
 const { logEvent } = require('./logs.controller');
 
@@ -34,7 +33,9 @@ const getDropdowns = async (req, res) => {
       searchQuery.$or = [
         { dropdown_name: { $regex: search, $options: 'i' } },
         { display_name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
+        { 'values.option_value': { $regex: search, $options: 'i' } },
+        { 'values.display_value': { $regex: search, $options: 'i' } }
       ];
     }
 
