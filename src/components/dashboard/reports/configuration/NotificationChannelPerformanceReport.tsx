@@ -63,27 +63,33 @@ export const NotificationChannelPerformanceReport: React.FC<NotificationChannelP
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+    const inApp = data.channelHealth?.inApp || {};
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
-          title="Total Channels"
-          value={summary.totalChannels || 0}
+          title="Total Configurations"
+          value={summary.totalConfigurations || 0}
           icon={<Radio className="h-5 w-5" />}
+          subtitle={`${summary.inAppEnabledConfigurations || 0} in-app enabled`}
         />
         <MetricCard
-          title="Active Channels"
-          value={summary.activeChannels || 0}
+          title="In-App Delivery Rate"
+          value={`${summary.overallInAppDeliveryRate || 0}%`}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${inApp.totalDelivered || 0} delivered`}
         />
         <MetricCard
-          title="Avg Delivery Rate"
-          value={`${summary.avgDeliveryRate || 0}%`}
+          title="In-App Read Rate"
+          value={`${summary.overallInAppReadRate || 0}%`}
           icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`${inApp.totalRead || 0} read`}
         />
         <MetricCard
-          title="Best Channel"
-          value={summary.bestChannel || 'N/A'}
+          title="Channel Health Score"
+          value={summary.overallChannelHealthScore || 0}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={inApp.healthStatus || 'N/A'}
         />
       </div>
     );
@@ -92,55 +98,173 @@ export const NotificationChannelPerformanceReport: React.FC<NotificationChannelP
   const renderCharts = () => {
     if (!data) return null;
 
-    const channelData: PieChartData[] = data.notificationsByChannel?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    // Performance status distribution
+    const hasStatusData = data.summary && (
+      (data.summary.excellentPerformers || 0) > 0 ||
+      (data.summary.goodPerformers || 0) > 0 ||
+      (data.summary.fairPerformers || 0) > 0 ||
+      (data.summary.poorPerformers || 0) > 0
+    );
+    
+    const statusData: PieChartData[] = hasStatusData
+      ? [
+          { name: 'Excellent', value: data.summary?.excellentPerformers || 0, color: '#10b981' },
+          { name: 'Good', value: data.summary?.goodPerformers || 0, color: '#84cc16' },
+          { name: 'Fair', value: data.summary?.fairPerformers || 0, color: '#f59e0b' },
+          { name: 'Poor', value: data.summary?.poorPerformers || 0, color: '#ef4444' },
+        ].filter(item => item.value > 0)
+      : [
+          { name: 'Excellent', value: 0, color: '#10b981' },
+          { name: 'Good', value: 0, color: '#84cc16' },
+          { name: 'Fair', value: 0, color: '#f59e0b' },
+          { name: 'Poor', value: 0, color: '#ef4444' },
+        ];
 
-    const performanceData = data.channels?.map((channel: any) => ({
-      name: channel.channelName || 'Unknown',
-      deliveryRate: channel.deliveryRate || 0,
-      engagementRate: channel.engagementRate || 0,
+    // Top performers
+    const performanceData = data.topChannelPerformers?.map((config: any) => ({
+      name: config.name || 'Unknown',
+      score: config.performanceScore || 0,
+      deliveryRate: config.deliveryRate || 0,
+      readRate: config.readRate || 0,
     })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Notifications by Channel</h4>
-            <InteractivePieChart data={channelData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Performance Status Distribution</h4>
+            <InteractivePieChart data={statusData} height={300} />
+            {!hasStatusData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No performance status data available
+              </p>
+            )}
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Channel Performance</h4>
+            <h4 className="text-sm font-medium mb-4">Top Channel Performers</h4>
             <StackedBarChart
               data={performanceData}
               xAxisKey="name"
               series={[
-                { dataKey: 'deliveryRate', name: 'Delivery %', color: '#3b82f6' },
-                { dataKey: 'engagementRate', name: 'Engagement %', color: '#10b981' },
+                { dataKey: 'score', name: 'Performance Score', color: '#3b82f6' },
               ]}
               height={300}
             />
           </div>
         </div>
 
-        {data.channels && data.channels.length > 0 && (
+        {data.channelHealth && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Channel Details</h4>
+            <h4 className="text-sm font-medium mb-4">In-App Channel Health</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-blue-600">{data.channelHealth.inApp?.totalSent || 0}</div>
+                <div className="text-sm text-gray-600 mt-1">Total Sent</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-green-600">{data.channelHealth.inApp?.deliveryRate || 0}%</div>
+                <div className="text-sm text-gray-600 mt-1">Delivery Rate</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-purple-600">{data.channelHealth.inApp?.readRate || 0}%</div>
+                <div className="text-sm text-gray-600 mt-1">Read Rate</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-orange-600">{data.channelHealth.inApp?.healthScore || 0}</div>
+                <div className="text-sm text-gray-600 mt-1">Health Score</div>
+                <div className="text-xs text-gray-500 mt-1">{data.channelHealth.inApp?.healthStatus || 'N/A'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {data.priorityChannelPerformance && data.priorityChannelPerformance.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Performance by Priority</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Priority</th>
+                    <th className="px-4 py-3 text-right font-medium">Sent</th>
+                    <th className="px-4 py-3 text-right font-medium">Delivered</th>
+                    <th className="px-4 py-3 text-right font-medium">Read</th>
+                    <th className="px-4 py-3 text-right font-medium">Delivery Rate</th>
+                    <th className="px-4 py-3 text-right font-medium">Read Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.priorityChannelPerformance.map((priority: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3 capitalize">{priority.priority || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{priority.sent || 0}</td>
+                      <td className="px-4 py-3 text-right">{priority.delivered || 0}</td>
+                      <td className="px-4 py-3 text-right">{priority.read || 0}</td>
+                      <td className="px-4 py-3 text-right">{priority.deliveryRate || 0}%</td>
+                      <td className="px-4 py-3 text-right">{priority.readRate || 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.configurationsWithIssues && data.configurationsWithIssues.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Configurations with Issues</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Configuration</th>
+                    <th className="px-4 py-3 text-right font-medium">Performance Score</th>
+                    <th className="px-4 py-3 text-right font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Failure Rate</th>
+                    <th className="px-4 py-3 text-right font-medium">Total Sent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.configurationsWithIssues.map((config: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{config.name || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{config.performanceScore || 0}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+                          {config.performanceStatus || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600">{config.failureRate || 0}%</td>
+                      <td className="px-4 py-3 text-right">{config.totalSent || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.configurations && data.configurations.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Configuration Channel Performance</h4>
             <DataTable
               columns={[
-                { key: 'channelName', label: 'Channel' },
-                { key: 'sent', label: 'Sent' },
+                { key: 'name', label: 'Configuration' },
+                { key: 'inAppSent', label: 'In-App Sent' },
                 { key: 'delivered', label: 'Delivered' },
+                { key: 'read', label: 'Read' },
                 { key: 'deliveryRate', label: 'Delivery Rate' },
-                { key: 'status', label: 'Status' },
+                { key: 'readRate', label: 'Read Rate' },
+                { key: 'performanceStatus', label: 'Status' },
               ]}
-              data={data.channels.map((channel: any) => ({
-                channelName: channel.channelName || 'N/A',
-                sent: channel.sentCount || 0,
-                delivered: channel.deliveredCount || 0,
-                deliveryRate: `${channel.deliveryRate || 0}%`,
-                status: channel.isActive ? 'Active' : 'Inactive',
+              data={data.configurations.map((config: any) => ({
+                name: config.name || 'N/A',
+                inAppSent: config.metrics?.inAppSent || 0,
+                delivered: config.metrics?.inAppDelivered || 0,
+                read: config.metrics?.inAppRead || 0,
+                deliveryRate: `${config.metrics?.deliveryRate || 0}%`,
+                readRate: `${config.metrics?.readRate || 0}%`,
+                performanceStatus: config.performanceStatus || 'N/A',
               }))}
             />
           </div>
@@ -150,26 +274,42 @@ export const NotificationChannelPerformanceReport: React.FC<NotificationChannelP
   };
 
   const renderTable = () => {
-    if (!data?.channels) return null;
+    if (!data?.configurations) return null;
 
-    const tableData = data.channels.map((channel: any) => ({
-      channelName: channel.channelName || 'Unknown',
-      sentCount: channel.sentCount || 0,
-      deliveredCount: channel.deliveredCount || 0,
-      failedCount: channel.failedCount || 0,
-      deliveryRate: `${channel.deliveryRate || 0}%`,
-      engagementRate: `${channel.engagementRate || 0}%`,
-      isActive: channel.isActive ? 'Active' : 'Inactive',
-    }));
+    const tableData = data.configurations.map((config: any) => {
+      const metrics = config.metrics || {};
+
+      return {
+        configurationName: config.name || 'Unknown',
+        isActive: config.isActive ? 'Active' : 'Inactive',
+        inAppEnabled: config.inAppEnabled ? 'Yes' : 'No',
+        totalNotifications: metrics.totalNotifications || 0,
+        inAppSent: metrics.inAppSent || 0,
+        inAppDelivered: metrics.inAppDelivered || 0,
+        inAppRead: metrics.inAppRead || 0,
+        inAppFailed: metrics.inAppFailed || 0,
+        deliveryRate: `${metrics.deliveryRate || 0}%`,
+        readRate: `${metrics.readRate || 0}%`,
+        failureRate: `${metrics.failureRate || 0}%`,
+        performanceScore: config.performanceScore || 0,
+        performanceStatus: config.performanceStatus || 'N/A',
+      };
+    });
 
     const columns = [
-      { key: 'channelName', label: 'Channel' },
-      { key: 'sentCount', label: 'Sent' },
-      { key: 'deliveredCount', label: 'Delivered' },
-      { key: 'failedCount', label: 'Failed' },
+      { key: 'configurationName', label: 'Configuration Name' },
+      { key: 'isActive', label: 'Active' },
+      { key: 'inAppEnabled', label: 'In-App Enabled' },
+      { key: 'totalNotifications', label: 'Total Notifications' },
+      { key: 'inAppSent', label: 'In-App Sent' },
+      { key: 'inAppDelivered', label: 'Delivered' },
+      { key: 'inAppRead', label: 'Read' },
+      { key: 'inAppFailed', label: 'Failed' },
       { key: 'deliveryRate', label: 'Delivery Rate' },
-      { key: 'engagementRate', label: 'Engagement Rate' },
-      { key: 'isActive', label: 'Status' },
+      { key: 'readRate', label: 'Read Rate' },
+      { key: 'failureRate', label: 'Failure Rate' },
+      { key: 'performanceScore', label: 'Performance Score' },
+      { key: 'performanceStatus', label: 'Performance Status' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

@@ -6,12 +6,12 @@
 
 const NotificationConfiguration = require('../../models/NotificationConfiguration');
 const Notification = require('../../models/Notification');
-const { 
-  getDealershipFilter, 
-  getDateFilter, 
-  formatReportResponse, 
+const {
+  getDealershipFilter,
+  getDateFilter,
+  formatReportResponse,
   handleReportError,
-  buildBasePipeline 
+  buildBasePipeline
 } = require('../../utils/reportHelpers');
 
 /**
@@ -35,10 +35,10 @@ const getNotificationEngagementMetrics = async (req, res) => {
       ...dateFilter
     };
 
-    // 1. Get all notification configurations
-    const configurations = await NotificationConfiguration.find({ 
+    // 1. Get all notification configurations with populated fields
+    const configurations = await NotificationConfiguration.find({
       company_id,
-      ...dateFilter 
+      ...dateFilter
     })
       .populate('created_by', 'first_name last_name email')
       .populate('updated_by', 'first_name last_name email')
@@ -56,79 +56,210 @@ const getNotificationEngagementMetrics = async (req, res) => {
       }));
     }
 
-    // 2. Get all notifications for these configurations
     const configIds = configurations.map(c => c._id);
-    const notifications = await Notification.find({
-      company_id,
-      configuration_id: { $in: configIds },
-      ...dateFilter
-    }).lean();
 
-    // 3. Analyze engagement for each configuration
+    // 2. Use aggregation pipeline to calculate metrics per configuration
+    const configMetrics = await Notification.aggregate([
+      {
+        $match: {
+          company_id,
+          configuration_id: { $in: configIds },
+          ...dateFilter
+        }
+      },
+      {
+        $facet: {
+          // Per-configuration metrics
+          perConfig: [
+            {
+              $group: {
+                _id: '$configuration_id',
+                totalSent: { $sum: 1 },
+                delivered: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', ['delivered', 'read']] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                read: { $sum: { $cond: ['$is_read', 1, 0] } },
+                failed: {
+                  $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] }
+                },
+                pending: {
+                  $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+                },
+                // Priority breakdown
+                priorityLow: {
+                  $sum: { $cond: [{ $eq: ['$priority', 'low'] }, 1, 0] }
+                },
+                priorityMedium: {
+                  $sum: { $cond: [{ $eq: ['$priority', 'medium'] }, 1, 0] }
+                },
+                priorityHigh: {
+                  $sum: { $cond: [{ $eq: ['$priority', 'high'] }, 1, 0] }
+                },
+                priorityUrgent: {
+                  $sum: { $cond: [{ $eq: ['$priority', 'urgent'] }, 1, 0] }
+                },
+                // Type breakdown
+                typeInfo: {
+                  $sum: { $cond: [{ $eq: ['$type', 'info'] }, 1, 0] }
+                },
+                typeSuccess: {
+                  $sum: { $cond: [{ $eq: ['$type', 'success'] }, 1, 0] }
+                },
+                typeWarning: {
+                  $sum: { $cond: [{ $eq: ['$type', 'warning'] }, 1, 0] }
+                },
+                typeError: {
+                  $sum: { $cond: [{ $eq: ['$type', 'error'] }, 1, 0] }
+                },
+                // Average time to read (in milliseconds)
+                avgTimeToRead: {
+                  $avg: {
+                    $cond: [
+                      { $and: ['$is_read', '$read_at', '$created_at'] },
+                      { $subtract: ['$read_at', '$created_at'] },
+                      null
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          // Overall statistics
+          overall: [
+            {
+              $group: {
+                _id: null,
+                totalNotifications: { $sum: 1 },
+                totalDelivered: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', ['delivered', 'read']] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                totalRead: { $sum: { $cond: ['$is_read', 1, 0] } },
+                totalFailed: {
+                  $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] }
+                }
+              }
+            }
+          ],
+          // Priority engagement
+          priorityStats: [
+            {
+              $group: {
+                _id: '$priority',
+                sent: { $sum: 1 },
+                read: { $sum: { $cond: ['$is_read', 1, 0] } }
+              }
+            }
+          ],
+          // Type engagement
+          typeStats: [
+            {
+              $group: {
+                _id: '$type',
+                sent: { $sum: 1 },
+                read: { $sum: { $cond: ['$is_read', 1, 0] } }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const aggregatedData = configMetrics[0];
+    const perConfigMetrics = aggregatedData.perConfig || [];
+    const overallStats = aggregatedData.overall[0] || {
+      totalNotifications: 0,
+      totalDelivered: 0,
+      totalRead: 0,
+      totalFailed: 0
+    };
+
+    // Create a map for quick lookup
+    const metricsMap = new Map();
+    perConfigMetrics.forEach(metric => {
+      metricsMap.set(metric._id.toString(), metric);
+    });
+
+    // Helper function to calculate engagement score
+    const calculateEngagementScore = (deliveryRate, readRate, failureRate, avgTimeToRead) => {
+      let score = 0;
+
+      if (deliveryRate >= 90) score += 30;
+      else if (deliveryRate >= 70) score += 20;
+      else if (deliveryRate >= 50) score += 10;
+
+      if (readRate >= 70) score += 40;
+      else if (readRate >= 50) score += 25;
+      else if (readRate >= 30) score += 15;
+
+      if (failureRate <= 5) score += 20;
+      else if (failureRate <= 10) score += 10;
+      else if (failureRate <= 20) score += 5;
+
+      if (avgTimeToRead <= 30) score += 10;
+      else if (avgTimeToRead <= 60) score += 5;
+
+      return score;
+    };
+
+    // 3. Build configuration analysis with aggregated metrics
     const configurationAnalysis = configurations.map(config => {
-      const configNotifications = notifications.filter(n => 
-        n.configuration_id.toString() === config._id.toString()
-      );
+      const metrics = metricsMap.get(config._id.toString()) || {
+        totalSent: 0,
+        delivered: 0,
+        read: 0,
+        failed: 0,
+        pending: 0,
+        priorityLow: 0,
+        priorityMedium: 0,
+        priorityHigh: 0,
+        priorityUrgent: 0,
+        typeInfo: 0,
+        typeSuccess: 0,
+        typeWarning: 0,
+        typeError: 0,
+        avgTimeToRead: 0
+      };
 
-      const totalSent = configNotifications.length;
-      const delivered = configNotifications.filter(n => 
-        n.status === 'delivered' || n.status === 'read'
-      ).length;
-      const read = configNotifications.filter(n => n.is_read).length;
-      const failed = configNotifications.filter(n => n.status === 'failed').length;
-      const pending = configNotifications.filter(n => n.status === 'pending').length;
+      const totalSent = metrics.totalSent;
+      const delivered = metrics.delivered;
+      const read = metrics.read;
+      const failed = metrics.failed;
+      const pending = metrics.pending;
 
-      // Calculate engagement rates
+      // Calculate rates
       const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
       const readRate = delivered > 0 ? Math.round((read / delivered) * 100) : 0;
       const failureRate = totalSent > 0 ? Math.round((failed / totalSent) * 100) : 0;
       const engagementRate = totalSent > 0 ? Math.round((read / totalSent) * 100) : 0;
 
-      // Calculate average time to read
-      const readNotifications = configNotifications.filter(n => n.is_read && n.read_at && n.created_at);
-      const avgTimeToRead = readNotifications.length > 0
-        ? Math.round(readNotifications.reduce((sum, n) => {
-            const timeToRead = new Date(n.read_at) - new Date(n.created_at);
-            return sum + timeToRead;
-          }, 0) / readNotifications.length / 1000 / 60) // Convert to minutes
+      // Convert avgTimeToRead from milliseconds to minutes
+      const avgTimeToRead = metrics.avgTimeToRead
+        ? Math.round(metrics.avgTimeToRead / 1000 / 60)
         : 0;
 
-      // Analyze by priority
-      const priorityBreakdown = {
-        low: configNotifications.filter(n => n.priority === 'low').length,
-        medium: configNotifications.filter(n => n.priority === 'medium').length,
-        high: configNotifications.filter(n => n.priority === 'high').length,
-        urgent: configNotifications.filter(n => n.priority === 'urgent').length
-      };
-
-      // Analyze by type
-      const typeBreakdown = {
-        info: configNotifications.filter(n => n.type === 'info').length,
-        success: configNotifications.filter(n => n.type === 'success').length,
-        warning: configNotifications.filter(n => n.type === 'warning').length,
-        error: configNotifications.filter(n => n.type === 'error').length
-      };
-
       // Calculate engagement score
-      let engagementScore = 0;
-      if (deliveryRate >= 90) engagementScore += 30;
-      else if (deliveryRate >= 70) engagementScore += 20;
-      else if (deliveryRate >= 50) engagementScore += 10;
-
-      if (readRate >= 70) engagementScore += 40;
-      else if (readRate >= 50) engagementScore += 25;
-      else if (readRate >= 30) engagementScore += 15;
-
-      if (failureRate <= 5) engagementScore += 20;
-      else if (failureRate <= 10) engagementScore += 10;
-      else if (failureRate <= 20) engagementScore += 5;
-
-      if (avgTimeToRead <= 30) engagementScore += 10;
-      else if (avgTimeToRead <= 60) engagementScore += 5;
+      const engagementScore = calculateEngagementScore(
+        deliveryRate,
+        readRate,
+        failureRate,
+        avgTimeToRead
+      );
 
       const engagementStatus = engagementScore >= 80 ? 'Excellent' :
-                              engagementScore >= 60 ? 'Good' :
-                              engagementScore >= 40 ? 'Fair' : 'Poor';
+        engagementScore >= 60 ? 'Good' :
+          engagementScore >= 40 ? 'Fair' : 'Poor';
 
       return {
         configurationId: config._id,
@@ -150,8 +281,18 @@ const getNotificationEngagementMetrics = async (req, res) => {
           engagementRate,
           avgTimeToReadMinutes: avgTimeToRead
         },
-        priorityBreakdown,
-        typeBreakdown,
+        priorityBreakdown: {
+          low: metrics.priorityLow,
+          medium: metrics.priorityMedium,
+          high: metrics.priorityHigh,
+          urgent: metrics.priorityUrgent
+        },
+        typeBreakdown: {
+          info: metrics.typeInfo,
+          success: metrics.typeSuccess,
+          warning: metrics.typeWarning,
+          error: metrics.typeError
+        },
         engagementScore,
         engagementStatus,
         createdBy: config.created_by ? {
@@ -163,21 +304,19 @@ const getNotificationEngagementMetrics = async (req, res) => {
     });
 
     // 4. Overall engagement statistics
-    const totalNotifications = notifications.length;
-    const totalDelivered = notifications.filter(n => 
-      n.status === 'delivered' || n.status === 'read'
-    ).length;
-    const totalRead = notifications.filter(n => n.is_read).length;
-    const totalFailed = notifications.filter(n => n.status === 'failed').length;
+    const totalNotifications = overallStats.totalNotifications;
+    const totalDelivered = overallStats.totalDelivered;
+    const totalRead = overallStats.totalRead;
+    const totalFailed = overallStats.totalFailed;
 
-    const overallDeliveryRate = totalNotifications > 0 
-      ? Math.round((totalDelivered / totalNotifications) * 100) 
+    const overallDeliveryRate = totalNotifications > 0
+      ? Math.round((totalDelivered / totalNotifications) * 100)
       : 0;
-    const overallReadRate = totalDelivered > 0 
-      ? Math.round((totalRead / totalDelivered) * 100) 
+    const overallReadRate = totalDelivered > 0
+      ? Math.round((totalRead / totalDelivered) * 100)
       : 0;
-    const overallEngagementRate = totalNotifications > 0 
-      ? Math.round((totalRead / totalNotifications) * 100) 
+    const overallEngagementRate = totalNotifications > 0
+      ? Math.round((totalRead / totalNotifications) * 100)
       : 0;
 
     // 5. Top performing configurations
@@ -206,54 +345,40 @@ const getNotificationEngagementMetrics = async (req, res) => {
         totalSent: c.metrics.totalSent
       }));
 
-    // 7. Engagement trends by priority
+    // 7. Process priority engagement from aggregation
     const priorityEngagement = {
-      low: {
-        sent: notifications.filter(n => n.priority === 'low').length,
-        read: notifications.filter(n => n.priority === 'low' && n.is_read).length
-      },
-      medium: {
-        sent: notifications.filter(n => n.priority === 'medium').length,
-        read: notifications.filter(n => n.priority === 'medium' && n.is_read).length
-      },
-      high: {
-        sent: notifications.filter(n => n.priority === 'high').length,
-        read: notifications.filter(n => n.priority === 'high' && n.is_read).length
-      },
-      urgent: {
-        sent: notifications.filter(n => n.priority === 'urgent').length,
-        read: notifications.filter(n => n.priority === 'urgent' && n.is_read).length
-      }
+      low: { sent: 0, read: 0, readRate: 0 },
+      medium: { sent: 0, read: 0, readRate: 0 },
+      high: { sent: 0, read: 0, readRate: 0 },
+      urgent: { sent: 0, read: 0, readRate: 0 }
     };
 
-    Object.keys(priorityEngagement).forEach(priority => {
-      const data = priorityEngagement[priority];
-      data.readRate = data.sent > 0 ? Math.round((data.read / data.sent) * 100) : 0;
+    aggregatedData.priorityStats.forEach(stat => {
+      if (stat._id && priorityEngagement[stat._id]) {
+        priorityEngagement[stat._id].sent = stat.sent;
+        priorityEngagement[stat._id].read = stat.read;
+        priorityEngagement[stat._id].readRate = stat.sent > 0
+          ? Math.round((stat.read / stat.sent) * 100)
+          : 0;
+      }
     });
 
-    // 8. Engagement trends by type
+    // 8. Process type engagement from aggregation
     const typeEngagement = {
-      info: {
-        sent: notifications.filter(n => n.type === 'info').length,
-        read: notifications.filter(n => n.type === 'info' && n.is_read).length
-      },
-      success: {
-        sent: notifications.filter(n => n.type === 'success').length,
-        read: notifications.filter(n => n.type === 'success' && n.is_read).length
-      },
-      warning: {
-        sent: notifications.filter(n => n.type === 'warning').length,
-        read: notifications.filter(n => n.type === 'warning' && n.is_read).length
-      },
-      error: {
-        sent: notifications.filter(n => n.type === 'error').length,
-        read: notifications.filter(n => n.type === 'error' && n.is_read).length
-      }
+      info: { sent: 0, read: 0, readRate: 0 },
+      success: { sent: 0, read: 0, readRate: 0 },
+      warning: { sent: 0, read: 0, readRate: 0 },
+      error: { sent: 0, read: 0, readRate: 0 }
     };
 
-    Object.keys(typeEngagement).forEach(type => {
-      const data = typeEngagement[type];
-      data.readRate = data.sent > 0 ? Math.round((data.read / data.sent) * 100) : 0;
+    aggregatedData.typeStats.forEach(stat => {
+      if (stat._id && typeEngagement[stat._id]) {
+        typeEngagement[stat._id].sent = stat.sent;
+        typeEngagement[stat._id].read = stat.read;
+        typeEngagement[stat._id].readRate = stat.sent > 0
+          ? Math.round((stat.read / stat.sent) * 100)
+          : 0;
+      }
     });
 
     // 9. Active vs inactive configuration performance
@@ -332,9 +457,9 @@ const getNotificationTriggerAnalysis = async (req, res) => {
     };
 
     // 1. Get all notification configurations
-    const configurations = await NotificationConfiguration.find({ 
+    const configurations = await NotificationConfiguration.find({
       company_id,
-      ...dateFilter 
+      ...dateFilter
     })
       .populate('created_by', 'first_name last_name email')
       .lean();
@@ -351,61 +476,115 @@ const getNotificationTriggerAnalysis = async (req, res) => {
       }));
     }
 
-    // 2. Get notifications for effectiveness analysis
     const configIds = configurations.map(c => c._id);
-    const notifications = await Notification.find({
-      company_id,
-      configuration_id: { $in: configIds },
-      ...dateFilter
-    }).lean();
 
-    // 3. Analyze by trigger type
-    const triggerTypeGroups = configurations.reduce((acc, config) => {
+    // 2. Create configuration lookup maps for grouping
+    const configByTriggerType = new Map();
+    const configByTargetSchema = new Map();
+    const configByTargetUserType = new Map();
+
+    configurations.forEach(config => {
       const triggerType = config.trigger_type || 'unknown';
-      if (!acc[triggerType]) {
-        acc[triggerType] = [];
+      const targetSchema = config.target_schema || 'unknown';
+      const targetUserType = config.target_users?.type || 'all';
+
+      if (!configByTriggerType.has(triggerType)) {
+        configByTriggerType.set(triggerType, []);
       }
-      acc[triggerType].push(config);
-      return acc;
-    }, {});
+      configByTriggerType.get(triggerType).push(config);
 
-    const triggerTypeAnalysis = Object.entries(triggerTypeGroups).map(([triggerType, configs]) => {
-      const configIds = configs.map(c => c._id.toString());
-      const triggerNotifications = notifications.filter(n => 
-        configIds.includes(n.configuration_id.toString())
-      );
+      if (!configByTargetSchema.has(targetSchema)) {
+        configByTargetSchema.set(targetSchema, []);
+      }
+      configByTargetSchema.get(targetSchema).push(config);
 
-      const totalSent = triggerNotifications.length;
-      const delivered = triggerNotifications.filter(n => 
-        n.status === 'delivered' || n.status === 'read'
-      ).length;
-      const read = triggerNotifications.filter(n => n.is_read).length;
+      if (!configByTargetUserType.has(targetUserType)) {
+        configByTargetUserType.set(targetUserType, []);
+      }
+      configByTargetUserType.get(targetUserType).push(config);
+    });
+
+    // 3. Use aggregation to get notification metrics grouped by configuration
+    const notificationMetrics = await Notification.aggregate([
+      {
+        $match: {
+          company_id,
+          configuration_id: { $in: configIds },
+          ...dateFilter
+        }
+      },
+      {
+        $group: {
+          _id: '$configuration_id',
+          totalSent: { $sum: 1 },
+          delivered: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', ['delivered', 'read']] },
+                1,
+                0
+              ]
+            }
+          },
+          read: { $sum: { $cond: ['$is_read', 1, 0] } }
+        }
+      }
+    ]);
+
+    // Create metrics lookup map
+    const metricsMap = new Map();
+    notificationMetrics.forEach(metric => {
+      metricsMap.set(metric._id.toString(), metric);
+    });
+
+    // Helper function to calculate effectiveness score
+    const calculateEffectivenessScore = (deliveryRate, readRate, activeRatio) => {
+      let score = 0;
+
+      if (deliveryRate >= 90) score += 40;
+      else if (deliveryRate >= 70) score += 25;
+      else if (deliveryRate >= 50) score += 15;
+
+      if (readRate >= 70) score += 40;
+      else if (readRate >= 50) score += 25;
+      else if (readRate >= 30) score += 15;
+
+      if (activeRatio >= 0.7) score += 20;
+      else if (activeRatio >= 0.5) score += 10;
+
+      return score;
+    };
+
+    // 4. Analyze by trigger type
+    const triggerTypeAnalysis = Array.from(configByTriggerType.entries()).map(([triggerType, configs]) => {
+      let totalSent = 0;
+      let delivered = 0;
+      let read = 0;
+
+      configs.forEach(config => {
+        const metrics = metricsMap.get(config._id.toString());
+        if (metrics) {
+          totalSent += metrics.totalSent;
+          delivered += metrics.delivered;
+          read += metrics.read;
+        }
+      });
 
       const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
       const readRate = delivered > 0 ? Math.round((read / delivered) * 100) : 0;
+      const activeCount = configs.filter(c => c.is_active).length;
+      const activeRatio = configs.length > 0 ? activeCount / configs.length : 0;
 
-      // Calculate effectiveness score
-      let effectivenessScore = 0;
-      if (deliveryRate >= 90) effectivenessScore += 40;
-      else if (deliveryRate >= 70) effectivenessScore += 25;
-      else if (deliveryRate >= 50) effectivenessScore += 15;
-
-      if (readRate >= 70) effectivenessScore += 40;
-      else if (readRate >= 50) effectivenessScore += 25;
-      else if (readRate >= 30) effectivenessScore += 15;
-
-      if (configs.filter(c => c.is_active).length / configs.length >= 0.7) effectivenessScore += 20;
-      else if (configs.filter(c => c.is_active).length / configs.length >= 0.5) effectivenessScore += 10;
-
+      const effectivenessScore = calculateEffectivenessScore(deliveryRate, readRate, activeRatio);
       const effectivenessStatus = effectivenessScore >= 80 ? 'Highly Effective' :
-                                 effectivenessScore >= 60 ? 'Effective' :
-                                 effectivenessScore >= 40 ? 'Moderately Effective' : 'Needs Improvement';
+        effectivenessScore >= 60 ? 'Effective' :
+          effectivenessScore >= 40 ? 'Moderately Effective' : 'Needs Improvement';
 
       return {
         triggerType,
         configurationCount: configs.length,
-        activeConfigurations: configs.filter(c => c.is_active).length,
-        inactiveConfigurations: configs.filter(c => !c.is_active).length,
+        activeConfigurations: activeCount,
+        inactiveConfigurations: configs.length - activeCount,
         totalNotificationsSent: totalSent,
         delivered,
         read,
@@ -413,8 +592,8 @@ const getNotificationTriggerAnalysis = async (req, res) => {
         readRate,
         effectivenessScore,
         effectivenessStatus,
-        avgNotificationsPerConfig: configs.length > 0 
-          ? Math.round((totalSent / configs.length) * 10) / 10 
+        avgNotificationsPerConfig: configs.length > 0
+          ? Math.round((totalSent / configs.length) * 10) / 10
           : 0,
         configurations: configs.map(c => ({
           configurationId: c._id,
@@ -425,24 +604,18 @@ const getNotificationTriggerAnalysis = async (req, res) => {
       };
     }).sort((a, b) => b.effectivenessScore - a.effectivenessScore);
 
-    // 4. Analyze by target schema
-    const targetSchemaGroups = configurations.reduce((acc, config) => {
-      const schema = config.target_schema || 'unknown';
-      if (!acc[schema]) {
-        acc[schema] = [];
-      }
-      acc[schema].push(config);
-      return acc;
-    }, {});
+    // 5. Analyze by target schema
+    const targetSchemaAnalysis = Array.from(configByTargetSchema.entries()).map(([schema, configs]) => {
+      let totalSent = 0;
+      let read = 0;
 
-    const targetSchemaAnalysis = Object.entries(targetSchemaGroups).map(([schema, configs]) => {
-      const configIds = configs.map(c => c._id.toString());
-      const schemaNotifications = notifications.filter(n => 
-        configIds.includes(n.configuration_id.toString())
-      );
-
-      const totalSent = schemaNotifications.length;
-      const read = schemaNotifications.filter(n => n.is_read).length;
+      configs.forEach(config => {
+        const metrics = metricsMap.get(config._id.toString());
+        if (metrics) {
+          totalSent += metrics.totalSent;
+          read += metrics.read;
+        }
+      });
 
       // Analyze trigger type distribution for this schema
       const triggerDistribution = configs.reduce((acc, c) => {
@@ -458,78 +631,77 @@ const getNotificationTriggerAnalysis = async (req, res) => {
         totalRead: read,
         readRate: totalSent > 0 ? Math.round((read / totalSent) * 100) : 0,
         triggerDistribution,
-        avgNotificationsPerConfig: configs.length > 0 
-          ? Math.round((totalSent / configs.length) * 10) / 10 
+        avgNotificationsPerConfig: configs.length > 0
+          ? Math.round((totalSent / configs.length) * 10) / 10
           : 0
       };
     }).sort((a, b) => b.totalNotificationsSent - a.totalNotificationsSent);
 
-    // 5. Analyze target user configurations
-    const targetUserTypeDistribution = configurations.reduce((acc, config) => {
-      const userType = config.target_users?.type || 'all';
-      acc[userType] = (acc[userType] || 0) + 1;
-      return acc;
-    }, {});
+    // 6. Analyze target user configurations
+    const targetUserAnalysis = Array.from(configByTargetUserType.entries()).map(([userType, configs]) => {
+      let totalSent = 0;
+      let read = 0;
 
-    const targetUserAnalysis = Object.entries(targetUserTypeDistribution).map(([userType, count]) => {
-      const configs = configurations.filter(c => c.target_users?.type === userType);
-      const configIds = configs.map(c => c._id.toString());
-      const userTypeNotifications = notifications.filter(n => 
-        configIds.includes(n.configuration_id.toString())
-      );
-
-      const totalSent = userTypeNotifications.length;
-      const read = userTypeNotifications.filter(n => n.is_read).length;
+      configs.forEach(config => {
+        const metrics = metricsMap.get(config._id.toString());
+        if (metrics) {
+          totalSent += metrics.totalSent;
+          read += metrics.read;
+        }
+      });
 
       return {
         targetUserType: userType,
-        configurationCount: count,
-        percentage: Math.round((count / configurations.length) * 100),
+        configurationCount: configs.length,
+        percentage: Math.round((configs.length / configurations.length) * 100),
         totalNotificationsSent: totalSent,
         totalRead: read,
         readRate: totalSent > 0 ? Math.round((read / totalSent) * 100) : 0
       };
     }).sort((a, b) => b.configurationCount - a.configurationCount);
 
-    // 6. Analyze condition complexity
-    const configurationsWithTimeConditions = configurations.filter(c => 
+    // 7. Analyze condition complexity (done in memory as it's config-level data)
+    const configurationsWithTimeConditions = configurations.filter(c =>
       c.conditions?.time_based?.enabled
     );
-    const configurationsWithFrequencyLimits = configurations.filter(c => 
+    const configurationsWithFrequencyLimits = configurations.filter(c =>
       c.conditions?.frequency_limit?.enabled
     );
-    const configurationsWithTargetFields = configurations.filter(c => 
+    const configurationsWithTargetFields = configurations.filter(c =>
       c.target_fields && c.target_fields.length > 0
     );
 
-    // 7. Analyze custom event configurations
-    const customEventConfigs = configurations.filter(c => 
+    // 8. Analyze custom event configurations
+    const customEventConfigs = configurations.filter(c =>
       c.custom_event_config && c.custom_event_config.event_name
     );
 
-    // 8. Most and least effective triggers
+    // 9. Most and least effective triggers
     const mostEffectiveTrigger = triggerTypeAnalysis[0];
     const leastEffectiveTrigger = triggerTypeAnalysis[triggerTypeAnalysis.length - 1];
 
-    // 9. Most active target schemas
+    // 10. Most active target schemas
     const mostActiveSchema = targetSchemaAnalysis[0];
 
-    // 10. Trigger complexity analysis
+    // 11. Trigger complexity analysis
     const avgTargetFieldsPerConfig = configurations.length > 0
-      ? Math.round((configurations.reduce((sum, c) => 
-          sum + (c.target_fields?.length || 0), 0) / configurations.length) * 10) / 10
+      ? Math.round((configurations.reduce((sum, c) =>
+        sum + (c.target_fields?.length || 0), 0) / configurations.length) * 10) / 10
       : 0;
 
     const avgConditionsPerConfig = configurations.length > 0
       ? Math.round((configurations.reduce((sum, c) => {
-          let conditionCount = 0;
-          if (c.conditions?.time_based?.enabled) conditionCount++;
-          if (c.conditions?.frequency_limit?.enabled) conditionCount++;
-          return sum + conditionCount;
-        }, 0) / configurations.length) * 10) / 10
+        let conditionCount = 0;
+        if (c.conditions?.time_based?.enabled) conditionCount++;
+        if (c.conditions?.frequency_limit?.enabled) conditionCount++;
+        return sum + conditionCount;
+      }, 0) / configurations.length) * 10) / 10
       : 0;
 
-    // 11. Summary statistics
+    // 12. Calculate total notifications sent
+    const totalNotificationsSent = notificationMetrics.reduce((sum, m) => sum + m.totalSent, 0);
+
+    // 13. Summary statistics
     const summaryStats = {
       totalConfigurations: configurations.length,
       activeConfigurations: configurations.filter(c => c.is_active).length,
@@ -547,9 +719,9 @@ const getNotificationTriggerAnalysis = async (req, res) => {
       customEventConfigurations: customEventConfigs.length,
       avgTargetFieldsPerConfig,
       avgConditionsPerConfig,
-      totalNotificationsSent: notifications.length,
+      totalNotificationsSent,
       avgNotificationsPerConfig: configurations.length > 0
-        ? Math.round((notifications.length / configurations.length) * 10) / 10
+        ? Math.round((totalNotificationsSent / configurations.length) * 10) / 10
         : 0
     };
 
@@ -608,9 +780,9 @@ const getNotificationChannelPerformance = async (req, res) => {
     };
 
     // 1. Get all notification configurations
-    const configurations = await NotificationConfiguration.find({ 
+    const configurations = await NotificationConfiguration.find({
       company_id,
-      ...dateFilter 
+      ...dateFilter
     }).lean();
 
     if (configurations.length === 0) {
@@ -625,48 +797,190 @@ const getNotificationChannelPerformance = async (req, res) => {
       }));
     }
 
-    // 2. Get all notifications
     const configIds = configurations.map(c => c._id);
-    const notifications = await Notification.find({
-      company_id,
-      configuration_id: { $in: configIds },
-      ...dateFilter
-    }).lean();
 
-    // 3. Analyze in-app channel performance
-    const inAppNotifications = notifications.filter(n => n.channels?.in_app);
-    const inAppSent = inAppNotifications.filter(n => n.channels.in_app.sent).length;
-    const inAppDelivered = inAppNotifications.filter(n => 
-      n.status === 'delivered' || n.status === 'read'
-    ).length;
-    const inAppRead = inAppNotifications.filter(n => n.is_read).length;
-    const inAppFailed = inAppNotifications.filter(n => 
-      n.channels.in_app.error
-    ).length;
+    // 2. Use aggregation pipeline to calculate channel metrics
+    const channelMetrics = await Notification.aggregate([
+      {
+        $match: {
+          company_id,
+          configuration_id: { $in: configIds },
+          ...dateFilter
+        }
+      },
+      {
+        $facet: {
+          // Per-configuration metrics
+          perConfig: [
+            {
+              $group: {
+                _id: '$configuration_id',
+                totalNotifications: { $sum: 1 },
+                inAppSent: {
+                  $sum: { $cond: ['$channels.in_app.sent', 1, 0] }
+                },
+                inAppDelivered: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          '$channels.in_app',
+                          { $in: ['$status', ['delivered', 'read']] }
+                        ]
+                      },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                inAppRead: {
+                  $sum: {
+                    $cond: [
+                      { $and: ['$channels.in_app', '$is_read'] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                inAppFailed: {
+                  $sum: { $cond: ['$channels.in_app.error', 1, 0] }
+                }
+              }
+            }
+          ],
+          // Overall in-app metrics
+          overallInApp: [
+            {
+              $match: { 'channels.in_app': { $exists: true } }
+            },
+            {
+              $group: {
+                _id: null,
+                totalSent: {
+                  $sum: { $cond: ['$channels.in_app.sent', 1, 0] }
+                },
+                totalDelivered: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', ['delivered', 'read']] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                totalRead: { $sum: { $cond: ['$is_read', 1, 0] } },
+                totalFailed: {
+                  $sum: { $cond: ['$channels.in_app.error', 1, 0] }
+                },
+                avgDeliveryTime: {
+                  $avg: {
+                    $cond: [
+                      {
+                        $and: [
+                          '$channels.in_app.sent',
+                          '$channels.in_app.sent_at',
+                          '$created_at'
+                        ]
+                      },
+                      {
+                        $subtract: ['$channels.in_app.sent_at', '$created_at']
+                      },
+                      null
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          // Hourly patterns
+          hourlyPatterns: [
+            {
+              $project: {
+                hour: { $hour: '$created_at' },
+                status: 1,
+                is_read: 1
+              }
+            },
+            {
+              $group: {
+                _id: '$hour',
+                sent: { $sum: 1 },
+                delivered: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', ['delivered', 'read']] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                read: { $sum: { $cond: ['$is_read', 1, 0] } }
+              }
+            },
+            { $sort: { _id: 1 } }
+          ],
+          // Priority performance
+          priorityStats: [
+            {
+              $group: {
+                _id: '$priority',
+                sent: { $sum: 1 },
+                delivered: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', ['delivered', 'read']] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                read: { $sum: { $cond: ['$is_read', 1, 0] } }
+              }
+            }
+          ]
+        }
+      }
+    ]);
 
-    const inAppDeliveryRate = inAppSent > 0 
-      ? Math.round((inAppDelivered / inAppSent) * 100) 
+    const aggregatedData = channelMetrics[0];
+    const perConfigMetrics = aggregatedData.perConfig || [];
+    const overallInAppStats = aggregatedData.overallInApp[0] || {
+      totalSent: 0,
+      totalDelivered: 0,
+      totalRead: 0,
+      totalFailed: 0,
+      avgDeliveryTime: 0
+    };
+
+    // Create metrics lookup map
+    const metricsMap = new Map();
+    perConfigMetrics.forEach(metric => {
+      metricsMap.set(metric._id.toString(), metric);
+    });
+
+    // 3. Calculate overall in-app metrics
+    const inAppSent = overallInAppStats.totalSent;
+    const inAppDelivered = overallInAppStats.totalDelivered;
+    const inAppRead = overallInAppStats.totalRead;
+    const inAppFailed = overallInAppStats.totalFailed;
+
+    const inAppDeliveryRate = inAppSent > 0
+      ? Math.round((inAppDelivered / inAppSent) * 100)
       : 0;
-    const inAppReadRate = inAppDelivered > 0 
-      ? Math.round((inAppRead / inAppDelivered) * 100) 
+    const inAppReadRate = inAppDelivered > 0
+      ? Math.round((inAppRead / inAppDelivered) * 100)
       : 0;
-    const inAppFailureRate = inAppSent > 0 
-      ? Math.round((inAppFailed / inAppSent) * 100) 
+    const inAppFailureRate = inAppSent > 0
+      ? Math.round((inAppFailed / inAppSent) * 100)
       : 0;
 
-    // Calculate average delivery time for in-app
-    const inAppDeliveredNotifications = inAppNotifications.filter(n => 
-      n.channels.in_app.sent && n.channels.in_app.sent_at && n.created_at
-    );
-    const avgInAppDeliveryTime = inAppDeliveredNotifications.length > 0
-      ? Math.round(inAppDeliveredNotifications.reduce((sum, n) => {
-          const deliveryTime = new Date(n.channels.in_app.sent_at) - new Date(n.created_at);
-          return sum + deliveryTime;
-        }, 0) / inAppDeliveredNotifications.length / 1000) // Convert to seconds
+    // Convert average delivery time from milliseconds to seconds
+    const avgInAppDeliveryTime = overallInAppStats.avgDeliveryTime
+      ? Math.round(overallInAppStats.avgDeliveryTime / 1000)
       : 0;
 
     // 4. Analyze channel configuration preferences
-    const inAppEnabledConfigs = configurations.filter(c => 
+    const inAppEnabledConfigs = configurations.filter(c =>
       c.notification_channels?.in_app !== false
     );
 
@@ -678,45 +992,48 @@ const getNotificationChannelPerformance = async (req, res) => {
         : 0
     };
 
+    // Helper function to calculate performance score
+    const calculatePerformanceScore = (deliveryRate, readRate, failureRate) => {
+      let score = 0;
+
+      if (deliveryRate >= 95) score += 40;
+      else if (deliveryRate >= 85) score += 30;
+      else if (deliveryRate >= 70) score += 20;
+
+      if (readRate >= 70) score += 40;
+      else if (readRate >= 50) score += 25;
+      else if (readRate >= 30) score += 15;
+
+      if (failureRate === 0) score += 20;
+      else if (failureRate <= 5) score += 10;
+
+      return score;
+    };
+
     // 5. Analyze performance by configuration
     const configurationChannelAnalysis = configurations.map(config => {
-      const configNotifications = notifications.filter(n => 
-        n.configuration_id.toString() === config._id.toString()
-      );
+      const metrics = metricsMap.get(config._id.toString()) || {
+        totalNotifications: 0,
+        inAppSent: 0,
+        inAppDelivered: 0,
+        inAppRead: 0,
+        inAppFailed: 0
+      };
 
-      const inAppConfigNotifications = configNotifications.filter(n => n.channels?.in_app);
-      const inAppSent = inAppConfigNotifications.filter(n => n.channels.in_app.sent).length;
-      const inAppDelivered = inAppConfigNotifications.filter(n => 
-        n.status === 'delivered' || n.status === 'read'
-      ).length;
-      const inAppRead = inAppConfigNotifications.filter(n => n.is_read).length;
-      const inAppFailed = inAppConfigNotifications.filter(n => 
-        n.channels.in_app.error
-      ).length;
-
-      const deliveryRate = inAppSent > 0 
-        ? Math.round((inAppDelivered / inAppSent) * 100) 
+      const deliveryRate = metrics.inAppSent > 0
+        ? Math.round((metrics.inAppDelivered / metrics.inAppSent) * 100)
         : 0;
-      const readRate = inAppDelivered > 0 
-        ? Math.round((inAppRead / inAppDelivered) * 100) 
+      const readRate = metrics.inAppDelivered > 0
+        ? Math.round((metrics.inAppRead / metrics.inAppDelivered) * 100)
+        : 0;
+      const failureRate = metrics.inAppSent > 0
+        ? Math.round((metrics.inAppFailed / metrics.inAppSent) * 100)
         : 0;
 
-      // Calculate channel performance score
-      let performanceScore = 0;
-      if (deliveryRate >= 95) performanceScore += 40;
-      else if (deliveryRate >= 85) performanceScore += 30;
-      else if (deliveryRate >= 70) performanceScore += 20;
-
-      if (readRate >= 70) performanceScore += 40;
-      else if (readRate >= 50) performanceScore += 25;
-      else if (readRate >= 30) performanceScore += 15;
-
-      if (inAppFailed === 0 && inAppSent > 0) performanceScore += 20;
-      else if (inAppFailed / inAppSent <= 0.05) performanceScore += 10;
-
+      const performanceScore = calculatePerformanceScore(deliveryRate, readRate, failureRate);
       const performanceStatus = performanceScore >= 80 ? 'Excellent' :
-                               performanceScore >= 60 ? 'Good' :
-                               performanceScore >= 40 ? 'Fair' : 'Poor';
+        performanceScore >= 60 ? 'Good' :
+          performanceScore >= 40 ? 'Fair' : 'Poor';
 
       return {
         configurationId: config._id,
@@ -724,14 +1041,14 @@ const getNotificationChannelPerformance = async (req, res) => {
         isActive: config.is_active,
         inAppEnabled: config.notification_channels?.in_app !== false,
         metrics: {
-          totalNotifications: configNotifications.length,
-          inAppSent,
-          inAppDelivered,
-          inAppRead,
-          inAppFailed,
+          totalNotifications: metrics.totalNotifications,
+          inAppSent: metrics.inAppSent,
+          inAppDelivered: metrics.inAppDelivered,
+          inAppRead: metrics.inAppRead,
+          inAppFailed: metrics.inAppFailed,
           deliveryRate,
           readRate,
-          failureRate: inAppSent > 0 ? Math.round((inAppFailed / inAppSent) * 100) : 0
+          failureRate
         },
         performanceScore,
         performanceStatus
@@ -764,63 +1081,36 @@ const getNotificationChannelPerformance = async (req, res) => {
         totalSent: c.metrics.inAppSent
       }));
 
-    // 8. Analyze delivery patterns by time
-    const notificationsByHour = notifications.reduce((acc, n) => {
-      const hour = new Date(n.created_at).getHours();
-      if (!acc[hour]) {
-        acc[hour] = { sent: 0, delivered: 0, read: 0 };
-      }
-      acc[hour].sent++;
-      if (n.status === 'delivered' || n.status === 'read') acc[hour].delivered++;
-      if (n.is_read) acc[hour].read++;
-      return acc;
-    }, {});
+    // 8. Process hourly patterns from aggregation
+    const deliveryPatternsByHour = aggregatedData.hourlyPatterns.map(pattern => ({
+      hour: pattern._id,
+      sent: pattern.sent,
+      delivered: pattern.delivered,
+      read: pattern.read,
+      deliveryRate: pattern.sent > 0 ? Math.round((pattern.delivered / pattern.sent) * 100) : 0,
+      readRate: pattern.delivered > 0 ? Math.round((pattern.read / pattern.delivered) * 100) : 0
+    }));
 
-    const deliveryPatternsByHour = Object.entries(notificationsByHour).map(([hour, data]) => ({
-      hour: parseInt(hour),
-      sent: data.sent,
-      delivered: data.delivered,
-      read: data.read,
-      deliveryRate: data.sent > 0 ? Math.round((data.delivered / data.sent) * 100) : 0,
-      readRate: data.delivered > 0 ? Math.round((data.read / data.delivered) * 100) : 0
-    })).sort((a, b) => a.hour - b.hour);
-
-    // 9. Analyze by priority
+    // 9. Process priority performance from aggregation
     const priorityChannelPerformance = {
-      low: {
-        sent: notifications.filter(n => n.priority === 'low').length,
-        delivered: notifications.filter(n => 
-          n.priority === 'low' && (n.status === 'delivered' || n.status === 'read')
-        ).length,
-        read: notifications.filter(n => n.priority === 'low' && n.is_read).length
-      },
-      medium: {
-        sent: notifications.filter(n => n.priority === 'medium').length,
-        delivered: notifications.filter(n => 
-          n.priority === 'medium' && (n.status === 'delivered' || n.status === 'read')
-        ).length,
-        read: notifications.filter(n => n.priority === 'medium' && n.is_read).length
-      },
-      high: {
-        sent: notifications.filter(n => n.priority === 'high').length,
-        delivered: notifications.filter(n => 
-          n.priority === 'high' && (n.status === 'delivered' || n.status === 'read')
-        ).length,
-        read: notifications.filter(n => n.priority === 'high' && n.is_read).length
-      },
-      urgent: {
-        sent: notifications.filter(n => n.priority === 'urgent').length,
-        delivered: notifications.filter(n => 
-          n.priority === 'urgent' && (n.status === 'delivered' || n.status === 'read')
-        ).length,
-        read: notifications.filter(n => n.priority === 'urgent' && n.is_read).length
-      }
+      low: { sent: 0, delivered: 0, read: 0, deliveryRate: 0, readRate: 0 },
+      medium: { sent: 0, delivered: 0, read: 0, deliveryRate: 0, readRate: 0 },
+      high: { sent: 0, delivered: 0, read: 0, deliveryRate: 0, readRate: 0 },
+      urgent: { sent: 0, delivered: 0, read: 0, deliveryRate: 0, readRate: 0 }
     };
 
-    Object.keys(priorityChannelPerformance).forEach(priority => {
-      const data = priorityChannelPerformance[priority];
-      data.deliveryRate = data.sent > 0 ? Math.round((data.delivered / data.sent) * 100) : 0;
-      data.readRate = data.delivered > 0 ? Math.round((data.read / data.delivered) * 100) : 0;
+    aggregatedData.priorityStats.forEach(stat => {
+      if (stat._id && priorityChannelPerformance[stat._id]) {
+        priorityChannelPerformance[stat._id].sent = stat.sent;
+        priorityChannelPerformance[stat._id].delivered = stat.delivered;
+        priorityChannelPerformance[stat._id].read = stat.read;
+        priorityChannelPerformance[stat._id].deliveryRate = stat.sent > 0
+          ? Math.round((stat.delivered / stat.sent) * 100)
+          : 0;
+        priorityChannelPerformance[stat._id].readRate = stat.delivered > 0
+          ? Math.round((stat.read / stat.delivered) * 100)
+          : 0;
+      }
     });
 
     // 10. Calculate overall channel health
@@ -858,13 +1148,16 @@ const getNotificationChannelPerformance = async (req, res) => {
 
     overallChannelHealth.inApp.healthScore = inAppHealthScore;
     overallChannelHealth.inApp.healthStatus = inAppHealthScore >= 80 ? 'Excellent' :
-                                              inAppHealthScore >= 60 ? 'Good' :
-                                              inAppHealthScore >= 40 ? 'Fair' : 'Poor';
+      inAppHealthScore >= 60 ? 'Good' :
+        inAppHealthScore >= 40 ? 'Fair' : 'Poor';
 
-    // 11. Summary statistics
+    // 11. Calculate total notifications from aggregation
+    const totalNotifications = perConfigMetrics.reduce((sum, m) => sum + m.totalNotifications, 0);
+
+    // 12. Summary statistics
     const summaryStats = {
       totalConfigurations: configurations.length,
-      totalNotifications: notifications.length,
+      totalNotifications,
       inAppEnabledConfigurations: inAppEnabledConfigs.length,
       inAppDisabledConfigurations: configurations.length - inAppEnabledConfigs.length,
       overallInAppDeliveryRate: inAppDeliveryRate,
