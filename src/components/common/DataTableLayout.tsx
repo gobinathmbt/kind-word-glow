@@ -362,26 +362,34 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
 
             {/* Primary Action Button (Always visible) */}
             {primaryButton && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={primaryButton.variant || "outline"}
-                      size="sm"
-                      onClick={primaryButton.onClick}
-                      disabled={primaryButton.disabled}
-                      className={`h-8 w-8 sm:h-9 sm:w-9 p-0 ${
-                        primaryButton.className || ""
-                      }`}
-                    >
-                      {primaryButton.icon}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{primaryButton.tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <>
+                {primaryButton.className === '' ? (
+                  // Render custom component directly (like search bar)
+                  <div>{primaryButton.icon}</div>
+                ) : (
+                  // Render as button with tooltip
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={primaryButton.variant || "outline"}
+                          size="sm"
+                          onClick={primaryButton.onClick}
+                          disabled={primaryButton.disabled}
+                          className={`h-8 w-8 sm:h-9 sm:w-9 p-0 ${
+                            primaryButton.className || ""
+                          }`}
+                        >
+                          {primaryButton.icon}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{primaryButton.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </>
             )}
 
             {/* Mobile: More Actions Popover (for secondary buttons) */}
@@ -427,24 +435,32 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                 {/* Desktop: All Action Buttons */}
                 <div className="hidden sm:flex items-center gap-2">
                   {secondaryButtons.map((button, index) => (
-                    <TooltipProvider key={index}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant={button.variant || "outline"}
-                            size="sm"
-                            onClick={button.onClick}
-                            disabled={button.disabled}
-                            className={`h-9 w-9 p-0 ${button.className || ""}`}
-                          >
-                            {button.icon}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{button.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <React.Fragment key={index}>
+                      {button.className === '' ? (
+                        // Render custom component directly
+                        <div>{button.icon}</div>
+                      ) : (
+                        // Render as button with tooltip
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={button.variant || "outline"}
+                                size="sm"
+                                onClick={button.onClick}
+                                disabled={button.disabled}
+                                className={`h-9 w-9 p-0 ${button.className || ""}`}
+                              >
+                                {button.icon}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{button.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               </>

@@ -8,7 +8,7 @@ import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, Plus, Edit, Trash2, MapPin, Mail, User,  ArrowUpDown, ArrowUp, ArrowDown, X, SlidersHorizontal ,  } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, MapPin, Mail, User,  ArrowUpDown, ArrowUp, ArrowDown, X, SlidersHorizontal, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { dealershipServices } from '@/api/services';
@@ -283,9 +283,63 @@ const Dealerships = () => {
   ];
 
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm('');
+    setPage(1);
+    refetch();
+  };
+
   // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-
+    // Search Bar Component
+    ...(canSearchFilter ? [{
+      icon: (
+        <div className="relative hidden sm:block">
+          <Input
+            type="text"
+            placeholder="Search dealerships..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearchSubmit();
+              }
+            }}
+            className="h-9 w-48 lg:w-64 pr-20 text-sm"
+          />
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSearchClear}
+                className="h-7 w-7 p-0 hover:bg-gray-100"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSearchSubmit}
+              className="h-7 w-7 p-0 hover:bg-blue-100"
+            >
+              <Search className="h-4 w-4 text-blue-600" />
+            </Button>
+          </div>
+        </div>
+      ),
+      tooltip: 'Search',
+      onClick: () => {}, // No-op since the search bar handles its own clicks
+      className: '',
+    }] : []),
     ...(canSearchFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
       tooltip: 'Search & Filters',
