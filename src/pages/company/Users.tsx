@@ -29,6 +29,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  X,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -44,6 +46,8 @@ import { hasPermission } from "@/utils/permissionController";
 const CompanyUsers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [dealershipFilter, setDealershipFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [paginationEnabled, setPaginationEnabled] = useState(true);
@@ -55,7 +59,8 @@ const CompanyUsers = () => {
   const { completeUser } = useAuth();
   
   // Permission checks
-  const canSearchFilter = hasPermission(completeUser, 'user_search_filter');
+  const canSearch = hasPermission(completeUser, 'user_search');
+  const canFilter = hasPermission(completeUser, 'user_filter');
   const canAdd = hasPermission(completeUser, 'user_create');
   const canEdit = hasPermission(completeUser, 'user_edit');
   const canMail = hasPermission(completeUser, 'user_mail');
@@ -140,6 +145,8 @@ const CompanyUsers = () => {
 
         if (searchTerm) params.append("search", searchTerm);
         if (statusFilter !== "all") params.append("status", statusFilter);
+        if (roleFilter !== "all") params.append("role", roleFilter);
+        if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
 
         const response = await apiClient.get(`/api/company/users?${params}`);
         const responseData = response.data;
@@ -175,8 +182,8 @@ const CompanyUsers = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["company-users", page, searchTerm, statusFilter, rowsPerPage]
-      : ["all-company-users", searchTerm, statusFilter],
+      ? ["company-users", page, searchTerm, statusFilter, roleFilter, dealershipFilter, rowsPerPage]
+      : ["all-company-users", searchTerm, statusFilter, roleFilter, dealershipFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllUsers();
@@ -189,6 +196,8 @@ const CompanyUsers = () => {
 
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter !== "all") params.append("status", statusFilter);
+      if (roleFilter !== "all") params.append("role", roleFilter);
+      if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
 
       const response = await apiClient.get(`/api/company/users?${params}`);
       return response.data;
@@ -319,6 +328,8 @@ const CompanyUsers = () => {
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setRoleFilter("all");
+    setDealershipFilter("all");
     setPage(1);
     refetch();
   };
@@ -368,8 +379,17 @@ const CompanyUsers = () => {
     toast.success("Data refreshed");
   };
 
-  const handleExport = () => {
-    toast.success("Export started");
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
   };
 
   // Calculate counts for chips
@@ -425,18 +445,74 @@ const CompanyUsers = () => {
 
   // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
-    ...(canAdd ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Add User",
-      onClick: () => setIsDialogOpen(true),
-      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    }] : []),
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canAdd
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Add User",
+            onClick: () => setIsDialogOpen(true),
+            className:
+              "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   // Render table header
@@ -824,33 +900,19 @@ const CompanyUsers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Search & Filter Dialog */}
+      {/* Filter Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Search & Filter Users</DialogTitle>
-            <DialogDescription>
-              Search and filter users by various criteria
-            </DialogDescription>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="search">Search Users</Label>
-              <Input
-                id="search"
-                placeholder="Search by name, email, or username..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="status">Status Filter</Label>
-              <ShadcnSelect
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Status</Label>
+              <ShadcnSelect value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
@@ -859,22 +921,60 @@ const CompanyUsers = () => {
                 </SelectContent>
               </ShadcnSelect>
             </div>
-            <div className="flex justify-end space-x-2">
+            <div className="space-y-2">
+              <Label htmlFor="role-filter">Role</Label>
+              <ShadcnSelect value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger id="role-filter">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="company_super_admin">Company Super Admin</SelectItem>
+                  <SelectItem value="company_admin">Company Admin</SelectItem>
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dealership-filter">Dealership</Label>
+              <ShadcnSelect value={dealershipFilter} onValueChange={setDealershipFilter}>
+                <SelectTrigger id="dealership-filter">
+                  <SelectValue placeholder="Select dealership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dealerships</SelectItem>
+                  {dealerships?.map((dealership: any) => (
+                    <SelectItem key={dealership._id} value={dealership._id}>
+                      {dealership.dealership_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
               <Button
-                type="button"
                 variant="outline"
-                onClick={handleClearFilters}
+                onClick={() => setIsFilterDialogOpen(false)}
               >
-                Clear Filters
+                Cancel
               </Button>
               <Button
                 onClick={() => {
                   setPage(1);
-                  setIsFilterDialogOpen(false);
                   refetch();
+                  setIsFilterDialogOpen(false);
                 }}
+                disabled={isLoading}
               >
-                Apply Filters
+                {isLoading ? "Applying..." : "Apply Filters"}
               </Button>
             </div>
           </div>
