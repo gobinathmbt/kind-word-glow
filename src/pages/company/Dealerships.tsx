@@ -1,52 +1,85 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { TableCell, TableHead, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, Plus, Edit, Trash2, MapPin, Mail, User,  ArrowUpDown, ArrowUp, ArrowDown, X, SlidersHorizontal, Search } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
-import { dealershipServices } from '@/api/services';
-import DeleteConfirmationDialog from '@/components/dialogs/DeleteConfirmationDialog';
-import DataTableLayout from '@/components/common/DataTableLayout';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Building2,
+  Plus,
+  Edit,
+  Trash2,
+  MapPin,
+  Mail,
+  User,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  X,
+  SlidersHorizontal,
+  Search,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { dealershipServices } from "@/api/services";
+import DeleteConfirmationDialog from "@/components/dialogs/DeleteConfirmationDialog";
+import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/utils/permissionController";
-
 
 const Dealerships = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [paginationEnabled, setPaginationEnabled] = useState(true);
-  const [sortField, setSortField] = useState('');
+  const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState(null);
 
-
   const { completeUser } = useAuth();
-  const canRefresh = hasPermission(completeUser, 'multi_dealership_refresh');
-  const canAdd = hasPermission(completeUser, 'multi_dealership_create');
-  const canEdit = hasPermission(completeUser, 'multi_dealership_edit');
-  const canDelete = hasPermission(completeUser, 'multi_dealership_delete');
-  const canSearchFilter = hasPermission(completeUser, 'multi_dealership_search_filter');
-  const canToggleStatus = hasPermission(completeUser, 'multi_dealership_status_toggle');
-  
+  const canRefresh = hasPermission(completeUser, "multi_dealership_refresh");
+  const canAdd = hasPermission(completeUser, "multi_dealership_create");
+  const canEdit = hasPermission(completeUser, "multi_dealership_edit");
+  const canDelete = hasPermission(completeUser, "multi_dealership_delete");
+  const canFilter = hasPermission(completeUser, "multi_dealership_filter");
+  const canSearch = hasPermission(completeUser, "multi_dealership_search");
+  const canToggleStatus = hasPermission(
+    completeUser,
+    "multi_dealership_status_toggle"
+  );
 
   const [formData, setFormData] = useState({
-    dealership_name: '',
-    dealership_address: '',
-    dealership_email: ''
+    dealership_name: "",
+    dealership_address: "",
+    dealership_email: "",
   });
 
   // Function to fetch all dealerships when pagination is disabled
@@ -59,11 +92,11 @@ const Dealerships = () => {
       while (hasMore) {
         const params = new URLSearchParams({
           page: currentPage.toString(),
-          limit: '100',
+          limit: "100",
         });
 
-        if (searchTerm) params.append('search', searchTerm);
-        if (statusFilter !== 'all') params.append('status', statusFilter);
+        if (searchTerm) params.append("search", searchTerm);
+        if (statusFilter !== "all") params.append("status", statusFilter);
 
         const response = await dealershipServices.getDealerships({
           ...Object.fromEntries(params),
@@ -83,19 +116,23 @@ const Dealerships = () => {
         total: allData.length,
         stats: {
           totalDealerships: allData.length,
-          activeDealerships: allData.filter(d => d.is_active).length,
-          inactiveDealerships: allData.filter(d => !d.is_active).length,
-        }
+          activeDealerships: allData.filter((d) => d.is_active).length,
+          inactiveDealerships: allData.filter((d) => !d.is_active).length,
+        },
       };
     } catch (error) {
       throw error;
     }
   };
 
-  const { data: dealershipsData, isLoading, refetch } = useQuery({
+  const {
+    data: dealershipsData,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: paginationEnabled
-      ? ['dealerships', page, searchTerm, statusFilter, rowsPerPage]
-      : ['all-dealerships', searchTerm, statusFilter],
+      ? ["dealerships", page, searchTerm, statusFilter, rowsPerPage]
+      : ["all-dealerships", searchTerm, statusFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllDealerships();
@@ -105,10 +142,10 @@ const Dealerships = () => {
         page: page,
         limit: rowsPerPage,
         search: searchTerm,
-        status: statusFilter
+        status: statusFilter,
       });
       return response.data;
-    }
+    },
   });
 
   const dealerships = dealershipsData?.data || [];
@@ -123,17 +160,21 @@ const Dealerships = () => {
       let bValue = b[sortField];
 
       // Handle nested properties
-      if (sortField === 'created_by_name') {
-        aValue = `${a.created_by?.first_name || ''} ${a.created_by?.last_name || ''}`.trim();
-        bValue = `${b.created_by?.first_name || ''} ${b.created_by?.last_name || ''}`.trim();
+      if (sortField === "created_by_name") {
+        aValue = `${a.created_by?.first_name || ""} ${
+          a.created_by?.last_name || ""
+        }`.trim();
+        bValue = `${b.created_by?.first_name || ""} ${
+          b.created_by?.last_name || ""
+        }`.trim();
       }
 
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (sortOrder === 'asc') {
+      if (sortOrder === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
         return aValue < bValue ? 1 : -1;
@@ -143,16 +184,16 @@ const Dealerships = () => {
 
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
   };
 
   const getSortIcon = (field) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1" />;
-    return sortOrder === 'asc' ? (
+    return sortOrder === "asc" ? (
       <ArrowUp className="h-3 w-3 ml-1" />
     ) : (
       <ArrowDown className="h-3 w-3 ml-1" />
@@ -163,39 +204,48 @@ const Dealerships = () => {
     e.preventDefault();
     try {
       await dealershipServices.createDealership(formData);
-      toast.success('Dealership created successfully');
+      toast.success("Dealership created successfully");
       setIsDialogOpen(false);
       setFormData({
-        dealership_name: '',
-        dealership_address: '',
-        dealership_email: ''
+        dealership_name: "",
+        dealership_address: "",
+        dealership_email: "",
       });
       refetch();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create dealership');
+      toast.error(
+        error.response?.data?.message || "Failed to create dealership"
+      );
     }
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await dealershipServices.updateDealership(editDealership._id, editDealership);
-      toast.success('Dealership updated successfully');
+      await dealershipServices.updateDealership(
+        editDealership._id,
+        editDealership
+      );
+      toast.success("Dealership updated successfully");
       setIsEditDialogOpen(false);
       setEditDealership(null);
       refetch();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update dealership');
+      toast.error(
+        error.response?.data?.message || "Failed to update dealership"
+      );
     }
   };
 
   const handleToggleStatus = async (dealershipId, currentStatus) => {
     try {
-      await dealershipServices.toggleDealershipStatus(dealershipId, { is_active: !currentStatus });
-      toast.success('Dealership status updated successfully');
+      await dealershipServices.toggleDealershipStatus(dealershipId, {
+        is_active: !currentStatus,
+      });
+      toast.success("Dealership status updated successfully");
       refetch();
     } catch (error) {
-      toast.error('Failed to update dealership status');
+      toast.error("Failed to update dealership status");
     }
   };
 
@@ -207,10 +257,10 @@ const Dealerships = () => {
   const handleDeleteDealership = async () => {
     try {
       await dealershipServices.deleteDealership(deleteTargetId);
-      toast.success('Dealership deleted successfully');
+      toast.success("Dealership deleted successfully");
       refetch();
     } catch (error) {
-      toast.error('Failed to delete dealership');
+      toast.error("Failed to delete dealership");
     } finally {
       setIsDeleteDialogOpen(false);
       setDeleteTargetId(null);
@@ -232,8 +282,8 @@ const Dealerships = () => {
   };
 
   const handleClearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
+    setSearchTerm("");
+    setStatusFilter("all");
     setPage(1);
     refetch();
   };
@@ -246,42 +296,42 @@ const Dealerships = () => {
 
   const handleRefresh = () => {
     refetch();
-    toast.success('Data refreshed');
+    toast.success("Data refreshed");
   };
 
- 
-
   // Calculate counts for chips
-  const totalDealerships = dealershipsData?.total || stats.totalDealerships || 0;
-  const activeDealerships = stats.activeDealerships || dealerships.filter(d => d.is_active).length;
-  const inactiveDealerships = stats.inactiveDealerships || dealerships.filter(d => !d.is_active).length;
+  const totalDealerships =
+    dealershipsData?.total || stats.totalDealerships || 0;
+  const activeDealerships =
+    stats.activeDealerships || dealerships.filter((d) => d.is_active).length;
+  const inactiveDealerships =
+    stats.inactiveDealerships || dealerships.filter((d) => !d.is_active).length;
 
   // Prepare stat chips
   const statChips = [
     {
-      label: 'Total',
+      label: "Total",
       value: totalDealerships,
-      variant: 'outline' as const,
-      bgColor: 'bg-gray-100',
+      variant: "outline" as const,
+      bgColor: "bg-gray-100",
     },
     {
-      label: 'Active',
+      label: "Active",
       value: activeDealerships,
-      variant: 'default' as const,
-      bgColor: 'bg-green-100',
-      textColor: 'text-green-800',
-      hoverColor: 'hover:bg-green-100',
+      variant: "default" as const,
+      bgColor: "bg-green-100",
+      textColor: "text-green-800",
+      hoverColor: "hover:bg-green-100",
     },
     {
-      label: 'Inactive',
+      label: "Inactive",
       value: inactiveDealerships,
-      variant: 'secondary' as const,
-      bgColor: 'bg-red-100',
-      textColor: 'text-red-800',
-      hoverColor: 'hover:bg-red-100',
+      variant: "secondary" as const,
+      bgColor: "bg-red-100",
+      textColor: "text-red-800",
+      hoverColor: "hover:bg-red-100",
     },
   ];
-
 
   // Handle search submit
   const handleSearchSubmit = () => {
@@ -291,7 +341,7 @@ const Dealerships = () => {
 
   // Handle search clear
   const handleSearchClear = () => {
-    setSearchTerm('');
+    setSearchTerm("");
     setPage(1);
     refetch();
   };
@@ -299,59 +349,73 @@ const Dealerships = () => {
   // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
     // Search Bar Component
-    ...(canSearchFilter ? [{
-      icon: (
-        <div className="relative hidden sm:block">
-          <Input
-            type="text"
-            placeholder="Search dealerships..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSearchSubmit();
-              }
-            }}
-            className="h-9 w-48 lg:w-64 pr-20 text-sm"
-          />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {searchTerm && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSearchClear}
-                className="h-7 w-7 p-0 hover:bg-gray-100"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSearchSubmit}
-              className="h-7 w-7 p-0 hover:bg-blue-100"
-            >
-              <Search className="h-4 w-4 text-blue-600" />
-            </Button>
-          </div>
-        </div>
-      ),
-      tooltip: 'Search',
-      onClick: () => {}, // No-op since the search bar handles its own clicks
-      className: '',
-    }] : []),
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: 'Search & Filters',
-      onClick: () => setIsFilterDialogOpen(true),
-      className: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200',
-     }] : []),
-    ...(canAdd ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: 'Add Dealership',
-      onClick: () => setIsDialogOpen(true),
-      className: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200',
-    }] : []),
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search dealerships..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canAdd
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Add Dealership",
+            onClick: () => setIsDialogOpen(true),
+            className:
+              "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   // Render table header
@@ -360,48 +424,48 @@ const Dealerships = () => {
       <TableHead className="bg-muted/50">S.No</TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('dealership_id')}
+        onClick={() => handleSort("dealership_id")}
       >
         <div className="flex items-center">
           Dealership ID
-          {getSortIcon('dealership_id')}
+          {getSortIcon("dealership_id")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('dealership_name')}
+        onClick={() => handleSort("dealership_name")}
       >
         <div className="flex items-center">
           Dealership Name
-          {getSortIcon('dealership_name')}
+          {getSortIcon("dealership_name")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('dealership_address')}
+        onClick={() => handleSort("dealership_address")}
       >
         <div className="flex items-center">
           Address
-          {getSortIcon('dealership_address')}
+          {getSortIcon("dealership_address")}
         </div>
       </TableHead>
       <TableHead className="bg-muted/50">Email</TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('is_active')}
+        onClick={() => handleSort("is_active")}
       >
         <div className="flex items-center">
           Status
-          {getSortIcon('is_active')}
+          {getSortIcon("is_active")}
         </div>
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort('created_by_name')}
+        onClick={() => handleSort("created_by_name")}
       >
         <div className="flex items-center">
           Created By
-          {getSortIcon('created_by_name')}
+          {getSortIcon("created_by_name")}
         </div>
       </TableHead>
       <TableHead className="bg-muted/50">Actions</TableHead>
@@ -419,16 +483,14 @@ const Dealerships = () => {
               : index + 1}
           </TableCell>
           <TableCell>
-            <span className="text-sm">
-              {dealership.dealership_id}
-            </span>
+            <span className="text-sm">{dealership.dealership_id}</span>
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <Badge 
-                className="font-medium" 
-                style={{ backgroundColor: '#F97316', color: 'white' }}
+              <Badge
+                className="font-medium"
+                style={{ backgroundColor: "#F97316", color: "white" }}
               >
                 {dealership.dealership_name}
               </Badge>
@@ -437,7 +499,9 @@ const Dealerships = () => {
           <TableCell>
             <div className="flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm max-w-xs truncate">{dealership.dealership_address}</span>
+              <span className="text-sm max-w-xs truncate">
+                {dealership.dealership_address}
+              </span>
             </div>
           </TableCell>
           <TableCell>
@@ -455,18 +519,20 @@ const Dealerships = () => {
               {canToggleStatus && (
                 <Switch
                   checked={dealership.is_active}
-                  onCheckedChange={() => handleToggleStatus(dealership._id, dealership.is_active)}
+                  onCheckedChange={() =>
+                    handleToggleStatus(dealership._id, dealership.is_active)
+                  }
                 />
               )}
               <Badge
-                variant={dealership.is_active ? 'default' : 'secondary'}
+                variant={dealership.is_active ? "default" : "secondary"}
                 className={
                   dealership.is_active
-                    ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                    : 'bg-red-100 text-red-800 hover:bg-red-100'
+                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                    : "bg-red-100 text-red-800 hover:bg-red-100"
                 }
               >
-                {dealership.is_active ? 'Active' : 'Inactive'}
+                {dealership.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
           </TableCell>
@@ -474,7 +540,8 @@ const Dealerships = () => {
             <div className="flex items-center space-x-2">
               <User className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                {dealership.created_by?.first_name} {dealership.created_by?.last_name}
+                {dealership.created_by?.first_name}{" "}
+                {dealership.created_by?.last_name}
               </span>
             </div>
           </TableCell>
@@ -522,9 +589,11 @@ const Dealerships = () => {
                   </Tooltip>
                 </TooltipProvider>
               )}
-              
+
               {!canEdit && !canDelete && (
-                <span className="text-sm text-muted-foreground">No actions</span>
+                <span className="text-sm text-muted-foreground">
+                  No actions
+                </span>
               )}
             </div>
           </TableCell>
@@ -563,34 +632,10 @@ const Dealerships = () => {
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Search & Filters</DialogTitle>
-            <DialogDescription>
-              Search and filter dealerships by various criteria
-            </DialogDescription>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search Dealerships</Label>
-              <div className="relative">
-                <Input
-                  id="search"
-                  placeholder="Search by name, address, email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-10"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 h-6 w-6"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="status-filter">Filter by Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -628,7 +673,7 @@ const Dealerships = () => {
                 }}
                 disabled={isLoading}
               >
-                {isLoading ? 'Applying...' : 'Apply Filters'}
+                {isLoading ? "Applying..." : "Apply Filters"}
               </Button>
             </div>
           </div>
@@ -650,7 +695,9 @@ const Dealerships = () => {
               <Input
                 id="dealership_name"
                 value={formData.dealership_name}
-                onChange={(e) => setFormData({ ...formData, dealership_name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, dealership_name: e.target.value })
+                }
                 placeholder="Downtown Auto Center"
                 required
               />
@@ -660,23 +707,36 @@ const Dealerships = () => {
               <Input
                 id="dealership_address"
                 value={formData.dealership_address}
-                onChange={(e) => setFormData({ ...formData, dealership_address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    dealership_address: e.target.value,
+                  })
+                }
                 placeholder="123 Main Street, City, State, ZIP"
                 required
               />
             </div>
             <div>
-              <Label htmlFor="dealership_email">Dealership Email (Optional)</Label>
+              <Label htmlFor="dealership_email">
+                Dealership Email (Optional)
+              </Label>
               <Input
                 id="dealership_email"
                 type="email"
                 value={formData.dealership_email}
-                onChange={(e) => setFormData({ ...formData, dealership_email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, dealership_email: e.target.value })
+                }
                 placeholder="dealership@company.com"
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit">Add Dealership</Button>
@@ -700,18 +760,26 @@ const Dealerships = () => {
                   id="edit_dealership_name"
                   value={editDealership.dealership_name}
                   onChange={(e) =>
-                    setEditDealership({ ...editDealership, dealership_name: e.target.value })
+                    setEditDealership({
+                      ...editDealership,
+                      dealership_name: e.target.value,
+                    })
                   }
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="edit_dealership_address">Dealership Address</Label>
+                <Label htmlFor="edit_dealership_address">
+                  Dealership Address
+                </Label>
                 <Input
                   id="edit_dealership_address"
                   value={editDealership.dealership_address}
                   onChange={(e) =>
-                    setEditDealership({ ...editDealership, dealership_address: e.target.value })
+                    setEditDealership({
+                      ...editDealership,
+                      dealership_address: e.target.value,
+                    })
                   }
                   required
                 />
@@ -721,14 +789,21 @@ const Dealerships = () => {
                 <Input
                   id="edit_dealership_email"
                   type="email"
-                  value={editDealership.dealership_email || ''}
+                  value={editDealership.dealership_email || ""}
                   onChange={(e) =>
-                    setEditDealership({ ...editDealership, dealership_email: e.target.value })
+                    setEditDealership({
+                      ...editDealership,
+                      dealership_email: e.target.value,
+                    })
                   }
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">Update Dealership</Button>
