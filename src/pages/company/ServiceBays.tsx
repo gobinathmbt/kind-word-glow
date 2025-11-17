@@ -5,7 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +32,9 @@ import {
   ArrowUp,
   ArrowDown,
   Clock,
+  SlidersHorizontal,
+  Search,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -54,6 +62,7 @@ const daysOfWeek = [
 const ServiceBays = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dealershipFilter, setDealershipFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [paginationEnabled, setPaginationEnabled] = useState(true);
@@ -64,16 +73,21 @@ const ServiceBays = () => {
   const [selectedBay, setSelectedBay] = useState<any>(null);
   const [showTimings, setShowTimings] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   const { completeUser } = useAuth();
 
   // Permission checks
-  const canRefresh = hasPermission(completeUser, 'service_bay_refresh');
-  const canAdd = hasPermission(completeUser, 'service_bay_create');
-  const canEdit = hasPermission(completeUser, 'service_bay_edit');
-  const canDelete = hasPermission(completeUser, 'service_bay_delete');
-  const canSearchFilter = hasPermission(completeUser, 'service_bay_search_filter');
-  const canToggleStatus = hasPermission(completeUser, 'service_bay_status_toggle');
+  const canRefresh = hasPermission(completeUser, "service_bay_refresh");
+  const canAdd = hasPermission(completeUser, "service_bay_create");
+  const canEdit = hasPermission(completeUser, "service_bay_edit");
+  const canDelete = hasPermission(completeUser, "service_bay_delete");
+  const canFilter = hasPermission(completeUser, "service_bay_filter");
+  const canSearch = hasPermission(completeUser, "service_bay_search");
+  const canToggleStatus = hasPermission(
+    completeUser,
+    "service_bay_status_toggle"
+  );
 
   const [formData, setFormData] = useState({
     bay_name: "",
@@ -145,6 +159,7 @@ const ServiceBays = () => {
     },
     enabled: !!formData.dealership_id,
   });
+
   // Reset users when dealership changes
   useEffect(() => {
     if (formData.dealership_id) {
@@ -187,6 +202,7 @@ const ServiceBays = () => {
 
       if (searchTerm) params.search = searchTerm;
       if (statusFilter !== "all") params.is_active = statusFilter === "active";
+      if (dealershipFilter !== "all") params.dealership_id = dealershipFilter;
 
       const response = await serviceBayServices.getServiceBays(params);
       const responseData = response.data;
@@ -217,8 +233,15 @@ const ServiceBays = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["service-bays", page, searchTerm, statusFilter, rowsPerPage]
-      : ["all-service-bays", searchTerm, statusFilter],
+      ? [
+          "service-bays",
+          page,
+          searchTerm,
+          statusFilter,
+          dealershipFilter,
+          rowsPerPage,
+        ]
+      : ["all-service-bays", searchTerm, statusFilter, dealershipFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllBays();
@@ -231,6 +254,7 @@ const ServiceBays = () => {
 
       if (searchTerm) params.search = searchTerm;
       if (statusFilter !== "all") params.is_active = statusFilter === "active";
+      if (dealershipFilter !== "all") params.dealership_id = dealershipFilter;
 
       const response = await serviceBayServices.getServiceBays(params);
       return response.data;
@@ -524,6 +548,42 @@ const ServiceBays = () => {
     setPage(1);
   };
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  // Handle filter change
+  const handleFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+    refetch();
+  };
+
+  // Handle dealership filter change
+  const handleDealershipFilterChange = (value: string) => {
+    setDealershipFilter(value);
+    setPage(1);
+    refetch();
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setDealershipFilter("all");
+    setPage(1);
+    refetch();
+  };
+
   const statChips = [
     {
       label: "Total Bays",
@@ -552,13 +612,74 @@ const ServiceBays = () => {
   ];
 
   const actionButtons = [
-    ...(canAdd ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Add Service Bay",
-      onClick: () => setIsDialogOpen(true),
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    }] : []),
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search bays..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canAdd
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Add Service Bay",
+            onClick: () => setIsDialogOpen(true),
+            className:
+              "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   const renderTableHeader = () => (
@@ -615,8 +736,8 @@ const ServiceBays = () => {
             )}
           </TableCell>
           <TableCell>
-            <Badge 
-              style={{ backgroundColor: '#F97316' }}
+            <Badge
+              style={{ backgroundColor: "#F97316" }}
               className="text-white"
             >
               {bay.dealership_id?.dealership_name || "N/A"}
@@ -691,7 +812,9 @@ const ServiceBays = () => {
               )}
 
               {!canEdit && !canDelete && (
-                <span className="text-sm text-muted-foreground">No actions</span>
+                <span className="text-sm text-muted-foreground">
+                  No actions
+                </span>
               )}
             </div>
           </TableCell>
@@ -955,6 +1078,76 @@ const ServiceBays = () => {
         cookieName="service_bay_pagination_enabled"
         cookieMaxAge={60 * 60 * 24 * 30}
       />
+
+      {/* Filter Dialog */}
+      <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Filters</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Filter by Status</Label>
+              <Select value={statusFilter} onValueChange={handleFilterChange}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dealership-filter">Filter by Dealership</Label>
+              <Select
+                value={dealershipFilter}
+                onValueChange={handleDealershipFilterChange}
+              >
+                <SelectTrigger id="dealership-filter">
+                  <SelectValue placeholder="Select dealership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dealerships</SelectItem>
+                  {dealerships?.map((d: any) => (
+                    <SelectItem key={d._id} value={d._id}>
+                      {d.dealership_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Bay Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
