@@ -112,16 +112,36 @@ export const DropdownUsageAnalysisReport: React.FC<DropdownUsageAnalysisReportPr
   const renderCharts = () => {
     if (!data) return null;
 
-    const usageData: PieChartData[] = data.dropdownUsage?.slice(0, 10).map((item: any) => ({
-      name: item.dropdownName || 'Unknown',
-      value: item.usageCount || 0,
-    })) || [];
+    const hasData = data.dropdowns && data.dropdowns.length > 0;
 
-    const valueCountData = data.dropdownUsage?.slice(0, 10).map((item: any) => ({
-      name: item.dropdownName || 'Unknown',
-      values: item.valueCount || 0,
-      usage: item.usageCount || 0,
-    })) || [];
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
+    
+    const usageData: PieChartData[] = hasData
+      ? data.dropdowns.slice(0, 10).map((item: any, index: number) => {
+        return {
+          name: item.dropdownName || 'Unknown',
+          value: item.usageCount || 0,
+          color: colors[index % colors.length],
+        };
+      })
+      : [
+          { name: 'Status', value: 0, color: colors[0] },
+          { name: 'Priority', value: 0, color: colors[1] },
+          { name: 'Category', value: 0, color: colors[2] },
+          { name: 'Type', value: 0, color: colors[3] },
+          { name: 'Region', value: 0, color: colors[4] },
+          { name: 'Department', value: 0, color: colors[5] },
+          { name: 'Source', value: 0, color: colors[6] },
+          { name: 'Stage', value: 0, color: colors[7] },
+        ];
+
+    const valueCountData = hasData
+      ? data.dropdowns.slice(0, 10).map((item: any) => ({
+        name: item.dropdownName || 'Unknown',
+        values: item.valueCount || 0,
+        usage: item.usageCount || 0,
+      }))
+      : [{ name: 'No Data', values: 0, usage: 0 }];
 
     return (
       <div className="space-y-6">
@@ -129,6 +149,11 @@ export const DropdownUsageAnalysisReport: React.FC<DropdownUsageAnalysisReportPr
           <div>
             <h4 className="text-sm font-medium mb-4">Top 10 Dropdowns by Usage</h4>
             <InteractivePieChart data={usageData} height={300} />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                {data.summary?.message || 'No dropdown configurations found'}
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Values vs Usage</h4>
@@ -141,10 +166,15 @@ export const DropdownUsageAnalysisReport: React.FC<DropdownUsageAnalysisReportPr
               ]}
               height={300}
             />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No usage data available
+              </p>
+            )}
           </div>
         </div>
 
-        {data.dropdownUsage && data.dropdownUsage.length > 0 && (
+        {data.dropdowns && data.dropdowns.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Dropdown Details</h4>
             <DataTable
@@ -154,7 +184,7 @@ export const DropdownUsageAnalysisReport: React.FC<DropdownUsageAnalysisReportPr
                 { key: 'usage', label: 'Usage' },
                 { key: 'status', label: 'Status' },
               ]}
-              data={data.dropdownUsage.slice(0, 20).map((item: any) => ({
+              data={data.dropdowns.slice(0, 20).map((item: any) => ({
                 dropdown: item.dropdownName || 'N/A',
                 values: item.valueCount || 0,
                 usage: item.usageCount || 0,
@@ -168,9 +198,18 @@ export const DropdownUsageAnalysisReport: React.FC<DropdownUsageAnalysisReportPr
   };
 
   const renderTable = () => {
-    if (!data?.dropdownUsage) return null;
+    if (!data?.dropdowns || data.dropdowns.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <List className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-lg font-medium">
+            {data?.summary?.message || 'No dropdown configurations found'}
+          </p>
+        </div>
+      );
+    }
 
-    const tableData = data.dropdownUsage.map((item: any) => ({
+    const tableData = data.dropdowns.map((item: any) => ({
       dropdownName: item.dropdownName || 'Unknown',
       valueCount: item.valueCount || 0,
       usageCount: item.usageCount || 0,

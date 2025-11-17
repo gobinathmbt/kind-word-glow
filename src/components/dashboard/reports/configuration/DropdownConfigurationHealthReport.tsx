@@ -63,6 +63,7 @@ export const DropdownConfigurationHealthReport: React.FC<DropdownConfigurationHe
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
@@ -112,16 +113,26 @@ export const DropdownConfigurationHealthReport: React.FC<DropdownConfigurationHe
   const renderCharts = () => {
     if (!data) return null;
 
-    const healthStatusData: PieChartData[] = [
+    const hasData = data.summary?.totalValues > 0 && data.valueDistribution && data.valueDistribution.length > 0;
+
+    const healthStatusData: PieChartData[] = hasData ? [
       { name: 'Healthy', value: data.summary?.healthyDropdowns || 0, color: '#10b981' },
       { name: 'Issues', value: data.summary?.issuesFound || 0, color: '#ef4444' },
       { name: 'Empty', value: data.summary?.emptyDropdowns || 0, color: '#f59e0b' },
+    ] : [
+      { name: 'Healthy', value: 0, color: '#10b981' },
+      { name: 'Issues', value: 0, color: '#ef4444' },
+      { name: 'Empty', value: 0, color: '#f59e0b' },
+      { name: 'Unused', value: 0, color: '#6b7280' },
+      { name: 'Complete', value: 0, color: '#3b82f6' },
     ];
 
-    const issueTypeData = data.issuesByType?.map((item: any) => ({
-      name: item.issueType || 'Unknown',
-      count: item.count || 0,
-    })) || [];
+    const issueTypeData = hasData && data.issuesByType?.length > 0
+      ? data.issuesByType.map((item: any) => ({
+        name: item.issueType || 'Unknown',
+        count: item.count || 0,
+      }))
+      : [{ name: 'No Data', count: 0 }];
 
     return (
       <div className="space-y-6">
@@ -129,6 +140,11 @@ export const DropdownConfigurationHealthReport: React.FC<DropdownConfigurationHe
           <div>
             <h4 className="text-sm font-medium mb-4">Health Status Distribution</h4>
             <InteractivePieChart data={healthStatusData} height={300} />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                {data.summary?.message || 'No dropdown configurations found'}
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Issues by Type</h4>
@@ -140,6 +156,11 @@ export const DropdownConfigurationHealthReport: React.FC<DropdownConfigurationHe
               ]}
               height={300}
             />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No issues data available
+              </p>
+            )}
           </div>
         </div>
 
@@ -171,7 +192,16 @@ export const DropdownConfigurationHealthReport: React.FC<DropdownConfigurationHe
   };
 
   const renderTable = () => {
-    if (!data?.dropdownHealth) return null;
+    if (!data?.dropdownHealth || data.dropdownHealth.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-lg font-medium">
+            {data?.summary?.message || 'No dropdown configurations found'}
+          </p>
+        </div>
+      );
+    }
 
     const tableData = data.dropdownHealth.map((item: any) => ({
       dropdownName: item.dropdownName || 'Unknown',

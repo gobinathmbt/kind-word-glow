@@ -6,6 +6,7 @@ export interface PieChartData {
   name: string;
   value: number;
   color?: string;
+  isPlaceholder?: boolean;
 }
 
 export interface InteractivePieChartProps {
