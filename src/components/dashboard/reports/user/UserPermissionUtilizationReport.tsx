@@ -3,6 +3,7 @@ import { ReportCard, ViewMode } from '@/components/dashboard/common/ReportCard';
 import { MetricCard } from '@/components/dashboard/common/MetricCard';
 import { InteractivePieChart, PieChartData } from '@/components/dashboard/charts/InteractivePieChart';
 import { StackedBarChart } from '@/components/dashboard/charts/StackedBarChart';
+import { ComparisonChart } from '@/components/dashboard/charts/ComparisonChart';
 import { DataTable } from '@/components/dashboard/charts/DataTable';
 import { ExportButton } from '@/components/dashboard/common/ExportButton';
 import { RefreshButton } from '@/components/dashboard/common/RefreshButton';
@@ -40,7 +41,7 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getUserPermissionUtilization(params);
-      setData(response.data);
+      setData(response.data?.data || response.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load permission utilization data');
     } finally {
@@ -61,29 +62,38 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
   };
 
   const renderMetrics = () => {
-    if (!data?.metrics) return null;
+    if (!data) return null;
     
+    const permissionStats = data.permissionStats || {};
+    const totalUsers = permissionStats.totalUsers || 0;
+    const usersWithPermissions = permissionStats.usersWithPermissions || 0;
+    const totalPermissions = permissionStats.totalPermissions || 0;
+    const avgPermissions = permissionStats.avgPermissionsPerUser || 0;
+    const permissionCoverage = permissionStats.permissionCoverage || 0;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Permissions"
-          value={data.metrics.totalPermissions || 0}
+          value={totalPermissions}
           icon={<Shield className="h-5 w-5" />}
+          subtitle={`${usersWithPermissions}/${totalUsers} users`}
         />
         <MetricCard
-          title="Active Permissions"
-          value={data.metrics.activePermissions || 0}
+          title="Permission Coverage"
+          value={`${permissionCoverage}%`}
           icon={<Unlock className="h-5 w-5" />}
         />
         <MetricCard
-          title="Unused Permissions"
-          value={data.metrics.unusedPermissions || 0}
+          title="Module Access Coverage"
+          value={`${permissionStats.moduleAccessCoverage || 0}%`}
           icon={<Lock className="h-5 w-5" />}
         />
         <MetricCard
-          title="Avg Permissions per User"
-          value={data.metrics.avgPermissionsPerUser || 0}
+          title="Avg Permissions/User"
+          value={avgPermissions.toFixed(1)}
           icon={<Key className="h-5 w-5" />}
+          subtitle={`${(permissionStats.avgModuleAccessPerUser || 0).toFixed(1)} avg modules`}
         />
       </div>
     );
@@ -92,28 +102,58 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
   const renderCharts = () => {
     if (!data) return null;
 
-    const permissionData: PieChartData[] = data.permissionDistribution?.map((item: any) => ({
-      name: item.module,
-      value: item.count,
-    })) || [];
+    // Color palettes
+    const distributionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const moduleColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46'];
+    const roleColors = ['#3b82f6', '#8b5cf6'];
 
-    const utilizationData = data.utilizationByRole || [];
+    const permissionDistribution = data.permissionDistribution || [];
+    const commonModuleAccess = data.commonModuleAccess || [];
+    const permissionByRole = data.permissionByRole || [];
+
+    // Permission Distribution
+    const distributionData: PieChartData[] = permissionDistribution.map((item: any, index: number) => ({
+      name: item._id === 0 ? 'No Permissions' : `${item._id} Permission${item._id > 1 ? 's' : ''}`,
+      value: item.count || 0,
+      label: `${item.count || 0} users`,
+      color: distributionColors[index % distributionColors.length],
+    }));
+
+    // Top Module Access
+    const topModules = commonModuleAccess
+      .sort((a: any, b: any) => (b.userCount || 0) - (a.userCount || 0))
+      .slice(0, 10)
+      .map((module: any, index: number) => ({
+        name: module.module || module._id || 'Unknown',
+        value: module.userCount || 0,
+        label: `${module.userCount || 0} users`,
+        color: moduleColors[index % moduleColors.length],
+      }));
+
+    // Permission by Role
+    const rolePermissionData = permissionByRole.map((role: any) => ({
+      name: role._id || 'Unknown',
+      avgPermissions: role.avgPermissions || 0,
+      avgModuleAccess: role.avgModuleAccess || 0,
+      withPermissions: role.totalUsers - (role.usersWithNoPermissions || 0),
+      withoutPermissions: role.usersWithNoPermissions || 0,
+    }));
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Permission Distribution by Module</h4>
-            <InteractivePieChart data={permissionData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Permission Distribution</h4>
+            <InteractivePieChart data={distributionData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Utilization by Role</h4>
+            <h4 className="text-sm font-medium mb-4">Users by Permission Count</h4>
             <StackedBarChart
-              data={utilizationData}
-              xAxisKey="role"
+              data={rolePermissionData}
+              xAxisKey="name"
               series={[
-                { dataKey: 'used', name: 'Used' },
-                { dataKey: 'unused', name: 'Unused' },
+                { dataKey: 'withPermissions', name: 'With Permissions', color: roleColors[0] },
+                { dataKey: 'withoutPermissions', name: 'Without Permissions', color: roleColors[1] },
               ]}
               height={300}
             />
@@ -124,17 +164,33 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
   };
 
   const renderTable = () => {
-    if (!data?.tableData) return null;
+    if (!data) return null;
+
+    const userPermissionProfiles = data.userPermissionProfiles || [];
 
     const columns = [
-      { key: 'module', label: 'Module' },
-      { key: 'totalPermissions', label: 'Total' },
-      { key: 'activePermissions', label: 'Active' },
-      { key: 'unusedPermissions', label: 'Unused' },
-      { key: 'utilizationRate', label: 'Utilization %' },
+      { key: 'userName', label: 'User' },
+      { key: 'email', label: 'Email' },
+      { key: 'role', label: 'Role' },
+      { key: 'permissionCount', label: 'Permissions' },
+      { key: 'moduleAccessCount', label: 'Module Access' },
+      { key: 'groupPermissionName', label: 'Group Permission' },
+      { key: 'hasGroupPermissions', label: 'Has Group Perms' },
+      { key: 'isActive', label: 'Active' },
     ];
 
-    return <DataTable columns={columns} data={data.tableData} />;
+    const tableData = userPermissionProfiles.map((user: any) => ({
+      userName: user.fullName || user.username || 'Unknown',
+      email: user.email || 'N/A',
+      role: user.role || 'N/A',
+      permissionCount: user.permissionCount || 0,
+      moduleAccessCount: user.moduleAccessCount || 0,
+      groupPermissionName: user.groupPermissionName || 'None',
+      hasGroupPermissions: user.hasGroupPermissions ? 'Yes' : 'No',
+      isActive: user.is_active ? 'Yes' : 'No',
+    }));
+
+    return <DataTable columns={columns} data={tableData} />;
   };
 
   return (
