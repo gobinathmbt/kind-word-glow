@@ -92,10 +92,25 @@ export const WorkflowTypeDistributionReport: React.FC<WorkflowTypeDistributionRe
   const renderCharts = () => {
     if (!data) return null;
 
-    const typeData: PieChartData[] = data.workflowsByType?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    const typeColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+    
+    const hasTypeData = data.workflowsByType && data.workflowsByType.length > 0 &&
+      data.workflowsByType.some((item: any) => (item.count || 0) > 0);
+    
+    const typeData: PieChartData[] = hasTypeData
+      ? data.workflowsByType.map((item: any, index: number) => ({
+          name: item._id || 'Unknown',
+          value: item.count || 0,
+          color: typeColors[index % typeColors.length],
+        }))
+      : [
+          { name: 'Approval', value: 0, color: typeColors[0] },
+          { name: 'Notification', value: 0, color: typeColors[1] },
+          { name: 'Data Processing', value: 0, color: typeColors[2] },
+          { name: 'Integration', value: 0, color: typeColors[3] },
+          { name: 'Automation', value: 0, color: typeColors[4] },
+          { name: 'Scheduled', value: 0, color: typeColors[5] },
+        ];
 
     const usageData = data.types?.slice(0, 10).map((type: any) => ({
       name: type.workflowType || 'Unknown',
@@ -109,6 +124,11 @@ export const WorkflowTypeDistributionReport: React.FC<WorkflowTypeDistributionRe
           <div>
             <h4 className="text-sm font-medium mb-4">Workflows by Type</h4>
             <InteractivePieChart data={typeData} height={300} />
+            {!hasTypeData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No workflow type data available
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Top 10 Types by Usage</h4>
