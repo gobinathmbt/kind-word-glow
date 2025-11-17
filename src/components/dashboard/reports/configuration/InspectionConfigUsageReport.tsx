@@ -67,23 +67,27 @@ export const InspectionConfigUsageReport: React.FC<InspectionConfigUsageReportPr
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Configurations"
-          value={summary.totalConfigurations || 0}
+          value={summary.totalConfigs || 0}
           icon={<ClipboardCheck className="h-5 w-5" />}
+          subtitle={`${summary.activeConfigs || 0} active`}
         />
         <MetricCard
-          title="Active Configurations"
-          value={summary.activeConfigurations || 0}
+          title="Total Categories"
+          value={summary.totalCategories || 0}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${summary.totalSections || 0} sections`}
         />
         <MetricCard
-          title="Total Inspections"
-          value={summary.totalInspections || 0}
+          title="Total Fields"
+          value={summary.totalFields || 0}
           icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`Avg ${(summary.avgFieldsPerConfig || 0).toFixed(1)} per config`}
         />
         <MetricCard
-          title="Avg Usage Rate"
-          value={`${summary.avgUsageRate || 0}%`}
+          title="Avg Config Score"
+          value={summary.avgConfigScore || 0}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={summary.overallHealth || 'N/A'}
         />
       </div>
     );
@@ -92,53 +96,111 @@ export const InspectionConfigUsageReport: React.FC<InspectionConfigUsageReportPr
   const renderCharts = () => {
     if (!data) return null;
 
-    const vehicleTypeData: PieChartData[] = data.configurationsByVehicleType?.map((item: any) => ({
-      name: item._id || 'Unknown',
+    // Color palettes
+    const versionColors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+    const fieldTypeColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+
+    // Version Distribution Pie Chart
+    const versionData: PieChartData[] = data.versionDistribution?.map((item: any, index: number) => ({
+      name: `Version ${item.version}`,
       value: item.count || 0,
+      color: versionColors[index % versionColors.length],
     })) || [];
 
-    const usageData = data.configurations?.slice(0, 10).map((config: any) => ({
+    // Field Type Usage Pie Chart
+    const fieldTypeData: PieChartData[] = data.globalFieldTypeUsage?.map((item: any, index: number) => ({
+      name: item.fieldType || 'Unknown',
+      value: item.count || 0,
+      color: fieldTypeColors[index % fieldTypeColors.length],
+    })) || [];
+
+    // Top Configs Bar Chart
+    const topConfigsData = data.topConfigs?.map((config: any) => ({
       name: config.configName || 'Unknown',
-      usage: config.usageCount || 0,
-      inspections: config.inspectionCount || 0,
+      categories: config.totalCategories || 0,
+      sections: config.totalSections || 0,
+      fields: config.totalFields || 0,
     })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Configurations by Vehicle Type</h4>
-            <InteractivePieChart data={vehicleTypeData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Version Distribution</h4>
+            <InteractivePieChart data={versionData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 by Usage</h4>
+            <h4 className="text-sm font-medium mb-4">Field Type Usage</h4>
+            <InteractivePieChart data={fieldTypeData} height={300} />
+          </div>
+        </div>
+
+        {topConfigsData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Top Configurations</h4>
             <StackedBarChart
-              data={usageData}
+              data={topConfigsData}
               xAxisKey="name"
               series={[
-                { dataKey: 'inspections', name: 'Inspections', color: '#3b82f6' },
+                { dataKey: 'categories', name: 'Categories', color: '#10b981' },
+                { dataKey: 'sections', name: 'Sections', color: '#3b82f6' },
+                { dataKey: 'fields', name: 'Fields', color: '#f59e0b' },
               ]}
               height={300}
             />
           </div>
-        </div>
+        )}
 
-        {data.configurations && data.configurations.length > 0 && (
+        {data.dealershipDistribution && data.dealershipDistribution.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Dealership Distribution</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Dealership</th>
+                    <th className="px-4 py-3 text-right font-medium">Total Configs</th>
+                    <th className="px-4 py-3 text-right font-medium">Active Configs</th>
+                    <th className="px-4 py-3 text-right font-medium">Default Configs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dealershipDistribution.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.dealershipId === 'company_wide' ? 'Company Wide' : item.dealershipId}</td>
+                      <td className="px-4 py-3 text-right">{item.count || 0}</td>
+                      <td className="px-4 py-3 text-right">{item.activeCount || 0}</td>
+                      <td className="px-4 py-3 text-right">{item.defaultCount || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.configs && data.configs.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Configuration Details</h4>
             <DataTable
               columns={[
                 { key: 'configName', label: 'Configuration' },
-                { key: 'vehicleType', label: 'Vehicle Type' },
-                { key: 'usage', label: 'Usage Count' },
-                { key: 'inspections', label: 'Inspections' },
+                { key: 'version', label: 'Version' },
+                { key: 'categories', label: 'Categories' },
+                { key: 'sections', label: 'Sections' },
+                { key: 'fields', label: 'Fields' },
+                { key: 'score', label: 'Score' },
+                { key: 'health', label: 'Health' },
                 { key: 'status', label: 'Status' },
               ]}
-              data={data.configurations.slice(0, 20).map((config: any) => ({
+              data={data.configs.map((config: any) => ({
                 configName: config.configName || 'N/A',
-                vehicleType: config.vehicleType || 'N/A',
-                usage: config.usageCount || 0,
-                inspections: config.inspectionCount || 0,
+                version: config.version || 'N/A',
+                categories: config.totalCategories || 0,
+                sections: config.totalSections || 0,
+                fields: config.totalFields || 0,
+                score: config.configScore || 0,
+                health: config.configHealth || 'N/A',
                 status: config.isActive ? 'Active' : 'Inactive',
               }))}
             />
@@ -149,26 +211,43 @@ export const InspectionConfigUsageReport: React.FC<InspectionConfigUsageReportPr
   };
 
   const renderTable = () => {
-    if (!data?.configurations) return null;
+    if (!data?.configs) return null;
 
-    const tableData = data.configurations.map((config: any) => ({
+    const tableData = data.configs.map((config: any) => ({
       configName: config.configName || 'Unknown',
-      vehicleType: config.vehicleType || 'Unknown',
-      usageCount: config.usageCount || 0,
-      inspectionCount: config.inspectionCount || 0,
-      categoryCount: config.categoryCount || 0,
-      fieldCount: config.fieldCount || 0,
-      isActive: config.isActive ? 'Active' : 'Inactive',
+      version: config.version || 'N/A',
+      description: config.description || 'N/A',
+      dealership: config.dealershipId || 'Company Wide',
+      categories: config.totalCategories || 0,
+      sections: config.totalSections || 0,
+      fields: config.totalFields || 0,
+      requiredFields: config.requiredFieldsCount || 0,
+      imageFields: config.fieldsWithImageCount || 0,
+      score: config.configScore || 0,
+      health: config.configHealth || 'N/A',
+      avgFieldsPerSection: (config.avgFieldsPerSection || 0).toFixed(1),
+      avgSectionsPerCategory: (config.avgSectionsPerCategory || 0).toFixed(1),
+      status: config.isActive ? 'Active' : 'Inactive',
+      createdBy: config.createdBy?.name || 'N/A',
+      createdAt: config.createdAt ? new Date(config.createdAt).toLocaleDateString() : 'N/A',
     }));
 
     const columns = [
       { key: 'configName', label: 'Configuration' },
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'usageCount', label: 'Usage Count' },
-      { key: 'inspectionCount', label: 'Inspections' },
-      { key: 'categoryCount', label: 'Categories' },
-      { key: 'fieldCount', label: 'Fields' },
-      { key: 'isActive', label: 'Status' },
+      { key: 'version', label: 'Version' },
+      { key: 'dealership', label: 'Dealership' },
+      { key: 'categories', label: 'Categories' },
+      { key: 'sections', label: 'Sections' },
+      { key: 'fields', label: 'Fields' },
+      { key: 'requiredFields', label: 'Required' },
+      { key: 'imageFields', label: 'Image Fields' },
+      { key: 'avgFieldsPerSection', label: 'Avg Fields/Section' },
+      { key: 'avgSectionsPerCategory', label: 'Avg Sections/Category' },
+      { key: 'score', label: 'Score' },
+      { key: 'health', label: 'Health' },
+      { key: 'status', label: 'Status' },
+      { key: 'createdBy', label: 'Created By' },
+      { key: 'createdAt', label: 'Created At' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

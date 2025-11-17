@@ -69,21 +69,25 @@ export const InspectionCategoryEffectivenessReport: React.FC<InspectionCategoryE
           title="Total Categories"
           value={summary.totalCategories || 0}
           icon={<Layers className="h-5 w-5" />}
+          subtitle={`${summary.activeCategories || 0} active (${(summary.activePercentage || 0).toFixed(0)}%)`}
         />
         <MetricCard
-          title="Active Categories"
-          value={summary.activeCategories || 0}
-          icon={<Activity className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Avg Effectiveness"
-          value={`${summary.avgEffectiveness || 0}%`}
+          title="Avg Effectiveness Score"
+          value={summary.avgEffectivenessScore || 0}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={summary.overallHealth || 'N/A'}
         />
         <MetricCard
-          title="Avg Completion"
-          value={`${summary.avgCompletion || 0}%`}
+          title="Total Sections"
+          value={summary.totalSections || 0}
+          icon={<Activity className="h-5 w-5" />}
+          subtitle={`${summary.totalFields || 0} fields`}
+        />
+        <MetricCard
+          title="High Effectiveness"
+          value={summary.highEffectiveness || 0}
           icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`${(summary.highEffectivenessPercentage || 0).toFixed(0)}% of total`}
         />
       </div>
     );
@@ -92,59 +96,172 @@ export const InspectionCategoryEffectivenessReport: React.FC<InspectionCategoryE
   const renderCharts = () => {
     if (!data) return null;
 
-    const categoryData: PieChartData[] = data.categories?.slice(0, 10).map((item: any) => ({
+    // Color palettes
+    const effectivenessColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+    const levelColors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+
+    // Effectiveness Level Distribution
+    const effectivenessLevelData: PieChartData[] = [
+      { name: 'High', value: data.summary?.highEffectiveness || 0, color: '#10b981' },
+      { name: 'Medium', value: data.summary?.mediumEffectiveness || 0, color: '#f59e0b' },
+      { name: 'Low', value: data.summary?.lowEffectiveness || 0, color: '#ef4444' },
+    ].filter(item => item.value > 0);
+
+    // Category Name Distribution
+    const categoryNameData: PieChartData[] = data.categoryNameAnalysis?.map((item: any, index: number) => ({
       name: item.categoryName || 'Unknown',
-      value: item.usageCount || 0,
+      value: item.count || 0,
+      color: levelColors[index % levelColors.length],
     })) || [];
 
-    const effectivenessData = data.categories?.slice(0, 10).map((category: any) => ({
+    // Top Categories by Effectiveness
+    const topCategoriesData = data.topCategories?.map((category: any) => ({
       name: category.categoryName || 'Unknown',
-      effectiveness: category.effectivenessScore || 0,
-      completion: category.completionRate || 0,
+      score: category.effectivenessScore || 0,
+      sections: category.totalSections || 0,
+      fields: category.totalFields || 0,
+      calculations: category.totalCalculations || 0,
     })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 Categories by Usage</h4>
-            <InteractivePieChart data={categoryData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Effectiveness Level Distribution</h4>
+            {effectivenessLevelData.length > 0 ? (
+              <InteractivePieChart data={effectivenessLevelData} height={300} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] border rounded-lg bg-gray-50">
+                <div className="text-center text-gray-500">No data available</div>
+              </div>
+            )}
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 by Effectiveness</h4>
+            <h4 className="text-sm font-medium mb-4">Category Name Distribution</h4>
+            {categoryNameData.length > 0 ? (
+              <InteractivePieChart data={categoryNameData} height={300} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] border rounded-lg bg-gray-50">
+                <div className="text-center text-gray-500">No data available</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {topCategoriesData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Top Categories by Effectiveness</h4>
             <StackedBarChart
-              data={effectivenessData}
+              data={topCategoriesData}
               xAxisKey="name"
               series={[
-                { dataKey: 'effectiveness', name: 'Effectiveness %', color: '#3b82f6' },
-                { dataKey: 'completion', name: 'Completion %', color: '#10b981' },
+                { dataKey: 'score', name: 'Effectiveness Score', color: '#10b981' },
+                { dataKey: 'sections', name: 'Sections', color: '#3b82f6' },
+                { dataKey: 'fields', name: 'Fields', color: '#f59e0b' },
+                { dataKey: 'calculations', name: 'Calculations', color: '#8b5cf6' },
               ]}
               height={300}
             />
           </div>
-        </div>
+        )}
+
+        {data.categoriesNeedingImprovement && data.categoriesNeedingImprovement.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Categories Needing Improvement</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Category</th>
+                    <th className="px-4 py-3 text-left font-medium">Config</th>
+                    <th className="px-4 py-3 text-right font-medium">Score</th>
+                    <th className="px-4 py-3 text-left font-medium">Level</th>
+                    <th className="px-4 py-3 text-right font-medium">Sections</th>
+                    <th className="px-4 py-3 text-right font-medium">Fields</th>
+                    <th className="px-4 py-3 text-left font-medium">Issues</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.categoriesNeedingImprovement.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.categoryName || 'Unknown'}</td>
+                      <td className="px-4 py-3">{item.configName || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${item.effectivenessLevel === 'High' ? 'bg-green-100 text-green-800' :
+                            item.effectivenessLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                          }`}>
+                          {item.effectivenessScore || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{item.effectivenessLevel || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{item.totalSections || 0}</td>
+                      <td className="px-4 py-3 text-right">{item.totalFields || 0}</td>
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-600">
+                          {item.issues?.slice(0, 2).join(', ') || 'None'}
+                          {item.issues?.length > 2 && ` +${item.issues.length - 2} more`}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {data.categories && data.categories.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Category Details</h4>
+            <h4 className="text-sm font-medium mb-4">All Categories</h4>
             <DataTable
               columns={[
                 { key: 'categoryName', label: 'Category' },
-                { key: 'usage', label: 'Usage' },
-                { key: 'effectiveness', label: 'Effectiveness' },
-                { key: 'completion', label: 'Completion' },
+                { key: 'configName', label: 'Config' },
+                { key: 'score', label: 'Score' },
+                { key: 'level', label: 'Level' },
+                { key: 'sections', label: 'Sections' },
+                { key: 'fields', label: 'Fields' },
                 { key: 'status', label: 'Status' },
               ]}
-              data={data.categories.slice(0, 20).map((category: any) => ({
+              data={data.categories.map((category: any) => ({
                 categoryName: category.categoryName || 'N/A',
-                usage: category.usageCount || 0,
-                effectiveness: `${category.effectivenessScore || 0}%`,
-                completion: `${category.completionRate || 0}%`,
+                configName: category.configName || 'N/A',
+                score: category.effectivenessScore || 0,
+                level: category.effectivenessLevel || 'N/A',
+                sections: category.totalSections || 0,
+                fields: category.totalFields || 0,
                 status: category.isActive ? 'Active' : 'Inactive',
               }))}
             />
           </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="border rounded-lg p-4">
+            <div className="text-2xl font-bold text-blue-600">{data.summary?.totalCalculations || 0}</div>
+            <div className="text-sm text-gray-600 mt-1">Total Calculations</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {data.summary?.totalActiveCalculations || 0} active
+            </div>
+          </div>
+          <div className="border rounded-lg p-4">
+            <div className="text-2xl font-bold text-green-600">{data.summary?.collapsibleSections || 0}</div>
+            <div className="text-sm text-gray-600 mt-1">Collapsible Sections</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {(data.summary?.collapsiblePercentage || 0).toFixed(0)}% of total
+            </div>
+          </div>
+          <div className="border rounded-lg p-4">
+            <div className="text-2xl font-bold text-orange-600">
+              {(data.summary?.avgFieldsPerCategory || 0).toFixed(1)}
+            </div>
+            <div className="text-sm text-gray-600 mt-1">Avg Fields per Category</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {(data.summary?.avgSectionsPerCategory || 0).toFixed(1)} sections avg
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -154,22 +271,38 @@ export const InspectionCategoryEffectivenessReport: React.FC<InspectionCategoryE
 
     const tableData = data.categories.map((category: any) => ({
       categoryName: category.categoryName || 'Unknown',
-      usageCount: category.usageCount || 0,
-      effectivenessScore: `${category.effectivenessScore || 0}%`,
-      completionRate: `${category.completionRate || 0}%`,
-      sectionCount: category.sectionCount || 0,
-      fieldCount: category.fieldCount || 0,
-      isActive: category.isActive ? 'Active' : 'Inactive',
+      configName: category.configName || 'N/A',
+      effectivenessScore: category.effectivenessScore || 0,
+      effectivenessLevel: category.effectivenessLevel || 'N/A',
+      totalSections: category.totalSections || 0,
+      totalFields: category.totalFields || 0,
+      requiredFields: category.requiredFields || 0,
+      requiredPercentage: `${(category.requiredFieldsPercentage || 0).toFixed(1)}%`,
+      validationCoverage: `${(category.validationCoverage || 0).toFixed(1)}%`,
+      totalCalculations: category.totalCalculations || 0,
+      activeCalculations: category.activeCalculations || 0,
+      collapsibleSections: category.collapsibleSections || 0,
+      avgFieldsPerSection: (category.avgFieldsPerSection || 0).toFixed(1),
+      hasMasterDropdown: category.hasMasterDropdown ? 'Yes' : 'No',
+      status: category.isActive ? 'Active' : 'Inactive',
     }));
 
     const columns = [
       { key: 'categoryName', label: 'Category' },
-      { key: 'usageCount', label: 'Usage Count' },
-      { key: 'effectivenessScore', label: 'Effectiveness' },
-      { key: 'completionRate', label: 'Completion Rate' },
-      { key: 'sectionCount', label: 'Sections' },
-      { key: 'fieldCount', label: 'Fields' },
-      { key: 'isActive', label: 'Status' },
+      { key: 'configName', label: 'Config' },
+      { key: 'effectivenessScore', label: 'Score' },
+      { key: 'effectivenessLevel', label: 'Level' },
+      { key: 'totalSections', label: 'Sections' },
+      { key: 'totalFields', label: 'Fields' },
+      { key: 'requiredFields', label: 'Required' },
+      { key: 'requiredPercentage', label: 'Required %' },
+      { key: 'validationCoverage', label: 'Validation %' },
+      { key: 'totalCalculations', label: 'Calculations' },
+      { key: 'activeCalculations', label: 'Active Calc' },
+      { key: 'collapsibleSections', label: 'Collapsible' },
+      { key: 'avgFieldsPerSection', label: 'Avg Fields/Section' },
+      { key: 'hasMasterDropdown', label: 'Master Dropdown' },
+      { key: 'status', label: 'Status' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;
