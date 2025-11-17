@@ -63,27 +63,38 @@ export const TradeinFieldAnalysisReport: React.FC<TradeinFieldAnalysisReportProp
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+    
+    // Find most used field type from fieldTypeAnalysis
+    const fieldTypeAnalysis = data.fieldTypeAnalysis || [];
+    const mostUsedType = fieldTypeAnalysis.length > 0
+      ? fieldTypeAnalysis.reduce((max: any, item: any) => 
+          (item.totalCount > (max.totalCount || 0) ? item : max), fieldTypeAnalysis[0])
+      : null;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Fields"
           value={summary.totalFields || 0}
           icon={<FileText className="h-5 w-5" />}
+          subtitle={`${summary.uniqueFieldTypes || 0} unique types`}
         />
         <MetricCard
-          title="Active Fields"
-          value={summary.activeFields || 0}
+          title="Required Fields"
+          value={summary.requiredFields || 0}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${summary.requiredPercentage || 0}% of total`}
         />
         <MetricCard
-          title="Avg Completion Rate"
-          value={`${summary.avgCompletionRate || 0}%`}
+          title="Avg Completeness Score"
+          value={`${summary.avgCompletenessScore || 0}%`}
           icon={<CheckCircle className="h-5 w-5" />}
         />
         <MetricCard
           title="Most Used Field Type"
-          value={summary.mostUsedFieldType || 'N/A'}
+          value={mostUsedType?.fieldType || 'N/A'}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={mostUsedType ? `${mostUsedType.totalCount} fields` : ''}
         />
       </div>
     );
@@ -92,16 +103,34 @@ export const TradeinFieldAnalysisReport: React.FC<TradeinFieldAnalysisReportProp
   const renderCharts = () => {
     if (!data) return null;
 
-    const fieldTypeData: PieChartData[] = data.fieldsByType?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    // Color palettes
+    const fieldTypeColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
+    const completenessColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
 
-    const completionData = data.fields?.slice(0, 10).map((field: any) => ({
+    const fieldTypeAnalysis = data.fieldTypeAnalysis || [];
+    const hasFieldTypeData = fieldTypeAnalysis.length > 0;
+    
+    const fieldTypeData: PieChartData[] = hasFieldTypeData
+      ? fieldTypeAnalysis.map((item: any, index: number) => ({
+          name: item.fieldType || 'Unknown',
+          value: item.totalCount || 0,
+          color: fieldTypeColors[index % fieldTypeColors.length],
+        }))
+      : [
+          { name: 'Text', value: 0, color: fieldTypeColors[0] },
+          { name: 'Number', value: 0, color: fieldTypeColors[1] },
+          { name: 'Dropdown', value: 0, color: fieldTypeColors[2] },
+          { name: 'Date', value: 0, color: fieldTypeColors[3] },
+          { name: 'Checkbox', value: 0, color: fieldTypeColors[4] },
+        ];
+
+    const wellConfiguredFields = data.wellConfiguredFields || [];
+    const completionData = wellConfiguredFields.slice(0, 10).map((field: any, index: number) => ({
       name: field.fieldName || 'Unknown',
-      completionRate: field.completionRate || 0,
-      usage: field.usageCount || 0,
-    })) || [];
+      value: field.completenessScore || 0,
+      label: `${field.completenessScore || 0}%`,
+      color: completenessColors[index % completenessColors.length],
+    }));
 
     return (
       <div className="space-y-6">
@@ -109,37 +138,77 @@ export const TradeinFieldAnalysisReport: React.FC<TradeinFieldAnalysisReportProp
           <div>
             <h4 className="text-sm font-medium mb-4">Fields by Type</h4>
             <InteractivePieChart data={fieldTypeData} height={300} />
+            {!hasFieldTypeData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No field type data available
+              </p>
+            )}
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 by Completion Rate</h4>
+            <h4 className="text-sm font-medium mb-4">Top 10 Well-Configured Fields</h4>
             <StackedBarChart
-              data={completionData}
+              data={wellConfiguredFields.slice(0, 10).map((field: any) => ({
+                name: field.fieldName || 'Unknown',
+                completeness: field.completenessScore || 0,
+              }))}
               xAxisKey="name"
               series={[
-                { dataKey: 'completionRate', name: 'Completion %', color: '#3b82f6' },
+                { dataKey: 'completeness', name: 'Completeness Score', color: '#10b981' },
               ]}
               height={300}
             />
           </div>
         </div>
 
-        {data.fields && data.fields.length > 0 && (
+        {fieldTypeAnalysis.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Field Details</h4>
+            <h4 className="text-sm font-medium mb-4">Field Type Analysis</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Field Type</th>
+                    <th className="px-4 py-3 text-right font-medium">Total Count</th>
+                    <th className="px-4 py-3 text-right font-medium">Required %</th>
+                    <th className="px-4 py-3 text-right font-medium">With Image %</th>
+                    <th className="px-4 py-3 text-right font-medium">With Notes %</th>
+                    <th className="px-4 py-3 text-right font-medium">Avg Completeness</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fieldTypeAnalysis.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.fieldType || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-right">{item.totalCount || 0}</td>
+                      <td className="px-4 py-3 text-right">{item.requiredPercentage || 0}%</td>
+                      <td className="px-4 py-3 text-right">{item.imagePercentage || 0}%</td>
+                      <td className="px-4 py-3 text-right">{item.notesPercentage || 0}%</td>
+                      <td className="px-4 py-3 text-right">{item.avgCompletenessScore || 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.poorlyConfiguredFields && data.poorlyConfiguredFields.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Poorly Configured Fields</h4>
             <DataTable
               columns={[
                 { key: 'fieldName', label: 'Field Name' },
                 { key: 'fieldType', label: 'Type' },
-                { key: 'usage', label: 'Usage' },
-                { key: 'completion', label: 'Completion' },
-                { key: 'status', label: 'Status' },
+                { key: 'configName', label: 'Config' },
+                { key: 'completenessScore', label: 'Score' },
+                { key: 'missingFeatures', label: 'Missing Features' },
               ]}
-              data={data.fields.slice(0, 20).map((field: any) => ({
+              data={data.poorlyConfiguredFields.map((field: any) => ({
                 fieldName: field.fieldName || 'N/A',
                 fieldType: field.fieldType || 'N/A',
-                usage: field.usageCount || 0,
-                completion: `${field.completionRate || 0}%`,
-                status: field.isActive ? 'Active' : 'Inactive',
+                configName: field.configName || 'N/A',
+                completenessScore: `${field.completenessScore || 0}%`,
+                missingFeatures: field.missingFeatures?.join(', ') || 'N/A',
               }))}
             />
           </div>
@@ -149,24 +218,30 @@ export const TradeinFieldAnalysisReport: React.FC<TradeinFieldAnalysisReportProp
   };
 
   const renderTable = () => {
-    if (!data?.fields) return null;
+    const wellConfiguredFields = data?.wellConfiguredFields || [];
+    const poorlyConfiguredFields = data?.poorlyConfiguredFields || [];
+    const allFields = [...wellConfiguredFields, ...poorlyConfiguredFields];
+    
+    if (allFields.length === 0) return null;
 
-    const tableData = data.fields.map((field: any) => ({
+    const tableData = allFields.map((field: any) => ({
       fieldName: field.fieldName || 'Unknown',
       fieldType: field.fieldType || 'Unknown',
-      usageCount: field.usageCount || 0,
-      completionRate: `${field.completionRate || 0}%`,
-      avgValue: field.avgValue || 'N/A',
-      isActive: field.isActive ? 'Active' : 'Inactive',
+      configName: field.configName || 'N/A',
+      categoryName: field.categoryName || 'N/A',
+      sectionName: field.sectionName || 'N/A',
+      completenessScore: `${field.completenessScore || 0}%`,
+      missingFeatures: field.missingFeatures?.length || 0,
     }));
 
     const columns = [
       { key: 'fieldName', label: 'Field Name' },
       { key: 'fieldType', label: 'Type' },
-      { key: 'usageCount', label: 'Usage Count' },
-      { key: 'completionRate', label: 'Completion Rate' },
-      { key: 'avgValue', label: 'Avg Value' },
-      { key: 'isActive', label: 'Status' },
+      { key: 'configName', label: 'Configuration' },
+      { key: 'categoryName', label: 'Category' },
+      { key: 'sectionName', label: 'Section' },
+      { key: 'completenessScore', label: 'Completeness Score' },
+      { key: 'missingFeatures', label: 'Missing Features' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;
