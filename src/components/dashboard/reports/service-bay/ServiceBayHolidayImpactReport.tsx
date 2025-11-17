@@ -118,9 +118,12 @@ export const ServiceBayHolidayImpactReport: React.FC<ServiceBayHolidayImpactRepo
       { name: 'Low Impact', value: data.summary.impactDistribution.low || 0, color: '#10b981' },
     ] : [];
 
-    const topReasonsData: PieChartData[] = data.summary?.topReasons?.slice(0, 5).map((reason: any) => ({
+    const reasonColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+    const topReasonsData: PieChartData[] = data.summary?.topReasons?.slice(0, 5).map((reason: any, index: number) => ({
       name: reason.reason || 'Unknown',
       value: reason.count || 0,
+      label: `${reason.count || 0} holidays`,
+      color: reasonColors[index % reasonColors.length],
     })) || [];
 
     const bayImpactData = data.bays?.slice(0, 10).map((bay: any) => ({
