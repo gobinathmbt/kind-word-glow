@@ -48,18 +48,26 @@ const getWorkshopVehicles = async (req, res) => {
 
     if (search) {
       filter.$and = filter.$and || [];
-      filter.$and.push({
-        $or: [
-          { make: { $regex: search, $options: "i" } },
-          { model: { $regex: search, $options: "i" } },
-          { plate_no: { $regex: search, $options: "i" } },
-          { vin: { $regex: search, $options: "i" } },
-          { name: { $regex: search, $options: "i" } },
-          { vehicle_stock_id: { $regex: search, $options: "i" } }, // Add stock ID search
-          { variant: { $regex: search, $options: "i" } }, // Add variant search
-        ],
-      });
+      
+      // Build search conditions
+      const searchConditions = [
+        { make: { $regex: search, $options: "i" } },
+        { model: { $regex: search, $options: "i" } },
+        { plate_no: { $regex: search, $options: "i" } },
+        { vin: { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: "i" } },
+        { variant: { $regex: search, $options: "i" } },
+      ];
+      
+      // Only add vehicle_stock_id search if the search term is numeric
+      if (!isNaN(search) && search.trim() !== '') {
+        searchConditions.push({ vehicle_stock_id: parseInt(search) });
+      }
+      
+      filter.$and.push({ $or: searchConditions });
     }
+
+
 
     // Define the fields to select with additional fields for odometer and registration
     const projection = {
