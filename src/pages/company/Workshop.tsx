@@ -44,6 +44,7 @@ import { hasPermission } from "@/utils/permissionController";
 const Workshop = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [dealershipFilter, setDealershipFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
@@ -54,7 +55,8 @@ const Workshop = () => {
   
   // Permission checks
   const canRefresh = hasPermission(completeUser, 'workshop_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'workshop_search_filter');
+  const canSearch = hasPermission(completeUser, 'workshop_search');
+  const canFilter = hasPermission(completeUser, 'workshop_filter');
 
   // Function to fetch all vehicles when pagination is disabled
   const fetchAllVehicles = async () => {
@@ -70,6 +72,9 @@ const Workshop = () => {
           ...(searchTerm && { search: searchTerm }),
           ...(vehicleTypeFilter !== "all" && {
             vehicle_type: vehicleTypeFilter,
+          }),
+          ...(dealershipFilter !== "all" && {
+            dealership: dealershipFilter,
           }),
         };
 
@@ -117,8 +122,8 @@ const Workshop = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["workshop-vehicles", page, searchTerm, vehicleTypeFilter, rowsPerPage]
-      : ["all-workshop-vehicles", searchTerm, vehicleTypeFilter],
+      ? ["workshop-vehicles", page, searchTerm, vehicleTypeFilter, dealershipFilter, rowsPerPage]
+      : ["all-workshop-vehicles", searchTerm, vehicleTypeFilter, dealershipFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllVehicles();
@@ -129,6 +134,7 @@ const Workshop = () => {
         limit: rowsPerPage,
         ...(searchTerm && { search: searchTerm }),
         ...(vehicleTypeFilter !== "all" && { vehicle_type: vehicleTypeFilter }),
+        ...(dealershipFilter !== "all" && { dealership: dealershipFilter }),
       };
 
       const response = await workshopServices.getWorkshopVehicles(params);
@@ -196,6 +202,7 @@ const Workshop = () => {
   const handleClearFilters = () => {
     setSearchTerm("");
     setVehicleTypeFilter("all");
+    setDealershipFilter("all");
     setPage(1);
     refetch();
   };
@@ -230,6 +237,18 @@ const Workshop = () => {
     toast.success("Data refreshed");
   };
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
 
   // Helper functions for new columns
   const getExpiryStatus = (licenseExpiryDate: string) => {
@@ -292,14 +311,65 @@ const Workshop = () => {
     },
   ];
 
-  // Prepare action buttons
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
   ];
 
   // Render table header
@@ -521,45 +591,17 @@ const Workshop = () => {
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
 
-      {/* Search and Filter Dialog */}
+      {/* Filter Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Search & Filter Vehicles</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFilterDialogOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTitle>
+            <DialogTitle>Filters</DialogTitle>
           </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  type="text"
-                  placeholder="Search by vehicle name, stock ID, or plate number"
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="vehicle-type">Vehicle Type</Label>
-              <Select
-                value={vehicleTypeFilter}
-                onValueChange={setVehicleTypeFilter}
-              >
-                <SelectTrigger id="vehicle-type">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="vehicle-type-filter">Filter by Vehicle Type</Label>
+              <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
+                <SelectTrigger id="vehicle-type-filter">
                   <SelectValue placeholder="Select vehicle type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -569,16 +611,50 @@ const Workshop = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="dealership-filter">Filter by Dealership</Label>
+              <Select value={dealershipFilter} onValueChange={setDealershipFilter}>
+                <SelectTrigger id="dealership-filter">
+                  <SelectValue placeholder="Select dealership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dealerships</SelectItem>
+                  {dealerships?.map((dealership: any) => (
+                    <SelectItem key={dealership._id} value={dealership._id}>
+                      {formatApiNames(dealership.dealership_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={handleClearFilters}>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
               Clear Filters
             </Button>
-            <Button onClick={applyFilters} disabled={isLoading}>
-              {isLoading ? "Applying..." : "Apply Filters"}
-            </Button>
-          </DialogFooter>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

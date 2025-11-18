@@ -8,7 +8,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getWorkshopVehicles = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, vehicle_type } = req.query;
+    const { page = 1, limit = 20, search, vehicle_type, dealership } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
     const numericPage = parseInt(page);
@@ -37,7 +37,12 @@ const getWorkshopVehicles = async (req, res) => {
       filter.dealership_id = { $in: dealershipObjectIds };
     }
 
-    if (vehicle_type) {
+    // Apply dealership filter if specified
+    if (dealership && dealership !== 'all') {
+      filter.dealership_id = dealership;
+    }
+
+    if (vehicle_type && vehicle_type !== 'all') {
       filter.vehicle_type = vehicle_type;
     }
 
@@ -50,6 +55,8 @@ const getWorkshopVehicles = async (req, res) => {
           { plate_no: { $regex: search, $options: "i" } },
           { vin: { $regex: search, $options: "i" } },
           { name: { $regex: search, $options: "i" } },
+          { vehicle_stock_id: { $regex: search, $options: "i" } }, // Add stock ID search
+          { variant: { $regex: search, $options: "i" } }, // Add variant search
         ],
       });
     }
@@ -68,6 +75,7 @@ const getWorkshopVehicles = async (req, res) => {
       created_at: 1,
       dealership_id: 1,
       status: 1,
+      variant: 1, // Add variant to projection
       // Get latest odometer reading
       "vehicle_odometer": {
         $slice: 1 // Get only the first (latest) entry
@@ -108,6 +116,7 @@ const getWorkshopVehicles = async (req, res) => {
         vehicle_type: vehicle.vehicle_type,
         vin: vehicle.vin,
         name: vehicle.name,
+        variant: vehicle.variant, // Include variant
         vehicle_hero_image: vehicle.vehicle_hero_image,
         created_at: vehicle.created_at,
         dealership_id: vehicle.dealership_id,
@@ -136,7 +145,6 @@ const getWorkshopVehicles = async (req, res) => {
     });
   }
 };
-
 // @desc    Get vehicle details for workshop config
 // @route   GET /api/workshop/vehicle/:vehicleId
 // @access  Private (Company Admin/Super Admin)
