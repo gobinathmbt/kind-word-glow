@@ -11,10 +11,13 @@ import {
   SlidersHorizontal,
   Download,
   FileText,
+  X,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -80,7 +83,8 @@ const WorkflowManagement = () => {
 
   // Permissions
   const canRefresh = hasPermission(completeUser, 'workflow_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'workflow_search_filter');
+  const canSearch = hasPermission(completeUser, 'workflow_search_filter');
+  const canFilter = hasPermission(completeUser, 'workflow_search_filter');
   const canAdd = hasPermission(completeUser, 'workflow_add');
   const canLogs = hasPermission(completeUser, 'workflow_logs');
   const canEdit = hasPermission(completeUser, 'workflow_edit');
@@ -357,6 +361,22 @@ const WorkflowManagement = () => {
     refetch();
   };
 
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  const handleFilterChange = () => {
+    setPage(1);
+    refetch();
+  };
+
   const totalWorkflows = workflowsData?.total || 0;
   const activeCount = workflows.filter(
     (w: any) => w.status === "active"
@@ -400,9 +420,55 @@ const WorkflowManagement = () => {
   ];
 
   const actionButtons = [
-    ...(canSearchFilter ? [{
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search workflows..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
+      tooltip: "Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     }] : []),
@@ -745,30 +811,17 @@ const WorkflowManagement = () => {
       </Dialog>
 
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5" />
-              Search & Filters
-            </DialogTitle>
-            <DialogDescription>
-              Filter workflows by various criteria
-            </DialogDescription>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Search</label>
-              <Input
-                placeholder="Search workflows by name or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
+              <Label htmlFor="status-filter">Filter by Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
@@ -779,35 +832,47 @@ const WorkflowManagement = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Workflow Type</label>
+              <Label htmlFor="type-filter">Filter by Type</Label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by type" />
+                <SelectTrigger id="type-filter">
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="vehicle_inbound">
                     Vehicle Inbound
                   </SelectItem>
+                  <SelectItem value="vehicle_outbound">
+                    Vehicle Outbound
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2 pt-4">
-              <Button
-                onClick={() => {
-                  setIsFilterDialogOpen(false);
-                  refetch();
-                }}
-                className="flex-1"
-              >
-                Apply Filters
-              </Button>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={workflowsLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
               <Button
                 variant="outline"
-                onClick={handleClearFilters}
-                className="flex-1"
+                onClick={() => setIsFilterDialogOpen(false)}
               >
-                Clear All
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={workflowsLoading}
+              >
+                {workflowsLoading ? "Applying..." : "Apply Filters"}
               </Button>
             </div>
           </div>
