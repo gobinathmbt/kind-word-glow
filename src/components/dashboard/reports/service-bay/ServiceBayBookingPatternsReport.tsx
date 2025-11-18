@@ -15,6 +15,7 @@ interface ServiceBayBookingPatternsReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const ServiceBayBookingPatternsReport: React.FC<ServiceBayBookingPatternsReportProps> = ({
@@ -22,7 +23,7 @@ export const ServiceBayBookingPatternsReport: React.FC<ServiceBayBookingPatterns
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +51,10 @@ export const ServiceBayBookingPatternsReport: React.FC<ServiceBayBookingPatterns
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting service bay booking patterns as ${format}`);

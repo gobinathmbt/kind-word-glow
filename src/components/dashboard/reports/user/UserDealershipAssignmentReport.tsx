@@ -15,6 +15,7 @@ interface UserDealershipAssignmentReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const UserDealershipAssignmentReport: React.FC<UserDealershipAssignmentReportProps> = ({
@@ -22,7 +23,7 @@ export const UserDealershipAssignmentReport: React.FC<UserDealershipAssignmentRe
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +51,10 @@ export const UserDealershipAssignmentReport: React.FC<UserDealershipAssignmentRe
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting dealership assignment report as ${format}`);

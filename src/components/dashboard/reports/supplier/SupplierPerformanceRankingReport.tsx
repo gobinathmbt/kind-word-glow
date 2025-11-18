@@ -15,6 +15,7 @@ interface SupplierPerformanceRankingReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const SupplierPerformanceRankingReport: React.FC<SupplierPerformanceRankingReportProps> = ({
@@ -22,7 +23,7 @@ export const SupplierPerformanceRankingReport: React.FC<SupplierPerformanceRanki
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +51,10 @@ export const SupplierPerformanceRankingReport: React.FC<SupplierPerformanceRanki
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting supplier performance report as ${format}`);

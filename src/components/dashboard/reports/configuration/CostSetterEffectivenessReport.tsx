@@ -14,6 +14,7 @@ interface CostSetterEffectivenessReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const CostSetterEffectivenessReport: React.FC<CostSetterEffectivenessReportProps> = ({
@@ -21,7 +22,7 @@ export const CostSetterEffectivenessReport: React.FC<CostSetterEffectivenessRepo
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +50,10 @@ export const CostSetterEffectivenessReport: React.FC<CostSetterEffectivenessRepo
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting cost setter effectiveness as ${format}`);

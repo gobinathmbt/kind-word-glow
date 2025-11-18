@@ -15,6 +15,7 @@ interface VehicleCostDetailsReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const VehicleCostDetailsReport: React.FC<VehicleCostDetailsReportProps> = ({
@@ -22,7 +23,7 @@ export const VehicleCostDetailsReport: React.FC<VehicleCostDetailsReportProps> =
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +53,10 @@ export const VehicleCostDetailsReport: React.FC<VehicleCostDetailsReportProps> =
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting cost details report as ${format}`);

@@ -14,6 +14,7 @@ interface ServiceBayHolidayImpactReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const ServiceBayHolidayImpactReport: React.FC<ServiceBayHolidayImpactReportProps> = ({
@@ -21,7 +22,7 @@ export const ServiceBayHolidayImpactReport: React.FC<ServiceBayHolidayImpactRepo
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +50,10 @@ export const ServiceBayHolidayImpactReport: React.FC<ServiceBayHolidayImpactRepo
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting service bay holiday impact as ${format}`);

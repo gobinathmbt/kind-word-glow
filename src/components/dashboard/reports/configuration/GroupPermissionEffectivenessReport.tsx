@@ -14,6 +14,7 @@ interface GroupPermissionEffectivenessReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const GroupPermissionEffectivenessReport: React.FC<GroupPermissionEffectivenessReportProps> = ({
@@ -21,7 +22,7 @@ export const GroupPermissionEffectivenessReport: React.FC<GroupPermissionEffecti
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +50,10 @@ export const GroupPermissionEffectivenessReport: React.FC<GroupPermissionEffecti
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting group permission effectiveness as ${format}`);

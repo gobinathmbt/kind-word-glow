@@ -15,6 +15,7 @@ interface UserPermissionUtilizationReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilizationReportProps> = ({
@@ -22,7 +23,7 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +51,10 @@ export const UserPermissionUtilizationReport: React.FC<UserPermissionUtilization
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting permission utilization report as ${format}`);

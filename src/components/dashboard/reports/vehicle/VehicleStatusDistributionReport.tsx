@@ -15,6 +15,7 @@ interface VehicleStatusDistributionReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistributionReportProps> = ({
@@ -22,7 +23,7 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +53,10 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting status distribution report as ${format}`);

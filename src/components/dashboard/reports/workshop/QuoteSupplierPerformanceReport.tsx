@@ -13,6 +13,7 @@ interface QuoteSupplierPerformanceReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const QuoteSupplierPerformanceReport: React.FC<QuoteSupplierPerformanceReportProps> = ({
@@ -20,7 +21,7 @@ export const QuoteSupplierPerformanceReport: React.FC<QuoteSupplierPerformanceRe
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,10 @@ export const QuoteSupplierPerformanceReport: React.FC<QuoteSupplierPerformanceRe
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting supplier performance report as ${format}`);

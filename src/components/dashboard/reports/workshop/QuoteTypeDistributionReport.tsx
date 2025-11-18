@@ -14,6 +14,7 @@ interface QuoteTypeDistributionReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const QuoteTypeDistributionReport: React.FC<QuoteTypeDistributionReportProps> = ({
@@ -21,7 +22,7 @@ export const QuoteTypeDistributionReport: React.FC<QuoteTypeDistributionReportPr
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +50,10 @@ export const QuoteTypeDistributionReport: React.FC<QuoteTypeDistributionReportPr
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting quote type distribution report as ${format}`);

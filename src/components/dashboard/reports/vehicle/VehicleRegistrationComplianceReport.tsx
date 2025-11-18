@@ -14,6 +14,7 @@ interface VehicleRegistrationComplianceReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationComplianceReportProps> = ({
@@ -21,7 +22,7 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,8 +52,10 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting registration compliance report as ${format}`);

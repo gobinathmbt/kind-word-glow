@@ -13,6 +13,7 @@ interface QuoteResponseTimeAnalysisReportProps {
   dateRange?: { from: string; to: string };
   refreshTrigger?: number;
   exportEnabled?: boolean;
+  shouldLoad?: boolean;
 }
 
 export const QuoteResponseTimeAnalysisReport: React.FC<QuoteResponseTimeAnalysisReportProps> = ({
@@ -20,7 +21,7 @@ export const QuoteResponseTimeAnalysisReport: React.FC<QuoteResponseTimeAnalysis
   dateRange,
   refreshTrigger,
   exportEnabled = true,
-}) => {
+  shouldLoad = false}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('chart');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,10 @@ export const QuoteResponseTimeAnalysisReport: React.FC<QuoteResponseTimeAnalysis
   };
 
   useEffect(() => {
-    fetchData();
-  }, [dealershipIds, dateRange, refreshTrigger]);
+    if (shouldLoad) {
+      fetchData();
+    }
+  }, [shouldLoad, dealershipIds, dateRange, refreshTrigger]);
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
     console.log(`Exporting response time report as ${format}`);
