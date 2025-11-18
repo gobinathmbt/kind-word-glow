@@ -31,18 +31,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Car, Wrench, ClipboardList, Calculator, FileText, Building } from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, Users, DollarSign, FileBarChart, Repeat } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import VehicleOverviewSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOverviewSection";
 import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleGeneralInfoSection";
 import VehicleSourceSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSourceSection";
 import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleRegistrationSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOdometerSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleAttachmentsSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
@@ -75,6 +73,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   const [modePopoverOpen, setModePopoverOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"view" | "edit">("edit");
   const [isPricingReady, setIsPricingReady] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
@@ -114,6 +113,19 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       onUpdate();
     } catch (error) {
       toast.error("Failed to update pricing ready status");
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      // Call onUpdate to refresh all APIs and reload the component
+      await onUpdate();
+      toast.success("Vehicle data refreshed successfully");
+    } catch (error) {
+      toast.error("Failed to refresh vehicle data");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -537,18 +549,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant={
-                            vehicle.vehicle_type === "tradein"
-                              ? Array.isArray(vehicle.is_workshop) &&
-                                vehicle.is_workshop.some(
-                                  (item: any) => item.in_workshop
-                                )
-                                ? "default"
-                                : "outline"
-                              : vehicle.is_workshop
-                              ? "default"
-                              : "outline"
-                          }
+                          variant="outline"
                           size="icon"
                           onClick={handlePushToWorkshop}
                           disabled={
@@ -566,8 +567,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                                   )
                                 : vehicle.is_workshop
                             )
-                              ? "bg-orange-500 hover:bg-orange-600 text-white"
-                              : ""
+                              ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                              : "bg-white hover:bg-white text-orange-600 hover:text-orange-700 border-gray-200 hover:border-orange-400 hover:shadow-sm"
                           }
                         >
                           <Wrench className="h-4 w-4" />
@@ -587,9 +588,13 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="icon">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                            >
                               {vehicle.vehicle_type === "tradein" ? (
-                                <Calculator className="h-4 w-4" />
+                                <Repeat className="h-4 w-4" />
                               ) : (
                                 <ClipboardList className="h-4 w-4" />
                               )}
@@ -641,8 +646,9 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                                   size="icon"
                                   onClick={handleWorkshopReport}
                                   disabled={vehicle.workshop_report_preparing}
+                                  className="bg-white hover:bg-white text-indigo-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-400 hover:shadow-sm"
                                 >
-                                  <FileText className="h-4 w-4" />
+                                  <FileBarChart className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -675,8 +681,9 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                                   size="icon"
                                   onClick={handleWorkshopReport}
                                   disabled={hasPreparingReports && !hasReadyReports}
+                                  className="bg-white hover:bg-white text-indigo-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-400 hover:shadow-sm"
                                 >
-                                  <FileText className="h-4 w-4" />
+                                  <FileBarChart className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -705,22 +712,23 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                     variant="outline"
                     size="icon"
                     onSuccess={onUpdate}
+                    className="bg-white hover:bg-white text-purple-600 hover:text-purple-700 border-gray-200 hover:border-purple-400 hover:shadow-sm"
                   />
 
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant={isPricingReady ? "default" : "outline"}
+                          variant="outline"
                           size="icon"
                           onClick={handleTogglePricingReady}
                           className={
                             isPricingReady
-                              ? "bg-green-500 hover:bg-green-600 text-white"
-                              : ""
+                              ? "bg-green-500 hover:bg-green-600 text-white border-green-500"
+                              : "bg-white hover:bg-white text-green-600 hover:text-green-700 border-gray-200 hover:border-green-400 hover:shadow-sm"
                           }
                         >
-                          <Calculator className="h-4 w-4" />
+                          <DollarSign className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -729,6 +737,31 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                             ? "Pricing Ready"
                             : "Mark Pricing Ready"}
                         </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleRefresh}
+                          disabled={isRefreshing}
+                          className={
+                            isRefreshing
+                              ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
+                              : "bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                          }
+                        >
+                          <RefreshCw 
+                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh Data</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -758,14 +791,12 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleEngineSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleSpecificationsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">

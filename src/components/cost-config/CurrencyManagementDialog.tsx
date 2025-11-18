@@ -1,26 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { companyServices } from '@/api/services';
-import { countries } from 'countries-list';
+} from "@/components/ui/select";
+import { Plus, Edit2, Trash2, Search } from "lucide-react";
+import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { companyServices } from "@/api/services";
+import { countries } from "countries-list";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/utils/permissionController";
 
 interface CurrencyManagementDialogProps {
   open: boolean;
@@ -34,15 +36,29 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCurrency, setEditingCurrency] = useState<any>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
+
+  const { completeUser } = useAuth();
+  const canAddCurrency = hasPermission(
+    completeUser,
+    "cost_module_add_currency"
+  );
+  const canEditCurrency = hasPermission(
+    completeUser,
+    "cost_module_edit_currency"
+  );
+  const canDeleteCurrency = hasPermission(
+    completeUser,
+    "cost_module_delete_currency"
+  );
 
   const [formData, setFormData] = useState({
-    currency_name: '',
-    currency_code: '',
-    symbol: '',
-    country: '',
+    currency_name: "",
+    currency_code: "",
+    symbol: "",
+    country: "",
     exchange_rate: 1,
-    symbol_position: 'before',
+    symbol_position: "before",
   });
 
   // Get country list
@@ -54,7 +70,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
 
   // Fetch currencies
   const { data: currenciesData, isLoading } = useQuery({
-    queryKey: ['currencies', search],
+    queryKey: ["currencies", search],
     queryFn: async () => {
       const response = await companyServices.getCurrencies({
         search,
@@ -69,13 +85,13 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
   const createCurrencyMutation = useMutation({
     mutationFn: (data: any) => companyServices.createCurrency(data),
     onSuccess: () => {
-      toast.success('Currency added successfully');
-      queryClient.invalidateQueries({ queryKey: ['currencies'] });
+      toast.success("Currency added successfully");
+      queryClient.invalidateQueries({ queryKey: ["currencies"] });
       setIsAddDialogOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to add currency');
+      toast.error(error.response?.data?.message || "Failed to add currency");
     },
   });
 
@@ -84,14 +100,14 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       companyServices.updateCurrency(id, data),
     onSuccess: () => {
-      toast.success('Currency updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['currencies'] });
+      toast.success("Currency updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["currencies"] });
       setIsAddDialogOpen(false);
       setEditingCurrency(null);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update currency');
+      toast.error(error.response?.data?.message || "Failed to update currency");
     },
   });
 
@@ -99,22 +115,22 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
   const deleteCurrencyMutation = useMutation({
     mutationFn: (id: string) => companyServices.deleteCurrency(id),
     onSuccess: () => {
-      toast.success('Currency deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['currencies'] });
+      toast.success("Currency deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["currencies"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete currency');
+      toast.error(error.response?.data?.message || "Failed to delete currency");
     },
   });
 
   const resetForm = () => {
     setFormData({
-      currency_name: '',
-      currency_code: '',
-      symbol: '',
-      country: '',
+      currency_name: "",
+      currency_code: "",
+      symbol: "",
+      country: "",
       exchange_rate: 1,
-      symbol_position: 'before',
+      symbol_position: "before",
     });
   };
 
@@ -126,7 +142,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
       symbol: currency.symbol,
       country: currency.country,
       exchange_rate: currency.exchange_rate,
-      symbol_position: currency.symbol_position || 'before',
+      symbol_position: currency.symbol_position || "before",
     });
     setIsAddDialogOpen(true);
   };
@@ -138,7 +154,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
       !formData.symbol ||
       !formData.country
     ) {
-      toast.error('Please fill in all required fields');
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -153,7 +169,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this currency?')) {
+    if (confirm("Are you sure you want to delete this currency?")) {
       deleteCurrencyMutation.mutate(id);
     }
   };
@@ -164,7 +180,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
       setFormData({
         ...formData,
         country: country.name,
-        currency_code: country.currency[0] || '',
+        currency_code: country.currency[0] || "",
       });
     }
   };
@@ -191,16 +207,18 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
                   className="pl-9"
                 />
               </div>
-              <Button
-                onClick={() => {
-                  resetForm();
-                  setEditingCurrency(null);
-                  setIsAddDialogOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Currency
-              </Button>
+              {canAddCurrency && (
+                <Button
+                  onClick={() => {
+                    resetForm();
+                    setEditingCurrency(null);
+                    setIsAddDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Currency
+                </Button>
+              )}
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -226,24 +244,36 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
                     </tr>
                   ) : currenciesData && currenciesData.length > 0 ? (
                     currenciesData.map((currency: any, index: number) => (
-                      <tr key={currency._id} className="border-b hover:bg-muted/50">
+                      <tr
+                        key={currency._id}
+                        className="border-b hover:bg-muted/50"
+                      >
                         <td className="p-3">{index + 1}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(currency)}
-                            >
-                              <Edit2 className="h-4 w-4 text-blue-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(currency._id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+                            {canEditCurrency && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(currency)}
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            )}
+                            {canDeleteCurrency && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(currency._id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            )}
+                            {!canEditCurrency && !canDeleteCurrency && (
+                              <span className="text-sm text-muted-foreground">
+                                No actions
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="p-3">{currency.currency_name}</td>
@@ -256,7 +286,10 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                      <td
+                        colSpan={8}
+                        className="text-center p-8 text-muted-foreground"
+                      >
                         No currencies found
                       </td>
                     </tr>
@@ -273,7 +306,7 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingCurrency ? 'Edit Currency' : 'Add Currency'}
+              {editingCurrency ? "Edit Currency" : "Add Currency"}
             </DialogTitle>
           </DialogHeader>
 
@@ -408,10 +441,11 @@ const CurrencyManagementDialog: React.FC<CurrencyManagementDialogProps> = ({
             <Button
               onClick={handleSubmit}
               disabled={
-                createCurrencyMutation.isPending || updateCurrencyMutation.isPending
+                createCurrencyMutation.isPending ||
+                updateCurrencyMutation.isPending
               }
             >
-              {editingCurrency ? 'Update' : 'Save'}
+              {editingCurrency ? "Update" : "Save"}
             </Button>
           </div>
         </DialogContent>

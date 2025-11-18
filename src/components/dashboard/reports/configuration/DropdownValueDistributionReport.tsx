@@ -62,7 +62,7 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
 
   const renderMetrics = () => {
     if (!data?.summary) return null;
-    const summary = data.summary;
+    const summary = data.summary; 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
@@ -112,16 +112,33 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
   const renderCharts = () => {
     if (!data) return null;
 
-    const valueDistributionData: PieChartData[] = data.valuesByDropdown?.slice(0, 8).map((item: any) => ({
-      name: item.dropdownName || 'Unknown',
-      value: item.valueCount || 0,
-    })) || [];
+    const hasData = data.valueDistribution && data.valueDistribution.length > 0;
 
-    const topValuesData = data.topUsedValues?.slice(0, 10).map((item: any) => ({
-      name: item.valueLabel || 'Unknown',
-      usage: item.usageCount || 0,
-      dropdown: item.dropdownName || 'N/A',
-    })) || [];
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+    
+    const valueDistributionData: PieChartData[] = hasData
+      ? data.valueDistribution.slice(0, 8).map((item: any, index: number) => {
+          return {
+            name: item.dropdownName || 'Unknown',
+            value: item.valueCount || 0,
+            color: colors[index % colors.length],
+          };
+        })
+      : [
+          { name: 'Status', value: 0, color: colors[0] },
+          { name: 'Priority', value: 0, color: colors[1] },
+          { name: 'Category', value: 0, color: colors[2] },
+          { name: 'Type', value: 0, color: colors[3] },
+          { name: 'Region', value: 0, color: colors[4] },
+        ];
+
+    const topValuesData = hasData && data.topUsedValues?.length > 0
+      ? data.topUsedValues.slice(0, 10).map((item: any) => ({
+          name: item.valueLabel || 'Unknown',
+          usage: item.usageCount || 0,
+          dropdown: item.dropdownName || 'N/A',
+        }))
+      : [{ name: 'No Data', usage: 0, dropdown: 'N/A' }];
 
     return (
       <div className="space-y-6">
@@ -129,6 +146,11 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
           <div>
             <h4 className="text-sm font-medium mb-4">Values by Dropdown</h4>
             <InteractivePieChart data={valueDistributionData} height={300} />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                {data.summary?.message || 'No dropdown configurations found'}
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Top 10 Most Used Values</h4>
@@ -140,10 +162,15 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
               ]}
               height={300}
             />
+            {!hasData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No usage data available
+              </p>
+            )}
           </div>
         </div>
 
-        {data.valuesByDropdown && data.valuesByDropdown.length > 0 && (
+        {data.valueDistribution && data.valueDistribution.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Value Distribution Details</h4>
             <DataTable
@@ -154,7 +181,7 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
                 { key: 'inactiveValues', label: 'Inactive' },
                 { key: 'totalUsage', label: 'Total Usage' },
               ]}
-              data={data.valuesByDropdown.slice(0, 20).map((item: any) => ({
+              data={data.valueDistribution.slice(0, 20).map((item: any) => ({
                 dropdown: item.dropdownName || 'N/A',
                 values: item.valueCount || 0,
                 activeValues: item.activeValueCount || 0,
@@ -169,22 +196,31 @@ export const DropdownValueDistributionReport: React.FC<DropdownValueDistribution
   };
 
   const renderTable = () => {
-    if (!data?.topUsedValues) return null;
+    if (!data?.valueDistribution || data.valueDistribution.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <List className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-lg font-medium">
+            {data?.summary?.message || 'No dropdown configurations found'}
+          </p>
+        </div>
+      );
+    }
 
-    const tableData = data.topUsedValues.map((item: any) => ({
-      valueLabel: item.valueLabel || 'Unknown',
+    const tableData = data.valueDistribution.map((item: any) => ({
       dropdownName: item.dropdownName || 'Unknown',
-      usageCount: item.usageCount || 0,
-      isActive: item.isActive ? 'Active' : 'Inactive',
-      order: item.order || 0,
+      valueCount: item.valueCount || 0,
+      activeValueCount: item.activeValueCount || 0,
+      inactiveValueCount: item.inactiveValueCount || 0,
+      totalUsage: item.totalUsage || 0,
     }));
 
     const columns = [
-      { key: 'valueLabel', label: 'Value' },
       { key: 'dropdownName', label: 'Dropdown' },
-      { key: 'usageCount', label: 'Usage Count' },
-      { key: 'isActive', label: 'Status' },
-      { key: 'order', label: 'Order' },
+      { key: 'valueCount', label: 'Value Count' },
+      { key: 'activeValueCount', label: 'Active Values' },
+      { key: 'inactiveValueCount', label: 'Inactive Values' },
+      { key: 'totalUsage', label: 'Total Usage' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

@@ -40,7 +40,10 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getDealershipWorkshopPerformance(params);
-      setData(response.data);
+      // Handle response structure: response.data.data or response.data
+      const responseData = response.data?.data || response.data;
+      // Ensure we have an array
+      setData(Array.isArray(responseData) ? responseData : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load workshop performance data');
     } finally {
@@ -61,16 +64,19 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
   };
 
   const renderMetrics = () => {
-    if (!data?.data || data.data.length === 0) return null;
+    if (!data || !Array.isArray(data) || data.length === 0) return null;
     
-    const totals = data.data.reduce((acc: any, dealership: any) => ({
+    const validDealerships = data.filter((d: any) => d.dealershipId);
+    
+    const totals = validDealerships.reduce((acc: any, dealership: any) => ({
       totalQuotes: acc.totalQuotes + (dealership.quotes?.total || 0),
       totalRevenue: acc.totalRevenue + (dealership.reports?.totalRevenue || 0),
       avgCompletionRate: acc.avgCompletionRate + (dealership.quotes?.completionRate || 0),
       avgQualityRate: acc.avgQualityRate + (dealership.reports?.qualityPassRate || 0),
-    }), { totalQuotes: 0, totalRevenue: 0, avgCompletionRate: 0, avgQualityRate: 0 });
+      completedJobs: acc.completedJobs + (dealership.efficiency?.completedJobs || 0),
+    }), { totalQuotes: 0, totalRevenue: 0, avgCompletionRate: 0, avgQualityRate: 0, completedJobs: 0 });
 
-    const dealershipCount = data.data.length;
+    const dealershipCount = validDealerships.length || 1;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -78,11 +84,13 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
           title="Total Quotes"
           value={totals.totalQuotes}
           icon={<Wrench className="h-5 w-5" />}
+          subtitle={`${totals.completedJobs} completed jobs`}
         />
         <MetricCard
           title="Total Revenue"
-          value={`$${totals.totalRevenue.toLocaleString()}`}
+          value={`$${totals.totalRevenue.toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
+          subtitle={`${validDealerships.length} dealership(s)`}
         />
         <MetricCard
           title="Avg Completion Rate"
@@ -99,15 +107,23 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
   };
 
   const renderCharts = () => {
-    if (!data?.data || data.data.length === 0) return null;
+    if (!data || !Array.isArray(data) || data.length === 0) return null;
 
-    const revenueData: PieChartData[] = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    // Color palettes for different charts
+    const revenueColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+    const performanceColors = ['#3b82f6', '#60a5fa', '#93c5fd'];
+
+    const validDealerships = data.filter((d: any) => d.dealershipId);
+
+    const revenueData: PieChartData[] = validDealerships.map((dealership: any, index: number) => ({
+      name: dealership.dealershipName || 'Unknown',
       value: dealership.reports?.totalRevenue || 0,
+      label: `$${(dealership.reports?.totalRevenue || 0).toFixed(2)}`,
+      color: revenueColors[index % revenueColors.length],
     }));
 
-    const performanceData = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    const performanceData = validDealerships.map((dealership: any) => ({
+      name: dealership.dealershipName || 'Unknown',
       completionRate: dealership.quotes?.completionRate || 0,
       qualityRate: dealership.reports?.qualityPassRate || 0,
       onBudgetRate: dealership.efficiency?.onBudgetRate || 0,
@@ -126,9 +142,9 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
               data={performanceData}
               xAxisKey="name"
               series={[
-                { dataKey: 'completionRate', name: 'Completion %' },
-                { dataKey: 'qualityRate', name: 'Quality %' },
-                { dataKey: 'onBudgetRate', name: 'On Budget %' },
+                { dataKey: 'completionRate', name: 'Completion %', color: performanceColors[0] },
+                { dataKey: 'qualityRate', name: 'Quality %', color: performanceColors[1] },
+                { dataKey: 'onBudgetRate', name: 'On Budget %', color: performanceColors[2] },
               ]}
               height={300}
             />
@@ -139,26 +155,42 @@ export const DealershipWorkshopPerformanceReport: React.FC<DealershipWorkshopPer
   };
 
   const renderTable = () => {
-    if (!data?.data) return null;
+    if (!data || !Array.isArray(data)) return null;
+
+    const validDealerships = data.filter((d: any) => d.dealershipId);
 
     const columns = [
-      { key: 'dealershipName', label: 'Dealership' },
-      { key: 'totalQuotes', label: 'Quotes' },
+      { key: 'dealershipName', label: 'Dealership Name' },
+      { key: 'totalQuotes', label: 'Total Quotes' },
       { key: 'completedQuotes', label: 'Completed' },
+      { key: 'inProgress', label: 'In Progress' },
+      { key: 'pending', label: 'Pending' },
       { key: 'completionRate', label: 'Completion %' },
       { key: 'totalRevenue', label: 'Revenue' },
+      { key: 'totalCost', label: 'Total Cost' },
       { key: 'profitMargin', label: 'Profit %' },
       { key: 'qualityRate', label: 'Quality %' },
+      { key: 'avgQuoteAmount', label: 'Avg Quote' },
+      { key: 'avgCompletionTime', label: 'Avg Time (h)' },
+      { key: 'quoteAccuracy', label: 'Quote Accuracy %' },
+      { key: 'onBudgetRate', label: 'On Budget %' },
     ];
 
-    const tableData = data.data.map((dealership: any) => ({
-      dealershipName: dealership.dealershipName,
+    const tableData = validDealerships.map((dealership: any) => ({
+      dealershipName: dealership.dealershipName || 'N/A',
       totalQuotes: dealership.quotes?.total || 0,
       completedQuotes: dealership.quotes?.completed || 0,
-      completionRate: `${dealership.quotes?.completionRate || 0}%`,
-      totalRevenue: `$${(dealership.reports?.totalRevenue || 0).toLocaleString()}`,
-      profitMargin: `${dealership.reports?.profitMargin || 0}%`,
-      qualityRate: `${dealership.reports?.qualityPassRate || 0}%`,
+      inProgress: dealership.quotes?.inProgress || 0,
+      pending: dealership.quotes?.pending || 0,
+      completionRate: `${(dealership.quotes?.completionRate || 0).toFixed(1)}%`,
+      totalRevenue: `$${(dealership.reports?.totalRevenue || 0).toFixed(2)}`,
+      totalCost: `$${(dealership.reports?.totalCost || 0).toFixed(2)}`,
+      profitMargin: `${(dealership.reports?.profitMargin || 0).toFixed(1)}%`,
+      qualityRate: `${(dealership.reports?.qualityPassRate || 0).toFixed(1)}%`,
+      avgQuoteAmount: `$${(dealership.quotes?.avgAmount || 0).toFixed(2)}`,
+      avgCompletionTime: (dealership.quotes?.avgCompletionTime || 0).toFixed(1),
+      quoteAccuracy: `${(dealership.efficiency?.avgQuoteAccuracy || 0).toFixed(1)}%`,
+      onBudgetRate: `${(dealership.efficiency?.onBudgetRate || 0).toFixed(1)}%`,
     }));
 
     return <DataTable columns={columns} data={tableData} />;

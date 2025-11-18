@@ -299,6 +299,9 @@ const createVehicleStock = async (req, res) => {
         {
           reading: parseInt(odometer_reading),
           reading_date: new Date(),
+          odometerCertified: false,
+          odometerStatus: "",
+          created_at: new Date(),
         },
       ];
     }
@@ -1049,11 +1052,11 @@ const updateVehicleSpecifications = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleOdometer = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_odometer: req.body.vehicle_odometer },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -1061,6 +1064,20 @@ const updateVehicleOdometer = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    // If vehicle_odometer array is provided, replace the entire array
+    if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
+      vehicle.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
+        ...entry,
+        reading: Number(entry.reading),
+        reading_date: entry.reading_date ? new Date(entry.reading_date) : new Date(),
+        odometerCertified: entry.odometerCertified || false,
+        odometerStatus: entry.odometerStatus || "",
+        created_at: entry.created_at ? new Date(entry.created_at) : new Date(),
+      }));
+    }
+
+    await vehicle.save();
 
     res.status(200).json({
       success: true,

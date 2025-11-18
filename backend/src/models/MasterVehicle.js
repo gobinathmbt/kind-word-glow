@@ -57,13 +57,13 @@ const MasterVehicleSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  
+
   // Cost Details for Pricing Calculation
   cost_details: {
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
-  
+
   // Optional Basic Fields
   variant: String,
   model_no: String,
@@ -200,12 +200,13 @@ const MasterVehicleSchema = new mongoose.Schema({
       exterior_secondary_color: String,
       steering_type: String,
       wheels_composition: String,
-      sunroof: Boolean,
+      sunroof: String,
       interior_trim: String,
       seat_material: String,
       tyre_size: String,
+      safety_features: [String],
       interior_features: [String],
-      exterior_features: [String],
+      other_feature: [String],
     },
   ],
 
@@ -215,6 +216,17 @@ const MasterVehicleSchema = new mongoose.Schema({
     {
       reading: Number,
       reading_date: Date,
+      odometerCertified: {
+        type: Boolean,
+        default: false,
+      },
+      odometerStatus: {
+        type: String,
+      },
+      created_at: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 

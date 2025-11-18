@@ -92,10 +92,24 @@ export const WorkflowExecutionMetricsReport: React.FC<WorkflowExecutionMetricsRe
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusData: PieChartData[] = data.executionsByStatus?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    const statusColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+    
+    const hasStatusData = data.executionsByStatus && data.executionsByStatus.length > 0 &&
+      data.executionsByStatus.some((item: any) => (item.count || 0) > 0);
+    
+    const statusData: PieChartData[] = hasStatusData
+      ? data.executionsByStatus.map((item: any, index: number) => ({
+          name: item._id || 'Unknown',
+          value: item.count || 0,
+          color: statusColors[index % statusColors.length],
+        }))
+      : [
+          { name: 'Success', value: 0, color: statusColors[0] },
+          { name: 'Running', value: 0, color: statusColors[1] },
+          { name: 'Pending', value: 0, color: statusColors[2] },
+          { name: 'Failed', value: 0, color: statusColors[3] },
+          { name: 'Cancelled', value: 0, color: statusColors[4] },
+        ];
 
     const executionData = data.workflows?.slice(0, 10).map((workflow: any) => ({
       name: workflow.workflowName || 'Unknown',
@@ -109,6 +123,11 @@ export const WorkflowExecutionMetricsReport: React.FC<WorkflowExecutionMetricsRe
           <div>
             <h4 className="text-sm font-medium mb-4">Executions by Status</h4>
             <InteractivePieChart data={statusData} height={300} />
+            {!hasStatusData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No execution status data available
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Top 10 by Executions</h4>

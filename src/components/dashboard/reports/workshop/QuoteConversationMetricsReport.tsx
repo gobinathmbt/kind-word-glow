@@ -61,94 +61,124 @@ export const QuoteConversationMetricsReport: React.FC<QuoteConversationMetricsRe
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.conversationMetrics) return null;
+    
+    const metrics = data.conversationMetrics;
+    const totalMessages = metrics.totalMessages || 0;
+    const totalConversations = metrics.totalConversations || 0;
+    const avgMessagesPerConversation = metrics.avgMessagesPerConversation || 0;
+    const avgResponseTime = metrics.avgResponseTime || 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Messages"
-          value={data.summary.totalMessages || 0}
+          value={totalMessages}
           icon={<MessageSquare className="h-5 w-5" />}
         />
         <MetricCard
-          title="Avg Messages per Quote"
-          value={(data.summary.avgMessagesPerQuote || 0).toFixed(1)}
+          title="Total Conversations"
+          value={totalConversations}
+        />
+        <MetricCard
+          title="Avg Messages per Conversation"
+          value={avgMessagesPerConversation.toFixed(1)}
         />
         <MetricCard
           title="Avg Response Time"
-          value={`${(data.summary.avgResponseTime || 0).toFixed(1)}h`}
-        />
-        <MetricCard
-          title="Engagement Rate"
-          value={`${(data.summary.engagementRate || 0).toFixed(1)}%`}
+          value={`${avgResponseTime.toFixed(1)}h`}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.messagesByType) return null;
+    if (!data?.messageVolume || data.messageVolume.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64 text-gray-500">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No conversation data available for the selected period</p>
+          </div>
+        </div>
+      );
+    }
 
-    const barData = data.messagesByType.map((item: any) => ({
-      type: item._id || 'Unknown',
-      messages: item.totalMessages || 0,
-      avgPerQuote: item.avgMessagesPerQuote || 0,
+    const trendData = data.messageVolume.map((item: any) => ({
+      date: item.date || item._id || '',
+      messages: item.messageCount || item.totalMessages || 0,
+      conversations: item.conversationCount || item.totalConversations || 0,
     }));
-
-    const trendData = data.messageTrends?.map((item: any) => ({
-      date: item.date || '',
-      messages: item.totalMessages || 0,
-      quotes: item.totalQuotes || 0,
-    })) || [];
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-sm font-medium mb-4">Messages by Quote Type</h4>
-            <StackedBarChart
-              data={barData}
-              xAxisKey="type"
-              series={[
-                { dataKey: 'messages', name: 'Total Messages', color: '#3b82f6' },
-                { dataKey: 'avgPerQuote', name: 'Avg per Quote', color: '#10b981' },
-              ]}
-              height={300}
-            />
-          </div>
-          <div>
-            <h4 className="text-sm font-medium mb-4">Message Trends</h4>
-            <LineChart
-              data={trendData}
-              xAxisKey="date"
-              lines={[
-                { dataKey: 'messages', name: 'Messages', color: '#3b82f6' },
-                { dataKey: 'quotes', name: 'Quotes', color: '#10b981' },
-              ]}
-              height={300}
-            />
-          </div>
+        <div>
+          <h4 className="text-sm font-medium mb-4">Message Volume Over Time</h4>
+          <LineChart
+            data={trendData}
+            xAxisKey="date"
+            lines={[
+              { dataKey: 'messages', name: 'Messages', color: '#3b82f6' },
+              { dataKey: 'conversations', name: 'Conversations', color: '#10b981' },
+            ]}
+            height={300}
+          />
         </div>
+        {data.conversationMetrics && Object.keys(data.conversationMetrics).length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Conversation Metrics Details</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+                <div className="text-2xl font-bold text-blue-600">
+                  {data.conversationMetrics.totalMessages || 0}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Total Messages</div>
+              </div>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100">
+                <div className="text-2xl font-bold text-green-600">
+                  {data.conversationMetrics.totalConversations || 0}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Total Conversations</div>
+              </div>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100">
+                <div className="text-2xl font-bold text-purple-600">
+                  {(data.conversationMetrics.avgMessagesPerConversation || 0).toFixed(1)}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Avg Messages per Conversation</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.messagesByType) return null;
+    if (!data?.messageVolume || data.messageVolume.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64 text-gray-500">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No conversation data available for the selected period</p>
+          </div>
+        </div>
+      );
+    }
 
-    const tableData = data.messagesByType.map((item: any) => ({
-      quoteType: item._id || 'Unknown',
-      totalMessages: item.totalMessages || 0,
-      avgMessagesPerQuote: (item.avgMessagesPerQuote || 0).toFixed(1),
-      avgResponseTime: `${(item.avgResponseTime || 0).toFixed(1)}h`,
-      engagementRate: `${(item.engagementRate || 0).toFixed(1)}%`,
+    const tableData = data.messageVolume.map((item: any) => ({
+      date: item.date || item._id || 'Unknown',
+      messageCount: item.messageCount || item.totalMessages || 0,
+      conversationCount: item.conversationCount || item.totalConversations || 0,
+      avgMessagesPerConversation: item.avgMessagesPerConversation 
+        ? item.avgMessagesPerConversation.toFixed(1) 
+        : '0.0',
     }));
 
     const columns = [
-      { key: 'quoteType', label: 'Quote Type' },
-      { key: 'totalMessages', label: 'Total Messages' },
-      { key: 'avgMessagesPerQuote', label: 'Avg Messages per Quote' },
-      { key: 'avgResponseTime', label: 'Avg Response Time' },
-      { key: 'engagementRate', label: 'Engagement Rate' },
+      { key: 'date', label: 'Date' },
+      { key: 'messageCount', label: 'Total Messages' },
+      { key: 'conversationCount', label: 'Total Conversations' },
+      { key: 'avgMessagesPerConversation', label: 'Avg Messages per Conversation' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

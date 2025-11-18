@@ -65,26 +65,28 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
     if (!data?.overallMetrics) return null;
     const metrics = data.overallMetrics;
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <MetricCard
+          title="Total Reports"
+          value={metrics.totalReports || 0}
+          icon={<Calendar className="h-5 w-5" />}
+          subtitle={`${(metrics.avgWorkEntries || 0).toFixed(1)} avg work entries`}
+        />
         <MetricCard
           title="Avg Duration"
           value={`${(metrics.avgDurationDays || 0).toFixed(1)} days`}
           icon={<Clock className="h-5 w-5" />}
         />
         <MetricCard
-          title="Min Duration"
-          value={`${(metrics.minDurationDays || 0).toFixed(1)} days`}
+          title="Avg Work Entries"
+          value={(metrics.avgWorkEntries || 0).toFixed(1)}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={`${(metrics.avgFields || 0).toFixed(1)} avg fields`}
         />
         <MetricCard
-          title="Max Duration"
-          value={`${(metrics.maxDurationDays || 0).toFixed(1)} days`}
+          title="Duration Range"
+          value={`${(metrics.minDurationDays || 0).toFixed(0)}-${(metrics.maxDurationDays || 0).toFixed(0)} days`}
           icon={<AlertCircle className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Total Reports"
-          value={metrics.totalReports || 0}
-          icon={<Calendar className="h-5 w-5" />}
         />
       </div>
     );
@@ -93,9 +95,15 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
   const renderCharts = () => {
     if (!data) return null;
 
-    const durationDistributionData: PieChartData[] = data.durationDistribution?.map((item: any) => ({
+    // Color palettes for different charts
+    const durationColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    const vehicleTypeColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const reportTypeColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'];
+
+    const durationDistributionData: PieChartData[] = data.durationDistribution?.map((item: any, index: number) => ({
       name: typeof item._id === 'string' ? item._id : `${item._id} days`,
       value: item.count || 0,
+      color: durationColors[index % durationColors.length],
     })) || [];
 
     const completionByVehicleTypeData = data.completionByVehicleType?.map((item: any) => ({
@@ -103,12 +111,21 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
       avgDuration: item.avgDurationDays || 0,
       minDuration: item.minDurationDays || 0,
       maxDuration: item.maxDurationDays || 0,
+      avgWorkEntries: item.avgWorkEntries || 0,
+    })) || [];
+
+    const completionByReportTypeData = data.completionByReportType?.map((item: any) => ({
+      reportType: item._id || 'Unknown',
+      avgDuration: item.avgDurationDays || 0,
+      avgFields: item.avgFields || 0,
+      avgWorkEntries: item.avgWorkEntries || 0,
     })) || [];
 
     const monthlyTrendsData = data.monthlyTrends?.map((item: any) => ({
       month: `${item._id?.year}-${String(item._id?.month).padStart(2, '0')}`,
       avgDuration: item.avgDurationDays || 0,
       reportCount: item.reportCount || 0,
+      avgWorkEntries: item.avgWorkEntries || 0,
     })) || [];
 
     return (
@@ -133,6 +150,22 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
           </div>
         </div>
 
+        {completionByReportTypeData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Completion Time by Report Type</h4>
+            <StackedBarChart
+              data={completionByReportTypeData}
+              xAxisKey="reportType"
+              series={[
+                { dataKey: 'avgDuration', name: 'Avg Duration', color: '#3b82f6' },
+                { dataKey: 'avgFields', name: 'Avg Fields', color: '#10b981' },
+                { dataKey: 'avgWorkEntries', name: 'Avg Work Entries', color: '#f59e0b' },
+              ]}
+              height={300}
+            />
+          </div>
+        )}
+
         {monthlyTrendsData.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Monthly Completion Time Trends</h4>
@@ -142,6 +175,7 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
               lines={[
                 { dataKey: 'avgDuration', name: 'Avg Duration (days)', color: '#3b82f6' },
                 { dataKey: 'reportCount', name: 'Report Count', color: '#10b981' },
+                { dataKey: 'avgWorkEntries', name: 'Avg Work Entries', color: '#f59e0b' },
               ]}
               height={300}
             />
@@ -151,44 +185,68 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
         {data.efficiencyMetrics && data.efficiencyMetrics.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Efficiency Metrics</h4>
-            <DataTable
-              columns={[
-                { key: 'vehicleType', label: 'Vehicle Type' },
-                { key: 'reportType', label: 'Report Type' },
-                { key: 'avgDaysPerWorkEntry', label: 'Days/Entry' },
-                { key: 'avgDaysPerField', label: 'Days/Field' },
-                { key: 'reportCount', label: 'Reports' },
-              ]}
-              data={data.efficiencyMetrics.map((item: any) => ({
-                vehicleType: item._id?.vehicleType || 'N/A',
-                reportType: item._id?.reportType || 'N/A',
-                avgDaysPerWorkEntry: (item.avgDaysPerWorkEntry || 0).toFixed(2),
-                avgDaysPerField: (item.avgDaysPerField || 0).toFixed(2),
-                reportCount: item.reportCount || 0,
-              }))}
-            />
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Vehicle Type</th>
+                    <th className="px-4 py-3 text-left font-medium">Report Type</th>
+                    <th className="px-4 py-3 text-right font-medium">Days/Entry</th>
+                    <th className="px-4 py-3 text-right font-medium">Days/Field</th>
+                    <th className="px-4 py-3 text-right font-medium">Reports</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.efficiencyMetrics.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item._id?.vehicleType || 'N/A'}</td>
+                      <td className="px-4 py-3">{item._id?.reportType || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{(item.avgDaysPerWorkEntry || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">{(item.avgDaysPerField || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">{item.reportCount || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {data.longestRunningReports && data.longestRunningReports.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Longest Running Reports</h4>
-            <DataTable
-              columns={[
-                { key: 'vehicle_stock_id', label: 'Stock ID' },
-                { key: 'vehicle_type', label: 'Type' },
-                { key: 'duration_days', label: 'Duration (days)' },
-                { key: 'total_work_entries', label: 'Work Entries' },
-                { key: 'total_cost', label: 'Cost' },
-              ]}
-              data={data.longestRunningReports.map((item: any) => ({
-                vehicle_stock_id: item.vehicle_stock_id || 'N/A',
-                vehicle_type: item.vehicle_type || 'N/A',
-                duration_days: (item.duration_days || 0).toFixed(1),
-                total_work_entries: item.total_work_entries || 0,
-                total_cost: `$${(item.total_cost || 0).toLocaleString()}`,
-              }))}
-            />
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Stock ID</th>
+                    <th className="px-4 py-3 text-left font-medium">Vehicle</th>
+                    <th className="px-4 py-3 text-left font-medium">Type</th>
+                    <th className="px-4 py-3 text-left font-medium">Report Type</th>
+                    <th className="px-4 py-3 text-right font-medium">Duration (days)</th>
+                    <th className="px-4 py-3 text-right font-medium">Work Entries</th>
+                    <th className="px-4 py-3 text-right font-medium">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.longestRunningReports.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.vehicle_stock_id || 'N/A'}</td>
+                      <td className="px-4 py-3">
+                        {item.vehicle_details?.name || 
+                         `${item.vehicle_details?.year || ''} ${item.vehicle_details?.make || ''} ${item.vehicle_details?.model || ''}`.trim() || 
+                         'N/A'}
+                      </td>
+                      <td className="px-4 py-3">{item.vehicle_type || 'N/A'}</td>
+                      <td className="px-4 py-3">{item.report_type || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{(item.duration_days || 0).toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right">{item.total_work_entries || 0}</td>
+                      <td className="px-4 py-3 text-right">${(item.total_cost || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -196,24 +254,42 @@ export const WorkshopCompletionTimeAnalysisReport: React.FC<WorkshopCompletionTi
   };
 
   const renderTable = () => {
-    if (!data?.completionByVehicleType) return null;
+    if (!data) return null;
 
-    const tableData = data.completionByVehicleType.map((item: any) => ({
-      vehicleType: item._id || 'Unknown',
+    // Combine data from multiple sources for comprehensive table view
+    const vehicleTypeData = data.completionByVehicleType?.map((item: any) => ({
+      category: 'Vehicle Type',
+      type: item._id || 'Unknown',
       reportCount: item.reportCount || 0,
       avgDuration: `${(item.avgDurationDays || 0).toFixed(1)} days`,
       minDuration: `${(item.minDurationDays || 0).toFixed(1)} days`,
       maxDuration: `${(item.maxDurationDays || 0).toFixed(1)} days`,
       avgWorkEntries: (item.avgWorkEntries || 0).toFixed(1),
-    }));
+      avgFields: '-',
+    })) || [];
+
+    const reportTypeData = data.completionByReportType?.map((item: any) => ({
+      category: 'Report Type',
+      type: item._id || 'Unknown',
+      reportCount: item.reportCount || 0,
+      avgDuration: `${(item.avgDurationDays || 0).toFixed(1)} days`,
+      minDuration: '-',
+      maxDuration: '-',
+      avgWorkEntries: (item.avgWorkEntries || 0).toFixed(1),
+      avgFields: (item.avgFields || 0).toFixed(1),
+    })) || [];
+
+    const tableData = [...vehicleTypeData, ...reportTypeData];
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
+      { key: 'category', label: 'Category' },
+      { key: 'type', label: 'Type' },
       { key: 'reportCount', label: 'Reports' },
       { key: 'avgDuration', label: 'Avg Duration' },
       { key: 'minDuration', label: 'Min Duration' },
       { key: 'maxDuration', label: 'Max Duration' },
       { key: 'avgWorkEntries', label: 'Avg Work Entries' },
+      { key: 'avgFields', label: 'Avg Fields' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

@@ -63,26 +63,35 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+
+    // Calculate metrics from configs array
+    const configs = data.configs || [];
+    const activeConfigs = configs.filter((c: any) => c.isActive).length;
+    const totalAppraisals = configs.reduce((sum: number, c: any) => sum + (c.appraisalCount || 0), 0);
+    const avgUsageRate = configs.length > 0
+      ? configs.reduce((sum: number, c: any) => sum + (c.usageRate || 0), 0) / configs.length
+      : 0;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Configurations"
-          value={summary.totalConfigurations || 0}
+          value={summary.totalConfigs || 0}
           icon={<FileCheck className="h-5 w-5" />}
         />
         <MetricCard
           title="Active Configurations"
-          value={summary.activeConfigurations || 0}
+          value={activeConfigs}
           icon={<Activity className="h-5 w-5" />}
         />
         <MetricCard
           title="Total Appraisals"
-          value={summary.totalAppraisals || 0}
+          value={totalAppraisals}
           icon={<CheckCircle className="h-5 w-5" />}
         />
         <MetricCard
           title="Avg Usage Rate"
-          value={`${summary.avgUsageRate || 0}%`}
+          value={`${avgUsageRate.toFixed(1)}%`}
           icon={<TrendingUp className="h-5 w-5" />}
         />
       </div>
@@ -92,16 +101,41 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
   const renderCharts = () => {
     if (!data) return null;
 
-    const vehicleTypeData: PieChartData[] = data.configurationsByVehicleType?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    const configs = data.configs || [];
 
-    const usageData = data.configurations?.slice(0, 10).map((config: any) => ({
-      name: config.configName || 'Unknown',
-      usage: config.usageCount || 0,
-      appraisals: config.appraisalCount || 0,
-    })) || [];
+    // Color palette for pie chart
+    const vehicleTypeColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
+
+    // Group configs by vehicle type for pie chart
+    const vehicleTypeMap = new Map<string, number>();
+    configs.forEach((config: any) => {
+      const type = config.vehicleType || 'Unknown';
+      vehicleTypeMap.set(type, (vehicleTypeMap.get(type) || 0) + 1);
+    });
+
+    const hasVehicleTypeData = vehicleTypeMap.size > 0;
+    
+    const vehicleTypeData: PieChartData[] = hasVehicleTypeData
+      ? Array.from(vehicleTypeMap.entries()).map(([name, value], index) => ({
+          name,
+          value,
+          color: vehicleTypeColors[index % vehicleTypeColors.length],
+        }))
+      : [
+          { name: 'Car', value: 0, color: vehicleTypeColors[0] },
+          { name: 'Truck', value: 0, color: vehicleTypeColors[1] },
+          { name: 'SUV', value: 0, color: vehicleTypeColors[2] },
+          { name: 'Van', value: 0, color: vehicleTypeColors[3] },
+          { name: 'Motorcycle', value: 0, color: vehicleTypeColors[4] },
+        ];
+
+    const usageData = configs
+      .slice(0, 10)
+      .map((config: any) => ({
+        name: config.configName || 'Unknown',
+        usage: config.usageCount || 0,
+        appraisals: config.appraisalCount || 0,
+      }));
 
     return (
       <div className="space-y-6">
@@ -109,6 +143,11 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
           <div>
             <h4 className="text-sm font-medium mb-4">Configurations by Vehicle Type</h4>
             <InteractivePieChart data={vehicleTypeData} height={300} />
+            {!hasVehicleTypeData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No vehicle type data available
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Top 10 by Usage</h4>
@@ -123,7 +162,7 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
           </div>
         </div>
 
-        {data.configurations && data.configurations.length > 0 && (
+        {configs.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Configuration Details</h4>
             <DataTable
@@ -134,7 +173,7 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
                 { key: 'appraisals', label: 'Appraisals' },
                 { key: 'status', label: 'Status' },
               ]}
-              data={data.configurations.slice(0, 20).map((config: any) => ({
+              data={configs.slice(0, 20).map((config: any) => ({
                 configName: config.configName || 'N/A',
                 vehicleType: config.vehicleType || 'N/A',
                 usage: config.usageCount || 0,
@@ -149,9 +188,10 @@ export const TradeinConfigUsageReport: React.FC<TradeinConfigUsageReportProps> =
   };
 
   const renderTable = () => {
-    if (!data?.configurations) return null;
+    const configs = data?.configs || [];
+    if (configs.length === 0) return null;
 
-    const tableData = data.configurations.map((config: any) => ({
+    const tableData = configs.map((config: any) => ({
       configName: config.configName || 'Unknown',
       vehicleType: config.vehicleType || 'Unknown',
       usageCount: config.usageCount || 0,

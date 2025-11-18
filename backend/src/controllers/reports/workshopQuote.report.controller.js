@@ -570,20 +570,32 @@ const getQuoteSupplierPerformance = async (req, res) => {
           avgEstimatedCost: 1,
           avgResponseTime: 1,
           approvalRate: {
-            $multiply: [
-              { $divide: ['$approvedQuotes', '$totalQuotesReceived'] },
-              100
+            $cond: [
+              { $gt: ['$totalQuotesReceived', 0] },
+              {
+                $multiply: [
+                  { $divide: ['$approvedQuotes', '$totalQuotesReceived'] },
+                  100
+                ]
+              },
+              0
             ]
           },
           responseRate: {
-            $multiply: [
-              { 
-                $divide: [
-                  { $subtract: ['$totalQuotesReceived', '$notInterestedCount'] },
-                  '$totalQuotesReceived'
-                ] 
+            $cond: [
+              { $gt: ['$totalQuotesReceived', 0] },
+              {
+                $multiply: [
+                  { 
+                    $divide: [
+                      { $subtract: ['$totalQuotesReceived', '$notInterestedCount'] },
+                      '$totalQuotesReceived'
+                    ] 
+                  },
+                  100
+                ]
               },
-              100
+              0
             ]
           }
         }
@@ -690,9 +702,15 @@ const getQuoteSupplierPerformance = async (req, res) => {
           timesHighestBidder: 1,
           avgCostVsMarket: 1,
           lowestBidderRate: {
-            $multiply: [
-              { $divide: ['$timesLowestBidder', '$totalQuotes'] },
-              100
+            $cond: [
+              { $gt: ['$totalQuotes', 0] },
+              {
+                $multiply: [
+                  { $divide: ['$timesLowestBidder', '$totalQuotes'] },
+                  100
+                ]
+              },
+              0
             ]
           }
         }
@@ -748,25 +766,37 @@ const getQuoteSupplierPerformance = async (req, res) => {
           avgFinalPrice: 1,
           totalRevenue: 1,
           reworkRate: {
-            $multiply: [
-              { $divide: ['$reworkCount', '$completedJobs'] },
-              100
+            $cond: [
+              { $gt: ['$completedJobs', 0] },
+              {
+                $multiply: [
+                  { $divide: ['$reworkCount', '$completedJobs'] },
+                  100
+                ]
+              },
+              0
             ]
           },
           quoteAccuracy: {
-            $subtract: [
-              100,
+            $cond: [
+              { $gt: ['$avgFinalPrice', 0] },
               {
-                $multiply: [
-                  { 
-                    $divide: [
-                      { $abs: '$avgQuoteDifference' },
-                      '$avgFinalPrice'
-                    ] 
-                  },
-                  100
+                $subtract: [
+                  100,
+                  {
+                    $multiply: [
+                      { 
+                        $divide: [
+                          { $abs: '$avgQuoteDifference' },
+                          '$avgFinalPrice'
+                        ] 
+                      },
+                      100
+                    ]
+                  }
                 ]
-              }
+              },
+              0
             ]
           }
         }
@@ -811,9 +841,15 @@ const getQuoteSupplierPerformance = async (req, res) => {
           totalQuoteValue: 1,
           completedJobs: 1,
           completionRate: {
-            $multiply: [
-              { $divide: ['$completedJobs', '$totalApprovedQuotes'] },
-              100
+            $cond: [
+              { $gt: ['$totalApprovedQuotes', 0] },
+              {
+                $multiply: [
+                  { $divide: ['$completedJobs', '$totalApprovedQuotes'] },
+                  100
+                ]
+              },
+              0
             ]
           }
         }

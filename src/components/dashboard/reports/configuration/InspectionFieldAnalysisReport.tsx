@@ -69,21 +69,25 @@ export const InspectionFieldAnalysisReport: React.FC<InspectionFieldAnalysisRepo
           title="Total Fields"
           value={summary.totalFields || 0}
           icon={<FileText className="h-5 w-5" />}
+          subtitle={`${summary.uniqueFieldTypes || 0} unique types`}
         />
         <MetricCard
-          title="Active Fields"
-          value={summary.activeFields || 0}
+          title="Required Fields"
+          value={summary.requiredFields || 0}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${(summary.requiredPercentage || 0).toFixed(1)}% of total`}
         />
         <MetricCard
-          title="Avg Completion Rate"
-          value={`${summary.avgCompletionRate || 0}%`}
+          title="Validation Coverage"
+          value={`${(summary.validationCoverage || 0).toFixed(1)}%`}
           icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`${summary.fieldsWithValidation || 0} fields`}
         />
         <MetricCard
-          title="Most Used Field Type"
-          value={summary.mostUsedFieldType || 'N/A'}
+          title="Avg Completeness Score"
+          value={summary.avgCompletenessScore || 0}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={`${summary.wellConfiguredFieldsCount || 0} well configured`}
         />
       </div>
     );
@@ -92,56 +96,154 @@ export const InspectionFieldAnalysisReport: React.FC<InspectionFieldAnalysisRepo
   const renderCharts = () => {
     if (!data) return null;
 
-    const fieldTypeData: PieChartData[] = data.fieldsByType?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
+    // Color palettes
+    const fieldTypeColors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+    const usageColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+
+    // Field Type Distribution
+    const fieldTypeData: PieChartData[] = data.fieldTypeAnalysis?.map((item: any, index: number) => ({
+      name: item.fieldType || 'Unknown',
+      value: item.totalCount || 0,
+      color: fieldTypeColors[index % fieldTypeColors.length],
     })) || [];
 
-    const completionData = data.fields?.slice(0, 10).map((field: any) => ({
-      name: field.fieldName || 'Unknown',
-      completionRate: field.completionRate || 0,
-      usage: field.usageCount || 0,
+    // Field Type Analysis Bar Chart
+    const fieldTypeAnalysisData = data.fieldTypeAnalysis?.map((item: any) => ({
+      name: item.fieldType || 'Unknown',
+      total: item.totalCount || 0,
+      required: item.requiredCount || 0,
+      withValidation: item.validationCount || 0,
+      withImage: item.withImage || 0,
+      withNotes: item.withNotes || 0,
+      withDropdown: item.withDropdown || 0,
     })) || [];
+
+    // Validation Type Usage Pie Chart
+    const hasValidationData = data.validationTypeUsage && 
+      Object.values(data.validationTypeUsage).some((value: any) => value > 0);
+    
+    const validationTypeData: PieChartData[] = hasValidationData ?
+      Object.entries(data.validationTypeUsage)
+        .filter(([_, value]) => (value as number) > 0)
+        .map(([key, value], index) => ({
+          name: key,
+          value: value as number,
+          color: usageColors[index % usageColors.length],
+        })) : [
+          { name: 'Required', value: 0, color: usageColors[0] },
+          { name: 'Email', value: 0, color: usageColors[1] },
+          { name: 'Phone', value: 0, color: usageColors[2] },
+          { name: 'Number', value: 0, color: usageColors[3] },
+          { name: 'Date', value: 0, color: usageColors[4] },
+          { name: 'URL', value: 0, color: usageColors[5] },
+        ];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Fields by Type</h4>
+            <h4 className="text-sm font-medium mb-4">Field Type Distribution</h4>
             <InteractivePieChart data={fieldTypeData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 by Completion Rate</h4>
+            <h4 className="text-sm font-medium mb-4">Validation Type Usage</h4>
+            <InteractivePieChart data={validationTypeData} height={300} />
+            {!hasValidationData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No validation types in use
+              </p>
+            )}
+          </div>
+        </div>
+
+        {fieldTypeAnalysisData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Field Type Analysis</h4>
             <StackedBarChart
-              data={completionData}
+              data={fieldTypeAnalysisData}
               xAxisKey="name"
               series={[
-                { dataKey: 'completionRate', name: 'Completion %', color: '#3b82f6' },
+                { dataKey: 'total', name: 'Total', color: '#3b82f6' },
+                { dataKey: 'required', name: 'Required', color: '#ef4444' },
+                { dataKey: 'withValidation', name: 'With Validation', color: '#10b981' },
+                { dataKey: 'withImage', name: 'With Image', color: '#f59e0b' },
+                { dataKey: 'withNotes', name: 'With Notes', color: '#8b5cf6' },
+                { dataKey: 'withDropdown', name: 'With Dropdown', color: '#ec4899' },
               ]}
               height={300}
             />
           </div>
-        </div>
+        )}
 
-        {data.fields && data.fields.length > 0 && (
+        {data.fieldTypeAnalysis && data.fieldTypeAnalysis.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Field Details</h4>
-            <DataTable
-              columns={[
-                { key: 'fieldName', label: 'Field Name' },
-                { key: 'fieldType', label: 'Type' },
-                { key: 'usage', label: 'Usage' },
-                { key: 'completion', label: 'Completion' },
-                { key: 'status', label: 'Status' },
-              ]}
-              data={data.fields.slice(0, 20).map((field: any) => ({
-                fieldName: field.fieldName || 'N/A',
-                fieldType: field.fieldType || 'N/A',
-                usage: field.usageCount || 0,
-                completion: `${field.completionRate || 0}%`,
-                status: field.isActive ? 'Active' : 'Inactive',
-              }))}
-            />
+            <h4 className="text-sm font-medium mb-4">Field Type Details</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Field Type</th>
+                    <th className="px-4 py-3 text-right font-medium">Total</th>
+                    <th className="px-4 py-3 text-right font-medium">Required</th>
+                    <th className="px-4 py-3 text-right font-medium">With Validation</th>
+                    <th className="px-4 py-3 text-right font-medium">With Image</th>
+                    <th className="px-4 py-3 text-right font-medium">With Notes</th>
+                    <th className="px-4 py-3 text-right font-medium">With Dropdown</th>
+                    <th className="px-4 py-3 text-right font-medium">Avg Completeness</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.fieldTypeAnalysis.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.fieldType || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-right">{item.totalCount || 0}</td>
+                      <td className="px-4 py-3 text-right">
+                        {item.requiredCount || 0} ({(item.requiredPercentage || 0).toFixed(1)}%)
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {item.validationCount || 0} ({(item.validationPercentage || 0).toFixed(1)}%)
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {item.withImage || 0} ({(item.imagePercentage || 0).toFixed(1)}%)
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {item.withNotes || 0} ({(item.notesPercentage || 0).toFixed(1)}%)
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {item.withDropdown || 0} ({(item.dropdownPercentage || 0).toFixed(1)}%)
+                      </td>
+                      <td className="px-4 py-3 text-right">{item.avgCompletenessScore || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.summary && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-600">{data.summary.fieldsWithImage || 0}</div>
+              <div className="text-sm text-gray-600 mt-1">Fields with Image Support</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {(data.summary.imageUsagePercentage || 0).toFixed(1)}% of total
+              </div>
+            </div>
+            <div className="border rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-600">{data.summary.fieldsWithNotes || 0}</div>
+              <div className="text-sm text-gray-600 mt-1">Fields with Notes Support</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {(data.summary.notesUsagePercentage || 0).toFixed(1)}% of total
+              </div>
+            </div>
+            <div className="border rounded-lg p-4">
+              <div className="text-2xl font-bold text-orange-600">{data.summary.fieldsWithDropdown || 0}</div>
+              <div className="text-sm text-gray-600 mt-1">Fields with Dropdown</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {(data.summary.dropdownUsagePercentage || 0).toFixed(1)}% of total
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -149,24 +251,42 @@ export const InspectionFieldAnalysisReport: React.FC<InspectionFieldAnalysisRepo
   };
 
   const renderTable = () => {
-    if (!data?.fields) return null;
+    if (!data?.fieldTypeAnalysis) return null;
 
-    const tableData = data.fields.map((field: any) => ({
-      fieldName: field.fieldName || 'Unknown',
-      fieldType: field.fieldType || 'Unknown',
-      usageCount: field.usageCount || 0,
-      completionRate: `${field.completionRate || 0}%`,
-      avgValue: field.avgValue || 'N/A',
-      isActive: field.isActive ? 'Active' : 'Inactive',
+    const tableData = data.fieldTypeAnalysis.map((item: any) => ({
+      fieldType: item.fieldType || 'Unknown',
+      totalCount: item.totalCount || 0,
+      requiredCount: item.requiredCount || 0,
+      requiredPercentage: `${(item.requiredPercentage || 0).toFixed(1)}%`,
+      validationCount: item.validationCount || 0,
+      validationPercentage: `${(item.validationPercentage || 0).toFixed(1)}%`,
+      withImage: item.withImage || 0,
+      imagePercentage: `${(item.imagePercentage || 0).toFixed(1)}%`,
+      withNotes: item.withNotes || 0,
+      notesPercentage: `${(item.notesPercentage || 0).toFixed(1)}%`,
+      withDropdown: item.withDropdown || 0,
+      dropdownPercentage: `${(item.dropdownPercentage || 0).toFixed(1)}%`,
+      withPlaceholder: item.withPlaceholder || 0,
+      withHelpText: item.withHelpText || 0,
+      avgCompletenessScore: item.avgCompletenessScore || 0,
     }));
 
     const columns = [
-      { key: 'fieldName', label: 'Field Name' },
-      { key: 'fieldType', label: 'Type' },
-      { key: 'usageCount', label: 'Usage Count' },
-      { key: 'completionRate', label: 'Completion Rate' },
-      { key: 'avgValue', label: 'Avg Value' },
-      { key: 'isActive', label: 'Status' },
+      { key: 'fieldType', label: 'Field Type' },
+      { key: 'totalCount', label: 'Total' },
+      { key: 'requiredCount', label: 'Required' },
+      { key: 'requiredPercentage', label: 'Required %' },
+      { key: 'validationCount', label: 'With Validation' },
+      { key: 'validationPercentage', label: 'Validation %' },
+      { key: 'withImage', label: 'With Image' },
+      { key: 'imagePercentage', label: 'Image %' },
+      { key: 'withNotes', label: 'With Notes' },
+      { key: 'notesPercentage', label: 'Notes %' },
+      { key: 'withDropdown', label: 'With Dropdown' },
+      { key: 'dropdownPercentage', label: 'Dropdown %' },
+      { key: 'withPlaceholder', label: 'With Placeholder' },
+      { key: 'withHelpText', label: 'With Help Text' },
+      { key: 'avgCompletenessScore', label: 'Avg Completeness' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

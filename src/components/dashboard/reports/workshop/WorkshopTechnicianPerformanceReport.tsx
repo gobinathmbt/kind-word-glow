@@ -60,33 +60,42 @@ export const WorkshopTechnicianPerformanceReport: React.FC<WorkshopTechnicianPer
   };
 
   const renderMetrics = () => {
-    if (!data?.technicianPerformance || data.technicianPerformance.length === 0) return null;
+    if (!data) return null;
     
-    const totalTechnicians = data.technicianPerformance.length;
-    const totalWorkEntries = data.technicianPerformance.reduce((sum: number, t: any) => sum + (t.totalWorkEntries || 0), 0);
-    const avgQualityScore = data.technicianPerformance.reduce((sum: number, t: any) => sum + (t.avgQualityScore || 0), 0) / totalTechnicians;
-    const avgCompletionTime = data.technicianPerformance.reduce((sum: number, t: any) => sum + (t.avgCompletionTime || 0), 0) / totalTechnicians;
+    const validTechnicians = data.technicianPerformance?.filter((t: any) => t._id) || [];
+    const topTechnician = data.topTechnicians?.filter((t: any) => t.technicianName)?.[0];
+    
+    const totalTechnicians = validTechnicians.length;
+    const totalWorkEntries = validTechnicians.reduce((sum: number, t: any) => sum + (t.totalWorkEntries || 0), 0);
+    const avgQualityScore = validTechnicians.length > 0
+      ? validTechnicians.reduce((sum: number, t: any) => sum + (t.avgQualityScore || 0), 0) / validTechnicians.length
+      : 0;
+    const avgCompletionTime = validTechnicians.length > 0
+      ? validTechnicians.reduce((sum: number, t: any) => sum + (t.avgCompletionTime || 0), 0) / validTechnicians.length
+      : 0;
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <MetricCard
+          title="Top Technician"
+          value={topTechnician?.technicianName || 'N/A'}
+          icon={<Star className="h-5 w-5" />}
+          subtitle={topTechnician ? `${topTechnician.workEntriesCompleted} work entries` : ''}
+        />
         <MetricCard
           title="Total Technicians"
           value={totalTechnicians}
           icon={<Users className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Total Work Entries"
-          value={totalWorkEntries}
-          icon={<Wrench className="h-5 w-5" />}
+          subtitle={`${totalWorkEntries} total work entries`}
         />
         <MetricCard
           title="Avg Quality Score"
-          value={`${(avgQualityScore * 100).toFixed(1)}%`}
+          value={`${avgQualityScore.toFixed(1)}%`}
           icon={<Star className="h-5 w-5" />}
         />
         <MetricCard
           title="Avg Completion Time"
-          value={`${avgCompletionTime.toFixed(1)}h`}
+          value={`${(avgCompletionTime * 24).toFixed(1)}h`}
           icon={<Clock className="h-5 w-5" />}
         />
       </div>
@@ -96,51 +105,84 @@ export const WorkshopTechnicianPerformanceReport: React.FC<WorkshopTechnicianPer
   const renderCharts = () => {
     if (!data) return null;
 
-    const technicianComparisonData = data.technicianPerformance?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.totalWorkEntries || 0,
-      percentage: 100,
-    })) || [];
+    // Color palettes for different charts
+    const workEntryColors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+    const qualityScoreColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+    const completionTimeColors = ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7', '#d97706', '#b45309', '#92400e', '#78350f', '#451a03'];
 
-    const workEntryAnalysisData = data.workEntryTechnicianAnalysis?.map((item: any) => ({
-      name: item.technicianName || item._id || 'Unknown',
-      value: item.totalRevenue || 0,
-      percentage: (item.completionRate || 0),
-    })) || [];
+    const validTechnicians = data.technicianPerformance?.filter((t: any) => t._id) || [];
+    
+    const technicianWorkEntryData = validTechnicians
+      .sort((a: any, b: any) => (b.totalWorkEntries || 0) - (a.totalWorkEntries || 0))
+      .slice(0, 10)
+      .map((item: any, index: number) => ({
+        name: item._id || 'Unknown',
+        value: item.totalWorkEntries || 0,
+        label: `${item.totalWorkEntries || 0}`,
+        color: workEntryColors[index % workEntryColors.length],
+      }));
+
+    const technicianQualityData = validTechnicians
+      .sort((a: any, b: any) => (b.avgQualityScore || 0) - (a.avgQualityScore || 0))
+      .slice(0, 10)
+      .map((item: any, index: number) => ({
+        name: item._id || 'Unknown',
+        value: item.avgQualityScore || 0,
+        label: `${(item.avgQualityScore || 0).toFixed(1)}%`,
+        color: qualityScoreColors[index % qualityScoreColors.length],
+      }));
+
+    const technicianCompletionTimeData = validTechnicians
+      .sort((a: any, b: any) => (a.avgCompletionTime || 0) - (b.avgCompletionTime || 0))
+      .slice(0, 10)
+      .map((item: any, index: number) => ({
+        name: item._id || 'Unknown',
+        value: (item.avgCompletionTime || 0) * 24, // Convert days to hours
+        label: `${((item.avgCompletionTime || 0) * 24).toFixed(1)}h`,
+        color: completionTimeColors[index % completionTimeColors.length],
+      }));
 
     return (
       <div className="space-y-6">
-        {technicianComparisonData.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium mb-4">Top Technicians by Work Entries</h4>
+          <ComparisonChart data={technicianWorkEntryData} height={300} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Technician Work Entry Comparison</h4>
-            <ComparisonChart data={technicianComparisonData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Quality Score Performance (Highest)</h4>
+            <ComparisonChart data={technicianQualityData} height={250} />
           </div>
-        )}
-
-        {workEntryAnalysisData.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Technician Revenue Performance</h4>
-            <ComparisonChart data={workEntryAnalysisData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Completion Time Performance (Fastest)</h4>
+            <ComparisonChart data={technicianCompletionTimeData} height={250} />
           </div>
-        )}
-
+        </div>
         {data.topTechnicians && data.topTechnicians.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Top Performing Technicians</h4>
-            <DataTable
-              columns={[
-                { key: 'technicianName', label: 'Technician' },
-                { key: 'workEntriesCompleted', label: 'Work Entries' },
-                { key: 'avgCompletionTime', label: 'Avg Time (h)' },
-                { key: 'qualityScore', label: 'Quality Score' },
-              ]}
-              data={data.topTechnicians.map((item: any) => ({
-                technicianName: item.technicianName || 'N/A',
-                workEntriesCompleted: item.workEntriesCompleted || 0,
-                avgCompletionTime: (item.avgCompletionTime || 0).toFixed(1),
-                qualityScore: `${((item.qualityScore || 0) * 100).toFixed(1)}%`,
-              }))}
-            />
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Technician</th>
+                    <th className="px-4 py-3 text-right font-medium">Work Entries</th>
+                    <th className="px-4 py-3 text-right font-medium">Avg Time (h)</th>
+                    <th className="px-4 py-3 text-right font-medium">Quality Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.topTechnicians.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item.technicianName || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">{item.workEntriesCompleted || 0}</td>
+                      <td className="px-4 py-3 text-right">{((item.avgCompletionTime || 0) * 24).toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right">{(item.qualityScore || 0).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -148,17 +190,31 @@ export const WorkshopTechnicianPerformanceReport: React.FC<WorkshopTechnicianPer
   };
 
   const renderTable = () => {
-    if (!data?.technicianPerformance) return null;
+    if (!data) return null;
 
-    const tableData = data.technicianPerformance.map((item: any) => ({
+    // Combine data from multiple sources for comprehensive table view
+    const technicianPerformanceData = data.technicianPerformance?.filter((t: any) => t._id).map((item: any) => ({
+      category: 'Performance Summary',
       technician: item._id || 'Unknown',
       totalWorkEntries: item.totalWorkEntries || 0,
-      avgCompletionTime: `${(item.avgCompletionTime || 0).toFixed(1)}h`,
-      avgQualityScore: `${((item.avgQualityScore || 0) * 100).toFixed(1)}%`,
+      avgCompletionTime: `${((item.avgCompletionTime || 0) * 24).toFixed(1)}h`,
+      avgQualityScore: `${(item.avgQualityScore || 0).toFixed(1)}%`,
       reportsWorkedOn: item.reportsWorkedOn || 0,
-    }));
+    })) || [];
+
+    const topTechniciansData = data.topTechnicians?.filter((t: any) => t.technicianName).map((item: any) => ({
+      category: 'Top Performers',
+      technician: item.technicianName || 'Unknown',
+      totalWorkEntries: item.workEntriesCompleted || 0,
+      avgCompletionTime: `${((item.avgCompletionTime || 0) * 24).toFixed(1)}h`,
+      avgQualityScore: `${(item.qualityScore || 0).toFixed(1)}%`,
+      reportsWorkedOn: '-',
+    })) || [];
+
+    const tableData = [...technicianPerformanceData, ...topTechniciansData];
 
     const columns = [
+      { key: 'category', label: 'Category' },
       { key: 'technician', label: 'Technician' },
       { key: 'totalWorkEntries', label: 'Work Entries' },
       { key: 'avgCompletionTime', label: 'Avg Time' },

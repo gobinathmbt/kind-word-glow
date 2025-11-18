@@ -7,7 +7,7 @@ import { DataTable } from '@/components/dashboard/charts/DataTable';
 import { ExportButton } from '@/components/dashboard/common/ExportButton';
 import { RefreshButton } from '@/components/dashboard/common/RefreshButton';
 import { dashboardAnalyticsServices } from '@/api/services';
-import { Car, TrendingUp } from 'lucide-react';
+import { Car, TrendingUp, Package, Megaphone } from 'lucide-react';
 
 interface DealershipVehicleDistributionReportProps {
   dealershipIds?: string[] | null;
@@ -40,7 +40,9 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getDealershipVehicleDistribution(params);
-      setData(response.data);
+      // Handle response structure: response.data.data or response.data
+      const responseData = response.data?.data || response.data;
+      setData(responseData);
     } catch (err: any) {
       setError(err.message || 'Failed to load vehicle distribution data');
     } finally {
@@ -61,9 +63,11 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
   };
 
   const renderMetrics = () => {
-    if (!data?.data?.distributionByDealership) return null;
-    
-    const totals = data.data.distributionByDealership.reduce((acc: any, dealership: any) => ({
+    if (!data?.distributionByDealership) return null;
+
+    const validDealerships = data.distributionByDealership.filter((d: any) => d.dealershipId);
+
+    const totals = validDealerships.reduce((acc: any, dealership: any) => ({
       totalVehicles: acc.totalVehicles + (dealership.vehicles?.total || 0),
       totalMaster: acc.totalMaster + (dealership.masterVehicles?.total || 0),
       totalAdvertise: acc.totalAdvertise + (dealership.advertiseVehicles?.total || 0),
@@ -76,14 +80,17 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
           title="Total Vehicles"
           value={totals.totalVehicles}
           icon={<Car className="h-5 w-5" />}
+          subtitle={`${validDealerships.length} dealership(s)`}
         />
         <MetricCard
           title="Master Vehicles"
           value={totals.totalMaster}
+          icon={<Package className="h-5 w-5" />}
         />
         <MetricCard
           title="Advertise Vehicles"
           value={totals.totalAdvertise}
+          icon={<Megaphone className="h-5 w-5" />}
         />
         <MetricCard
           title="Grand Total"
@@ -95,15 +102,21 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
   };
 
   const renderCharts = () => {
-    if (!data?.data?.distributionByDealership) return null;
+    if (!data?.distributionByDealership) return null;
 
-    const distributionData: PieChartData[] = data.data.distributionByDealership.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    // Color palettes for different charts
+    const pieColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+
+    const validDealerships = data.distributionByDealership.filter((d: any) => d.dealershipId);
+
+    const distributionData: PieChartData[] = validDealerships.map((dealership: any, index: number) => ({
+      name: dealership.dealershipName || 'Unknown',
       value: dealership.grandTotal || 0,
+      color: pieColors[index % pieColors.length],
     }));
 
-    const vehicleTypeData = data.data.distributionByDealership.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    const vehicleTypeData = validDealerships.map((dealership: any) => ({
+      name: dealership.dealershipName || 'Unknown',
       vehicles: dealership.vehicles?.total || 0,
       master: dealership.masterVehicles?.total || 0,
       advertise: dealership.advertiseVehicles?.total || 0,
@@ -122,9 +135,9 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
               data={vehicleTypeData}
               xAxisKey="name"
               series={[
-                { dataKey: 'vehicles', name: 'Vehicles' },
-                { dataKey: 'master', name: 'Master' },
-                { dataKey: 'advertise', name: 'Advertise' },
+                { dataKey: 'vehicles', name: 'Vehicles', color: '#3b82f6' },
+                { dataKey: 'master', name: 'Master', color: '#10b981' },
+                { dataKey: 'advertise', name: 'Advertise', color: '#f59e0b' },
               ]}
               height={300}
             />
@@ -135,23 +148,43 @@ export const DealershipVehicleDistributionReport: React.FC<DealershipVehicleDist
   };
 
   const renderTable = () => {
-    if (!data?.data?.distributionByDealership) return null;
+    if (!data?.distributionByDealership) return null;
+
+    const validDealerships = data.distributionByDealership.filter((d: any) => d.dealershipId);
 
     const columns = [
-      { key: 'dealershipName', label: 'Dealership' },
+      { key: 'dealershipName', label: 'Dealership Name' },
       { key: 'vehicles', label: 'Vehicles' },
+      { key: 'vehiclesByType', label: 'Vehicle Types' },
       { key: 'masterVehicles', label: 'Master' },
+      { key: 'masterByStatus', label: 'Master Status' },
       { key: 'advertiseVehicles', label: 'Advertise' },
-      { key: 'grandTotal', label: 'Total' },
+      { key: 'advertiseByStatus', label: 'Advertise Status' },
+      { key: 'grandTotal', label: 'Grand Total' },
     ];
 
-    const tableData = data.data.distributionByDealership.map((dealership: any) => ({
-      dealershipName: dealership.dealershipName,
-      vehicles: dealership.vehicles?.total || 0,
-      masterVehicles: dealership.masterVehicles?.total || 0,
-      advertiseVehicles: dealership.advertiseVehicles?.total || 0,
-      grandTotal: dealership.grandTotal || 0,
-    }));
+    const tableData = validDealerships.map((dealership: any) => {
+      const vehicleTypes = dealership.vehicles?.byType || [];
+      const masterStatus = dealership.masterVehicles?.byStatus || [];
+      const advertiseStatus = dealership.advertiseVehicles?.byStatus || [];
+
+      return {
+        dealershipName: dealership.dealershipName || 'N/A',
+        vehicles: dealership.vehicles?.total || 0,
+        vehiclesByType: vehicleTypes.length > 0
+          ? vehicleTypes.map((v: any) => `${v._id}: ${v.count}`).join(', ')
+          : 'N/A',
+        masterVehicles: dealership.masterVehicles?.total || 0,
+        masterByStatus: masterStatus.length > 0
+          ? masterStatus.map((s: any) => `${s._id}: ${s.count}`).join(', ')
+          : 'N/A',
+        advertiseVehicles: dealership.advertiseVehicles?.total || 0,
+        advertiseByStatus: advertiseStatus.length > 0
+          ? advertiseStatus.map((s: any) => `${s._id}: ${s.count}`).join(', ')
+          : 'N/A',
+        grandTotal: dealership.grandTotal || 0,
+      };
+    });
 
     return <DataTable columns={columns} data={tableData} />;
   };

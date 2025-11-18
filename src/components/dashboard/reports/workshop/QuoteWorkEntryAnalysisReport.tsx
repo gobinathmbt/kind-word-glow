@@ -60,38 +60,56 @@ export const QuoteWorkEntryAnalysisReport: React.FC<QuoteWorkEntryAnalysisReport
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.completionMetrics) return null;
+
+    // Calculate overall metrics from completionMetrics data
+    const totalWorkEntries = data.completionMetrics.reduce((sum: number, item: any) => sum + (item.totalWorkEntries || 0), 0);
+    const totalCompleted = data.completionMetrics.reduce((sum: number, item: any) => sum + (item.completedEntries || 0), 0);
+    const totalRevenue = data.completionMetrics.reduce((sum: number, item: any) => sum + (item.totalRevenue || 0), 0);
+    const avgCompletionRate = data.completionMetrics.length > 0
+      ? data.completionMetrics.reduce((sum: number, item: any) => sum + (item.completionRate || 0), 0) / data.completionMetrics.length
+      : 0;
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Work Entries"
-          value={data.summary.totalWorkEntries || 0}
+          value={totalWorkEntries}
           icon={<Clipboard className="h-5 w-5" />}
         />
         <MetricCard
           title="Completed Entries"
-          value={data.summary.completedEntries || 0}
+          value={totalCompleted}
         />
         <MetricCard
-          title="Avg Completion Time"
-          value={`${(data.summary.avgCompletionTime || 0).toFixed(1)}h`}
+          title="Total Revenue"
+          value={`$${totalRevenue.toFixed(2)}`}
         />
         <MetricCard
-          title="Completion Rate"
-          value={`${(data.summary.completionRate || 0).toFixed(1)}%`}
+          title="Avg Completion Rate"
+          value={`${avgCompletionRate.toFixed(1)}%`}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.workEntryByType) return null;
+    if (!data?.completionMetrics) return null;
 
-    const chartData = data.workEntryByType.map((item: any) => ({
+    // Transform completionMetrics for chart
+    const chartData = data.completionMetrics.map((item: any) => ({
       type: item._id || 'Unknown',
-      total: item.totalEntries || 0,
       completed: item.completedEntries || 0,
-      inProgress: item.inProgressEntries || 0,
+      pending: (item.totalWorkEntries || 0) - (item.completedEntries || 0),
+      avgPartsCost: item.avgPartsCost || 0,
+      avgLaborCost: item.avgLaborCost || 0,
+    }));
+
+    // Transform for cost comparison chart
+    const costData = data.completionMetrics.map((item: any) => ({
+      type: item._id || 'Unknown',
+      partsCost: item.avgPartsCost || 0,
+      laborCost: item.avgLaborCost || 0,
     }));
 
     return (
@@ -103,31 +121,78 @@ export const QuoteWorkEntryAnalysisReport: React.FC<QuoteWorkEntryAnalysisReport
             xAxisKey="type"
             series={[
               { dataKey: 'completed', name: 'Completed', color: '#10b981' },
-              { dataKey: 'inProgress', name: 'In Progress', color: '#f59e0b' },
+              { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
             ]}
             height={300}
           />
         </div>
+        <div>
+          <h4 className="text-sm font-medium mb-4">Average Cost Breakdown by Type</h4>
+          <StackedBarChart
+            data={costData}
+            xAxisKey="type"
+            series={[
+              { dataKey: 'partsCost', name: 'Parts Cost', color: '#3b82f6' },
+              { dataKey: 'laborCost', name: 'Labor Cost', color: '#8b5cf6' },
+            ]}
+            height={300}
+          />
+        </div>
+        {data.qualityMetrics && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Quality Metrics Overview</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+                <div className="text-2xl font-bold text-blue-600">
+                  {(data.qualityMetrics.visualInspectionPassRate || 0).toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Visual Inspection Pass Rate</div>
+              </div>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100">
+                <div className="text-2xl font-bold text-green-600">
+                  {(data.qualityMetrics.functionalTestPassRate || 0).toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Functional Test Pass Rate</div>
+              </div>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100">
+                <div className="text-2xl font-bold text-purple-600">
+                  {(data.qualityMetrics.roadTestPassRate || 0).toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Road Test Pass Rate</div>
+              </div>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-orange-50 to-orange-100">
+                <div className="text-2xl font-bold text-orange-600">
+                  {(data.qualityMetrics.safetyCheckPassRate || 0).toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600 mt-1">Safety Check Pass Rate</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.workEntryByType) return null;
+    if (!data?.completionMetrics) return null;
 
-    const tableData = data.workEntryByType.map((item: any) => ({
+    const tableData = data.completionMetrics.map((item: any) => ({
       type: item._id || 'Unknown',
-      totalEntries: item.totalEntries || 0,
+      totalWorkEntries: item.totalWorkEntries || 0,
       completedEntries: item.completedEntries || 0,
-      avgCompletionTime: `${(item.avgCompletionTime || 0).toFixed(1)}h`,
+      avgPartsCost: `$${(item.avgPartsCost || 0).toFixed(2)}`,
+      avgLaborCost: `$${(item.avgLaborCost || 0).toFixed(2)}`,
+      totalRevenue: `$${(item.totalRevenue || 0).toFixed(2)}`,
       completionRate: `${(item.completionRate || 0).toFixed(1)}%`,
     }));
 
     const columns = [
       { key: 'type', label: 'Type' },
-      { key: 'totalEntries', label: 'Total Entries' },
+      { key: 'totalWorkEntries', label: 'Total Entries' },
       { key: 'completedEntries', label: 'Completed' },
-      { key: 'avgCompletionTime', label: 'Avg Completion Time' },
+      { key: 'avgPartsCost', label: 'Avg Parts Cost' },
+      { key: 'avgLaborCost', label: 'Avg Labor Cost' },
+      { key: 'totalRevenue', label: 'Total Revenue' },
       { key: 'completionRate', label: 'Completion Rate' },
     ];
 

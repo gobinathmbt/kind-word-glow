@@ -41,7 +41,10 @@ export const DealershipRevenueComparisonReport: React.FC<DealershipRevenueCompar
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getDealershipRevenueComparison(params);
-      setData(response.data);
+      // Handle response structure: response.data.data or response.data
+      const responseData = response.data?.data || response.data;
+      // Ensure we have an array
+      setData(Array.isArray(responseData) ? responseData : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load revenue comparison data');
     } finally {
@@ -62,32 +65,37 @@ export const DealershipRevenueComparisonReport: React.FC<DealershipRevenueCompar
   };
 
   const renderMetrics = () => {
-    if (!data?.data || data.data.length === 0) return null;
-    
-    const totals = data.data.reduce((acc: any, dealership: any) => ({
-      totalRevenue: acc.totalRevenue + (dealership.revenue?.totalRevenue || 0),
-      totalCost: acc.totalCost + (dealership.revenue?.totalCost || 0),
-      totalProfit: acc.totalProfit + (dealership.revenue?.totalProfit || 0),
-    }), { totalRevenue: 0, totalCost: 0, totalProfit: 0 });
+    if (!data || !Array.isArray(data) || data.length === 0) return null;
 
-    const avgProfitMargin = totals.totalRevenue > 0 
+    const validDealerships = data.filter((d: any) => d.dealershipId);
+
+    const totals = validDealerships.reduce((acc: any, dealership: any) => ({
+      totalRevenue: acc.totalRevenue + (dealership.combinedMetrics?.totalRevenue || 0),
+      totalCost: acc.totalCost + (dealership.combinedMetrics?.totalCost || 0),
+      totalProfit: acc.totalProfit + (dealership.combinedMetrics?.totalProfit || 0),
+      vehicleRevenue: acc.vehicleRevenue + (dealership.vehicleRevenue?.totalRevenue || 0),
+      workshopRevenue: acc.workshopRevenue + (dealership.workshopRevenue?.totalRevenue || 0),
+    }), { totalRevenue: 0, totalCost: 0, totalProfit: 0, vehicleRevenue: 0, workshopRevenue: 0 });
+
+    const avgProfitMargin = totals.totalRevenue > 0
       ? ((totals.totalProfit / totals.totalRevenue) * 100).toFixed(1)
-      : 0;
+      : '0.0';
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Revenue"
-          value={`$${totals.totalRevenue.toLocaleString()}`}
+          value={`$${totals.totalRevenue.toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
+          subtitle={`${validDealerships.length} dealership(s)`}
         />
         <MetricCard
           title="Total Cost"
-          value={`$${totals.totalCost.toLocaleString()}`}
+          value={`$${totals.totalCost.toFixed(2)}`}
         />
         <MetricCard
           title="Total Profit"
-          value={`$${totals.totalProfit.toLocaleString()}`}
+          value={`$${totals.totalProfit.toFixed(2)}`}
           icon={<TrendingUp className="h-5 w-5" />}
         />
         <MetricCard
@@ -100,25 +108,64 @@ export const DealershipRevenueComparisonReport: React.FC<DealershipRevenueCompar
   };
 
   const renderCharts = () => {
-    if (!data?.data || data.data.length === 0) return null;
+    if (!data || !Array.isArray(data) || data.length === 0) return null;
 
-    const revenueDistribution: PieChartData[] = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
-      value: dealership.revenue?.totalRevenue || 0,
+    // Color palettes for different charts
+    const revenueColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+    const comparisonColors = ['#3b82f6', '#ef4444', '#10b981'];
+
+    const validDealerships = data.filter((d: any) => d.dealershipId);
+
+    const revenueDistribution: PieChartData[] = validDealerships.map((dealership: any, index: number) => ({
+      name: dealership.dealershipName || 'Unknown',
+      value: dealership.combinedMetrics?.totalRevenue || 0,
+      label: `$${(dealership.combinedMetrics?.totalRevenue || 0).toFixed(2)}`,
+      color: revenueColors[index % revenueColors.length],
     }));
 
-    const comparisonData = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
-      revenue: dealership.revenue?.totalRevenue || 0,
-      cost: dealership.revenue?.totalCost || 0,
-      profit: dealership.revenue?.totalProfit || 0,
+    const comparisonData = validDealerships.map((dealership: any) => ({
+      name: dealership.dealershipName || 'Unknown',
+      revenue: dealership.combinedMetrics?.totalRevenue || 0,
+      cost: dealership.combinedMetrics?.totalCost || 0,
+      profit: dealership.combinedMetrics?.totalProfit || 0,
     }));
+
+    const revenueByTypeData = validDealerships.map((dealership: any) => ({
+      name: dealership.dealershipName || 'Unknown',
+      vehicleRevenue: dealership.vehicleRevenue?.totalRevenue || 0,
+      workshopRevenue: dealership.workshopRevenue?.totalRevenue || 0,
+    }));
+
+    // Collect all monthly trends from all dealerships
+    const allMonthlyTrends = validDealerships.reduce((acc: any[], dealership: any) => {
+      if (dealership.monthlyTrends && Array.isArray(dealership.monthlyTrends)) {
+        return [...acc, ...dealership.monthlyTrends];
+      }
+      return acc;
+    }, []);
+
+    // Group by month and aggregate revenue
+    const monthlyTrendMap = new Map();
+    allMonthlyTrends.forEach((trend: any) => {
+      const month = trend._id || trend.month;
+      if (month) {
+        const existing = monthlyTrendMap.get(month) || { month, revenue: 0, cost: 0, profit: 0 };
+        existing.revenue += trend.totalRevenue || 0;
+        existing.cost += trend.totalCost || 0;
+        existing.profit += trend.totalProfit || 0;
+        monthlyTrendMap.set(month, existing);
+      }
+    });
+
+    const monthlyTrendData = Array.from(monthlyTrendMap.values()).sort((a, b) =>
+      a.month.localeCompare(b.month)
+    );
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Revenue Distribution</h4>
+            <h4 className="text-sm font-medium mb-4">Revenue Distribution by Dealership</h4>
             <InteractivePieChart data={revenueDistribution} height={300} />
           </div>
           <div>
@@ -127,22 +174,36 @@ export const DealershipRevenueComparisonReport: React.FC<DealershipRevenueCompar
               data={comparisonData}
               xAxisKey="name"
               series={[
-                { dataKey: 'revenue', name: 'Revenue' },
-                { dataKey: 'cost', name: 'Cost' },
-                { dataKey: 'profit', name: 'Profit' },
+                { dataKey: 'revenue', name: 'Revenue', color: comparisonColors[0] },
+                { dataKey: 'cost', name: 'Cost', color: comparisonColors[1] },
+                { dataKey: 'profit', name: 'Profit', color: comparisonColors[2] },
               ]}
               height={300}
             />
           </div>
         </div>
-        {data.data[0]?.monthlyTrend && (
+        <div>
+          <h4 className="text-sm font-medium mb-4">Revenue by Type</h4>
+          <StackedBarChart
+            data={revenueByTypeData}
+            xAxisKey="name"
+            series={[
+              { dataKey: 'vehicleRevenue', name: 'Vehicle Revenue', color: '#8b5cf6' },
+              { dataKey: 'workshopRevenue', name: 'Workshop Revenue', color: '#ec4899' },
+            ]}
+            height={300}
+          />
+        </div>
+        {monthlyTrendData.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Monthly Revenue Trend</h4>
             <LineChart
-              data={data.data[0].monthlyTrend}
+              data={monthlyTrendData}
               xAxisKey="month"
               lines={[
-                { dataKey: 'revenue', name: 'Revenue', color: 'hsl(var(--chart-1))' },
+                { dataKey: 'revenue', name: 'Revenue', color: '#10b981' },
+                { dataKey: 'cost', name: 'Cost', color: '#ef4444' },
+                { dataKey: 'profit', name: 'Profit', color: '#3b82f6' },
               ]}
               height={300}
             />
@@ -153,24 +214,42 @@ export const DealershipRevenueComparisonReport: React.FC<DealershipRevenueCompar
   };
 
   const renderTable = () => {
-    if (!data?.data) return null;
+    if (!data || !Array.isArray(data)) return null;
+
+    const validDealerships = data.filter((d: any) => d.dealershipId);
 
     const columns = [
-      { key: 'dealershipName', label: 'Dealership' },
-      { key: 'totalRevenue', label: 'Revenue' },
-      { key: 'totalCost', label: 'Cost' },
-      { key: 'totalProfit', label: 'Profit' },
-      { key: 'profitMargin', label: 'Margin %' },
-      { key: 'avgRevenuePerVehicle', label: 'Avg/Vehicle' },
+      { key: 'dealershipName', label: 'Dealership Name' },
+      { key: 'totalRevenue', label: 'Total Revenue' },
+      { key: 'totalCost', label: 'Total Cost' },
+      { key: 'totalProfit', label: 'Total Profit' },
+      { key: 'profitMargin', label: 'Profit Margin %' },
+      { key: 'vehicleRevenue', label: 'Vehicle Revenue' },
+      { key: 'vehicleProfit', label: 'Vehicle Profit' },
+      { key: 'vehicleMargin', label: 'Vehicle Margin %' },
+      { key: 'workshopRevenue', label: 'Workshop Revenue' },
+      { key: 'workshopProfit', label: 'Workshop Profit' },
+      { key: 'workshopMargin', label: 'Workshop Margin %' },
+      { key: 'totalVehicles', label: 'Total Vehicles' },
+      { key: 'soldVehicles', label: 'Sold Vehicles' },
+      { key: 'sellThroughRate', label: 'Sell-Through %' },
     ];
 
-    const tableData = data.data.map((dealership: any) => ({
-      dealershipName: dealership.dealershipName,
-      totalRevenue: `$${(dealership.revenue?.totalRevenue || 0).toLocaleString()}`,
-      totalCost: `$${(dealership.revenue?.totalCost || 0).toLocaleString()}`,
-      totalProfit: `$${(dealership.revenue?.totalProfit || 0).toLocaleString()}`,
-      profitMargin: `${dealership.revenue?.profitMargin || 0}%`,
-      avgRevenuePerVehicle: `$${(dealership.revenue?.avgRevenuePerVehicle || 0).toLocaleString()}`,
+    const tableData = validDealerships.map((dealership: any) => ({
+      dealershipName: dealership.dealershipName || 'N/A',
+      totalRevenue: `$${(dealership.combinedMetrics?.totalRevenue || 0).toFixed(2)}`,
+      totalCost: `$${(dealership.combinedMetrics?.totalCost || 0).toFixed(2)}`,
+      totalProfit: `$${(dealership.combinedMetrics?.totalProfit || 0).toFixed(2)}`,
+      profitMargin: `${(dealership.combinedMetrics?.overallProfitMargin || 0).toFixed(1)}%`,
+      vehicleRevenue: `$${(dealership.vehicleRevenue?.totalRevenue || 0).toFixed(2)}`,
+      vehicleProfit: `$${(dealership.vehicleRevenue?.grossProfit || 0).toFixed(2)}`,
+      vehicleMargin: `${(dealership.vehicleRevenue?.profitMargin || 0).toFixed(1)}%`,
+      workshopRevenue: `$${(dealership.workshopRevenue?.totalRevenue || 0).toFixed(2)}`,
+      workshopProfit: `$${(dealership.workshopRevenue?.grossProfit || 0).toFixed(2)}`,
+      workshopMargin: `${(dealership.workshopRevenue?.profitMargin || 0).toFixed(1)}%`,
+      totalVehicles: dealership.vehicleRevenue?.totalVehicles || 0,
+      soldVehicles: dealership.vehicleRevenue?.soldVehicles || 0,
+      sellThroughRate: `${(dealership.vehicleRevenue?.sellThroughRate || 0).toFixed(1)}%`,
     }));
 
     return <DataTable columns={columns} data={tableData} />;

@@ -61,42 +61,63 @@ export const QuoteApprovalRatesReport: React.FC<QuoteApprovalRatesReportProps> =
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.approvalRatesByType) return null;
+    
+    // Calculate overall metrics from approvalRatesByType
+    const totalQuotes = data.approvalRatesByType.reduce((sum: number, item: any) => sum + (item.totalQuotes || 0), 0);
+    const totalApproved = data.approvalRatesByType.reduce((sum: number, item: any) => sum + (item.approvedQuotes || 0), 0);
+    const totalRejected = data.approvalRatesByType.reduce((sum: number, item: any) => sum + (item.rejectedQuotes || 0), 0);
+    const totalPending = data.approvalRatesByType.reduce((sum: number, item: any) => sum + (item.pendingQuotes || 0), 0);
+    const overallApprovalRate = totalQuotes > 0 ? (totalApproved / totalQuotes) * 100 : 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Overall Approval Rate"
-          value={`${(data.summary.overallApprovalRate || 0).toFixed(1)}%`}
+          value={`${overallApprovalRate.toFixed(1)}%`}
           icon={<CheckCircle className="h-5 w-5" />}
         />
         <MetricCard
           title="Total Approved"
-          value={data.summary.totalApproved || 0}
+          value={totalApproved}
         />
         <MetricCard
           title="Total Rejected"
-          value={data.summary.totalRejected || 0}
+          value={totalRejected}
         />
         <MetricCard
           title="Pending Approval"
-          value={data.summary.pendingApproval || 0}
+          value={totalPending}
         />
       </div>
     );
   };
 
-  const renderCharts = () => {
-    if (!data?.approvalByType) return null;
+  const getColorForQuoteType = (type: string): string => {
+    const colorMap: Record<string, string> = {
+      'manual': '#f59e0b',
+      'bay': '#10b981',
+      'supplier': '#3b82f6',
+      'null': '#6b7280',
+      'Unknown': '#6b7280',
+    };
+    return colorMap[type] || '#6b7280';
+  };
 
-    const approvalData: PieChartData[] = data.approvalByType.map((item: any) => ({
+  const renderCharts = () => {
+    if (!data?.approvalRatesByType) return null;
+
+    const approvalData: PieChartData[] = data.approvalRatesByType.map((item: any) => ({
       name: item._id || 'Unknown',
       value: item.approvalRate || 0,
+      color: getColorForQuoteType(item._id || 'Unknown'),
     }));
 
-    const comparisonData = data.approvalByType.map((item: any) => ({
+    const comparisonData = data.approvalRatesByType.map((item: any) => ({
       name: item._id || 'Unknown',
       value: item.approvalRate || 0,
-      label: `${(item.approvalRate || 0).toFixed(1)}%`,
+      percentage: item.approvalRate || 0,
+      color: getColorForQuoteType(item._id || 'Unknown'),
     }));
 
     return (
@@ -116,14 +137,16 @@ export const QuoteApprovalRatesReport: React.FC<QuoteApprovalRatesReportProps> =
   };
 
   const renderTable = () => {
-    if (!data?.approvalByType) return null;
+    if (!data?.approvalRatesByType) return null;
 
-    const tableData = data.approvalByType.map((item: any) => ({
+    const tableData = data.approvalRatesByType.map((item: any) => ({
       quoteType: item._id || 'Unknown',
       totalQuotes: item.totalQuotes || 0,
-      approved: item.approved || 0,
-      rejected: item.rejected || 0,
+      approved: item.approvedQuotes || 0,
+      rejected: item.rejectedQuotes || 0,
+      pending: item.pendingQuotes || 0,
       approvalRate: `${(item.approvalRate || 0).toFixed(1)}%`,
+      rejectionRate: `${(item.rejectionRate || 0).toFixed(1)}%`,
     }));
 
     const columns = [
@@ -131,7 +154,9 @@ export const QuoteApprovalRatesReport: React.FC<QuoteApprovalRatesReportProps> =
       { key: 'totalQuotes', label: 'Total Quotes' },
       { key: 'approved', label: 'Approved' },
       { key: 'rejected', label: 'Rejected' },
+      { key: 'pending', label: 'Pending' },
       { key: 'approvalRate', label: 'Approval Rate' },
+      { key: 'rejectionRate', label: 'Rejection Rate' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

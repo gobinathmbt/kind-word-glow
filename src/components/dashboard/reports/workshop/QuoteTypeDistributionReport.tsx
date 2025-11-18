@@ -61,39 +61,58 @@ export const QuoteTypeDistributionReport: React.FC<QuoteTypeDistributionReportPr
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.typeDistribution) return null;
+    
+    // Calculate metrics from typeDistribution
+    const supplierQuotes = data.typeDistribution.find((t: any) => t._id === 'supplier')?.count || 0;
+    const bayQuotes = data.typeDistribution.find((t: any) => t._id === 'bay')?.count || 0;
+    const manualQuotes = data.typeDistribution.find((t: any) => t._id === 'manual')?.count || 0;
+    const totalQuotes = data.typeDistribution.reduce((sum: number, t: any) => sum + (t.count || 0), 0);
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Supplier Quotes"
-          value={data.summary.supplierQuotes || 0}
+          value={supplierQuotes}
           icon={<Layers className="h-5 w-5" />}
         />
         <MetricCard
           title="Bay Quotes"
-          value={data.summary.bayQuotes || 0}
+          value={bayQuotes}
         />
         <MetricCard
           title="Manual Quotes"
-          value={data.summary.manualQuotes || 0}
+          value={manualQuotes}
         />
         <MetricCard
           title="Total Quotes"
-          value={data.summary.totalQuotes || 0}
+          value={totalQuotes}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.distribution) return null;
+    if (!data?.typeDistribution) return null;
 
-    const pieData: PieChartData[] = data.distribution.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    }));
+    // Color mapping for quote types
+    const typeColors: Record<string, string> = {
+      'supplier': '#3b82f6',
+      'bay': '#10b981',
+      'manual': '#f59e0b',
+      'Unknown': '#6b7280',
+    };
 
-    const barData = data.distribution.map((item: any) => ({
+    const pieData: PieChartData[] = data.typeDistribution.map((item: any) => {
+      const typeName = item._id || 'Unknown';
+      return {
+        name: typeName,
+        value: item.count || 0,
+        color: typeColors[typeName] || '#6b7280',
+      };
+    });
+
+    const barData = data.typeDistribution.map((item: any) => ({
       type: item._id || 'Unknown',
       count: item.count || 0,
       avgAmount: item.avgQuoteAmount || 0,
@@ -121,20 +140,24 @@ export const QuoteTypeDistributionReport: React.FC<QuoteTypeDistributionReportPr
   };
 
   const renderTable = () => {
-    if (!data?.distribution) return null;
+    if (!data?.typeDistribution) return null;
 
-    const tableData = data.distribution.map((item: any) => ({
+    const tableData = data.typeDistribution.map((item: any) => ({
       quoteType: item._id || 'Unknown',
       count: item.count || 0,
       avgQuoteAmount: `$${(item.avgQuoteAmount || 0).toFixed(2)}`,
-      totalQuoteAmount: `$${(item.totalQuoteAmount || 0).toFixed(2)}`,
+      totalQuoteValue: `$${(item.totalQuoteValue || 0).toFixed(2)}`,
+      completedCount: item.completedCount || 0,
+      completionRate: `${(item.completionRate || 0).toFixed(1)}%`,
     }));
 
     const columns = [
       { key: 'quoteType', label: 'Quote Type' },
-      { key: 'count', label: 'Count' },
+      { key: 'count', label: 'Total Count' },
       { key: 'avgQuoteAmount', label: 'Avg Quote Amount' },
-      { key: 'totalQuoteAmount', label: 'Total Quote Amount' },
+      { key: 'totalQuoteValue', label: 'Total Quote Value' },
+      { key: 'completedCount', label: 'Completed' },
+      { key: 'completionRate', label: 'Completion Rate' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

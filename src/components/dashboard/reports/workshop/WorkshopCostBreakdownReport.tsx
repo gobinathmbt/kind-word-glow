@@ -91,17 +91,22 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
         />
         <MetricCard
           title="Avg Parts Cost"
-          value={`$${(breakdown.avgPartsCost || 0).toLocaleString()}`}
+          value={`$${(breakdown.avgPartsCost || 0).toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <MetricCard
           title="Avg Labor Cost"
-          value={`$${(breakdown.avgLaborCost || 0).toLocaleString()}`}
+          value={`$${(breakdown.avgLaborCost || 0).toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <MetricCard
           title="Avg GST"
-          value={`$${(breakdown.avgGST || 0).toLocaleString()}`}
+          value={`$${(breakdown.avgGST || 0).toFixed(2)}`}
+          icon={<DollarSign className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Avg Total Cost"
+          value={`$${(breakdown.avgTotalCost || 0).toFixed(2)}`}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <MetricCard
@@ -116,10 +121,26 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
   const renderCharts = () => {
     if (!data) return null;
 
+    // Color palettes for different charts
+    const costBreakdownColors = ['#3b82f6', '#10b981', '#f59e0b'];
+    const vehicleTypeColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
     const costBreakdownData: PieChartData[] = data.overallCostBreakdown ? [
-      { name: 'Parts', value: data.overallCostBreakdown.totalPartsCost || 0 },
-      { name: 'Labor', value: data.overallCostBreakdown.totalLaborCost || 0 },
-      { name: 'GST', value: data.overallCostBreakdown.totalGST || 0 },
+      { 
+        name: 'Parts', 
+        value: data.overallCostBreakdown.totalPartsCost || 0,
+        color: costBreakdownColors[0]
+      },
+      { 
+        name: 'Labor', 
+        value: data.overallCostBreakdown.totalLaborCost || 0,
+        color: costBreakdownColors[1]
+      },
+      { 
+        name: 'GST', 
+        value: data.overallCostBreakdown.totalGST || 0,
+        color: costBreakdownColors[2]
+      },
     ] : [];
 
     const costByVehicleTypeData = data.costByVehicleType?.map((item: any) => ({
@@ -127,6 +148,17 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
       parts: item.totalPartsCost || 0,
       labor: item.totalLaborCost || 0,
       gst: item.totalGST || 0,
+      total: item.totalCost || 0,
+    })) || [];
+
+    const costByReportTypeData = data.costByReportType?.map((item: any) => ({
+      reportType: item._id || 'Unknown',
+      parts: item.totalPartsCost || 0,
+      labor: item.totalLaborCost || 0,
+      gst: item.totalGST || 0,
+      total: item.totalCost || 0,
+      reportCount: item.reportCount || 0,
+      avgCostPerReport: item.avgCostPerReport || 0,
     })) || [];
 
     const monthlyCostTrends = data.monthlyCostTrends?.map((item: any) => ({
@@ -138,9 +170,12 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
     })) || [];
 
     const costDistributionData = data.costDistribution?.map((item: any) => ({
-      range: typeof item._id === 'string' ? item._id : `$${item._id}+`,
+      range: typeof item._id === 'string' ? item._id : `$${item._id || 0}+`,
       count: item.count || 0,
       totalCost: item.totalCost || 0,
+      avgPartsCost: item.avgPartsCost || 0,
+      avgLaborCost: item.avgLaborCost || 0,
+      avgGST: item.avgGST || 0,
     })) || [];
 
     return (
@@ -153,9 +188,10 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
           <div>
             <h4 className="text-sm font-medium mb-4">Cost Distribution by Range</h4>
             <InteractivePieChart 
-              data={costDistributionData.map(item => ({
+              data={costDistributionData.map((item, index) => ({
                 name: item.range,
                 value: item.count,
+                color: vehicleTypeColors[index % vehicleTypeColors.length],
               }))} 
               height={300} 
             />
@@ -168,6 +204,22 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
             <StackedBarChart
               data={costByVehicleTypeData}
               xAxisKey="vehicleType"
+              series={[
+                { dataKey: 'parts', name: 'Parts', color: '#3b82f6' },
+                { dataKey: 'labor', name: 'Labor', color: '#10b981' },
+                { dataKey: 'gst', name: 'GST', color: '#f59e0b' },
+              ]}
+              height={300}
+            />
+          </div>
+        )}
+
+        {costByReportTypeData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Cost Breakdown by Report Type</h4>
+            <StackedBarChart
+              data={costByReportTypeData}
+              xAxisKey="reportType"
               series={[
                 { dataKey: 'parts', name: 'Parts', color: '#3b82f6' },
                 { dataKey: 'labor', name: 'Labor', color: '#10b981' },
@@ -198,22 +250,58 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
         {data.costEfficiencyMetrics && data.costEfficiencyMetrics.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Cost Efficiency Metrics</h4>
-            <DataTable
-              columns={[
-                { key: 'vehicleType', label: 'Vehicle Type' },
-                { key: 'reportType', label: 'Report Type' },
-                { key: 'avgCostPerWorkEntry', label: 'Avg Cost/Entry' },
-                { key: 'avgCostPerField', label: 'Avg Cost/Field' },
-                { key: 'reportCount', label: 'Reports' },
-              ]}
-              data={data.costEfficiencyMetrics.map((item: any) => ({
-                vehicleType: item._id?.vehicleType || 'N/A',
-                reportType: item._id?.reportType || 'N/A',
-                avgCostPerWorkEntry: `$${(item.avgCostPerWorkEntry || 0).toFixed(2)}`,
-                avgCostPerField: `$${(item.avgCostPerField || 0).toFixed(2)}`,
-                reportCount: item.reportCount || 0,
-              }))}
-            />
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Vehicle Type</th>
+                    <th className="px-4 py-3 text-left font-medium">Report Type</th>
+                    <th className="px-4 py-3 text-right font-medium">Avg Cost/Entry</th>
+                    <th className="px-4 py-3 text-right font-medium">Avg Cost/Field</th>
+                    <th className="px-4 py-3 text-right font-medium">Min Cost/Entry</th>
+                    <th className="px-4 py-3 text-right font-medium">Max Cost/Entry</th>
+                    <th className="px-4 py-3 text-right font-medium">Reports</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.costEfficiencyMetrics.map((item: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{item._id?.vehicleType || 'N/A'}</td>
+                      <td className="px-4 py-3">{item._id?.reportType || 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">${(item.avgCostPerWorkEntry || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">${(item.avgCostPerField || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">${(item.minCostPerWorkEntry || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">${(item.maxCostPerWorkEntry || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">{item.reportCount || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {data.workEntryCostAnalysis && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Work Entry Cost Analysis</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-blue-600">{data.workEntryCostAnalysis.totalWorkEntries || 0}</div>
+                <div className="text-sm text-gray-600 mt-1">Total Work Entries</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-green-600">${(data.workEntryCostAnalysis.avgPartsPerEntry || 0).toFixed(2)}</div>
+                <div className="text-sm text-gray-600 mt-1">Avg Parts/Entry</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-orange-600">${(data.workEntryCostAnalysis.avgLaborPerEntry || 0).toFixed(2)}</div>
+                <div className="text-sm text-gray-600 mt-1">Avg Labor/Entry</div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-2xl font-bold text-yellow-600">${(data.workEntryCostAnalysis.avgGSTPerEntry || 0).toFixed(2)}</div>
+                <div className="text-sm text-gray-600 mt-1">Avg GST/Entry</div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -221,26 +309,48 @@ export const WorkshopCostBreakdownReport: React.FC<WorkshopCostBreakdownReportPr
   };
 
   const renderTable = () => {
-    if (!data?.costByVehicleType) return null;
+    if (!data) return null;
 
-    const tableData = data.costByVehicleType.map((item: any) => ({
-      vehicleType: item.vehicleType || item._id || 'Unknown',
+    // Combine data from multiple sources for comprehensive table view
+    const vehicleTypeData = data.costByVehicleType?.map((item: any) => ({
+      category: 'Vehicle Type',
+      type: item.vehicleType || item._id || 'Unknown',
       reportCount: item.reportCount || 0,
       totalCost: `$${(item.totalCost || 0).toLocaleString()}`,
       partsCost: `$${(item.totalPartsCost || 0).toLocaleString()}`,
       laborCost: `$${(item.totalLaborCost || 0).toLocaleString()}`,
       gst: `$${(item.totalGST || 0).toLocaleString()}`,
-      avgCost: `$${(item.avgCost || 0).toLocaleString()}`,
-    }));
+      avgPartsCost: `$${(item.avgPartsCost || 0).toFixed(2)}`,
+      avgLaborCost: `$${(item.avgLaborCost || 0).toFixed(2)}`,
+      avgGST: `$${(item.avgGST || 0).toFixed(2)}`,
+      avgTotalCost: `$${((item.totalCost || 0) / (item.reportCount || 1)).toFixed(2)}`,
+    })) || [];
+
+    const reportTypeData = data.costByReportType?.map((item: any) => ({
+      category: 'Report Type',
+      type: item._id || 'Unknown',
+      reportCount: item.reportCount || 0,
+      totalCost: `$${(item.totalCost || 0).toLocaleString()}`,
+      partsCost: `$${(item.totalPartsCost || 0).toLocaleString()}`,
+      laborCost: `$${(item.totalLaborCost || 0).toLocaleString()}`,
+      gst: `$${(item.totalGST || 0).toLocaleString()}`,
+      avgPartsCost: `$${((item.totalPartsCost || 0) / (item.reportCount || 1)).toFixed(2)}`,
+      avgLaborCost: `$${((item.totalLaborCost || 0) / (item.reportCount || 1)).toFixed(2)}`,
+      avgGST: `$${((item.totalGST || 0) / (item.reportCount || 1)).toFixed(2)}`,
+      avgTotalCost: `$${(item.avgCostPerReport || 0).toFixed(2)}`,
+    })) || [];
+
+    const tableData = [...vehicleTypeData, ...reportTypeData];
 
     const columns = [
-      { key: 'vehicleType', label: 'Vehicle Type' },
+      { key: 'category', label: 'Category' },
+      { key: 'type', label: 'Type' },
       { key: 'reportCount', label: 'Reports' },
       { key: 'totalCost', label: 'Total Cost' },
-      { key: 'partsCost', label: 'Parts' },
-      { key: 'laborCost', label: 'Labor' },
+      { key: 'partsCost', label: 'Parts Cost' },
+      { key: 'laborCost', label: 'Labor Cost' },
       { key: 'gst', label: 'GST' },
-      { key: 'avgCost', label: 'Avg Cost' },
+      { key: 'avgTotalCost', label: 'Avg Total Cost' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

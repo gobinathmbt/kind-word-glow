@@ -11,7 +11,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogDescription
+  ,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -63,8 +64,9 @@ const UserPermissions = () => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
@@ -79,7 +81,8 @@ const UserPermissions = () => {
   // Permission checks
   const canRefresh = hasPermission(completeUser, 'user_permission_refresh');
   const canGroupPermission = hasPermission(completeUser, 'user_permission_group_permission');
-  const canSearchFilter = hasPermission(completeUser, 'user_permission_search_filter');
+  const canSearch = hasPermission(completeUser, 'user_permission_search');
+  const canFilter= hasPermission(completeUser, 'user_permission_filter');
   const canSettings = hasPermission(completeUser, 'user_permission_settings');
   const canGroup = hasPermission(completeUser, 'user_permission_group');
   const canModules = hasPermission(completeUser, 'user_permission_modules');
@@ -93,11 +96,17 @@ const UserPermissions = () => {
       let hasMore = true;
 
       while (hasMore) {
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: "100",
+        });
+
+        if (searchTerm) params.append("search", searchTerm);
+        if (statusFilter !== "all") params.append("status", statusFilter);
+        if (roleFilter !== "all") params.append("role", roleFilter);
+
         const response = await companyServices.getUsersWithPermissions({
-          page: currentPage,
-          limit: 100,
-          search: search || undefined,
-          status: statusFilter !== "all" ? statusFilter : undefined,
+          ...Object.fromEntries(params),
         });
 
         allData = [...allData, ...response.data.data];
@@ -125,8 +134,8 @@ const UserPermissions = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["company-users-permissions", page, search, statusFilter, rowsPerPage]
-      : ["all-company-users-permissions", search, statusFilter],
+      ? ["company-users-permissions", page, searchTerm, statusFilter, roleFilter, rowsPerPage]
+      : ["all-company-users-permissions", searchTerm, statusFilter, roleFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllUsers();
@@ -135,8 +144,9 @@ const UserPermissions = () => {
       const response = await companyServices.getUsersWithPermissions({
         page,
         limit: rowsPerPage,
-        search: search || undefined,
+        search: searchTerm || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
+        role: roleFilter !== "all" ? roleFilter : undefined,
       });
       return response.data;
     },
@@ -296,19 +306,32 @@ const UserPermissions = () => {
   };
 
   const handleClearFilters = () => {
-    setSearch("");
+    setSearchTerm("");
     setStatusFilter("all");
+    setRoleFilter("all");
     setPage(1);
     refetch();
   };
 
-  
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
 
- 
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  const handleFilterChange = () => {
+    setPage(1);
+    refetch();
+  };
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [searchTerm, statusFilter, roleFilter]);
 
   const totalUsers = usersData?.pagination?.total_records || usersData?.total || 0;
   const activeCount = users.filter((u: User) => u.is_active).length;
@@ -349,20 +372,72 @@ const UserPermissions = () => {
   ];
 
   const actionButtons = [
-    ...(canGroupPermission ? [{
-      icon: <Users className="h-4 w-4" />,
-      tooltip: "Group Permissions",
-      onClick: () => setIsGroupPermissionsDialogOpen(true),
-      className: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
-    }] : []),
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
-   
-   
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canGroupPermission
+      ? [
+          {
+            icon: <Users className="h-4 w-4" />,
+            tooltip: "Group Permissions",
+            onClick: () => setIsGroupPermissionsDialogOpen(true),
+            className: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200",
+          },
+        ]
+      : []),
   ];
 
   const renderTableHeader = () => (
@@ -551,41 +626,17 @@ const UserPermissions = () => {
 
       {/* Search and Filters Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Search & Filter Users</DialogTitle>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="search">Search Users</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search by name, email, username..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                {search && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                    onClick={() => setSearch("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status-filter">Status</Label>
+              <Label htmlFor="status-filter">Filter by Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
@@ -594,29 +645,48 @@ const UserPermissions = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="role-filter">Filter by Role</Label>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger id="role-filter">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="company_super_admin">Super Admin</SelectItem>
+                  <SelectItem value="company_admin">Admin</SelectItem>
+                  <SelectItem value="company_user">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-
-          <DialogFooter>
+          <div className="flex justify-between">
             <Button
               variant="outline"
               onClick={handleClearFilters}
-              disabled={!search && statusFilter === "all"}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Clear Filters
-            </Button>
-            <Button
-              onClick={() => {
-                setPage(1);
-                setIsFilterDialogOpen(false);
-                refetch();
-              }}
               disabled={isLoading}
             >
-              <Search className="h-4 w-4 mr-2" />
-              Apply Filters
+              Clear Filters
             </Button>
-          </DialogFooter>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

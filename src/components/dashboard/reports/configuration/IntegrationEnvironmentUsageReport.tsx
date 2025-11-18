@@ -63,26 +63,36 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+    
+    // Calculate metrics from environments array
+    const validEnvironments = data.environments?.filter((e: any) => e) || [];
+    const totalEnvironments = validEnvironments.length;
+    const activeEnvironments = validEnvironments.filter((e: any) => (e.activeCount || 0) > 0).length;
+    const avgUsage = validEnvironments.length > 0
+      ? validEnvironments.reduce((sum: number, e: any) => sum + ((e.activeCount || 0) / (e.integrationCount || 1) * 100), 0) / validEnvironments.length
+      : 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard
-          title="Total Environments"
-          value={summary.totalEnvironments || 0}
-          icon={<Server className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Active Environments"
-          value={summary.activeEnvironments || 0}
-          icon={<Activity className="h-5 w-5" />}
-        />
         <MetricCard
           title="Total Integrations"
           value={summary.totalIntegrations || 0}
           icon={<Globe className="h-5 w-5" />}
+          subtitle={summary.message || ''}
+        />
+        <MetricCard
+          title="Total Environments"
+          value={totalEnvironments}
+          icon={<Server className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Active Environments"
+          value={activeEnvironments}
+          icon={<Activity className="h-5 w-5" />}
         />
         <MetricCard
           title="Avg Usage Rate"
-          value={`${summary.avgUsageRate || 0}%`}
+          value={`${avgUsage.toFixed(1)}%`}
           icon={<TrendingUp className="h-5 w-5" />}
         />
       </div>
@@ -92,16 +102,48 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
   const renderCharts = () => {
     if (!data) return null;
 
-    const environmentData: PieChartData[] = data.integrationsByEnvironment?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
-    })) || [];
+    // Filter valid environments
+    const validEnvironments = data.environments?.filter((e: any) => e) || [];
+    
+    // If no environments, show message
+    if (validEnvironments.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">{data.summary?.message || 'No integrations found'}</p>
+          <p className="text-sm mt-2">Environment data will appear here once integrations are configured</p>
+        </div>
+      );
+    }
 
-    const usageData = data.environments?.map((env: any) => ({
+    // Color palette for environments
+    const environmentColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
+
+    // Calculate environment distribution from environments array
+    const hasEnvironmentData = validEnvironments.length > 0 && 
+      validEnvironments.some((env: any) => (env.integrationCount || 0) > 0);
+    
+    const environmentData: PieChartData[] = hasEnvironmentData
+      ? validEnvironments
+          .map((env: any, index: number) => ({
+            name: env.environment || 'Unknown',
+            value: env.integrationCount || 0,
+            color: environmentColors[index % environmentColors.length],
+          }))
+          .filter(item => item.value > 0)
+      : [
+          { name: 'Production', value: 0, color: environmentColors[0] },
+          { name: 'Staging', value: 0, color: environmentColors[1] },
+          { name: 'Development', value: 0, color: environmentColors[2] },
+          { name: 'Testing', value: 0, color: environmentColors[3] },
+          { name: 'QA', value: 0, color: environmentColors[4] },
+        ];
+
+    const usageData = validEnvironments.map((env: any) => ({
       name: env.environment || 'Unknown',
       integrations: env.integrationCount || 0,
       active: env.activeCount || 0,
-    })) || [];
+    }));
 
     return (
       <div className="space-y-6">
@@ -109,6 +151,11 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
           <div>
             <h4 className="text-sm font-medium mb-4">Integrations by Environment</h4>
             <InteractivePieChart data={environmentData} height={300} />
+            {!hasEnvironmentData && (
+              <p className="text-center text-sm text-gray-500 mt-2">
+                No environment data available
+              </p>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium mb-4">Environment Usage</h4>
@@ -124,7 +171,7 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
           </div>
         </div>
 
-        {data.environments && data.environments.length > 0 && (
+        {validEnvironments.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-4">Environment Details</h4>
             <DataTable
@@ -134,11 +181,11 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
                 { key: 'active', label: 'Active' },
                 { key: 'healthScore', label: 'Health Score' },
               ]}
-              data={data.environments.map((env: any) => ({
+              data={validEnvironments.map((env: any) => ({
                 environment: env.environment || 'N/A',
                 integrations: env.integrationCount || 0,
                 active: env.activeCount || 0,
-                healthScore: `${env.avgHealthScore || 0}%`,
+                healthScore: `${(env.avgHealthScore || 0).toFixed(1)}%`,
               }))}
             />
           </div>
@@ -150,12 +197,26 @@ export const IntegrationEnvironmentUsageReport: React.FC<IntegrationEnvironmentU
   const renderTable = () => {
     if (!data?.environments) return null;
 
-    const tableData = data.environments.map((env: any) => ({
+    // Filter valid environments
+    const validEnvironments = data.environments.filter((e: any) => e);
+    
+    // If no environments, show message
+    if (validEnvironments.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">{data.summary?.message || 'No integrations found'}</p>
+          <p className="text-sm mt-2">Environment data will appear here once integrations are configured</p>
+        </div>
+      );
+    }
+
+    const tableData = validEnvironments.map((env: any) => ({
       environment: env.environment || 'Unknown',
       integrationCount: env.integrationCount || 0,
       activeCount: env.activeCount || 0,
       inactiveCount: env.inactiveCount || 0,
-      avgHealthScore: `${env.avgHealthScore || 0}%`,
+      avgHealthScore: `${(env.avgHealthScore || 0).toFixed(1)}%`,
       lastSyncDate: env.lastSyncDate || 'N/A',
     }));
 

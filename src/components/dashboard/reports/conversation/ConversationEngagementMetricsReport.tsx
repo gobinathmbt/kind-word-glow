@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReportCard, ViewMode } from '@/components/dashboard/common/ReportCard';
 import { MetricCard } from '@/components/dashboard/common/MetricCard';
 import { InteractivePieChart, PieChartData } from '@/components/dashboard/charts/InteractivePieChart';
+import { ComparisonChart } from '@/components/dashboard/charts/ComparisonChart';
 import { StackedBarChart } from '@/components/dashboard/charts/StackedBarChart';
 import { LineChart } from '@/components/dashboard/charts/LineChart';
 import { DataTable } from '@/components/dashboard/charts/DataTable';
@@ -64,47 +65,58 @@ export const ConversationEngagementMetricsReport: React.FC<ConversationEngagemen
   const renderMetrics = () => {
     if (!data?.summary) return null;
     const summary = data.summary;
+    const readMetrics = summary.readMetrics || {};
+    const engagementMetrics = summary.engagementMetrics || {};
+    const resolutionMetrics = summary.resolutionMetrics || {};
+    const performanceIndicators = summary.performanceIndicators || {};
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Conversations"
           value={summary.totalConversations || 0}
           icon={<Activity className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Active Conversations"
-          value={summary.activeConversations || 0}
-          icon={<TrendingUp className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Resolved Conversations"
-          value={summary.resolvedConversations || 0}
-          icon={<CheckCircle className="h-5 w-5" />}
-        />
-        <MetricCard
-          title="Resolution Rate"
-          value={`${(summary.resolutionRate || 0).toFixed(1)}%`}
-          icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`${summary.activeConversations || 0} active, ${summary.resolvedConversations || 0} resolved`}
         />
         <MetricCard
           title="Avg Engagement Score"
-          value={(summary.avgEngagementScore || 0).toFixed(1)}
+          value={(engagementMetrics.avgEngagementScore || 0).toFixed(1)}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${(engagementMetrics.highEngagementPercentage || 0).toFixed(1)}% high engagement`}
         />
         <MetricCard
-          title="Active Participants"
-          value={summary.activeParticipants || 0}
-          icon={<Users className="h-5 w-5" />}
+          title="Resolution Rate"
+          value={`${(resolutionMetrics.resolutionRate || 0).toFixed(1)}%`}
+          icon={<CheckCircle className="h-5 w-5" />}
+          subtitle={`${resolutionMetrics.unresolvedConversations || 0} unresolved`}
+        />
+        <MetricCard
+          title="Overall Read Rate"
+          value={`${(readMetrics.overallReadRate || 0).toFixed(1)}%`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={`${readMetrics.totalUnreadMessages || 0} unread`}
         />
         <MetricCard
           title="Avg Messages/Conv"
           value={(summary.avgMessagesPerConversation || 0).toFixed(1)}
           icon={<Activity className="h-5 w-5" />}
+          subtitle={`${summary.totalMessages || 0} total messages`}
         />
         <MetricCard
-          title="Avg Duration"
-          value={`${(summary.avgDuration || 0).toFixed(1)} hrs`}
+          title="Avg Time to Resolution"
+          value={`${(resolutionMetrics.avgTimeToResolutionDays || 0).toFixed(1)} days`}
+          icon={<CheckCircle className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Overall Health"
+          value={performanceIndicators.overallHealth || 'N/A'}
           icon={<TrendingUp className="h-5 w-5" />}
+          subtitle={`${performanceIndicators.needsAttention || 0} need attention`}
+        />
+        <MetricCard
+          title="High Performers"
+          value={performanceIndicators.highPerformers || 0}
+          icon={<Users className="h-5 w-5" />}
         />
       </div>
     );
@@ -113,72 +125,149 @@ export const ConversationEngagementMetricsReport: React.FC<ConversationEngagemen
   const renderCharts = () => {
     if (!data) return null;
 
-    const statusDistData: PieChartData[] = data.conversationsByStatus?.map((item: any) => ({
-      name: item._id || 'Unknown',
-      value: item.count || 0,
+    const summary = data.summary || {};
+    const engagementMetrics = summary.engagementMetrics || {};
+    const engagementDistribution = engagementMetrics.distribution || {};
+
+    // Color palettes
+    const engagementColors = ['#10b981', '#f59e0b', '#ef4444'];
+    const statusColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+    const performanceColors = ['#8b5cf6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+
+    // Engagement Level Distribution
+    const engagementLevelData: PieChartData[] = [
+      { name: 'High Engagement', value: engagementDistribution.high || 0, color: engagementColors[0] },
+      { name: 'Medium Engagement', value: engagementDistribution.medium || 0, color: engagementColors[1] },
+      { name: 'Low Engagement', value: engagementDistribution.low || 0, color: engagementColors[2] },
+    ];
+
+    // Status Distribution
+    const statusData: PieChartData[] = [
+      { name: 'Active', value: summary.activeConversations || 0, color: statusColors[0] },
+      { name: 'Resolved', value: summary.resolvedConversations || 0, color: statusColors[1] },
+      { name: 'Archived', value: summary.archivedConversations || 0, color: statusColors[2] },
+    ];
+
+    // Top Engaged Conversations
+    const topEngagedData = data.topEngaged?.slice(0, 10).map((conv: any, index: number) => ({
+      name: conv.conversationId || 'Unknown',
+      value: conv.engagementScore || 0,
+      label: `${(conv.engagementScore || 0).toFixed(1)}`,
+      color: performanceColors[index % performanceColors.length],
     })) || [];
 
-    const engagementLevelData: PieChartData[] = data.engagementLevels ? [
-      { name: 'High Engagement', value: data.engagementLevels.high || 0, color: '#10b981' },
-      { name: 'Medium Engagement', value: data.engagementLevels.medium || 0, color: '#f59e0b' },
-      { name: 'Low Engagement', value: data.engagementLevels.low || 0, color: '#ef4444' },
-    ] : [];
-
-    const dailyEngagementData = data.dailyEngagement?.map((day: any) => ({
-      date: day.date || 'Unknown',
-      conversations: day.conversationCount || 0,
-      messages: day.messageCount || 0,
-      participants: day.participantCount || 0,
+    // Low Engagement Conversations
+    const lowEngagementData = data.lowEngagement?.slice(0, 10).map((conv: any) => ({
+      conversationId: conv.conversationId || 'Unknown',
+      engagementScore: (conv.engagementScore || 0).toFixed(1),
+      messageCount: conv.messageCount || 0,
+      status: conv.status || 'N/A',
     })) || [];
 
-    const topParticipantsData = data.topParticipants?.slice(0, 10).map((user: any) => ({
-      name: user.userName || 'Unknown',
-      conversations: user.conversationCount || 0,
-      messages: user.messageCount || 0,
-      engagementScore: user.engagementScore || 0,
+    // Quote Type Analysis
+    const quoteTypeData = data.quoteTypeAnalysis?.map((type: any) => ({
+      name: type.quoteType || 'Unknown',
+      conversations: type.conversationCount || 0,
+      avgEngagement: type.avgEngagementScore || 0,
+    })) || [];
+
+    // Supplier Engagement
+    const supplierEngagementData = data.supplierEngagement?.slice(0, 10).map((supplier: any, index: number) => ({
+      name: supplier.supplierName || 'Unknown',
+      value: supplier.avgEngagementScore || 0,
+      label: `${(supplier.avgEngagementScore || 0).toFixed(1)}`,
+      color: performanceColors[index % performanceColors.length],
+    })) || [];
+
+    // Trends
+    const trendsData = data.trends?.map((trend: any) => ({
+      date: trend.date || 'Unknown',
+      avgEngagement: trend.avgEngagementScore || 0,
+      conversations: trend.conversationCount || 0,
     })) || [];
 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium mb-4">Conversations by Status</h4>
-            <InteractivePieChart data={statusDistData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Engagement Level Distribution</h4>
+            <InteractivePieChart data={engagementLevelData} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Engagement Levels</h4>
-            <InteractivePieChart data={engagementLevelData} height={300} />
+            <h4 className="text-sm font-medium mb-4">Conversation Status Distribution</h4>
+            <InteractivePieChart data={statusData} height={300} />
           </div>
         </div>
 
-        {dailyEngagementData.length > 0 && (
+        {topEngagedData.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Daily Engagement Trends</h4>
-            <LineChart
-              data={dailyEngagementData}
-              xAxisKey="date"
-              lines={[
+            <h4 className="text-sm font-medium mb-4">Top Engaged Conversations</h4>
+            <ComparisonChart data={topEngagedData} height={300} />
+          </div>
+        )}
+
+        {quoteTypeData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Engagement by Quote Type</h4>
+            <StackedBarChart
+              data={quoteTypeData}
+              xAxisKey="name"
+              series={[
                 { dataKey: 'conversations', name: 'Conversations', color: '#3b82f6' },
-                { dataKey: 'messages', name: 'Messages', color: '#10b981' },
-                { dataKey: 'participants', name: 'Participants', color: '#f59e0b' },
+                { dataKey: 'avgEngagement', name: 'Avg Engagement', color: '#10b981' },
               ]}
               height={300}
             />
           </div>
         )}
 
-        {topParticipantsData.length > 0 && (
+        {supplierEngagementData.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-4">Top 10 Participants by Engagement</h4>
-            <StackedBarChart
-              data={topParticipantsData}
-              xAxisKey="name"
-              series={[
+            <h4 className="text-sm font-medium mb-4">Top Supplier Engagement</h4>
+            <ComparisonChart data={supplierEngagementData} height={300} />
+          </div>
+        )}
+
+        {trendsData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Engagement Trends Over Time</h4>
+            <LineChart
+              data={trendsData}
+              xAxisKey="date"
+              lines={[
+                { dataKey: 'avgEngagement', name: 'Avg Engagement Score', color: '#8b5cf6' },
                 { dataKey: 'conversations', name: 'Conversations', color: '#3b82f6' },
-                { dataKey: 'messages', name: 'Messages', color: '#10b981' },
               ]}
               height={300}
             />
+          </div>
+        )}
+
+        {lowEngagementData.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-4">Low Engagement Conversations (Need Attention)</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Conversation ID</th>
+                    <th className="px-4 py-3 text-right font-medium">Engagement Score</th>
+                    <th className="px-4 py-3 text-right font-medium">Messages</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lowEngagementData.map((conv: any, index: number) => (
+                    <tr key={index} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">{conv.conversationId}</td>
+                      <td className="px-4 py-3 text-right">{conv.engagementScore}</td>
+                      <td className="px-4 py-3 text-right">{conv.messageCount}</td>
+                      <td className="px-4 py-3">{conv.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -186,24 +275,28 @@ export const ConversationEngagementMetricsReport: React.FC<ConversationEngagemen
   };
 
   const renderTable = () => {
-    if (!data?.conversationsByStatus) return null;
+    if (!data?.conversations) return null;
 
-    const tableData = data.conversationsByStatus.map((item: any) => ({
-      status: item._id || 'Unknown',
-      count: item.count || 0,
-      totalMessages: item.totalMessages || 0,
-      avgMessages: (item.avgMessages || 0).toFixed(1),
-      avgDuration: `${(item.avgDuration || 0).toFixed(1)} hrs`,
-      participants: item.participants || 0,
+    const tableData = data.conversations.map((conv: any) => ({
+      conversationId: conv.conversationId || 'Unknown',
+      status: conv.status || 'N/A',
+      messageCount: conv.messageCount || 0,
+      engagementScore: (conv.engagementScore || 0).toFixed(1),
+      readRate: `${(conv.readRate || 0).toFixed(1)}%`,
+      lastActivity: conv.lastActivity || 'N/A',
+      durationDays: (conv.durationDays || 0).toFixed(1),
+      quoteType: conv.quoteType || 'N/A',
     }));
 
     const columns = [
+      { key: 'conversationId', label: 'Conversation ID' },
       { key: 'status', label: 'Status' },
-      { key: 'count', label: 'Count' },
-      { key: 'totalMessages', label: 'Messages' },
-      { key: 'avgMessages', label: 'Avg Messages' },
-      { key: 'avgDuration', label: 'Avg Duration' },
-      { key: 'participants', label: 'Participants' },
+      { key: 'messageCount', label: 'Messages' },
+      { key: 'engagementScore', label: 'Engagement Score' },
+      { key: 'readRate', label: 'Read Rate' },
+      { key: 'lastActivity', label: 'Last Activity' },
+      { key: 'durationDays', label: 'Duration (days)' },
+      { key: 'quoteType', label: 'Quote Type' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

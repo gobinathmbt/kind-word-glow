@@ -40,6 +40,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
+import { masterServices } from "@/api/services";
 
 interface Permission {
   _id: string;
@@ -98,8 +99,8 @@ const MasterPermissions = () => {
   const { data: dropdownsData } = useQuery({
     queryKey: ["master-modules-for-permissions"],
     queryFn: async () => {
-      const response = await apiClient.get("/api/master/dropdowns", {
-        params: { dropdown_name: "company_superadmin_modules" },
+      const response = await masterServices.getMasterdropdownvalues({
+        dropdown_name: ["company_superadmin_modules"],
       });
       return response.data;
     },
@@ -918,7 +919,6 @@ const MasterPermissions = () => {
         open={deleteDialog.isOpen}
         onClose={closeDeleteDialog}
         onConfirm={handleDeletePermission}
-     
       />
     </>
   );

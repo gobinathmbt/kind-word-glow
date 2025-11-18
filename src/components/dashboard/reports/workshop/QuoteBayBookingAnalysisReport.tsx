@@ -61,49 +61,94 @@ export const QuoteBayBookingAnalysisReport: React.FC<QuoteBayBookingAnalysisRepo
   };
 
   const renderMetrics = () => {
-    if (!data?.summary) return null;
+    if (!data?.bayUtilization) return null;
+    
+    const totalBookings = data.bayUtilization.reduce((sum: number, bay: any) => sum + (bay.totalBookings || 0), 0);
+    const totalCompleted = data.bayUtilization.reduce((sum: number, bay: any) => sum + (bay.completedBookings || 0), 0);
+    const avgAcceptanceRate = data.bayUtilization.length > 0
+      ? data.bayUtilization.reduce((sum: number, bay: any) => sum + (bay.acceptanceRate || 0), 0) / data.bayUtilization.length
+      : 0;
+    const avgCompletionRate = data.bayUtilization.length > 0
+      ? data.bayUtilization.reduce((sum: number, bay: any) => sum + (bay.completionRate || 0), 0) / data.bayUtilization.length
+      : 0;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Total Bookings"
-          value={data.summary.totalBookings || 0}
+          value={totalBookings}
           icon={<Calendar className="h-5 w-5" />}
         />
         <MetricCard
-          title="Avg Booking Duration"
-          value={`${(data.summary.avgDuration || 0).toFixed(1)}h`}
+          title="Completed Bookings"
+          value={totalCompleted}
         />
         <MetricCard
-          title="Utilization Rate"
-          value={`${(data.summary.utilizationRate || 0).toFixed(1)}%`}
+          title="Avg Acceptance Rate"
+          value={`${avgAcceptanceRate.toFixed(1)}%`}
         />
         <MetricCard
-          title="Active Bays"
-          value={data.summary.activeBays || 0}
+          title="Avg Completion Rate"
+          value={`${avgCompletionRate.toFixed(1)}%`}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.bookingPatterns) return null;
+    if (!data?.bookingTimePatterns || !data?.bayUtilization) return null;
 
-    const trendData = data.bookingPatterns.map((item: any) => ({
-      date: item.date || '',
-      bookings: item.bookings || 0,
-      utilization: item.utilization || 0,
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const uniqueHours = [...new Set(data.bookingTimePatterns.map((item: any) => item._id.hour))].sort();
+    const uniqueDays = [...new Set(data.bookingTimePatterns.map((item: any) => item._id.dayOfWeek))].sort((a: any, b: any) => Number(a) - Number(b));
+    
+    const heatmapData = data.bookingTimePatterns.map((item: any) => {
+      const dayIndex = Number(item._id.dayOfWeek) - 1;
+      const dayName = dayNames[dayIndex] || 'Unknown';
+      return {
+        x: `${item._id.hour}:00`,
+        y: dayName,
+        value: item.count || 0,
+        label: `${dayName} ${item._id.hour}:00 - ${item.count} bookings`,
+      };
+    });
+
+    const xLabels = uniqueHours.map(h => `${h}:00`);
+    const yLabels = uniqueDays.map((d: any) => dayNames[Number(d) - 1]);
+
+    const bayData = data.bayUtilization.map((item: any) => ({
+      bay: item.bayId || 'Unknown',
+      acceptanceRate: item.acceptanceRate || 0,
+      completionRate: item.completionRate || 0,
+      totalBookings: item.totalBookings || 0,
     }));
 
     return (
       <div className="space-y-6">
         <div>
-          <h4 className="text-sm font-medium mb-4">Booking Trends</h4>
+          <h4 className="text-sm font-medium mb-4">Booking Time Patterns</h4>
+          <HeatMap
+            data={heatmapData}
+            xLabels={xLabels}
+            yLabels={yLabels}
+            height={300}
+            showValues={true}
+            colorScale={{
+              low: '#dbeafe',
+              mid: '#3b82f6',
+              high: '#1e40af',
+            }}
+          />
+        </div>
+        <div>
+          <h4 className="text-sm font-medium mb-4">Bay Performance Metrics</h4>
           <LineChart
-            data={trendData}
-            xAxisKey="date"
+            data={bayData}
+            xAxisKey="bay"
             lines={[
-              { dataKey: 'bookings', name: 'Bookings', color: '#3b82f6' },
-              { dataKey: 'utilization', name: 'Utilization %', color: '#10b981' },
+              { dataKey: 'acceptanceRate', name: 'Acceptance Rate %', color: '#3b82f6' },
+              { dataKey: 'completionRate', name: 'Completion Rate %', color: '#10b981' },
             ]}
             height={300}
           />
@@ -116,17 +161,23 @@ export const QuoteBayBookingAnalysisReport: React.FC<QuoteBayBookingAnalysisRepo
     if (!data?.bayUtilization) return null;
 
     const tableData = data.bayUtilization.map((item: any) => ({
-      bayName: item.bayName || 'Unknown',
+      bayId: item.bayId || item._id || 'Unknown',
       totalBookings: item.totalBookings || 0,
-      avgDuration: `${(item.avgDuration || 0).toFixed(1)}h`,
-      utilizationRate: `${(item.utilizationRate || 0).toFixed(1)}%`,
+      acceptedBookings: item.acceptedBookings || 0,
+      rejectedBookings: item.rejectedBookings || 0,
+      completedBookings: item.completedBookings || 0,
+      acceptanceRate: `${(item.acceptanceRate || 0).toFixed(1)}%`,
+      completionRate: `${(item.completionRate || 0).toFixed(1)}%`,
     }));
 
     const columns = [
-      { key: 'bayName', label: 'Bay Name' },
+      { key: 'bayId', label: 'Bay ID' },
       { key: 'totalBookings', label: 'Total Bookings' },
-      { key: 'avgDuration', label: 'Avg Duration' },
-      { key: 'utilizationRate', label: 'Utilization Rate' },
+      { key: 'acceptedBookings', label: 'Accepted' },
+      { key: 'rejectedBookings', label: 'Rejected' },
+      { key: 'completedBookings', label: 'Completed' },
+      { key: 'acceptanceRate', label: 'Acceptance Rate' },
+      { key: 'completionRate', label: 'Completion Rate' },
     ];
 
     return <DataTable columns={columns} data={tableData} />;

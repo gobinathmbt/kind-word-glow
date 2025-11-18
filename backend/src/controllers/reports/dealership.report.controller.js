@@ -12,12 +12,12 @@ const WorkshopQuote = require('../../models/WorkshopQuote');
 const WorkshopReport = require('../../models/WorkshopReport');
 const User = require('../../models/User');
 const ServiceBay = require('../../models/ServiceBay');
-const { 
-  getDealershipFilter, 
-  getDateFilter, 
-  formatReportResponse, 
+const {
+  getDealershipFilter,
+  getDateFilter,
+  formatReportResponse,
   handleReportError,
-  buildBasePipeline 
+  buildBasePipeline
 } = require('../../utils/reportHelpers');
 
 /**
@@ -41,19 +41,19 @@ const getDealershipOverview = async (req, res) => {
 
     // 1. Get all dealerships with basic info
     const dealerships = await Dealership.find(baseMatch)
-      .select('_id name address phone email status')
+      .select('_id dealership_name dealership_address phone dealership_email status')
       .lean();
 
     const dealershipIds = dealerships.map(d => d._id);
 
     // 2. Vehicle counts per dealership
     const vehicleCounts = await Vehicle.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           company_id,
           dealership_id: { $in: dealershipIds },
           ...dateFilter
-        } 
+        }
       },
       {
         $group: {
@@ -192,10 +192,10 @@ const getDealershipOverview = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
-        address: dealership.address,
+        dealershipName: dealership.dealership_name,
+        address: dealership.dealership_address,
         phone: dealership.phone,
-        email: dealership.email,
+        email: dealership.dealership_email,
         status: dealership.status,
         vehicles: {
           total: vehicleData.totalVehicles || 0,
@@ -258,7 +258,7 @@ const getDealershipVehicleDistribution = async (req, res) => {
     };
 
     // Get dealerships
-    const dealerships = await Dealership.find(baseMatch).select('_id name').lean();
+    const dealerships = await Dealership.find(baseMatch).select('_id dealership_name').lean();
     const dealershipIds = dealerships.map(d => d._id);
 
     // 1. Vehicle schema distribution
@@ -399,7 +399,7 @@ const getDealershipVehicleDistribution = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
+        dealershipName: dealership.dealership_name,
         vehicles: {
           total: vehicleData.totalVehicles || 0,
           byType: vehicleData.vehiclesByType || []
@@ -451,7 +451,7 @@ const getDealershipWorkshopPerformance = async (req, res) => {
     };
 
     // Get dealerships
-    const dealerships = await Dealership.find(baseMatch).select('_id name').lean();
+    const dealerships = await Dealership.find(baseMatch).select('_id dealership_name').lean();
     const dealershipIds = dealerships.map(d => d._id);
 
     // 1. Workshop quote performance by dealership
@@ -705,7 +705,7 @@ const getDealershipWorkshopPerformance = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
+        dealershipName: dealership.dealership_name,
         quotes: {
           total: quoteData.totalQuotes || 0,
           completed: quoteData.completedQuotes || 0,
@@ -774,7 +774,7 @@ const getDealershipUserActivity = async (req, res) => {
     };
 
     // Get dealerships
-    const dealerships = await Dealership.find(baseMatch).select('_id name').lean();
+    const dealerships = await Dealership.find(baseMatch).select('_id dealership_name').lean();
     const dealershipIds = dealerships.map(d => d._id);
 
     // 1. User counts and status by dealership
@@ -1014,7 +1014,7 @@ const getDealershipUserActivity = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
+        dealershipName: dealership.dealership_name,
         users: {
           total: userData.totalUsers || 0,
           active: userData.activeUsers || 0,
@@ -1072,7 +1072,7 @@ const getDealershipRevenueComparison = async (req, res) => {
     };
 
     // Get dealerships
-    const dealerships = await Dealership.find(baseMatch).select('_id name').lean();
+    const dealerships = await Dealership.find(baseMatch).select('_id dealership_name').lean();
     const dealershipIds = dealerships.map(d => d._id);
 
     // 1. Vehicle revenue by dealership
@@ -1307,7 +1307,7 @@ const getDealershipRevenueComparison = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
+        dealershipName: dealership.dealership_name,
         vehicleRevenue: {
           totalVehicles: vehicleData.totalVehicles || 0,
           soldVehicles: vehicleData.soldVehicles || 0,
@@ -1378,7 +1378,7 @@ const getDealershipServiceBayUtilization = async (req, res) => {
     };
 
     // Get dealerships
-    const dealerships = await Dealership.find(baseMatch).select('_id name').lean();
+    const dealerships = await Dealership.find(baseMatch).select('_id dealership_name').lean();
     const dealershipIds = dealerships.map(d => d._id);
 
     // 1. Service bay counts and status by dealership
@@ -1651,7 +1651,7 @@ const getDealershipServiceBayUtilization = async (req, res) => {
 
       return {
         dealershipId: dealership._id,
-        dealershipName: dealership.name,
+        dealershipName: dealership.dealership_name,
         serviceBays: {
           total: bayStatusData.totalBays || 0,
           active: bayStatusData.activeBays || 0,

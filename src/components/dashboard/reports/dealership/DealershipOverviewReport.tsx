@@ -40,7 +40,10 @@ export const DealershipOverviewReport: React.FC<DealershipOverviewReportProps> =
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getDealershipOverview(params);
-      setData(response.data);
+      // Handle response structure: response.data.data or response.data
+      const responseData = response.data?.data || response.data;
+      // Ensure we have an array
+      setData(Array.isArray(responseData) ? responseData : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load dealership overview data');
     } finally {
@@ -61,14 +64,16 @@ export const DealershipOverviewReport: React.FC<DealershipOverviewReportProps> =
   };
 
   const renderMetrics = () => {
-    if (!data?.data || data.data.length === 0) return null;
-    
-    const totals = data.data.reduce((acc: any, dealership: any) => ({
+    if (!data || data.length === 0) return null;
+
+    const totals = data.reduce((acc: any, dealership: any) => ({
       totalDealerships: acc.totalDealerships + 1,
       totalVehicles: acc.totalVehicles + (dealership.vehicles?.total || 0),
       totalUsers: acc.totalUsers + (dealership.users?.total || 0),
       totalQuotes: acc.totalQuotes + (dealership.workshop?.totalQuotes || 0),
-    }), { totalDealerships: 0, totalVehicles: 0, totalUsers: 0, totalQuotes: 0 });
+      totalServiceBays: acc.totalServiceBays + (dealership.serviceBays?.total || 0),
+      totalRevenue: acc.totalRevenue + (dealership.workshop?.totalRevenue || 0),
+    }), { totalDealerships: 0, totalVehicles: 0, totalUsers: 0, totalQuotes: 0, totalServiceBays: 0, totalRevenue: 0 });
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -88,24 +93,36 @@ export const DealershipOverviewReport: React.FC<DealershipOverviewReportProps> =
           icon={<Users className="h-5 w-5" />}
         />
         <MetricCard
-          title="Total Quotes"
-          value={totals.totalQuotes}
+          title="Total Revenue"
+          value={`$${totals.totalRevenue.toFixed(2)}`}
           icon={<Wrench className="h-5 w-5" />}
+          subtitle={`${totals.totalQuotes} quotes`}
         />
       </div>
     );
   };
 
   const renderCharts = () => {
-    if (!data?.data || data.data.length === 0) return null;
+    if (!data || data.length === 0) return null;
 
-    const vehicleDistribution: PieChartData[] = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    // Color palettes for different charts
+    const vehicleColors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+    const userColors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
+
+    const vehicleDistribution: PieChartData[] = data.map((dealership: any, index: number) => ({
+      name: dealership.dealershipName || 'Unknown',
       value: dealership.vehicles?.total || 0,
+      color: vehicleColors[index % vehicleColors.length],
     }));
 
-    const workshopData = data.data.map((dealership: any) => ({
-      name: dealership.dealershipName,
+    const userDistribution: PieChartData[] = data.map((dealership: any, index: number) => ({
+      name: dealership.dealershipName || 'Unknown',
+      value: dealership.users?.total || 0,
+      color: userColors[index % userColors.length],
+    }));
+
+    const workshopData = data.map((dealership: any) => ({
+      name: dealership.dealershipName || 'Unknown',
       quotes: dealership.workshop?.totalQuotes || 0,
       reports: dealership.workshop?.totalReports || 0,
       revenue: dealership.workshop?.totalRevenue || 0,
@@ -119,44 +136,64 @@ export const DealershipOverviewReport: React.FC<DealershipOverviewReportProps> =
             <InteractivePieChart data={vehicleDistribution} height={300} />
           </div>
           <div>
-            <h4 className="text-sm font-medium mb-4">Workshop Performance by Dealership</h4>
-            <StackedBarChart
-              data={workshopData}
-              xAxisKey="name"
-              series={[
-                { dataKey: 'quotes', name: 'Quotes' },
-                { dataKey: 'reports', name: 'Reports' },
-              ]}
-              height={300}
-            />
+            <h4 className="text-sm font-medium mb-4">User Distribution by Dealership</h4>
+            <InteractivePieChart data={userDistribution} height={300} />
           </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-medium mb-4">Workshop Performance by Dealership</h4>
+          <StackedBarChart
+            data={workshopData}
+            xAxisKey="name"
+            series={[
+              { dataKey: 'quotes', name: 'Quotes', color: '#3b82f6' },
+              { dataKey: 'reports', name: 'Reports', color: '#10b981' },
+            ]}
+            height={300}
+          />
         </div>
       </div>
     );
   };
 
   const renderTable = () => {
-    if (!data?.data) return null;
+    if (!data) return null;
+
+    const tableData = data.map((dealership: any) => ({
+      dealershipName: dealership.dealershipName || 'N/A',
+      totalVehicles: dealership.vehicles?.total || 0,
+      inspection: dealership.vehicles?.inspection || 0,
+      tradein: dealership.vehicles?.tradein || 0,
+      master: dealership.vehicles?.master || 0,
+      advertisement: dealership.vehicles?.advertisement || 0,
+      totalUsers: dealership.users?.total || 0,
+      activeUsers: dealership.users?.active || 0,
+      totalQuotes: dealership.workshop?.totalQuotes || 0,
+      completedQuotes: dealership.workshop?.completedQuotes || 0,
+      inProgressQuotes: dealership.workshop?.inProgressQuotes || 0,
+      totalReports: dealership.workshop?.totalReports || 0,
+      totalRevenue: `$${(dealership.workshop?.totalRevenue || 0).toFixed(2)}`,
+      totalServiceBays: dealership.serviceBays?.total || 0,
+      activeServiceBays: dealership.serviceBays?.active || 0,
+    }));
 
     const columns = [
-      { key: 'dealershipName', label: 'Dealership' },
-      { key: 'totalVehicles', label: 'Vehicles' },
-      { key: 'totalUsers', label: 'Users' },
-      { key: 'totalQuotes', label: 'Quotes' },
+      { key: 'dealershipName', label: 'Dealership Name' },
+      { key: 'totalVehicles', label: 'Total Vehicles' },
+      { key: 'inspection', label: 'Inspection' },
+      { key: 'tradein', label: 'Trade-in' },
+      { key: 'master', label: 'Master' },
+      { key: 'advertisement', label: 'Advertisement' },
+      { key: 'totalUsers', label: 'Total Users' },
+      { key: 'activeUsers', label: 'Active Users' },
+      { key: 'totalQuotes', label: 'Total Quotes' },
+      { key: 'completedQuotes', label: 'Completed' },
+      { key: 'inProgressQuotes', label: 'In Progress' },
       { key: 'totalReports', label: 'Reports' },
       { key: 'totalRevenue', label: 'Revenue' },
-      { key: 'status', label: 'Status' },
+      { key: 'totalServiceBays', label: 'Service Bays' },
+      { key: 'activeServiceBays', label: 'Active Bays' },
     ];
-
-    const tableData = data.data.map((dealership: any) => ({
-      dealershipName: dealership.dealershipName,
-      totalVehicles: dealership.vehicles?.total || 0,
-      totalUsers: dealership.users?.total || 0,
-      totalQuotes: dealership.workshop?.totalQuotes || 0,
-      totalReports: dealership.workshop?.totalReports || 0,
-      totalRevenue: `$${(dealership.workshop?.totalRevenue || 0).toLocaleString()}`,
-      status: dealership.status,
-    }));
 
     return <DataTable columns={columns} data={tableData} />;
   };
