@@ -829,12 +829,59 @@ const customSelectStyles = {
                         <SelectTrigger>
                           <SelectValue placeholder="Select field" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {selectedSchemaFields.map((field) => (
-                            <SelectItem key={field.field} value={field.field}>
-                              {field.field} ({field.type})
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="max-h-[400px]">
+                          {selectedSchemaFields.map((field, idx) => {
+                            // Calculate indentation level based on dots in field path
+                            const indentLevel = field.isNested 
+                              ? (field.field.split('.').length - 1) 
+                              : 0;
+                            const paddingLeft = indentLevel * 16;
+                            
+                            // Check if this is an array parent field
+                            const isArrayParent = field.isArray && field.type === "Array";
+                            
+                            // Check if this field is currently selected
+                            const isSelected = condition.field_name === field.field;
+                            
+                            return (
+                              <SelectItem 
+                                key={field.field} 
+                                value={field.field}
+                                style={{ paddingLeft: `${paddingLeft + 8}px` }}
+                                className={isArrayParent ? "bg-blue-50/50 font-medium" : ""}
+                              >
+                                <span className="flex items-center justify-between w-full gap-2">
+                                  <span className="flex items-center gap-1.5 flex-1">
+                                    {field.isNested && !isArrayParent && (
+                                      <span className="text-muted-foreground text-xs">
+                                        └─
+                                      </span>
+                                    )}
+                                    <span className={
+                                      isArrayParent 
+                                        ? "font-semibold text-blue-700" 
+                                        : field.isNested 
+                                        ? "text-sm" 
+                                        : "font-medium"
+                                    }>
+                                      {field.isNested 
+                                        ? field.field.split('.').pop() 
+                                        : field.field}
+                                    </span>
+                                    <span className="text-muted-foreground text-xs">
+                                      ({field.type})
+                                    </span>
+                                    {isArrayParent && (
+                                      <span className="text-blue-600 text-xs font-bold">[]</span>
+                                    )}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                  )}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

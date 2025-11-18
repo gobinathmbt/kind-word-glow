@@ -337,48 +337,149 @@ const toggleNotificationConfigurationStatus = async (req, res) => {
 
 const getAvailableSchemas = async (req, res) => {
   try {
+    // Define the specific models to include in the dropdown
+    const allowedModels = [
+      'AdvertiseVehicle',
+      'Conversation',
+      'CostConfiguration',
+      'Dealership',
+      'DropdownMaster',
+      'GroupPermission',
+      'InspectionConfig',
+      'Integration',
+      'MasterVehicle',
+      'NotificationConfiguration',
+      'ServiceBay',
+      'Supplier',
+      'TradeinConfig',
+      'User',
+      'Vehicle',
+      'Workflow',
+      'WorkshopQuote',
+      'WorkshopReport'
+    ];
+
     const schemas = {};
-    Object.keys(mongoose.models).forEach((modelName) => {
-      const model = mongoose.models[modelName];
-      const schema = model.schema;
-
-      const fields = [];
-      const relationships = [];
-
-      schema.eachPath((path, schemaType) => {
-        // Skip internal paths like __v
-        if (path.startsWith("__")) return;
-
-        // Relationship (ObjectId with ref)
-        if (
-          schemaType.instance === "ObjectId" &&
-          schemaType.options &&
-          schemaType.options.ref
-        ) {
-          relationships.push({
-            field: path,
-            ref: schemaType.options.ref,
-          });
-        } else {
-          // Normal field
-          const fieldInfo = {
-            field: path,
-            type: schemaType.instance,
-          };
-
-          // If enum is defined, add it
-          if (schemaType.enumValues && schemaType.enumValues.length > 0) {
-            fieldInfo.enums = schemaType.enumValues;
+    
+    // Helper function to extract nested fields from array schemas
+    const extractNestedFields = (schemaObj, parentPath = '') => {
+      const nestedFields = [];
+      
+      if (schemaObj && schemaObj.schema) {
+        schemaObj.schema.eachPath((path, schemaType) => {
+          if (path === '_id') return; // Skip _id in nested schemas
+          
+          const fullPath = parentPath ? `${parentPath}.${path}` : path;
+          
+          // Check if it's a relationship
+          if (
+            schemaType.instance === "ObjectId" &&
+            schemaType.options &&
+            schemaType.options.ref
+          ) {
+            nestedFields.push({
+              field: fullPath,
+              type: 'ObjectId',
+              ref: schemaType.options.ref,
+              isNested: true,
+              parentArray: parentPath
+            });
+          } 
+          // Check if it's a nested array within an array
+          else if (schemaType.instance === "Array") {
+            const arrayFieldInfo = {
+              field: fullPath,
+              type: "Array",
+              isArray: true,
+              isNested: true,
+              parentArray: parentPath
+            };
+            nestedFields.push(arrayFieldInfo);
+            
+            // Recursively extract fields from nested array
+            const deepNestedFields = extractNestedFields(schemaType.caster, fullPath);
+            nestedFields.push(...deepNestedFields);
           }
+          else {
+            const fieldInfo = {
+              field: fullPath,
+              type: schemaType.instance,
+              isNested: true,
+              parentArray: parentPath
+            };
 
-          fields.push(fieldInfo);
-        }
-      });
+            // If enum is defined, add it
+            if (schemaType.enumValues && schemaType.enumValues.length > 0) {
+              fieldInfo.enums = schemaType.enumValues;
+            }
 
-      schemas[modelName] = {
-        fields,
-        relationships,
-      };
+            nestedFields.push(fieldInfo);
+          }
+        });
+      }
+      
+      return nestedFields;
+    };
+    
+    // Only process allowed models
+    allowedModels.forEach((modelName) => {
+      // Check if the model exists in mongoose.models
+      if (mongoose.models[modelName]) {
+        const model = mongoose.models[modelName];
+        const schema = model.schema;
+
+        const fields = [];
+        const relationships = [];
+
+        schema.eachPath((path, schemaType) => {
+          // Skip internal paths like __v
+          if (path.startsWith("__")) return;
+
+          // Check if it's an Array type
+          if (schemaType.instance === "Array") {
+            // Add the array field itself
+            const arrayFieldInfo = {
+              field: path,
+              type: "Array",
+              isArray: true
+            };
+            fields.push(arrayFieldInfo);
+
+            // Extract nested fields from the array schema
+            const nestedFields = extractNestedFields(schemaType.caster, path);
+            fields.push(...nestedFields);
+          }
+          // Relationship (ObjectId with ref)
+          else if (
+            schemaType.instance === "ObjectId" &&
+            schemaType.options &&
+            schemaType.options.ref
+          ) {
+            relationships.push({
+              field: path,
+              ref: schemaType.options.ref,
+            });
+          } else {
+            // Normal field
+            const fieldInfo = {
+              field: path,
+              type: schemaType.instance,
+            };
+
+            // If enum is defined, add it
+            if (schemaType.enumValues && schemaType.enumValues.length > 0) {
+              fieldInfo.enums = schemaType.enumValues;
+            }
+
+            fields.push(fieldInfo);
+          }
+        });
+
+        schemas[modelName] = {
+          fields,
+          relationships,
+        };
+      }
     });
 
     res.json({

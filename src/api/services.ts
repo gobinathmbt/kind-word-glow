@@ -329,9 +329,16 @@ export const workflowServices = {
   // Get vehicle schema fields for mapping
   getVehicleSchemaFields: () => apiClient.get("/api/workflows/vehicle-schema"),
 
+  // Get all available schemas
+  getAvailableSchemas: () => apiClient.get("/api/workflows/available-schemas"),
+
   // Get schema fields for target schema node
   getSchemaFields: (schemaType: string) => 
     apiClient.get(`/api/workflows/schema-fields/${schemaType}`),
+
+  // Get common fields between multiple schemas
+  getCommonFields: (schemaTypes: string[]) =>
+    apiClient.post('/api/workflows/common-fields', { schemaTypes }),
 
   // Test workflow configuration
   testWorkflow: (id: string, data: any) =>

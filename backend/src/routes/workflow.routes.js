@@ -44,8 +44,14 @@ router.get("/stats", workflowController.getWorkflowStats);
 // GET /api/workflows/vehicle-schema - Get vehicle schema fields for mapping
 router.get("/vehicle-schema", workflowController.getVehicleSchemaFields);
 
+// GET /api/workflows/available-schemas - Get all available schemas
+router.get("/available-schemas", workflowController.getAvailableSchemas);
+
 // GET /api/workflows/schema-fields/:schemaType - Get schema fields for target schema node
 router.get("/schema-fields/:schemaType", workflowController.getSchemaFields);
+
+// POST /api/workflows/common-fields - Get common fields between multiple schemas
+router.post("/common-fields", workflowController.getCommonFields);
 
 // GET /api/workflows/:id - Get specific workflow
 router.get("/:id", workflowController.getWorkflow);

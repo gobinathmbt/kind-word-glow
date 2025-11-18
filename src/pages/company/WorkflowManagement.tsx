@@ -156,7 +156,7 @@ const WorkflowManagement = () => {
       const response = await workflowServices.getWorkflows(params);
       return {
         data: response.data?.data?.workflows || [],
-        total: response.data?.data?.total || 0,
+        total: response.data?.data?.pagination?.total || 0,
       };
     },
     refetchOnWindowFocus: false,

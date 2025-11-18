@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { workflowServices } from "@/api/services";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface WorkflowExecutionLogsDialogProps {
   workflowId: string;
@@ -67,7 +68,7 @@ const WorkflowExecutionLogsDialog: React.FC<WorkflowExecutionLogsDialogProps> = 
           </Select>
         </div>
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="flex-1 pr-4 h-[calc(90vh-200px)] overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -77,7 +78,7 @@ const WorkflowExecutionLogsDialog: React.FC<WorkflowExecutionLogsDialogProps> = 
               No execution logs found
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-4">
               {logs.map((log: any) => (
                 <div key={log._id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-start">

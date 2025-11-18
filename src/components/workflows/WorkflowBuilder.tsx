@@ -39,7 +39,9 @@ import EnhancedConditionNode from "./nodes/EnhancedConditionNode";
 import EnhancedEmailNode from "./nodes/EnhancedEmailNode";
 import EndNode from "./nodes/EndNode";
 import TargetSchemaNode from "./nodes/TargetSchemaNode";
+import DestinationSchemaNode from "./nodes/DestinationSchemaNode";
 import ExportFieldsNode from "./nodes/ExportFieldsNode";
+import SchemaSelectionNode from "./nodes/SchemaSelectionNode";
 
 // Enhanced edge styles
 const edgeStyles = {
@@ -86,9 +88,20 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
         targetPosition: Position.Left,
       },
       {
+        id: "schema-selection-1",
+        type: "schemaSelectionNode",
+        position: { x: 550, y: 100 },
+        data: {
+          label: "Schema Selection",
+          config: { schema_type: "" },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
         id: "mapping-1",
         type: "dataMappingNode",
-        position: { x: 550, y: 100 },
+        position: { x: 800, y: 100 },
         data: {
           label: "Data Mapping",
           config: { mappings: [], sample_json: "" },
@@ -99,7 +112,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "condition-1",
         type: "enhancedConditionNode",
-        position: { x: 800, y: 100 },
+        position: { x: 1050, y: 100 },
         data: {
           label: "Response Condition",
           config: {
@@ -119,7 +132,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "email-success-1",
         type: "enhancedEmailNode",
-        position: { x: 1050, y: 50 },
+        position: { x: 1300, y: 50 },
         data: {
           label: "Success Email",
           config: {},
@@ -130,7 +143,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "email-error-1",
         type: "enhancedEmailNode",
-        position: { x: 1050, y: 150 },
+        position: { x: 1300, y: 150 },
         data: {
           label: "Error Email",
           config: {},
@@ -141,7 +154,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "end-1",
         type: "endNode",
-        position: { x: 1300, y: 100 },
+        position: { x: 1550, y: 100 },
         data: {
           label: "End Workflow",
         },
@@ -168,12 +181,31 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
         data: {
           label: "Target Schema",
           config: {
-            schema_type: "",
-            trigger_field: "",
-            trigger_operator: "",
-            trigger_value: "",
-            schema_fields: []
+            triggers: [{
+              schema_type: "",
+              trigger_field: "",
+              trigger_operator: "",
+              trigger_value: "",
+              logic: "AND",
+              schema_fields: []
+            }]
           },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "destination-schema-1",
+        type: "destinationSchemaNode",
+        position: { x: 550, y: 100 },
+        data: {
+          label: "Destination Schema",
+          config: {
+            target_schemas: [],
+            destination_schemas: [],
+            reference_field: ""
+          },
+          targetSchemas: []
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
@@ -181,7 +213,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "export-fields-1",
         type: "exportFieldsNode",
-        position: { x: 550, y: 100 },
+        position: { x: 800, y: 100 },
         data: {
           label: "Export Fields",
           config: {
@@ -198,7 +230,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "mapping-1",
         type: "dataMappingNode",
-        position: { x: 800, y: 100 },
+        position: { x: 1050, y: 100 },
         data: {
           label: "Data Mapping",
           config: { mappings: [], sample_json: "" },
@@ -209,7 +241,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "auth-1",
         type: "authenticationNode",
-        position: { x: 1050, y: 100 },
+        position: { x: 1300, y: 100 },
         data: {
           label: "API Authentication",
           config: {
@@ -225,7 +257,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "condition-1",
         type: "enhancedConditionNode",
-        position: { x: 1300, y: 100 },
+        position: { x: 1550, y: 100 },
         data: {
           label: "Response Condition",
           config: {
@@ -245,7 +277,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "email-success-1",
         type: "enhancedEmailNode",
-        position: { x: 1550, y: 50 },
+        position: { x: 1800, y: 50 },
         data: {
           label: "Success Email",
           config: {},
@@ -256,7 +288,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "email-error-1",
         type: "enhancedEmailNode",
-        position: { x: 1550, y: 150 },
+        position: { x: 1800, y: 150 },
         data: {
           label: "Error Email",
           config: {},
@@ -267,7 +299,7 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
       {
         id: "end-1",
         type: "endNode",
-        position: { x: 1800, y: 100 },
+        position: { x: 2050, y: 100 },
         data: {
           label: "End Workflow",
         },
@@ -293,19 +325,26 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
       {
         id: "e2-3",
         source: "auth-1",
-        target: "mapping-1",
+        target: "schema-selection-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
         id: "e3-4",
+        source: "schema-selection-1",
+        target: "mapping-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e4-5",
         source: "mapping-1",
         target: "condition-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e4-5",
+        id: "e5-6",
         source: "condition-1",
         target: "email-success-1",
         sourceHandle: "true",
@@ -315,7 +354,7 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
         labelStyle: { fill: '#10b981', fontWeight: 600 },
       },
       {
-        id: "e4-6",
+        id: "e5-7",
         source: "condition-1",
         target: "email-error-1",
         sourceHandle: "false",
@@ -325,14 +364,14 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
         labelStyle: { fill: '#ef4444', fontWeight: 600 },
       },
       {
-        id: "e5-7",
+        id: "e6-8",
         source: "email-success-1",
         target: "end-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e6-7",
+        id: "e7-8",
         source: "email-error-1",
         target: "end-1",
         style: edgeStyles.default,
@@ -353,33 +392,40 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
       {
         id: "e2-3",
         source: "target-schema-1",
-        target: "export-fields-1",
+        target: "destination-schema-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
         id: "e3-4",
+        source: "destination-schema-1",
+        target: "export-fields-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e4-5",
         source: "export-fields-1",
         target: "mapping-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e4-5",
+        id: "e5-6",
         source: "mapping-1",
         target: "auth-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e5-6",
+        id: "e6-7",
         source: "auth-1",
         target: "condition-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e6-7",
+        id: "e7-8",
         source: "condition-1",
         target: "email-success-1",
         sourceHandle: "true",
@@ -389,7 +435,7 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
         labelStyle: { fill: '#10b981', fontWeight: 600 },
       },
       {
-        id: "e6-8",
+        id: "e7-9",
         source: "condition-1",
         target: "email-error-1",
         sourceHandle: "false",
@@ -399,14 +445,14 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
         labelStyle: { fill: '#ef4444', fontWeight: 600 },
       },
       {
-        id: "e7-9",
+        id: "e8-10",
         source: "email-success-1",
         target: "end-1",
         style: edgeStyles.default,
         type: 'smoothstep',
       },
       {
-        id: "e8-9",
+        id: "e9-10",
         source: "email-error-1",
         target: "end-1",
         style: edgeStyles.default,
@@ -483,12 +529,73 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
             },
           };
 
-          // If this is a target schema node update, propagate schema fields to export fields node AND data mapping node
-          if (node.type === 'targetSchemaNode' && newData.config) {
-            const schemaFields = newData.config.schema_fields || [];
-            const schemaType = newData.config.schema_type || '';
-            const isSchemaSelected = !!schemaType;
+          // If this is a schema selection node update (Vehicle Inbound), propagate to data mapping
+          if (node.type === 'schemaSelectionNode' && newData.config && newData.config.schema_type) {
+            const schemaType = newData.config.schema_type;
+            
+            // Fetch schema fields and propagate to data mapping node
+            setTimeout(async () => {
+              try {
+                const response = await workflowServices.getSchemaFields(schemaType);
+                const fields = response?.data?.data?.fields || [];
+                
+                // Filter only required fields for initial display
+                const requiredFields = fields.filter((field: any) => field.is_required);
+                
+                setNodes((currentNodes) =>
+                  currentNodes.map((currentNode) => {
+                    if (currentNode.type === 'dataMappingNode') {
+                      return {
+                        ...currentNode,
+                        data: {
+                          ...currentNode.data,
+                          schemaType: schemaType,
+                          schemaFields: fields,
+                          requiredFields: requiredFields,
+                          isEnabled: true,
+                        },
+                      };
+                    }
+                    return currentNode;
+                  })
+                );
+              } catch (error) {
+                console.error('Error fetching schema fields:', error);
+              }
+            }, 0);
+          }
 
+          // If this is a target schema node update, propagate schema fields to destination schema node
+          if (node.type === 'targetSchemaNode' && newData.config) {
+            // Extract target schemas from triggers for Destination Schema Node
+            const targetSchemas = (newData.config.triggers || []).map((trigger: any) => ({
+              schema_type: trigger.schema_type,
+              reference_field: trigger.reference_field || newData.config.reference_field || ""
+            })).filter((s: any) => s.schema_type);
+
+            // Find and update the destination schema node
+            setTimeout(() => {
+              setNodes((currentNodes) =>
+                currentNodes.map((currentNode) => {
+                  if (currentNode.type === 'destinationSchemaNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        targetSchemas,
+                      },
+                    };
+                  }
+                  return currentNode;
+                })
+              );
+            }, 0);
+          }
+
+          // If this is a destination schema node update, propagate to export fields and data mapping nodes
+          if (node.type === 'destinationSchemaNode' && newData.destinationSchemaData) {
+            const { schemas, reference_field } = newData.destinationSchemaData;
+            
             // Find and update the export fields node and data mapping node
             setTimeout(() => {
               setNodes((currentNodes) =>
@@ -498,8 +605,9 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                       ...currentNode,
                       data: {
                         ...currentNode.data,
-                        schemaFields,
-                        schemaType,
+                        destinationSchemas: schemas,
+                        referenceField: reference_field,
+                        isEnabled: schemas.length > 0,
                       },
                     };
                   }
@@ -508,8 +616,56 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                       ...currentNode,
                       data: {
                         ...currentNode.data,
-                        isSchemaSelected,
-                        schemaType,
+                        destinationSchemas: schemas,
+                        referenceField: reference_field,
+                        isEnabled: schemas.length > 0,
+                      },
+                    };
+                  }
+                  return currentNode;
+                })
+              );
+            }, 0);
+          }
+
+          // If this is an export fields node update, propagate selected fields to data mapping node
+          if (node.type === 'exportFieldsNode' && newData.config) {
+            const { selected_fields, reference_field } = newData.config;
+            
+            // Prepare export fields data for Data Mapping node
+            const destinationSchemas = Array.isArray(node.data.destinationSchemas) ? node.data.destinationSchemas : [];
+            const exportFieldsData = {
+              schemas: Object.keys(selected_fields || {}).map(schemaType => {
+                // Find schema fields from destination schemas
+                const schema = destinationSchemas.find((s: any) => s.schema_type === schemaType);
+                const allFields = schema?.fields || [];
+                const selectedFieldNames = selected_fields[schemaType] || [];
+                
+                // Filter to only include selected fields
+                const selectedFieldsArray = allFields.filter((field: any) => 
+                  selectedFieldNames.includes(field.field_name)
+                );
+                
+                return {
+                  schema_type: schemaType,
+                  fields: selectedFieldsArray
+                };
+              }).filter(s => s.fields.length > 0),
+              reference_field: reference_field || ''
+            };
+            
+            // Find and update the data mapping node
+            setTimeout(() => {
+              setNodes((currentNodes) =>
+                currentNodes.map((currentNode) => {
+                  if (currentNode.type === 'dataMappingNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        exportFieldsData,
+                        referenceField: reference_field || '',
+                        isEnabled: exportFieldsData.schemas.length > 0,
                       },
                     };
                   }
@@ -534,7 +690,9 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     enhancedEmailNode: (props: any) => <EnhancedEmailNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     endNode: (props: any) => <EndNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     targetSchemaNode: (props: any) => <TargetSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    destinationSchemaNode: (props: any) => <DestinationSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     exportFieldsNode: (props: any) => <ExportFieldsNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    schemaSelectionNode: (props: any) => <SchemaSelectionNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
   }), [handleNodeDataUpdate, workflowType]);
 
   // Save workflow mutation
