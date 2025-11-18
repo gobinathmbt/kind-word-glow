@@ -185,7 +185,8 @@ const SupplierManagement = () => {
   
   // Permission checks
   const canRefresh = hasPermission(completeUser, 'workshop_supplier_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'workshop_supplier_search_filter');
+  const canSearch = hasPermission(completeUser, 'workshop_supplier_search');
+  const canFilter = hasPermission(completeUser, 'workshop_supplier_filter');
   const canAdd = hasPermission(completeUser, 'workshop_supplier_add');
   const canToggleStatus = hasPermission(completeUser, 'workshop_supplier_toggle_status');
   const canEdit = hasPermission(completeUser, 'workflow_supplier_edit');
@@ -405,6 +406,19 @@ const SupplierManagement = () => {
     setIsFilterDialogOpen(false);
   };
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
   // Calculate counts for chips
   const totalSuppliers = pagination.total_records || 0;
   const activeCount = suppliers.filter((s: any) => s.is_active).length;
@@ -436,20 +450,75 @@ const SupplierManagement = () => {
     },
   ];
 
-  // Prepare action buttons
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
-    ...(canAdd ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Add Supplier",
-      onClick: handleCreateSupplier,
-      className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    }] : []),
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search suppliers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canAdd
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Add Supplier",
+            onClick: handleCreateSupplier,
+            className: "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   // Render table header
@@ -610,45 +679,17 @@ const SupplierManagement = () => {
         cookieMaxAge={60 * 60 * 24 * 30} // 30 days
       />
 
-      {/* Search and Filter Dialog */}
+      {/* Filter Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Search & Filter Suppliers</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFilterDialogOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTitle>
+            <DialogTitle>Filters</DialogTitle>
           </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  type="text"
-                  placeholder="Search by supplier name, email, or shop name"
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger id="status">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Filter by Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status-filter">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -659,25 +700,43 @@ const SupplierManagement = () => {
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Tags</Label>
+            <div className="space-y-2">
+              <Label>Filter by Tags</Label>
               <MultiSelectDropdown
                 options={availableTags}
                 selectedValues={tagFilter}
                 onSelectionChange={setTagFilter}
-                placeholder="Filter by tags"
+                placeholder="Select tags to filter"
               />
             </div>
           </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={handleClearFilters}>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
               Clear Filters
             </Button>
-            <Button onClick={applyFilters} disabled={isLoading}>
-              {isLoading ? "Applying..." : "Apply Filters"}
-            </Button>
-          </DialogFooter>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
