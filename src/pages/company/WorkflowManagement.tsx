@@ -11,6 +11,8 @@ import {
   SlidersHorizontal,
   Download,
   FileText,
+  X,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,7 +350,19 @@ const WorkflowManagement = () => {
     sonnerToast.success("Data refreshed");
   };
 
-  
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
@@ -399,21 +413,76 @@ const WorkflowManagement = () => {
     },
   ];
 
+  // Prepare action buttons - conditionally based on permissions
   const actionButtons = [
-    ...(canSearchFilter ? [{
-      icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => setIsFilterDialogOpen(true),
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
-    }] : []),
-    
-    ...(canAdd ? [{
-      icon: <Plus className="h-4 w-4" />,
-      tooltip: "Create Workflow",
-      onClick: handleCreateWorkflow,
-      className:
-        "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
-    }] : []),
+    // Search Bar Component
+    ...(canSearchFilter
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search workflows..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canSearchFilter
+      ? [
+          {
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            tooltip: "Filters",
+            onClick: () => setIsFilterDialogOpen(true),
+            className:
+              "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
+          },
+        ]
+      : []),
+    ...(canAdd
+      ? [
+          {
+            icon: <Plus className="h-4 w-4" />,
+            tooltip: "Create Workflow",
+            onClick: handleCreateWorkflow,
+            className:
+              "bg-green-50 text-green-700 hover:bg-green-100 border-green-200",
+          },
+        ]
+      : []),
   ];
 
   const renderTableHeader = () => (
@@ -749,21 +818,13 @@ const WorkflowManagement = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SlidersHorizontal className="h-5 w-5" />
-              Search & Filters
+              Filters
             </DialogTitle>
             <DialogDescription>
               Filter workflows by various criteria
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Search</label>
-              <Input
-                placeholder="Search workflows by name or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -796,6 +857,7 @@ const WorkflowManagement = () => {
               <Button
                 onClick={() => {
                   setIsFilterDialogOpen(false);
+                  setPage(1);
                   refetch();
                 }}
                 className="flex-1"
