@@ -1,6 +1,5 @@
 const MasterVehicle = require("../models/MasterVehicle");
 const { logEvent } = require("./logs.controller");
-const { checkAndTriggerOutboundWorkflows } = require("./workflow.controller");
 
 // @desc    Get all master vehicles
 // @route   GET /api/mastervehicle
@@ -292,9 +291,6 @@ const createMasterVehicle = async (req, res) => {
     const newVehicle = new MasterVehicle(vehicleData);
     await newVehicle.save();
 
-    // Check and trigger outbound workflows after master vehicle creation
-    await checkAndTriggerOutboundWorkflows(newVehicle.toObject(), req.user.company_id);
-
     // Log the event
     await logEvent({
       event_type: "vehicle_operation",
@@ -348,9 +344,6 @@ const updateMasterVehicle = async (req, res) => {
         message: "Master vehicle not found",
       });
     }
-
-    // Check and trigger outbound workflows after master vehicle update
-    await checkAndTriggerOutboundWorkflows(masterVehicle.toObject(), req.user.company_id);
 
     await logEvent({
       event_type: "master_vehicle",

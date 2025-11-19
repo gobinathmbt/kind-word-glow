@@ -54,6 +54,7 @@ const dashboardReportRoutes = require("./routes/dashboardReport.routes");
 
 const errorHandler = require("./middleware/error");
 const notificationMiddleware = require("./middleware/notificationMiddleware");
+const outboundWorkflowMiddleware = require("./middleware/outboundWorkflowMiddleware");
 const { logRequest } = require("./controllers/logs.controller");
 
 // Connect to database
@@ -120,6 +121,9 @@ app.use(logRequest);
 
 // Notification middleware (apply to all routes)
 app.use(notificationMiddleware);
+
+// Outbound workflow middleware (apply to all routes)
+app.use(outboundWorkflowMiddleware);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

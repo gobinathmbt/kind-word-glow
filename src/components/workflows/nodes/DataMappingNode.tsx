@@ -60,6 +60,67 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
     }
   }, [exportFieldsData]);
 
+  // Initialize required field mappings for Vehicle Inbound when schema is selected
+  useEffect(() => {
+    if (workflowType === 'vehicle_inbound' && schemaFields.length > 0 && !exportFieldsData && config.mappings.length === 0) {
+      // Create initial mappings for required fields only (with empty source_field)
+      const initialMappings = schemaRequiredFields.map((field: any) => ({
+        source_field: '',
+        target_field: field.field_name,
+        data_type: field.field_type,
+        is_required: true,
+        is_array: field.is_array || false,
+        is_custom: false,
+        transformation: 'direct'
+      }));
+      
+      setConfig(prev => ({
+        ...prev,
+        mappings: initialMappings
+      }));
+    }
+  }, [workflowType, schemaFields, schemaRequiredFields, exportFieldsData]);
+
+  // Initialize field mappings for Vehicle Outbound when Export Fields are configured
+  useEffect(() => {
+    if (workflowType === 'vehicle_outbound' && exportFieldsData && exportFieldsData.schemas && exportFieldsData.schemas.length > 0 && config.mappings.length === 0) {
+      // Create initial mappings for all export fields (with empty source_field)
+      const initialMappings: any[] = [];
+      
+      exportFieldsData.schemas.forEach((schema: any) => {
+        const schemaFields = schema.fields || [];
+        
+        schemaFields.forEach((field: any) => {
+          // Skip array parent fields that have nested children
+          if (field.is_array) {
+            const hasNestedChildren = schemaFields.some((f: any) => 
+              f.is_nested && f.parent_field === field.field_name
+            );
+            if (hasNestedChildren) {
+              return;
+            }
+          }
+
+          initialMappings.push({
+            source_field: '',
+            target_field: field.field_name,
+            schema_type: schema.schema_type,
+            data_type: field.field_type,
+            is_required: field.is_required || false,
+            is_array: field.is_array || false,
+            is_custom: false,
+            transformation: 'direct'
+          });
+        });
+      });
+      
+      setConfig(prev => ({
+        ...prev,
+        mappings: initialMappings
+      }));
+    }
+  }, [workflowType, exportFieldsData]);
+
   // Validate mappings when exportFieldsData changes (for both Inbound and Outbound)
   useEffect(() => {
     if (exportFieldsData && config.mappings.length > 0) {
@@ -89,7 +150,21 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
 
         // Auto-map fields only if we don't have mappings yet or if mappings are empty
         if (config.mappings.length === 0) {
-          const autoMappings = autoMapFields(fields);
+          let autoMappings: any[] = [];
+          
+          // For Vehicle Inbound with Schema Selection - include all fields from JSON path
+          if (workflowType === 'vehicle_inbound' && schemaFields.length > 0 && !exportFieldsData) {
+            autoMappings = autoMapFieldsForInbound(fields);
+          }
+          // For Vehicle Outbound with Export Fields - auto-map matching fields
+          else if (workflowType === 'vehicle_outbound' && exportFieldsData && exportFieldsData.schemas && exportFieldsData.schemas.length > 0) {
+            autoMappings = autoMapFieldsForOutbound(fields);
+          }
+          // Default behavior
+          else {
+            autoMappings = autoMapFields(fields);
+          }
+          
           setConfig(prev => ({
             ...prev,
             sample_json: sampleJson,
@@ -222,6 +297,100 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
     return mappings;
   };
 
+  // Auto-map fields for Vehicle Inbound with Schema Selection
+  // This includes ALL fields from JSON path and maps them to schema fields
+  const autoMapFieldsForInbound = (fields: any[]) => {
+    const mappings: any[] = [];
+
+    fields.forEach(field => {
+      if (field.type === 'object' && !field.isArray) {
+        return;
+      }
+
+      const fieldName = field.path.split('.').pop();
+      const matchingSchemaField = findMatchingField(fieldName, field, schemaFields);
+
+      if (matchingSchemaField) {
+        // Map to schema field
+        mappings.push({
+          source_field: field.path,
+          target_field: matchingSchemaField.field_name,
+          data_type: matchingSchemaField.field_type,
+          is_required: matchingSchemaField.is_required || false,
+          is_array: matchingSchemaField.is_array || field.isArray,
+          is_custom: false,
+          transformation: 'direct',
+          sample_value: field.sample_value
+        });
+      } else {
+        // Map to custom fields
+        mappings.push({
+          source_field: field.path,
+          target_field: 'custom_fields',
+          data_type: field.type,
+          is_required: false,
+          is_array: field.isArray,
+          is_custom: true,
+          transformation: 'custom',
+          custom_field_key: field.path.split('.').pop(),
+          sample_value: field.sample_value
+        });
+      }
+    });
+
+    return mappings;
+  };
+
+  // Auto-map fields for Vehicle Outbound with Export Fields
+  // This creates mappings for all export fields and auto-fills source_field if names match
+  const autoMapFieldsForOutbound = (fields: any[]) => {
+    const mappings: any[] = [];
+
+    if (!exportFieldsData || !exportFieldsData.schemas) {
+      return mappings;
+    }
+
+    exportFieldsData.schemas.forEach((schema: any) => {
+      const schemaFields = schema.fields || [];
+      
+      schemaFields.forEach((field: any) => {
+        // Skip array parent fields that have nested children
+        if (field.is_array) {
+          const hasNestedChildren = schemaFields.some((f: any) => 
+            f.is_nested && f.parent_field === field.field_name
+          );
+          if (hasNestedChildren) {
+            return;
+          }
+        }
+
+        // Try to find matching JSON field by name
+        const fieldName = field.field_name.toLowerCase();
+        const matchingJsonField = fields.find(jsonField => {
+          const jsonFieldName = jsonField.path.split('.').pop()?.toLowerCase();
+          return jsonFieldName === fieldName || 
+                 jsonFieldName?.replace(/_/g, '') === fieldName.replace(/_/g, '') ||
+                 fieldName.includes(jsonFieldName || '') ||
+                 (jsonFieldName || '').includes(fieldName);
+        });
+
+        mappings.push({
+          source_field: matchingJsonField ? matchingJsonField.path : '', // Auto-fill if match found
+          target_field: field.field_name,
+          schema_type: schema.schema_type,
+          data_type: field.field_type,
+          is_required: field.is_required || false,
+          is_array: field.is_array || false,
+          is_custom: false,
+          transformation: 'direct',
+          sample_value: matchingJsonField ? matchingJsonField.sample_value : undefined
+        });
+      });
+    });
+
+    return mappings;
+  };
+
   const findMatchingField = (fieldName: string, sourceField: any, schemaFields: any[]) => {
     const normalizedName = fieldName?.toLowerCase();
 
@@ -270,15 +439,15 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
       });
 
       // Check for duplicate mappings
-      const targetFields = mappings
-        .filter(m => !m.is_custom)
-        .map(m => m.target_field);
-      const duplicates = targetFields.filter((item, index) =>
-        targetFields.indexOf(item) !== index
-      );
-      if (duplicates.length > 0) {
-        errors.push(`Duplicate mappings found: ${[...new Set(duplicates)].join(', ')}`);
-      }
+      // const targetFields = mappings
+      //   .filter(m => !m.is_custom)
+      //   .map(m => m.target_field);
+      // const duplicates = targetFields.filter((item, index) =>
+      //   targetFields.indexOf(item) !== index
+      // );
+      // if (duplicates.length > 0) {
+      //   errors.push(`Duplicate mappings found: ${[...new Set(duplicates)].join(', ')}`);
+      // }
 
       setValidationErrors(errors);
       return errors.length === 0;
@@ -318,17 +487,17 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
       });
       
       // Check for duplicate mappings within each schema
-      exportFieldsData.schemas.forEach((schema: any) => {
-        const schemaTargetFields = mappings
-          .filter(m => m.schema_type === schema.schema_type && !m.is_custom)
-          .map(m => m.target_field);
-        const duplicates = schemaTargetFields.filter((item, index) =>
-          schemaTargetFields.indexOf(item) !== index
-        );
-        if (duplicates.length > 0) {
-          errors.push(`Duplicate mappings in schema "${schema.schema_type}": ${[...new Set(duplicates)].join(', ')}`);
-        }
-      });
+      // exportFieldsData.schemas.forEach((schema: any) => {
+      //   const schemaTargetFields = mappings
+      //     .filter(m => m.schema_type === schema.schema_type && !m.is_custom)
+      //     .map(m => m.target_field);
+      //   const duplicates = schemaTargetFields.filter((item, index) =>
+      //     schemaTargetFields.indexOf(item) !== index
+      //   );
+      //   if (duplicates.length > 0) {
+      //     errors.push(`Duplicate mappings in schema "${schema.schema_type}": ${[...new Set(duplicates)].join(', ')}`);
+      //   }
+      // });
     } else {
       // For Vehicle Inbound workflows - validate required fields from vehicle schema
       vehicleRequiredFields.forEach(rf => {
@@ -342,15 +511,15 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
         }
       });
 
-      const targetFields = mappings
-        .filter(m => !m.is_custom)
-        .map(m => m.target_field);
-      const duplicates = targetFields.filter((item, index) =>
-        targetFields.indexOf(item) !== index
-      );
-      if (duplicates.length > 0) {
-        errors.push(`Duplicate mappings found: ${[...new Set(duplicates)].join(', ')}`);
-      }
+      // const targetFields = mappings
+      //   .filter(m => !m.is_custom)
+      //   .map(m => m.target_field);
+      // const duplicates = targetFields.filter((item, index) =>
+      //   targetFields.indexOf(item) !== index
+      // );
+      // if (duplicates.length > 0) {
+      //   errors.push(`Duplicate mappings found: ${[...new Set(duplicates)].join(', ')}`);
+      // }
     }
 
     setValidationErrors(errors);
@@ -394,6 +563,41 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
   };
 
   const removeMapping = (index: number) => {
+    const mapping = config.mappings[index];
+    
+    // For Vehicle Inbound with Schema Selection - when deleting a required field mapping,
+    // just clear the source_field instead of removing the entire mapping
+    if (workflowType === 'vehicle_inbound' && schemaFields.length > 0 && !exportFieldsData) {
+      const isRequiredField = schemaRequiredFields.some((rf: any) => rf.field_name === mapping.target_field);
+      
+      if (isRequiredField) {
+        // Clear the source_field (deselect external field) but keep the mapping entry
+        const updatedMappings = [...config.mappings];
+        updatedMappings[index] = {
+          ...updatedMappings[index],
+          source_field: ''
+        };
+        setConfig(prev => ({ ...prev, mappings: updatedMappings }));
+        validateMappings(updatedMappings);
+        return;
+      }
+    }
+    
+    // For Vehicle Outbound with Export Fields - when deleting a field mapping,
+    // just clear the source_field instead of removing the entire mapping
+    if (workflowType === 'vehicle_outbound' && exportFieldsData && exportFieldsData.schemas && exportFieldsData.schemas.length > 0) {
+      // Clear the source_field (deselect external field) but keep the mapping entry
+      const updatedMappings = [...config.mappings];
+      updatedMappings[index] = {
+        ...updatedMappings[index],
+        source_field: ''
+      };
+      setConfig(prev => ({ ...prev, mappings: updatedMappings }));
+      validateMappings(updatedMappings);
+      return;
+    }
+    
+    // For other cases, remove the mapping entirely
     const updatedMappings = config.mappings.filter((_: any, i: number) => i !== index);
     setConfig(prev => ({ ...prev, mappings: updatedMappings }));
     validateMappings(updatedMappings);
@@ -401,6 +605,37 @@ const DataMappingNode = ({ data, isConnectable, id, onDataUpdate, workflowType }
 
   const remapFields = () => {
     if (parsedFields.length > 0) {
+      // For Vehicle Inbound with Schema Selection - include all fields from JSON path
+      if (workflowType === 'vehicle_inbound' && schemaFields.length > 0 && !exportFieldsData) {
+        const autoMappings = autoMapFieldsForInbound(parsedFields);
+        setConfig(prev => ({
+          ...prev,
+          mappings: autoMappings
+        }));
+        validateMappings(autoMappings);
+        toast({
+          title: "Fields Remapped",
+          description: `${autoMappings.length} fields automatically mapped (including all JSON fields)`,
+        });
+        return;
+      }
+      
+      // For Vehicle Outbound with Export Fields - auto-map matching fields
+      if (workflowType === 'vehicle_outbound' && exportFieldsData && exportFieldsData.schemas && exportFieldsData.schemas.length > 0) {
+        const autoMappings = autoMapFieldsForOutbound(parsedFields);
+        setConfig(prev => ({
+          ...prev,
+          mappings: autoMappings
+        }));
+        validateMappings(autoMappings);
+        toast({
+          title: "Fields Remapped",
+          description: `${autoMappings.filter((m: any) => m.source_field).length} fields automatically mapped`,
+        });
+        return;
+      }
+      
+      // Default behavior
       const autoMappings = autoMapFields(parsedFields);
       setConfig(prev => ({
         ...prev,

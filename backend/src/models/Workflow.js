@@ -24,7 +24,7 @@ const WorkflowSchema = new mongoose.Schema({
   // Workflow Type
   workflow_type: {
     type: String,
-    enum: ["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"],
+    enum: ["vehicle_inbound", "vehicle_outbound"],
     required: true,
   },
 

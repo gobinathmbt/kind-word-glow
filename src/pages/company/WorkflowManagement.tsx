@@ -560,7 +560,7 @@ const WorkflowManagement = () => {
                   {workflow.description}
                 </p>
               )}
-              {workflow.custom_endpoint && (
+              {workflow.custom_endpoint && workflow.workflow_type !== "vehicle_outbound" && (
                 <p className="text-xs text-blue-600 mt-1">
                   {BASE_URL}/api/workflow-execute/{workflow.custom_endpoint}
                 </p>

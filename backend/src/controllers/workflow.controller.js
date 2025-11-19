@@ -1000,6 +1000,10 @@ const executeWorkflow = async (req, res) => {
       }
     };
 
+    // Get schema selection configuration
+    const schemaSelectionNode = workflow.flow_data.nodes.find(node => node.type === 'schemaSelectionNode');
+    const selectedSchemaType = schemaSelectionNode?.data?.config?.schema_type || '';
+
     const mappingNode = workflow.flow_data.nodes.find(node => node.type === 'dataMappingNode');
     const mappings = mappingNode?.data?.config?.mappings || [];
 
@@ -1056,6 +1060,31 @@ const executeWorkflow = async (req, res) => {
           vehicleResults.push(vehicleResult);
           workflowExecutionLog.failed_vehicles += 1;
           continue;
+        }
+
+        // Validate vehicle_type against selected schema
+        if (selectedSchemaType) {
+          let allowedVehicleTypes = [];
+          let schemaName = '';
+
+          if (selectedSchemaType === 'master_vehicle') {
+            allowedVehicleTypes = ['master'];
+            schemaName = 'Master Schema';
+          } else if (selectedSchemaType === 'vehicle') {
+            allowedVehicleTypes = ['inspection', 'tradein'];
+            schemaName = 'Vehicle Schema';
+          } else if (selectedSchemaType === 'advertise_vehicle') {
+            allowedVehicleTypes = ['advertisement'];
+            schemaName = 'Advertisement Vehicle Schema';
+          }
+
+          if (allowedVehicleTypes.length > 0 && !allowedVehicleTypes.includes(vehicleData.vehicle_type)) {
+            vehicleResult.error_message = `Invalid vehicle type. ${schemaName} only accepts vehicle type: ${allowedVehicleTypes.join(', ')}. Received: ${vehicleData.vehicle_type}`;
+            vehicleResult.validation_errors.push(`Schema validation failed: vehicle_type "${vehicleData.vehicle_type}" not allowed for ${schemaName}`);
+            vehicleResults.push(vehicleResult);
+            workflowExecutionLog.failed_vehicles += 1;
+            continue;
+          }
         }
 
         // Validate company_id
@@ -1323,75 +1352,75 @@ const testWorkflow = async (req, res) => {
 };
 
 // Helper function to check trigger conditions for outbound workflows
-const checkTriggerCondition = (fieldValue, operator, triggerValue) => {
-  switch (operator) {
-    case 'equals':
-      return fieldValue == triggerValue;
-    case 'not_equals':
-      return fieldValue != triggerValue;
-    case 'contains':
-      return typeof fieldValue === 'string' && fieldValue.includes(triggerValue);
-    case 'starts_with':
-      return typeof fieldValue === 'string' && fieldValue.startsWith(triggerValue);
-    case 'ends_with':
-      return typeof fieldValue === 'string' && fieldValue.endsWith(triggerValue);
-    case 'is_empty':
-      return !fieldValue || fieldValue === '';
-    case 'is_not_empty':
-      return fieldValue && fieldValue !== '';
-    case 'greater_than':
-      return Number(fieldValue) > Number(triggerValue);
-    case 'less_than':
-      return Number(fieldValue) < Number(triggerValue);
-    case 'greater_than_or_equal':
-      return Number(fieldValue) >= Number(triggerValue);
-    case 'less_than_or_equal':
-      return Number(fieldValue) <= Number(triggerValue);
-    case 'is_true':
-      return fieldValue === true || fieldValue === 'true';
-    case 'is_false':
-      return fieldValue === false || fieldValue === 'false';
-    case 'before':
-      return new Date(fieldValue) < new Date(triggerValue);
-    case 'after':
-      return new Date(fieldValue) > new Date(triggerValue);
-    default:
-      return false;
-  }
-};
+// const checkTriggerCondition = (fieldValue, operator, triggerValue) => {
+//   switch (operator) {
+//     case 'equals':
+//       return fieldValue == triggerValue;
+//     case 'not_equals':
+//       return fieldValue != triggerValue;
+//     case 'contains':
+//       return typeof fieldValue === 'string' && fieldValue.includes(triggerValue);
+//     case 'starts_with':
+//       return typeof fieldValue === 'string' && fieldValue.startsWith(triggerValue);
+//     case 'ends_with':
+//       return typeof fieldValue === 'string' && fieldValue.endsWith(triggerValue);
+//     case 'is_empty':
+//       return !fieldValue || fieldValue === '';
+//     case 'is_not_empty':
+//       return fieldValue && fieldValue !== '';
+//     case 'greater_than':
+//       return Number(fieldValue) > Number(triggerValue);
+//     case 'less_than':
+//       return Number(fieldValue) < Number(triggerValue);
+//     case 'greater_than_or_equal':
+//       return Number(fieldValue) >= Number(triggerValue);
+//     case 'less_than_or_equal':
+//       return Number(fieldValue) <= Number(triggerValue);
+//     case 'is_true':
+//       return fieldValue === true || fieldValue === 'true';
+//     case 'is_false':
+//       return fieldValue === false || fieldValue === 'false';
+//     case 'before':
+//       return new Date(fieldValue) < new Date(triggerValue);
+//     case 'after':
+//       return new Date(fieldValue) > new Date(triggerValue);
+//     default:
+//       return false;
+//   }
+// };
 
 // Helper function to get nested field value from object
-const getNestedFieldValue = (obj, fieldPath) => {
-  const keys = fieldPath.split('.');
-  let current = obj;
+// const getNestedFieldValue = (obj, fieldPath) => {
+//   const keys = fieldPath.split('.');
+//   let current = obj;
 
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
+//   for (let i = 0; i < keys.length; i++) {
+//     const key = keys[i];
 
-    if (current && typeof current === 'object') {
-      // If current value is an array, get the first element
-      if (Array.isArray(current)) {
-        current = current.length > 0 ? current[0] : undefined;
-        if (!current) return undefined;
-      }
+//     if (current && typeof current === 'object') {
+//       // If current value is an array, get the first element
+//       if (Array.isArray(current)) {
+//         current = current.length > 0 ? current[0] : undefined;
+//         if (!current) return undefined;
+//       }
 
-      // Get the next value
-      current = current[key];
+//       // Get the next value
+//       current = current[key];
 
-      // If this is the last key and the value is an array, return the array
-      // Otherwise, if it's an array and not the last key, continue with first element
-      if (i === keys.length - 1) {
-        return current;
-      } else if (Array.isArray(current) && current.length > 0) {
-        current = current[0];
-      }
-    } else {
-      return undefined;
-    }
-  }
+//       // If this is the last key and the value is an array, return the array
+//       // Otherwise, if it's an array and not the last key, continue with first element
+//       if (i === keys.length - 1) {
+//         return current;
+//       } else if (Array.isArray(current) && current.length > 0) {
+//         current = current[0];
+//       }
+//     } else {
+//       return undefined;
+//     }
+//   }
 
-  return current;
-};
+//   return current;
+// };
 
 // Helper function to update workflow execution stats
 const updateWorkflowExecutionStats = async (workflowId, isSuccess, errorMessage = null) => {
@@ -1525,453 +1554,453 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
 };
 
 // Helper function to check and trigger outbound workflows
-const checkAndTriggerOutboundWorkflows = async (vehicleData, companyId) => {
-  try {
-    // Find all active "Vehicle Outbound" workflows for this company
-    const outboundWorkflows = await Workflow.find({
-      company_id: companyId,
-      workflow_type: 'vehicle_outbound',
-      status: 'active'
-    });
+// const checkAndTriggerOutboundWorkflows = async (vehicleData, companyId) => {
+//   try {
+//     // Find all active "Vehicle Outbound" workflows for this company
+//     const outboundWorkflows = await Workflow.find({
+//       company_id: companyId,
+//       workflow_type: 'vehicle_outbound',
+//       status: 'active'
+//     });
 
-    for (const workflow of outboundWorkflows) {
-      // Find the target schema node in the workflow
-      const targetSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'targetSchemaNode');
+//     for (const workflow of outboundWorkflows) {
+//       // Find the target schema node in the workflow
+//       const targetSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'targetSchemaNode');
 
-      if (!targetSchemaNode || !targetSchemaNode.data?.config) {
-        continue;
-      }
+//       if (!targetSchemaNode || !targetSchemaNode.data?.config) {
+//         continue;
+//       }
 
-      const config = targetSchemaNode.data.config;
+//       const config = targetSchemaNode.data.config;
 
-      // Support both old single trigger format and new multiple triggers format
-      let triggers = [];
-      if (config.triggers && Array.isArray(config.triggers)) {
-        triggers = config.triggers;
-      } else if (config.schema_type && config.trigger_field && config.trigger_operator) {
-        // Backward compatibility: convert old format to new format
-        triggers = [{
-          schema_type: config.schema_type,
-          trigger_field: config.trigger_field,
-          trigger_operator: config.trigger_operator,
-          trigger_value: config.trigger_value,
-          logic: 'AND',
-          reference_field: config.reference_field || ''
-        }];
-      }
+//       // Support both old single trigger format and new multiple triggers format
+//       let triggers = [];
+//       if (config.triggers && Array.isArray(config.triggers)) {
+//         triggers = config.triggers;
+//       } else if (config.schema_type && config.trigger_field && config.trigger_operator) {
+//         // Backward compatibility: convert old format to new format
+//         triggers = [{
+//           schema_type: config.schema_type,
+//           trigger_field: config.trigger_field,
+//           trigger_operator: config.trigger_operator,
+//           trigger_value: config.trigger_value,
+//           logic: 'AND',
+//           reference_field: config.reference_field || ''
+//         }];
+//       }
 
-      // Skip if no valid triggers
-      if (triggers.length === 0 || triggers.every(t => !t.schema_type || !t.trigger_field || !t.trigger_operator)) {
-        continue;
-      }
+//       // Skip if no valid triggers
+//       if (triggers.length === 0 || triggers.every(t => !t.schema_type || !t.trigger_field || !t.trigger_operator)) {
+//         continue;
+//       }
 
-      // Get unique schema types from triggers
-      const uniqueSchemaTypes = [...new Set(triggers.map(t => t.schema_type).filter(Boolean))];
-      const hasMultipleSchemas = uniqueSchemaTypes.length > 1;
+//       // Get unique schema types from triggers
+//       const uniqueSchemaTypes = [...new Set(triggers.map(t => t.schema_type).filter(Boolean))];
+//       const hasMultipleSchemas = uniqueSchemaTypes.length > 1;
 
-      // Get reference field for cross-schema validation
-      const referenceField = config.reference_field || '';
+//       // Get reference field for cross-schema validation
+//       const referenceField = config.reference_field || '';
 
-      // Evaluate all trigger conditions with cross-schema support
-      let triggerActivated = false;
-      const activatedTriggers = [];
+//       // Evaluate all trigger conditions with cross-schema support
+//       let triggerActivated = false;
+//       const activatedTriggers = [];
 
-      for (let i = 0; i < triggers.length; i++) {
-        const trigger = triggers[i];
+//       for (let i = 0; i < triggers.length; i++) {
+//         const trigger = triggers[i];
 
-        // Skip incomplete triggers
-        if (!trigger.schema_type || !trigger.trigger_field || !trigger.trigger_operator) {
-          continue;
-        }
+//         // Skip incomplete triggers
+//         if (!trigger.schema_type || !trigger.trigger_field || !trigger.trigger_operator) {
+//           continue;
+//         }
 
-        let dataToCheck = null;
-        let conditionMet = false;
+//         let dataToCheck = null;
+//         let conditionMet = false;
 
-        // Determine which schema to check
-        if (trigger.schema_type === 'vehicle') {
-          // Check vehicle data directly
-          dataToCheck = vehicleData;
-          const fieldValue = getNestedFieldValue(dataToCheck, trigger.trigger_field);
-          conditionMet = checkTriggerCondition(
-            fieldValue,
-            trigger.trigger_operator,
-            trigger.trigger_value
-          );
-        } else if (hasMultipleSchemas && referenceField) {
-          // Cross-schema validation: fetch related data using reference field
-          try {
-            // Get the reference value from vehicle data
-            const referenceValue = getNestedFieldValue(vehicleData, referenceField);
+//         // Determine which schema to check
+//         if (trigger.schema_type === 'vehicle') {
+//           // Check vehicle data directly
+//           dataToCheck = vehicleData;
+//           const fieldValue = getNestedFieldValue(dataToCheck, trigger.trigger_field);
+//           conditionMet = checkTriggerCondition(
+//             fieldValue,
+//             trigger.trigger_operator,
+//             trigger.trigger_value
+//           );
+//         } else if (hasMultipleSchemas && referenceField) {
+//           // Cross-schema validation: fetch related data using reference field
+//           try {
+//             // Get the reference value from vehicle data
+//             const referenceValue = getNestedFieldValue(vehicleData, referenceField);
 
-            if (!referenceValue) {
-              console.log(`[Workflow ${workflow.name}] Reference field "${referenceField}" not found in vehicle data`);
-              conditionMet = false;
-            } else {
-              // Convert schema_type to model name
-              const modelName = trigger.schema_type
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join('');
+//             if (!referenceValue) {
+//               console.log(`[Workflow ${workflow.name}] Reference field "${referenceField}" not found in vehicle data`);
+//               conditionMet = false;
+//             } else {
+//               // Convert schema_type to model name
+//               const modelName = trigger.schema_type
+//                 .split('_')
+//                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+//                 .join('');
 
-              let SchemaModel;
-              try {
-                SchemaModel = require(`../models/${modelName}`);
-              } catch (error) {
-                console.error(`[Workflow ${workflow.name}] Schema model "${modelName}" not found`);
-                conditionMet = false;
-                continue;
-              }
+//               let SchemaModel;
+//               try {
+//                 SchemaModel = require(`../models/${modelName}`);
+//               } catch (error) {
+//                 console.error(`[Workflow ${workflow.name}] Schema model "${modelName}" not found`);
+//                 conditionMet = false;
+//                 continue;
+//               }
 
-              // Query the related schema using reference field
-              const query = {
-                company_id: companyId,
-                [referenceField]: referenceValue
-              };
+//               // Query the related schema using reference field
+//               const query = {
+//                 company_id: companyId,
+//                 [referenceField]: referenceValue
+//               };
 
-              const relatedData = await SchemaModel.findOne(query);
+//               const relatedData = await SchemaModel.findOne(query);
 
-              if (!relatedData) {
+//               if (!relatedData) {
 
-                conditionMet = false;
-              } else {
-                // Check the trigger condition on the related data
-                const fieldValue = getNestedFieldValue(relatedData, trigger.trigger_field);
-                conditionMet = checkTriggerCondition(
-                  fieldValue,
-                  trigger.trigger_operator,
-                  trigger.trigger_value
-                );
+//                 conditionMet = false;
+//               } else {
+//                 // Check the trigger condition on the related data
+//                 const fieldValue = getNestedFieldValue(relatedData, trigger.trigger_field);
+//                 conditionMet = checkTriggerCondition(
+//                   fieldValue,
+//                   trigger.trigger_operator,
+//                   trigger.trigger_value
+//                 );
 
-              }
-            }
-          } catch (error) {
-            console.error(`[Workflow ${workflow.name}] Error in cross-schema validation:`, error.message);
-            conditionMet = false;
-          }
-        } else {
-          // Schema type doesn't match vehicle and no cross-schema setup
-          console.log(`[Workflow ${workflow.name}] Skipping trigger for schema "${trigger.schema_type}" - not applicable to vehicle data`);
-          conditionMet = false;
-        }
+//               }
+//             }
+//           } catch (error) {
+//             console.error(`[Workflow ${workflow.name}] Error in cross-schema validation:`, error.message);
+//             conditionMet = false;
+//           }
+//         } else {
+//           // Schema type doesn't match vehicle and no cross-schema setup
+//           console.log(`[Workflow ${workflow.name}] Skipping trigger for schema "${trigger.schema_type}" - not applicable to vehicle data`);
+//           conditionMet = false;
+//         }
 
-        // Track which triggers were activated
-        if (conditionMet) {
-          activatedTriggers.push({
-            schema_type: trigger.schema_type,
-            trigger_field: trigger.trigger_field,
-            trigger_operator: trigger.trigger_operator,
-            trigger_value: trigger.trigger_value
-          });
-        }
+//         // Track which triggers were activated
+//         if (conditionMet) {
+//           activatedTriggers.push({
+//             schema_type: trigger.schema_type,
+//             trigger_field: trigger.trigger_field,
+//             trigger_operator: trigger.trigger_operator,
+//             trigger_value: trigger.trigger_value
+//           });
+//         }
 
-        // Apply logic operator
-        if (i === 0) {
-          // First trigger sets the initial state
-          triggerActivated = conditionMet;
-        } else {
-          // Subsequent triggers use their logic operator
-          const logic = trigger.logic || 'AND';
-          if (logic === 'AND') {
-            triggerActivated = triggerActivated && conditionMet;
-          } else if (logic === 'OR') {
-            triggerActivated = triggerActivated || conditionMet;
-          }
-        }
-      }
+//         // Apply logic operator
+//         if (i === 0) {
+//           // First trigger sets the initial state
+//           triggerActivated = conditionMet;
+//         } else {
+//           // Subsequent triggers use their logic operator
+//           const logic = trigger.logic || 'AND';
+//           if (logic === 'AND') {
+//             triggerActivated = triggerActivated && conditionMet;
+//           } else if (logic === 'OR') {
+//             triggerActivated = triggerActivated || conditionMet;
+//           }
+//         }
+//       }
 
-      // Only process when trigger is activated
-      if (triggerActivated) {
-        // Console log which triggers were activated
-        console.log('\n========================================');
-        console.log(`[Workflow: ${workflow.name}] TRIGGER ACTIVATED`);
-        console.log('========================================');
-        console.log('Activated Triggers:');
-        activatedTriggers.forEach((trigger, index) => {
-          console.log(`  ${index + 1}. ${trigger.schema_type}.${trigger.trigger_field} ${trigger.trigger_operator} "${trigger.trigger_value}"`);
-        });
-        console.log('\nVehicle Details:');
-        console.log(JSON.stringify({
-          vehicle_stock_id: vehicleData.vehicle_stock_id,
-          vehicle_type: vehicleData.vehicle_type,
-          make: vehicleData.make,
-          model: vehicleData.model,
-          year: vehicleData.year,
-          vin: vehicleData.vin,
-          plate_no: vehicleData.plate_no,
-          is_pricing_ready: vehicleData.is_pricing_ready,
-          company_id: vehicleData.company_id
-        }, null, 2));
+//       // Only process when trigger is activated
+//       if (triggerActivated) {
+//         // Console log which triggers were activated
+//         console.log('\n========================================');
+//         console.log(`[Workflow: ${workflow.name}] TRIGGER ACTIVATED`);
+//         console.log('========================================');
+//         console.log('Activated Triggers:');
+//         activatedTriggers.forEach((trigger, index) => {
+//           console.log(`  ${index + 1}. ${trigger.schema_type}.${trigger.trigger_field} ${trigger.trigger_operator} "${trigger.trigger_value}"`);
+//         });
+//         console.log('\nVehicle Details:');
+//         console.log(JSON.stringify({
+//           vehicle_stock_id: vehicleData.vehicle_stock_id,
+//           vehicle_type: vehicleData.vehicle_type,
+//           make: vehicleData.make,
+//           model: vehicleData.model,
+//           year: vehicleData.year,
+//           vin: vehicleData.vin,
+//           plate_no: vehicleData.plate_no,
+//           is_pricing_ready: vehicleData.is_pricing_ready,
+//           company_id: vehicleData.company_id
+//         }, null, 2));
 
-        // Log Destination Schema details
-        const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
-        if (destinationSchemaNode && destinationSchemaNode.data?.config) {
-          const destConfig = destinationSchemaNode.data.config;
-          const allDestSchemas = [
-            ...(destConfig.target_schemas || []),
-            ...(destConfig.destination_schemas || [])
-          ];
+//         // Log Destination Schema details
+//         const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
+//         if (destinationSchemaNode && destinationSchemaNode.data?.config) {
+//           const destConfig = destinationSchemaNode.data.config;
+//           const allDestSchemas = [
+//             ...(destConfig.target_schemas || []),
+//             ...(destConfig.destination_schemas || [])
+//           ];
 
-          console.log('\nDestination Schemas Selected:');
-          if (allDestSchemas.length > 0) {
-            allDestSchemas.forEach((schema, index) => {
-              console.log(`  ${index + 1}. ${schema.schema_type}`);
-            });
+//           console.log('\nDestination Schemas Selected:');
+//           if (allDestSchemas.length > 0) {
+//             allDestSchemas.forEach((schema, index) => {
+//               console.log(`  ${index + 1}. ${schema.schema_type}`);
+//             });
 
-            // Log reference field if different schemas are used
-            if (destConfig.reference_field) {
-              console.log(`\nReference Field: ${destConfig.reference_field}`);
-              const referenceValue = getNestedFieldValue(vehicleData, destConfig.reference_field);
-              console.log(`Reference Value from Vehicle: ${referenceValue}`);
-            }
-          } else {
-            console.log('  No destination schemas configured');
-          }
-        }
+//             // Log reference field if different schemas are used
+//             if (destConfig.reference_field) {
+//               console.log(`\nReference Field: ${destConfig.reference_field}`);
+//               const referenceValue = getNestedFieldValue(vehicleData, destConfig.reference_field);
+//               console.log(`Reference Value from Vehicle: ${referenceValue}`);
+//             }
+//           } else {
+//             console.log('  No destination schemas configured');
+//           }
+//         }
 
-        // Find the Export Fields node to get selected_fields configuration
-        const exportFieldsNode = workflow.flow_data?.nodes?.find(node => node.type === 'exportFieldsNode');
+//         // Find the Export Fields node to get selected_fields configuration
+//         const exportFieldsNode = workflow.flow_data?.nodes?.find(node => node.type === 'exportFieldsNode');
 
-        if (exportFieldsNode && exportFieldsNode.data?.config?.selected_fields) {
-          const selectedFieldsConfig = exportFieldsNode.data.config.selected_fields;
+//         if (exportFieldsNode && exportFieldsNode.data?.config?.selected_fields) {
+//           const selectedFieldsConfig = exportFieldsNode.data.config.selected_fields;
 
-          // Check if selected_fields is an object (new schema-based format) or array (old format)
-          const isSchemaBasedFormat = typeof selectedFieldsConfig === 'object' && !Array.isArray(selectedFieldsConfig);
+//           // Check if selected_fields is an object (new schema-based format) or array (old format)
+//           const isSchemaBasedFormat = typeof selectedFieldsConfig === 'object' && !Array.isArray(selectedFieldsConfig);
 
-          if (isSchemaBasedFormat && Object.keys(selectedFieldsConfig).length > 0) {
-            // NEW FORMAT: Schema-based selected fields { schema_type: [field_names] }
-            console.log('\nExport Fields Configuration (Selected Fields by Schema):');
-            console.log('========================================');
+//           if (isSchemaBasedFormat && Object.keys(selectedFieldsConfig).length > 0) {
+//             // NEW FORMAT: Schema-based selected fields { schema_type: [field_names] }
+//             console.log('\nExport Fields Configuration (Selected Fields by Schema):');
+//             console.log('========================================');
 
-            // Get destination schema node to access reference field
-            const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
-            const referenceField = destinationSchemaNode?.data?.config?.reference_field || '';
+//             // Get destination schema node to access reference field
+//             const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
+//             const referenceField = destinationSchemaNode?.data?.config?.reference_field || '';
 
-            // Collect all data to be exported, organized by schema
-            const exportDataBySchema = {};
-            let allMappedData = {};
+//             // Collect all data to be exported, organized by schema
+//             const exportDataBySchema = {};
+//             let allMappedData = {};
 
-            // Process each schema's selected fields
-            for (const [schemaType, fieldNames] of Object.entries(selectedFieldsConfig)) {
-              if (!Array.isArray(fieldNames) || fieldNames.length === 0) continue;
+//             // Process each schema's selected fields
+//             for (const [schemaType, fieldNames] of Object.entries(selectedFieldsConfig)) {
+//               if (!Array.isArray(fieldNames) || fieldNames.length === 0) continue;
 
-              console.log(`\n[${schemaType.toUpperCase()}]`);
+//               console.log(`\n[${schemaType.toUpperCase()}]`);
 
-              let schemaData = null;
+//               let schemaData = null;
 
-              // Fetch data based on schema type
-              if (schemaType === 'vehicle') {
-                // Use the triggered vehicle data directly
-                schemaData = vehicleData;
-              } else {
-                // Fetch related schema data using reference field
-                try {
-                  const modelName = schemaType
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join('');
+//               // Fetch data based on schema type
+//               if (schemaType === 'vehicle') {
+//                 // Use the triggered vehicle data directly
+//                 schemaData = vehicleData;
+//               } else {
+//                 // Fetch related schema data using reference field
+//                 try {
+//                   const modelName = schemaType
+//                     .split('_')
+//                     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+//                     .join('');
 
-                  let SchemaModel;
-                  try {
-                    SchemaModel = require(`../models/${modelName}`);
-                  } catch (error) {
-                    console.log(`  Model "${modelName}" not found - skipping schema`);
-                    continue;
-                  }
+//                   let SchemaModel;
+//                   try {
+//                     SchemaModel = require(`../models/${modelName}`);
+//                   } catch (error) {
+//                     console.log(`  Model "${modelName}" not found - skipping schema`);
+//                     continue;
+//                   }
 
-                  // Build query using reference field
-                  let query = { company_id: companyId };
-                  if (referenceField) {
-                    const referenceValue = getNestedFieldValue(vehicleData, referenceField);
-                    if (referenceValue) {
-                      query[referenceField] = referenceValue;
-                    }
-                  }
+//                   // Build query using reference field
+//                   let query = { company_id: companyId };
+//                   if (referenceField) {
+//                     const referenceValue = getNestedFieldValue(vehicleData, referenceField);
+//                     if (referenceValue) {
+//                       query[referenceField] = referenceValue;
+//                     }
+//                   }
 
-                  schemaData = await SchemaModel.findOne(query).lean();
+//                   schemaData = await SchemaModel.findOne(query).lean();
 
-                  if (!schemaData) {
-                    console.log(`  No data found for this schema`);
-                    continue;
-                  }
-                } catch (error) {
-                  console.log(`  Error fetching data: ${error.message}`);
-                  continue;
-                }
-              }
+//                   if (!schemaData) {
+//                     console.log(`  No data found for this schema`);
+//                     continue;
+//                   }
+//                 } catch (error) {
+//                   console.log(`  Error fetching data: ${error.message}`);
+//                   continue;
+//                 }
+//               }
 
-              // Extract and display selected fields for this schema
-              const schemaExportData = {};
-              fieldNames.forEach(fieldName => {
-                const fieldValue = getNestedFieldValue(schemaData, fieldName);
-                if (fieldValue !== undefined) {
-                  schemaExportData[fieldName] = fieldValue;
-                  console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
-                }
-              });
+//               // Extract and display selected fields for this schema
+//               const schemaExportData = {};
+//               fieldNames.forEach(fieldName => {
+//                 const fieldValue = getNestedFieldValue(schemaData, fieldName);
+//                 if (fieldValue !== undefined) {
+//                   schemaExportData[fieldName] = fieldValue;
+//                   console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
+//                 }
+//               });
 
-              exportDataBySchema[schemaType] = schemaExportData;
+//               exportDataBySchema[schemaType] = schemaExportData;
 
-              // Merge into allMappedData for API call
-              Object.assign(allMappedData, schemaExportData);
-            }
+//               // Merge into allMappedData for API call
+//               Object.assign(allMappedData, schemaExportData);
+//             }
 
-            console.log('\n========================================');
+//             console.log('\n========================================');
 
-            // Find the Data Mapping node to apply field mappings
-            const dataMappingNode = workflow.flow_data?.nodes?.find(node => node.type === 'dataMappingNode');
-            let finalMappedData = {};
+//             // Find the Data Mapping node to apply field mappings
+//             const dataMappingNode = workflow.flow_data?.nodes?.find(node => node.type === 'dataMappingNode');
+//             let finalMappedData = {};
 
-            if (dataMappingNode && dataMappingNode.data?.config?.mappings && dataMappingNode.data.config.mappings.length > 0) {
-              const mappings = dataMappingNode.data.config.mappings;
+//             if (dataMappingNode && dataMappingNode.data?.config?.mappings && dataMappingNode.data.config.mappings.length > 0) {
+//               const mappings = dataMappingNode.data.config.mappings;
 
-              // Apply mappings to transform internal field names to external field names
-              for (const [fieldName, fieldValue] of Object.entries(allMappedData)) {
-                const mapping = mappings.find(m => m.target_field === fieldName);
-                if (mapping && mapping.source_field) {
-                  finalMappedData[mapping.source_field] = fieldValue;
-                } else {
-                  finalMappedData[fieldName] = fieldValue;
-                }
-              }
-            } else {
-              finalMappedData = allMappedData;
-            }
+//               // Apply mappings to transform internal field names to external field names
+//               for (const [fieldName, fieldValue] of Object.entries(allMappedData)) {
+//                 const mapping = mappings.find(m => m.target_field === fieldName);
+//                 if (mapping && mapping.source_field) {
+//                   finalMappedData[mapping.source_field] = fieldValue;
+//                 } else {
+//                   finalMappedData[fieldName] = fieldValue;
+//                 }
+//               }
+//             } else {
+//               finalMappedData = allMappedData;
+//             }
 
-            // Find the Authentication node to get API endpoint
-            const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
+//             // Find the Authentication node to get API endpoint
+//             const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
 
-            if (authNode && authNode.data?.config?.api_endpoint) {
-              const authConfig = authNode.data.config;
+//             if (authNode && authNode.data?.config?.api_endpoint) {
+//               const authConfig = authNode.data.config;
 
-              if (authConfig.api_endpoint) {
-                try {
-                  // Create execution log for Vehicle Outbound workflow
-                  const WorkflowExecution = require('../models/WorkflowExecution');
-                  const workflowExecutionLog = new WorkflowExecution({
-                    workflow_id: workflow._id,
-                    company_id: workflow.company_id,
-                    execution_started_at: new Date(),
-                    request_payload: finalMappedData,
-                    total_vehicles: 1,
-                    successful_vehicles: 0,
-                    failed_vehicles: 0,
-                    vehicle_results: [],
-                    database_changes: {
-                      vehicles_created: 0,
-                      vehicles_updated: 0,
-                      created_vehicle_ids: [],
-                      updated_vehicle_ids: [],
-                    },
-                    authentication_used: authConfig.enable_authentication ? authConfig.type : 'none',
-                    authentication_passed: true,
-                  });
+//               if (authConfig.api_endpoint) {
+//                 try {
+//                   // Create execution log for Vehicle Outbound workflow
+//                   const WorkflowExecution = require('../models/WorkflowExecution');
+//                   const workflowExecutionLog = new WorkflowExecution({
+//                     workflow_id: workflow._id,
+//                     company_id: workflow.company_id,
+//                     execution_started_at: new Date(),
+//                     request_payload: finalMappedData,
+//                     total_vehicles: 1,
+//                     successful_vehicles: 0,
+//                     failed_vehicles: 0,
+//                     vehicle_results: [],
+//                     database_changes: {
+//                       vehicles_created: 0,
+//                       vehicles_updated: 0,
+//                       created_vehicle_ids: [],
+//                       updated_vehicle_ids: [],
+//                     },
+//                     authentication_used: authConfig.enable_authentication ? authConfig.type : 'none',
+//                     authentication_passed: true,
+//                   });
 
-                  await makeOutboundAPICall(authConfig, finalMappedData, workflow, vehicleData, workflowExecutionLog);
-                } catch (apiError) {
-                  console.error('Error making outbound API call:', apiError);
-                }
-              }
-            }
+//                   await makeOutboundAPICall(authConfig, finalMappedData, workflow, vehicleData, workflowExecutionLog);
+//                 } catch (apiError) {
+//                   console.error('Error making outbound API call:', apiError);
+//                 }
+//               }
+//             }
 
-          } else if (Array.isArray(selectedFieldsConfig) && selectedFieldsConfig.length > 0) {
-            // OLD FORMAT: Simple array of field names (backward compatibility)
-            const selectedFields = selectedFieldsConfig;
+//           } else if (Array.isArray(selectedFieldsConfig) && selectedFieldsConfig.length > 0) {
+//             // OLD FORMAT: Simple array of field names (backward compatibility)
+//             const selectedFields = selectedFieldsConfig;
 
-            // Filter vehicle data to only include selected fields
-            const filteredVehicleData = {};
-            selectedFields.forEach(fieldName => {
-              const fieldValue = getNestedFieldValue(vehicleData, fieldName);
-              if (fieldValue !== undefined) {
-                filteredVehicleData[fieldName] = fieldValue;
-              }
-            });
+//             // Filter vehicle data to only include selected fields
+//             const filteredVehicleData = {};
+//             selectedFields.forEach(fieldName => {
+//               const fieldValue = getNestedFieldValue(vehicleData, fieldName);
+//               if (fieldValue !== undefined) {
+//                 filteredVehicleData[fieldName] = fieldValue;
+//               }
+//             });
 
-            // Console log the selected fields
-            console.log('\nExport Fields Configuration (Selected Fields):');
-            console.log('========================================');
-            console.log('[VEHICLE]');
-            for (const [fieldName, fieldValue] of Object.entries(filteredVehicleData)) {
-              console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
-            }
-            console.log('========================================\n');
+//             // Console log the selected fields
+//             console.log('\nExport Fields Configuration (Selected Fields):');
+//             console.log('========================================');
+//             console.log('[VEHICLE]');
+//             for (const [fieldName, fieldValue] of Object.entries(filteredVehicleData)) {
+//               console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
+//             }
+//             console.log('========================================\n');
 
-            // Find the Data Mapping node to get field mappings
-            const dataMappingNode = workflow.flow_data?.nodes?.find(node => node.type === 'dataMappingNode');
-            let mappedVehicleData = {};
+//             // Find the Data Mapping node to get field mappings
+//             const dataMappingNode = workflow.flow_data?.nodes?.find(node => node.type === 'dataMappingNode');
+//             let mappedVehicleData = {};
 
-            if (dataMappingNode && dataMappingNode.data?.config?.mappings && dataMappingNode.data.config.mappings.length > 0) {
-              const mappings = dataMappingNode.data.config.mappings;
+//             if (dataMappingNode && dataMappingNode.data?.config?.mappings && dataMappingNode.data.config.mappings.length > 0) {
+//               const mappings = dataMappingNode.data.config.mappings;
 
-              selectedFields.forEach(fieldName => {
-                const fieldValue = getNestedFieldValue(vehicleData, fieldName);
-                if (fieldValue !== undefined) {
-                  const mapping = mappings.find(m => m.target_field === fieldName);
-                  if (mapping && mapping.source_field) {
-                    mappedVehicleData[mapping.source_field] = fieldValue;
-                  } else {
-                    mappedVehicleData[fieldName] = fieldValue;
-                  }
-                }
-              });
-            } else {
-              mappedVehicleData = filteredVehicleData;
-            }
+//               selectedFields.forEach(fieldName => {
+//                 const fieldValue = getNestedFieldValue(vehicleData, fieldName);
+//                 if (fieldValue !== undefined) {
+//                   const mapping = mappings.find(m => m.target_field === fieldName);
+//                   if (mapping && mapping.source_field) {
+//                     mappedVehicleData[mapping.source_field] = fieldValue;
+//                   } else {
+//                     mappedVehicleData[fieldName] = fieldValue;
+//                   }
+//                 }
+//               });
+//             } else {
+//               mappedVehicleData = filteredVehicleData;
+//             }
 
-            // Find the Authentication node to get API endpoint
-            const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
+//             // Find the Authentication node to get API endpoint
+//             const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
 
-            if (authNode && authNode.data?.config?.api_endpoint) {
-              const authConfig = authNode.data.config;
+//             if (authNode && authNode.data?.config?.api_endpoint) {
+//               const authConfig = authNode.data.config;
 
-              if (authConfig.api_endpoint) {
-                try {
-                  // Create execution log for Vehicle Outbound workflow
-                  const WorkflowExecution = require('../models/WorkflowExecution');
-                  const workflowExecutionLog = new WorkflowExecution({
-                    workflow_id: workflow._id,
-                    company_id: workflow.company_id,
-                    execution_started_at: new Date(),
-                    request_payload: mappedVehicleData,
-                    total_vehicles: 1,
-                    successful_vehicles: 0,
-                    failed_vehicles: 0,
-                    vehicle_results: [],
-                    database_changes: {
-                      vehicles_created: 0,
-                      vehicles_updated: 0,
-                      created_vehicle_ids: [],
-                      updated_vehicle_ids: [],
-                    },
-                    authentication_used: authConfig.enable_authentication ? authConfig.type : 'none',
-                    authentication_passed: true,
-                  });
+//               if (authConfig.api_endpoint) {
+//                 try {
+//                   // Create execution log for Vehicle Outbound workflow
+//                   const WorkflowExecution = require('../models/WorkflowExecution');
+//                   const workflowExecutionLog = new WorkflowExecution({
+//                     workflow_id: workflow._id,
+//                     company_id: workflow.company_id,
+//                     execution_started_at: new Date(),
+//                     request_payload: mappedVehicleData,
+//                     total_vehicles: 1,
+//                     successful_vehicles: 0,
+//                     failed_vehicles: 0,
+//                     vehicle_results: [],
+//                     database_changes: {
+//                       vehicles_created: 0,
+//                       vehicles_updated: 0,
+//                       created_vehicle_ids: [],
+//                       updated_vehicle_ids: [],
+//                     },
+//                     authentication_used: authConfig.enable_authentication ? authConfig.type : 'none',
+//                     authentication_passed: true,
+//                   });
 
-                  await makeOutboundAPICall(authConfig, mappedVehicleData, workflow, vehicleData, workflowExecutionLog);
-                } catch (apiError) {
-                  console.error('Error making outbound API call:', apiError);
-                }
-              }
-            }
-          } else {
-            // No fields selected
-            console.log('\nNo export fields configured');
-          }
-        } else {
-          // Fallback: if no Export Fields configuration found, log basic info
-          console.log('\nNo Export Fields node configured');
-          console.log('Vehicle Details:');
-          console.log({
-            vehicle_stock_id: vehicleData.vehicle_stock_id || 'N/A',
-            make: vehicleData.make || 'N/A',
-            model: vehicleData.model || 'N/A'
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error checking outbound workflow triggers:', error);
-  }
-};
+//                   await makeOutboundAPICall(authConfig, mappedVehicleData, workflow, vehicleData, workflowExecutionLog);
+//                 } catch (apiError) {
+//                   console.error('Error making outbound API call:', apiError);
+//                 }
+//               }
+//             }
+//           } else {
+//             // No fields selected
+//             console.log('\nNo export fields configured');
+//           }
+//         } else {
+//           // Fallback: if no Export Fields configuration found, log basic info
+//           console.log('\nNo Export Fields node configured');
+//           console.log('Vehicle Details:');
+//           console.log({
+//             vehicle_stock_id: vehicleData.vehicle_stock_id || 'N/A',
+//             make: vehicleData.make || 'N/A',
+//             model: vehicleData.model || 'N/A'
+//           });
+//         }
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Error checking outbound workflow triggers:', error);
+//   }
+// };
 
 // Helper function to make outbound API calls
 const makeOutboundAPICall = async (authConfig, mappedData, workflow, vehicleData, workflowExecutionLog) => {
@@ -2155,6 +2184,7 @@ module.exports = {
   processVehicleInboundWorkflow,
   validateVehicleInboundConfig,
   validateVehicleOutboundConfig,
-  checkAndTriggerOutboundWorkflows,
+  // checkAndTriggerOutboundWorkflows,
   updateWorkflowExecutionStats,
+  sendOutboundWorkflowEmail,
 };

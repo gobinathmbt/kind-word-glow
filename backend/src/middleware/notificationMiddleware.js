@@ -3,6 +3,21 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { getNotificationSocketIO } = require('../controllers/socket.controller');
 
+// Cache to track recent notifications and prevent duplicates
+// Key format: "configId:userId:entityId"
+const recentNotificationsCache = new Map();
+const NOTIFICATION_DEBOUNCE_MS = 5000; // 5 seconds debounce window
+
+// Cleanup old cache entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of recentNotificationsCache.entries()) {
+    if (now - timestamp > NOTIFICATION_DEBOUNCE_MS) {
+      recentNotificationsCache.delete(key);
+    }
+  }
+}, 10000); // Cleanup every 10 seconds
+
 // Global notification middleware
 const notificationMiddleware = async (req, res, next) => {
   // Store original json method
@@ -159,6 +174,42 @@ const getNestedFieldValue = (obj, fieldPath) => {
   }, obj);
 };
 
+// Get nested field value with array support (for notification messages)
+const getNestedFieldValueWithArraySupport = (obj, fieldPath) => {
+  const keys = fieldPath.split('.');
+  let current = obj;
+  
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    
+    // If current value is an array, get the first element
+    if (Array.isArray(current)) {
+      current = current[0];
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+    }
+    
+    // Access the property
+    if (current[key] !== undefined) {
+      current = current[key];
+    } else {
+      return undefined;
+    }
+  }
+  
+  // If final result is an array, get the first element
+  if (Array.isArray(current) && current.length > 0) {
+    current = current[0];
+  }
+  
+  return current;
+};
+
 // Evaluate single condition
 const evaluateCondition = (fieldValue, operator, expectedValue) => {
   switch (operator) {
@@ -237,6 +288,21 @@ const getTargetUsers = async (config, companyId) => {
 // Create notification for a specific user
 const createNotificationForUser = async (config, user, req, responseData) => {
   try {
+    const entityId = responseData.data._id || responseData.data.id;
+    
+    // Create a unique cache key for this notification
+    const cacheKey = `${config._id}:${user._id}:${entityId}`;
+    const now = Date.now();
+    
+    // Check if we recently created this notification
+    const lastNotificationTime = recentNotificationsCache.get(cacheKey);
+    if (lastNotificationTime && (now - lastNotificationTime) < NOTIFICATION_DEBOUNCE_MS) {
+      return;
+    }
+    
+    // Update cache with current timestamp
+    recentNotificationsCache.set(cacheKey, now);
+    
     // Build notification message with variables
     const title = replaceMessageVariables(config.message_template.title, responseData.data, user, req);
     const message = replaceMessageVariables(config.message_template.body, responseData.data, user, req);
@@ -253,7 +319,7 @@ const createNotificationForUser = async (config, user, req, responseData) => {
       category: 'system',
       source_entity: {
         entity_type: config.target_schema,
-        entity_id: responseData.data._id || responseData.data.id,
+        entity_id: entityId,
         entity_data: responseData.data
       },
       action_url: config.message_template.action_url,
@@ -330,11 +396,11 @@ const replaceMessageVariables = (template, data, user, req) => {
           }
           message = message.replace(match, dealershipName);
         } else {
-          // Regular nested field replacement
-          const value = getNestedFieldValue(data, fieldPath);
-          if (value !== undefined) {
-            message = message.replace(match, value);
-          }
+          // Regular nested field replacement with array handling
+          const value = getNestedFieldValueWithArraySupport(data, fieldPath);
+          // Replace with actual value or 'N/A' if undefined/null
+          const displayValue = (value !== undefined && value !== null && value !== '') ? value : 'N/A';
+          message = message.replace(match, displayValue);
         }
       });
     }

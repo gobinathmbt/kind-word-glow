@@ -1,7 +1,6 @@
 const Vehicle = require("../models/Vehicle");
 const Dealership = require("../models/Dealership");
 const { logEvent } = require("./logs.controller");
-const { checkAndTriggerOutboundWorkflows } = require("./workflow.controller");
 const {
   processSingleVehicle,
   processBulkVehicles,
@@ -353,9 +352,6 @@ const createVehicleStock = async (req, res) => {
     const newVehicle = new Vehicle(vehicleData);
     await newVehicle.save();
 
-    // Check and trigger outbound workflows after vehicle creation
-    await checkAndTriggerOutboundWorkflows(newVehicle.toObject(), req.user.company_id);
-
     // Log the event
     await logEvent({
       event_type: "vehicle_operation",
@@ -499,9 +495,6 @@ const updateVehicle = async (req, res) => {
 
     // Save the updated vehicle
     await vehicle.save();
-
-    // Check and trigger outbound workflows after vehicle update
-    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
 
     res.status(200).json({
       success: true,
@@ -837,9 +830,6 @@ const updateVehicleOverview = async (req, res) => {
       });
     }
 
-    // Check and trigger outbound workflows after vehicle update
-    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
-
     res.status(200).json({
       success: true,
       data: vehicle,
@@ -870,9 +860,6 @@ const updateVehicleGeneralInfo = async (req, res) => {
         message: "Vehicle not found",
       });
     }
-
-    // Check and trigger outbound workflows after vehicle update
-    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
 
     res.status(200).json({
       success: true,
@@ -1028,9 +1015,6 @@ const updateVehicleSpecifications = async (req, res) => {
         message: "Vehicle not found",
       });
     }
-
-    // Check and trigger outbound workflows after vehicle update
-    await checkAndTriggerOutboundWorkflows(vehicle.toObject(), req.user.company_id);
 
     res.status(200).json({
       success: true,
