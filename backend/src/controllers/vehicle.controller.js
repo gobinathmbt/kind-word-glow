@@ -17,7 +17,7 @@ const {
 // @access  Private (Company Admin/Super Admin)
 const getVehicleStock = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, vehicle_type, status } = req.query;
+    const { page = 1, limit = 20, search, vehicle_type, status, dealership } = req.query;
 
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -41,6 +41,11 @@ const getVehicleStock = async (req, res) => {
       filter.dealership_id = { $in: dealershipObjectIds };
     }
 
+    // Apply dealership filter if specified
+    if (dealership && dealership !== 'all') {
+      filter.dealership_id = dealership;
+    }
+
     if (vehicle_type) {
       filter.vehicle_type = vehicle_type;
     }
@@ -49,11 +54,25 @@ const getVehicleStock = async (req, res) => {
       filter.status = status;
     }
 
-    // Use text search if available
     if (search) {
-      if (search.trim().length > 0) {
-        filter.$text = { $search: search };
+      filter.$and = filter.$and || [];
+      
+      // Build search conditions
+      const searchConditions = [
+        { make: { $regex: search, $options: "i" } },
+        { model: { $regex: search, $options: "i" } },
+        { variant: { $regex: search, $options: "i" } },
+        { plate_no: { $regex: search, $options: "i" } },
+        { vin: { $regex: search, $options: "i" } },
+      ];
+      
+      // Only add vehicle_stock_id and year search if the search term is numeric
+      if (!isNaN(search) && search.trim() !== '') {
+        searchConditions.push({ vehicle_stock_id: parseInt(search) });
+        searchConditions.push({ year: parseInt(search) });
       }
+      
+      filter.$and.push({ $or: searchConditions });
     }
 
     // Define the projection to include necessary fields for inspection vehicles
