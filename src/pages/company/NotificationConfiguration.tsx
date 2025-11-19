@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Users, Database, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Download, Eye, MoreHorizontal } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Database, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Download, Eye, MoreHorizontal, X, Search } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import DataTableLayout from '@/components/common/DataTableLayout';
 import EnhancedNotificationConfigForm from '@/components/notifications/EnhancedNotificationConfigForm';
@@ -80,10 +80,12 @@ const NotificationConfiguration: React.FC = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [configToDelete, setConfigToDelete] = useState<any>(null);
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   // Permissions
   const canRefresh = hasPermission(completeUser, 'notification_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'notification_search_filter');
+  const canSearch = hasPermission(completeUser, 'notification_search');
+  const canFilter = hasPermission(completeUser, 'notification_filter');
   const canAdd = hasPermission(completeUser, 'notification_add');
   const canToggleStatus = hasPermission(completeUser, 'notification_toggle_status');
   const canEdit = hasPermission(completeUser, 'notification_edit');
@@ -103,6 +105,7 @@ const NotificationConfiguration: React.FC = () => {
 
         if (searchTerm) params.search = searchTerm;
         if (statusFilter !== 'all') params.status = statusFilter;
+        if (priorityFilter !== 'all') params.priority = priorityFilter;
 
         const response = await notificationConfigServices.getNotificationConfigurations(params);
         const configurations = response.data?.data?.configurations || [];
@@ -127,8 +130,8 @@ const NotificationConfiguration: React.FC = () => {
 
   const { data: configurationsData, isLoading: loadingConfigurations, refetch } = useQuery({
     queryKey: paginationEnabled
-      ? ['notification-configurations-paginated', page, searchTerm, statusFilter, rowsPerPage]
-      : ['notification-configurations-all', searchTerm, statusFilter],
+      ? ['notification-configurations-paginated', page, searchTerm, statusFilter, priorityFilter, rowsPerPage]
+      : ['notification-configurations-all', searchTerm, statusFilter, priorityFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllConfigurations();
@@ -141,6 +144,7 @@ const NotificationConfiguration: React.FC = () => {
 
       if (searchTerm) params.search = searchTerm;
       if (statusFilter !== 'all') params.status = statusFilter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
 
       const response = await notificationConfigServices.getNotificationConfigurations(params);
       return {
@@ -322,6 +326,7 @@ const NotificationConfiguration: React.FC = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
+    setPriorityFilter('all');
     setPage(1);
     refetch();
   };
@@ -364,10 +369,76 @@ const NotificationConfiguration: React.FC = () => {
     },
   ];
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  // Handle filter change
+  const handleFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+    refetch();
+  };
+
   const actionButtons = [
-    ...(canSearchFilter ? [{
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search by name, schema, trigger..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-64 lg:w-80 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
+      tooltip: "Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     }] : []),
@@ -625,32 +696,34 @@ const NotificationConfiguration: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Filter Dialog */}
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5" />
-              Search & Filters
-            </DialogTitle>
-            <DialogDescription>
-              Filter notification configurations by various criteria
-            </DialogDescription>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <Input
-                id="search"
-                placeholder="Search configurations by name or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <Label htmlFor="priority-filter">Filter by Priority</Label>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger id="priority-filter">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status-filter">Filter by Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
@@ -659,22 +732,31 @@ const NotificationConfiguration: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2 pt-4">
-              <Button 
-                onClick={() => {
-                  setIsFilterDialogOpen(false);
-                  refetch();
-                }} 
-                className="flex-1"
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={loadingConfigurations}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
               >
-                Apply Filters
+                Cancel
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleClearFilters} 
-                className="flex-1"
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={loadingConfigurations}
               >
-                Clear All
+                {loadingConfigurations ? "Applying..." : "Apply Filters"}
               </Button>
             </div>
           </div>

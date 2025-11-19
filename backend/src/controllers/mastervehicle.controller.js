@@ -6,7 +6,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getMasterVehicles = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, search } = req.query;
+    const { page = 1, limit = 20, status, search, dealership } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
     const numericPage = parseInt(page);
@@ -25,14 +25,34 @@ const getMasterVehicles = async (req, res) => {
       filter.dealership_id = { $in: dealershipObjectIds };
     }
 
+    // Apply dealership filter if specified
+    if (dealership && dealership !== 'all') {
+      filter.dealership_id = dealership;
+    }
+
     if (status && status !== "all") {
       filter.status = status;
     }
 
     if (search) {
-      if (search.trim().length > 0) {
-        filter.$text = { $search: search };
+      filter.$and = filter.$and || [];
+      
+      // Build search conditions
+      const searchConditions = [
+        { make: { $regex: search, $options: "i" } },
+        { model: { $regex: search, $options: "i" } },
+        { variant: { $regex: search, $options: "i" } },
+        { plate_no: { $regex: search, $options: "i" } },
+        { vin: { $regex: search, $options: "i" } },
+      ];
+      
+      // Only add vehicle_stock_id and year search if the search term is numeric
+      if (!isNaN(search) && search.trim() !== '') {
+        searchConditions.push({ vehicle_stock_id: parseInt(search) });
+        searchConditions.push({ year: parseInt(search) });
       }
+      
+      filter.$and.push({ $or: searchConditions });
     }
 
     // Define the projection to include necessary fields including VIN, mileage, license expiry

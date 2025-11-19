@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Download,
   Car,
@@ -10,7 +19,9 @@ import {
   ArrowDown,
   SlidersHorizontal,
   RefreshCw,
-} from "lucide-react"; // Remove Calculator import
+  X,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -26,6 +37,7 @@ import { formatApiNames } from "@/utils/GlobalUtils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,6 +57,8 @@ interface StatChip {
 const VehiclePricingList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dealershipFilter, setDealershipFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -57,7 +71,8 @@ const VehiclePricingList = () => {
 
   const { completeUser } = useAuth();
   const canRefresh = hasPermission(completeUser, 'vehicle_pricing_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'vehicle_pricing_search_filter');
+  const canSearch = hasPermission(completeUser, 'vehicle_pricing_search');
+  const canFilter = hasPermission(completeUser, 'vehicle_pricing_filter');
 
   const { data: dealerships } = useQuery({
     queryKey: ["dealerships-dropdown", completeUser?.is_primary_admin],
@@ -93,6 +108,8 @@ const VehiclePricingList = () => {
 
         if (searchTerm) params.append("search", searchTerm);
         if (statusFilter !== "all") params.append("status", statusFilter);
+        if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
+        if (typeFilter !== "all") params.append("vehicle_type", typeFilter);
 
         const response = await commonVehicleServices.getPricingReadyVehicles({
           ...Object.fromEntries(params),
@@ -122,8 +139,8 @@ const VehiclePricingList = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["pricing-ready-vehicles", page, searchTerm, statusFilter, rowsPerPage]
-      : ["all-pricing-ready-vehicles", searchTerm, statusFilter],
+      ? ["pricing-ready-vehicles", page, searchTerm, statusFilter, dealershipFilter, typeFilter, rowsPerPage]
+      : ["all-pricing-ready-vehicles", searchTerm, statusFilter, dealershipFilter, typeFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllVehicles();
@@ -136,6 +153,8 @@ const VehiclePricingList = () => {
 
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter !== "all") params.append("status", statusFilter);
+      if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
+      if (typeFilter !== "all") params.append("vehicle_type", typeFilter);
 
       const response = await commonVehicleServices.getPricingReadyVehicles({
         ...Object.fromEntries(params),
@@ -310,22 +329,81 @@ const VehiclePricingList = () => {
 
   const visibleStatChips = allStatChips.slice(0, 4);
 
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setDealershipFilter("all");
+    setTypeFilter("all");
+    setPage(1);
+    refetch();
+  };
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
   // Prepare action buttons
   const actionButtons = [
-    ...(canSearchFilter ? [{
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
+      tooltip: "Filters",
       onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     }] : []),
    
-  ];
-
-  const STATUS_FILTER_OPTIONS = [
-    { value: "all", label: "All" },
-    { value: "pending", label: "Pending" },
-    { value: "processing", label: "Processing" },
-    { value: "completed", label: "Completed" },
   ];
 
   // Render table header - Remove Actions column
@@ -560,6 +638,92 @@ const VehiclePricingList = () => {
       />
 
       {/* Remove CostCalculationDialog component */}
+
+      {/* Filter Dialog */}
+      <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Filter by Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {Object.keys(statusCounts).map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {formatApiNames(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type-filter">Filter by Type</Label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger id="type-filter">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="inspection">Inspection</SelectItem>
+                  <SelectItem value="tradein">Trade-in</SelectItem>
+                  <SelectItem value="master">Master</SelectItem>
+                  <SelectItem value="advertisement">Advertisement</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dealership-filter">Filter by Dealership</Label>
+              <Select value={dealershipFilter} onValueChange={setDealershipFilter}>
+                <SelectTrigger id="dealership-filter">
+                  <SelectValue placeholder="Select dealership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dealerships</SelectItem>
+                  {dealerships?.map((dealership: any) => (
+                    <SelectItem key={dealership._id} value={dealership._id}>
+                      {formatApiNames(dealership.dealership_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAllStatusChips} onOpenChange={setShowAllStatusChips}>
         <DialogContent className="max-w-2xl">

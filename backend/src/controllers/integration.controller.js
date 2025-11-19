@@ -6,7 +6,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getIntegrations = async (req, res) => {
   try {
-    const { page = 1, limit = 20, integration_type, is_active } = req.query;
+    const { page = 1, limit = 20, integration_type, is_active, search, status } = req.query;
 
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -20,8 +20,24 @@ const getIntegrations = async (req, res) => {
       filter.integration_type = integration_type;
     }
 
+    // Handle status filter (separate from search)
+    if (status && status !== 'all') {
+      filter.is_active = status === 'active';
+    }
+
+    // Legacy support for is_active parameter
     if (is_active !== undefined) {
       filter.is_active = is_active === "true";
+    }
+
+    // Handle search - search by integration name and type
+    if (search && search.trim().length > 0) {
+      const searchTerm = search.trim();
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      filter.$or = [
+        { display_name: searchRegex },
+        { integration_type: searchRegex }
+      ];
     }
 
     // Fetch integrations with pagination
