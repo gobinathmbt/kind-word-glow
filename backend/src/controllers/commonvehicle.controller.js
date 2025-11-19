@@ -218,7 +218,8 @@ const getPricingReadyVehicles = async (req, res) => {
       limit = 20,
       search,
       status,
-      dealership_id,
+      dealership,
+      vehicle_type,
     } = req.query;
 
     const skip = (page - 1) * limit;
@@ -243,17 +244,39 @@ const getPricingReadyVehicles = async (req, res) => {
       filter.dealership_id = { $in: dealershipObjectIds };
     }
 
-    if (dealership_id && dealership_id !== "all") {
-      filter.dealership_id = dealership_id;
+    // Apply dealership filter if specified
+    if (dealership && dealership !== "all") {
+      filter.dealership_id = dealership;
     }
 
     if (status && status !== "all") {
       filter.status = status;
     }
 
-    // Text search
-    if (search && search.trim().length > 0) {
-      filter.$text = { $search: search };
+    // Apply vehicle type filter if specified
+    if (vehicle_type && vehicle_type !== "all") {
+      filter.vehicle_type = vehicle_type;
+    }
+
+    if (search) {
+      filter.$and = filter.$and || [];
+      
+      // Build search conditions
+      const searchConditions = [
+        { make: { $regex: search, $options: "i" } },
+        { model: { $regex: search, $options: "i" } },
+        { variant: { $regex: search, $options: "i" } },
+        { plate_no: { $regex: search, $options: "i" } },
+        { vin: { $regex: search, $options: "i" } },
+      ];
+      
+      // Only add vehicle_stock_id and year search if the search term is numeric
+      if (!isNaN(search) && search.trim() !== '') {
+        searchConditions.push({ vehicle_stock_id: parseInt(search) });
+        searchConditions.push({ year: parseInt(search) });
+      }
+      
+      filter.$and.push({ $or: searchConditions });
     }
 
     // Define fields to return - updated to match tradein structure
