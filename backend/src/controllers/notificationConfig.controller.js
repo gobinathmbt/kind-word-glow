@@ -8,22 +8,31 @@ const mongoose = require("mongoose");
 const getNotificationConfigurations = async (req, res) => {
 
   try {
-    const { page = 1, limit = 10, search = '', status = 'all' } = req.query;
+    const { page = 1, limit = 10, search = '', status = 'all', priority = 'all' } = req.query;
     const companyId = req.user.company_id;
 
     // Build query
     const query = { company_id: companyId };
     
-    if (search) {
+    // Handle search - search by name, schema, and trigger
+    if (search && search.trim().length > 0) {
+      const searchTerm = search.trim();
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { target_schema: { $regex: search, $options: 'i' } }
+        { name: searchRegex },
+        { target_schema: searchRegex },
+        { trigger_type: searchRegex }
       ];
     }
 
+    // Handle status filter (separate from search)
     if (status !== 'all') {
       query.is_active = status === 'active';
+    }
+
+    // Handle priority filter (separate from search)
+    if (priority !== 'all') {
+      query.priority = priority;
     }
 
     // Execute query with pagination
