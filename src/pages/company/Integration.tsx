@@ -2,6 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Plus,
   Settings,
@@ -13,6 +29,8 @@ import {
   Download,
   Upload,
   SlidersHorizontal,
+  X,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { companyServices, integrationServices } from "@/api/services";
@@ -47,10 +65,12 @@ const Integration = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddIntegration, setShowAddIntegration] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Permissions
   const canRefresh = hasPermission(completeUser, 'vehicle_integration_refresh');
-  const canSearchFilter = hasPermission(completeUser, 'vehicle_integration_search_filter');
+  const canSearch = hasPermission(completeUser, 'vehicle_integration_search');
+  const canFilter = hasPermission(completeUser, 'vehicle_integration_filter');
   const canAdd = hasPermission(completeUser, 'vehicle_integration_add');
   const canConfigure = hasPermission(completeUser, 'vehicle_integration_configure');
 
@@ -65,6 +85,40 @@ const Integration = () => {
     },
   });
 
+  // Function to fetch all integrations when pagination is disabled
+  const fetchAllIntegrations = async () => {
+    try {
+      let allData = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await integrationServices.getIntegrations({
+          page: currentPage,
+          limit: 100,
+          search: searchTerm,
+          status: statusFilter,
+        });
+
+        allData = [...allData, ...response.data.data];
+
+        if (response.data.data.length < 100) {
+          hasMore = false;
+        } else {
+          currentPage++;
+        }
+      }
+
+      return {
+        data: allData,
+        total: allData.length,
+        pagination: { total_items: allData.length },
+      };
+    } catch (error) {
+      throw error;
+    }
+  };
+
   // Fetch existing integrations
   const {
     data: integrationsData,
@@ -76,20 +130,19 @@ const Integration = () => {
       : ["all-integrations", searchTerm, statusFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
-        // Fetch all data when pagination is disabled
-        const response = await integrationServices.getIntegrations();
-        return {
-          data: response.data.data || [],
-          total: response.data.data?.length || 0,
-          pagination: { total_items: response.data.data?.length || 0 },
-        };
+        return await fetchAllIntegrations();
       }
 
-      const response = await integrationServices.getIntegrations();
+      const response = await integrationServices.getIntegrations({
+        page: page,
+        limit: rowsPerPage,
+        search: searchTerm,
+        status: statusFilter,
+      });
       return {
         data: response.data.data || [],
-        total: response.data.data?.length || 0,
-        pagination: { total_items: response.data.data?.length || 0 },
+        total: response.data.total || 0,
+        pagination: response.data.pagination || { total_items: 0 },
       };
     },
   });
@@ -209,6 +262,26 @@ const Integration = () => {
     refetch();
   };
 
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    setPage(1);
+    refetch();
+  };
+
+  // Handle search clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setPage(1);
+    refetch();
+  };
+
+  // Handle filter change
+  const handleFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+    refetch();
+  };
+
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setPage(1);
@@ -224,6 +297,7 @@ const Integration = () => {
   const activeCount = integrations.filter((i: any) => i.is_active).length;
   const inactiveCount = integrations.filter((i: any) => !i.is_active).length;
   const configuredCount = integrations.length;
+
 
   // Prepare stat chips
   const statChips = [
@@ -261,10 +335,56 @@ const Integration = () => {
 
   // Prepare action buttons
   const actionButtons = [
-    ...(canSearchFilter ? [{
+    // Search Bar Component
+    ...(canSearch
+      ? [
+          {
+            icon: (
+              <div className="relative hidden sm:block">
+                <Input
+                  type="text"
+                  placeholder="Search by name, type..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="h-9 w-48 lg:w-64 pr-20 text-sm"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchClear}
+                      className="h-7 w-7 p-0 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSearchSubmit}
+                    className="h-7 w-7 p-0 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                </div>
+              </div>
+            ),
+            tooltip: "Search",
+            onClick: () => {}, // No-op since the search bar handles its own clicks
+            className: "",
+          },
+        ]
+      : []),
+    ...(canFilter ? [{
       icon: <SlidersHorizontal className="h-4 w-4" />,
-      tooltip: "Search & Filters",
-      onClick: () => toast.info("Filter feature coming soon"),
+      tooltip: "Filters",
+      onClick: () => setIsFilterDialogOpen(true),
       className: "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200",
     }] : []),
    
@@ -476,6 +596,58 @@ const Integration = () => {
           integration={selectedIntegration}
         />
       )}
+
+      {/* Filter Dialog */}
+      <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Filters</DialogTitle>
+            <DialogDescription>Filter by various criteria</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Filter by Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={isLoading}
+            >
+              Clear Filters
+            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                  setIsFilterDialogOpen(false);
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Applying..." : "Apply Filters"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
