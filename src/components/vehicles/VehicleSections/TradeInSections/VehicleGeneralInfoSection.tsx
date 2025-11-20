@@ -296,6 +296,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                             vehicle_type: e.target.value,
                           })
                         }
+                        disabled
                       />
                     </div>
                     <div>
@@ -366,6 +367,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                             purchase_type: e.target.value,
                           })
                         }
+                        disabled
                       />
                     </div>
                     <div>

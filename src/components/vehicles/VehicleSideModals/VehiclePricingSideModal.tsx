@@ -9,18 +9,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, Calculator } from "lucide-react";
+import { Car, Calculator, RefreshCw } from "lucide-react";
 import { commonVehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import VehicleOverviewSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOverviewSection";
 import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleGeneralInfoSection";
 import VehicleSourceSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSourceSection";
 import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleRegistrationSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOdometerSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleAttachmentsSection";
 import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
 import { useAuth } from "@/auth/AuthContext";
@@ -47,6 +45,7 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
   const [isPricingReady, setIsPricingReady] = useState(false);
   const [costCalculationOpen, setCostCalculationOpen] = useState(false);
   const [selectedVehicleForCost, setSelectedVehicleForCost] = useState<any>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const { completeUser } = useAuth();
 
@@ -70,6 +69,19 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
     setSelectedVehicleForCost(null);
     // Refresh data when cost calculation is completed
     onUpdate();
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      // Call onUpdate to refresh all APIs and reload the component
+      await onUpdate();
+      toast.success("Vehicle data refreshed successfully");
+    } catch (error) {
+      toast.error("Failed to refresh vehicle data");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (!vehicle) return null;
@@ -105,17 +117,38 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="sm"
                         variant="outline"
+                        size="icon"
                         onClick={handleCostCalculation}
-                        className="h-9 w-9 p-0 bg-blue-600 hover:bg-blue-700 text-white"
-                        disabled={!vehicle.vehicle_source[0].purchase_type}
+                        className="bg-white hover:bg-white hover:border-blue-500 group"
+                        disabled={!vehicle.vehicle_source[0]?.purchase_type}
                       >
-                        <Calculator className="h-4 w-4" />
+                        <Calculator className="h-4 w-4 text-blue-500 transition-colors" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Pricing Calculation</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                    className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                      >
+                        <RefreshCw 
+                          className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                        />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Refresh Data</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -160,14 +193,12 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleEngineSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleSpecificationsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">
