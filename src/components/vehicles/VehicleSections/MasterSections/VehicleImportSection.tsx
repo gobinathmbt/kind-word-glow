@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { masterVehicleServices } from "@/api/services";
 
 interface VehicleImportSectionProps {
   vehicle: any;
@@ -34,7 +34,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleImport(vehicle._id,vehicle.vehicle_type, {
+      await masterVehicleServices.updateMasterVehicle(vehicle._id, {
         vehicle_import_details: [{
           delivery_port: formData.delivery_port,
           vessel_name: formData.vessel_name,

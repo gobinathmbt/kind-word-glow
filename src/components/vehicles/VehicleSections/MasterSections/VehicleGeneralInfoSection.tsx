@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices, companyServices } from "@/api/services";
+import { masterVehicleServices, companyServices } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
@@ -94,8 +94,8 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      // Update vehicle basic info
-      await vehicleServices.updateVehicle(vehicle._id, vehicle.vehicle_type, {
+      // Update master vehicle with all data in one call
+      await masterVehicleServices.updateMasterVehicle(vehicle._id, {
         make: formData.make,
         model: formData.model,
         variant: formData.variant,
@@ -106,46 +106,30 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
         plate_no: formData.plate_no,
         chassis_no: formData.chassis_no,
         model_no: formData.model_no,
+        vehicle_other_details: [
+          {
+            status: formData.status,
+            trader_acquisition: formData.trader_acquisition,
+            odometer_certified: formData.odometer_certified,
+            odometer_status: formData.odometer_status,
+            purchase_price: formData.purchase_price,
+            exact_expenses: formData.exact_expenses,
+            estimated_expenses: formData.estimated_expenses,
+            gst_inclusive: formData.gst_inclusive,
+            retail_price: formData.retail_price,
+            sold_price: formData.sold_price,
+            included_in_exports: formData.included_in_exports,
+          },
+        ],
+        vehicle_source: [
+          {
+            purchase_date: formData.purchase_date,
+            purchase_type: formData.purchase_type,
+            supplier: formData.supplier,
+            purchase_notes: formData.purchase_notes,
+          },
+        ],
       });
-
-      // Update vehicle other details
-      await vehicleServices.updateVehicleGeneralInfo(
-        vehicle._id,
-        vehicle.vehicle_type,
-        {
-          vehicle_other_details: [
-            {
-              status: formData.status,
-              trader_acquisition: formData.trader_acquisition,
-              odometer_certified: formData.odometer_certified,
-              odometer_status: formData.odometer_status,
-              purchase_price: formData.purchase_price,
-              exact_expenses: formData.exact_expenses,
-              estimated_expenses: formData.estimated_expenses,
-              gst_inclusive: formData.gst_inclusive,
-              retail_price: formData.retail_price,
-              sold_price: formData.sold_price,
-              included_in_exports: formData.included_in_exports,
-            },
-          ],
-        }
-      );
-
-      // Update vehicle source
-      await vehicleServices.updateVehicleSource(
-        vehicle._id,
-        vehicle.vehicle_type,
-        {
-          vehicle_source: [
-            {
-              purchase_date: formData.purchase_date,
-              purchase_type: formData.purchase_type,
-              supplier: formData.supplier,
-              purchase_notes: formData.purchase_notes,
-            },
-          ],
-        }
-      );
 
       toast.success("General information updated successfully");
       setIsEditing(false);
@@ -297,6 +281,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                             vehicle_type: e.target.value,
                           })
                         }
+                        disabled
                       />
                     </div>
                     <div>
@@ -367,6 +352,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                             purchase_type: e.target.value,
                           })
                         }
+                        disabled
                       />
                     </div>
                     <div>

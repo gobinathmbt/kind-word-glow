@@ -181,7 +181,7 @@ export const DealershipManagerButton: React.FC<DealershipManagerButtonProps> = (
               className={`flex items-center gap-2 ${className}`}
               disabled={isLoading}
             >
-              <Users className="h-4 w-4" />
+              <Users className="h-4 w-4 text-purple-500" />
               {size !== "icon" && (
                 isLoading ? (
                   <>

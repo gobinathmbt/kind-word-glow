@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { masterVehicleServices } from "@/api/services";
 
 interface VehicleOwnershipSectionProps {
   vehicle: any;
@@ -28,7 +28,7 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleOwnership(vehicle._id,vehicle.vehicle_type, {
+      await masterVehicleServices.updateMasterVehicle(vehicle._id, {
         vehicle_ownership: {
           origin: formData.origin,
           no_of_previous_owners: formData.no_of_previous_owners,

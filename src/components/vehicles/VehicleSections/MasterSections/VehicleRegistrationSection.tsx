@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { masterVehicleServices } from "@/api/services";
 
 interface VehicleRegistrationSectionProps {
   vehicle: any;
@@ -37,7 +37,7 @@ const VehicleRegistrationSection: React.FC<VehicleRegistrationSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleRegistration(vehicle._id,vehicle.vehicle_type, {
+      await masterVehicleServices.updateMasterVehicle(vehicle._id, {
         vehicle_registration: [{
           registered_in_local: formData.registered_in_local,
           year_first_registered_local: formData.year_first_registered_local,
