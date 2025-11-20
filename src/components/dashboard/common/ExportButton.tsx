@@ -58,21 +58,23 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
           variant="outline"
           size={size}
           disabled={disabled || loading || isExporting}
-          className={cn('gap-2', className)}
+          className={cn('gap-1.5 sm:gap-2 w-full xs:w-auto h-9 text-xs sm:text-sm px-3 sm:px-4', className)}
         >
-          <Download className="h-4 w-4" />
-          {(loading || isExporting) ? 'Exporting...' : 'Export'}
+          <Download className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="truncate">
+            {(loading || isExporting) ? 'Exporting...' : 'Export'}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-48">
         {formats.map((format) => (
           <DropdownMenuItem
             key={format}
             onClick={() => handleExport(format)}
-            className="gap-2"
+            className="gap-2 text-xs sm:text-sm"
           >
             {formatIcons[format]}
-            {formatLabels[format]}
+            <span>{formatLabels[format]}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

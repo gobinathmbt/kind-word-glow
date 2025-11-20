@@ -84,11 +84,11 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
     console.log('Metrics Data:', { inspectionData, tradeinData, masterData, advertisementData });
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <MetricCard
           title="Total Vehicles"
           value={data.summary?.totalVehicles || 0}
-          icon={<Car className="h-5 w-5" />}
+          icon={<Car className="h-4 w-4 sm:h-5 sm:w-5" />}
           subtitle={`${data.summary?.uniqueMakesCount || 0} makes, ${data.summary?.uniqueModelsCount || 0} models`}
         />
         <MetricCard
@@ -205,69 +205,79 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
     }) || [];
 
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-sm font-medium mb-4">Type Distribution</h4>
-            <InteractivePieChart data={typeData} height={300} />
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4">Type Distribution</h4>
+            <div className="w-full overflow-x-auto">
+              <InteractivePieChart data={typeData} height={300} />
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-medium mb-4">Status by Type</h4>
-            <StackedBarChart
-              data={statusByTypeData}
-              xAxisKey="type"
-              series={[
-                { dataKey: 'completed', name: 'Completed', color: '#10b981' },
-                { dataKey: 'available', name: 'Available', color: '#3b82f6' },
-                { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
-                { dataKey: 'sold', name: 'Sold', color: '#8b5cf6' },
-              ]}
-              height={300}
-            />
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4">Status by Type</h4>
+            <div className="w-full overflow-x-auto">
+              <StackedBarChart
+                data={statusByTypeData}
+                xAxisKey="type"
+                series={[
+                  { dataKey: 'completed', name: 'Completed', color: '#10b981' },
+                  { dataKey: 'available', name: 'Available', color: '#3b82f6' },
+                  { dataKey: 'pending', name: 'Pending', color: '#f59e0b' },
+                  { dataKey: 'sold', name: 'Sold', color: '#8b5cf6' },
+                ]}
+                height={300}
+              />
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-sm font-medium mb-4">Monthly Trend</h4>
-            <LineChart
-              data={monthlyTrendData}
-              xAxisKey="month"
-              lines={[
-                { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
-                { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
-                { dataKey: 'master', name: 'Master', color: '#f59e0b' },
-                { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
-              ]}
-              height={300}
-            />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4">Monthly Trend</h4>
+            <div className="w-full overflow-x-auto">
+              <LineChart
+                data={monthlyTrendData}
+                xAxisKey="month"
+                lines={[
+                  { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
+                  { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
+                  { dataKey: 'master', name: 'Master', color: '#f59e0b' },
+                  { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
+                ]}
+                height={300}
+              />
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-medium mb-4">Dealership Comparison</h4>
-            <StackedBarChart
-              data={dealershipComparisonData}
-              xAxisKey="dealership"
-              series={[
-                { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
-                { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
-                { dataKey: 'master', name: 'Master', color: '#f59e0b' },
-                { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
-              ]}
-              height={300}
-            />
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4">Dealership Comparison</h4>
+            <div className="w-full overflow-x-auto">
+              <StackedBarChart
+                data={dealershipComparisonData}
+                xAxisKey="dealership"
+                series={[
+                  { dataKey: 'inspection', name: 'Inspection', color: '#3b82f6' },
+                  { dataKey: 'tradein', name: 'Trade-in', color: '#10b981' },
+                  { dataKey: 'master', name: 'Master', color: '#f59e0b' },
+                  { dataKey: 'advertisement', name: 'Advertisement', color: '#8b5cf6' },
+                ]}
+                height={300}
+              />
+            </div>
           </div>
         </div>
         {heatMapByType.length > 0 && (
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">Activity Heat Map by Type</h4>
+          <div className="space-y-3 sm:space-y-4">
+            <h4 className="text-xs sm:text-sm font-medium">Activity Heat Map by Type</h4>
             {heatMapByType.map((heatMapItem: any) => (
-              <div key={heatMapItem.type}>
+              <div key={heatMapItem.type} className="min-w-0">
                 <h5 className="text-xs font-medium mb-2 capitalize">{heatMapItem.type}</h5>
-                <HeatMap
-                  data={heatMapItem.cells}
-                  xLabels={heatMapItem.xLabels}
-                  yLabels={heatMapItem.yLabels}
-                  height={200}
-                />
+                <div className="w-full overflow-x-auto">
+                  <HeatMap
+                    data={heatMapItem.cells}
+                    xLabels={heatMapItem.xLabels}
+                    yLabels={heatMapItem.yLabels}
+                    height={200}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -306,14 +316,14 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
     <ReportCard
       title="Vehicle Overview by Type"
       subtitle="Type distribution, status, trends, and dealership comparison"
-      icon={<Car className="h-5 w-5" />}
+      icon={<Car className="h-4 w-4 sm:h-5 sm:w-5" />}
       loading={loading}
       error={error}
       viewMode={viewMode}
       onViewModeChange={setViewMode}
       showViewToggle={true}
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-col xs:flex-row gap-2 w-full xs:w-auto">
           {exportEnabled && <ExportButton onExport={handleExport} />}
           <RefreshButton onRefresh={handleRefresh} loading={loading} />
         </div>
