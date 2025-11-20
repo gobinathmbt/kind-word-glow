@@ -1,13 +1,16 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { useQuery } from "@tanstack/react-query";
+import { vehicleServices, companyServices } from "@/api/services";
+import ReactSelect from "react-select";
 
 interface VehicleEngineSectionProps {
   vehicle: any;
@@ -30,7 +33,71 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
     engine_features: engineData.engine_features || [],
   });
 
-  const [newFeature, setNewFeature] = useState("");
+
+
+  // Fetch dropdown values for the four fields
+  const { data: dropdownData, isLoading: isLoadingDropdowns, error: dropdownError } = useQuery({
+    queryKey: ["engine-dropdown-values"],
+    queryFn: async () => {
+      try {
+        const response = await companyServices.getMasterdropdownvalues({
+          dropdown_name: ["engine_type", "transmission_type", "primary_fuel_type", "engine_features"],
+        });
+        console.log("Dropdown API Response:", response.data);
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+        throw error;
+      }
+    },
+  });
+
+  // Extract dropdown options
+  const getDropdownOptions = (dropdownName: string) => {
+    if (isLoadingDropdowns) {
+      console.log(`Loading dropdown options for ${dropdownName}...`);
+      return [];
+    }
+    
+    if (dropdownError) {
+      console.error(`Error loading dropdown ${dropdownName}:`, dropdownError);
+      return [];
+    }
+    
+    if (!dropdownData?.success) {
+      console.log("No dropdown data or unsuccessful response:", dropdownData);
+      return [];
+    }
+    
+    const dropdown = dropdownData.data.find((item: any) => item.dropdown_name === dropdownName);
+    const options = dropdown?.values || [];
+    console.log(`Options for ${dropdownName}:`, options);
+    
+    // Ensure each option has the required fields
+    return options.map((option: any) => ({
+      ...option,
+      _id: option._id || option.option_value,
+      option_value: option.option_value,
+      display_value: option.display_value || option.option_value
+    }));
+  };
+
+  // Convert to react-select format for Engine Features - using display_value as value
+  const engineFeaturesOptions = useMemo(() => {
+    return getDropdownOptions("engine_features")
+      .filter((item: any) => item.is_active !== false && (item.display_value || item.option_value) && (item.display_value?.trim() !== "" || item.option_value?.trim() !== ""))
+      .map((option: any) => ({
+        value: option.display_value || option.option_value,
+        label: option.display_value || option.option_value,
+      }));
+  }, [dropdownData, isLoadingDropdowns, dropdownError]);
+
+  // Get selected values for Engine Features
+  const selectedEngineFeatures = useMemo(() => {
+    return engineFeaturesOptions.filter((option: any) =>
+      formData.engine_features.includes(option.value)
+    );
+  }, [formData.engine_features, engineFeaturesOptions]);
 
   const handleSave = async () => {
     try {
@@ -69,24 +136,6 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
       engine_features: engineData.engine_features || [],
     });
     setIsEditing(false);
-    setNewFeature("");
-  };
-
-  const addFeature = () => {
-    if (newFeature.trim()) {
-      setFormData({
-        ...formData,
-        engine_features: [...formData.engine_features, newFeature.trim()]
-      });
-      setNewFeature("");
-    }
-  };
-
-  const removeFeature = (index: number) => {
-    setFormData({
-      ...formData,
-      engine_features: formData.engine_features.filter((_, i) => i !== index)
-    });
   };
 
   return (
@@ -125,27 +174,90 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                     </div>
                     <div>
                       <Label htmlFor="engine_type">Engine Type</Label>
-                      <Input
-                        id="engine_type"
+                      <Select
                         value={formData.engine_type}
-                        onChange={(e) => setFormData({ ...formData, engine_type: e.target.value })}
-                      />
+                        onValueChange={(value) => {
+                          if (value && value !== "__no_engine_type__") {
+                            setFormData({ ...formData, engine_type: value });
+                          }
+                        }}
+                        disabled={isLoadingDropdowns}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingDropdowns ? "Loading..." : "Select engine type"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDropdownOptions("engine_type").length > 0 ? (
+                            getDropdownOptions("engine_type").map((option: any) => (
+                              <SelectItem key={option._id || option.option_value} value={option.display_value || option.option_value}>
+                                {option.display_value || option.option_value}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="__no_engine_type__" disabled>
+                              {isLoadingDropdowns ? "Loading options..." : "No options available"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="transmission_type">Transmission Type</Label>
-                      <Input
-                        id="transmission_type"
+                      <Select
                         value={formData.transmission_type}
-                        onChange={(e) => setFormData({ ...formData, transmission_type: e.target.value })}
-                      />
+                        onValueChange={(value) => {
+                          if (value && value !== "__no_transmission_type__") {
+                            setFormData({ ...formData, transmission_type: value });
+                          }
+                        }}
+                        disabled={isLoadingDropdowns}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingDropdowns ? "Loading..." : "Select transmission type"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDropdownOptions("transmission_type").length > 0 ? (
+                            getDropdownOptions("transmission_type").map((option: any) => (
+                              <SelectItem key={option._id || option.option_value} value={option.display_value || option.option_value}>
+                                {option.display_value || option.option_value}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="__no_transmission_type__" disabled>
+                              {isLoadingDropdowns ? "Loading options..." : "No options available"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="primary_fuel_type">Primary Fuel Type</Label>
-                      <Input
-                        id="primary_fuel_type"
+                      <Select
                         value={formData.primary_fuel_type}
-                        onChange={(e) => setFormData({ ...formData, primary_fuel_type: e.target.value })}
-                      />
+                        onValueChange={(value) => {
+                          if (value && value !== "__no_fuel_type__") {
+                            setFormData({ ...formData, primary_fuel_type: value });
+                          }
+                        }}
+                        disabled={isLoadingDropdowns}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingDropdowns ? "Loading..." : "Select fuel type"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDropdownOptions("primary_fuel_type").length > 0 ? (
+                            getDropdownOptions("primary_fuel_type").map((option: any) => (
+                              <SelectItem key={option._id || option.option_value} value={option.display_value || option.option_value}>
+                                {option.display_value || option.option_value}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="__no_fuel_type__" disabled>
+                              {isLoadingDropdowns ? "Loading options..." : "No options available"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="no_of_cylinders">Number of Cylinders</Label>
@@ -185,32 +297,30 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                   
                   <div>
                     <Label>Engine Features</Label>
-                    <div className="flex gap-2 mb-2">
-                      <Input
-                        placeholder="Add engine feature"
-                        value={newFeature}
-                        onChange={(e) => setNewFeature(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && addFeature()}
-                      />
-                      <Button type="button" onClick={addFeature}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.engine_features.map((feature, index) => (
-                        <div key={index} className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
-                          <span className="text-sm">{feature}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFeature(index)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                    <ReactSelect
+                      isMulti
+                      options={engineFeaturesOptions}
+                      value={selectedEngineFeatures}
+                      onChange={(selectedOptions: any) => {
+                        const selectedValues = selectedOptions
+                          ? selectedOptions.map((option: any) => option.value)
+                          : [];
+                        setFormData({
+                          ...formData,
+                          engine_features: selectedValues,
+                        });
+                      }}
+                      placeholder={isLoadingDropdowns ? "Loading..." : "Select engine features"}
+                      isDisabled={isLoadingDropdowns}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          minHeight: "40px",
+                        }),
+                      }}
+                    />
                   </div>
 
                   <div className="flex justify-end space-x-2">
