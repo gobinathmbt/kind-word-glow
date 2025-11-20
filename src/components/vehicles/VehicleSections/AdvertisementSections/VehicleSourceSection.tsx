@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { vehicleServices, adPublishingServices } from "@/api/services";
 
 interface VehicleSourceSectionProps {
   vehicle: any;
@@ -31,7 +31,7 @@ const VehicleSourceSection: React.FC<VehicleSourceSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleSource(vehicle._id,vehicle.vehicle_type, {
+      await adPublishingServices.updateAdVehicle(vehicle._id, {
         vehicle_source: [{
           supplier: formData.supplier,
           purchase_date: formData.purchase_date,
