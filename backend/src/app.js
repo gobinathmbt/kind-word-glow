@@ -55,6 +55,7 @@ const dashboardReportRoutes = require("./routes/dashboardReport.routes");
 const errorHandler = require("./middleware/error");
 const notificationMiddleware = require("./middleware/notificationMiddleware");
 const outboundWorkflowMiddleware = require("./middleware/outboundWorkflowMiddleware");
+const emailTriggerMiddleware = require("./middleware/emailTriggerMiddleware");
 const { logRequest } = require("./controllers/logs.controller");
 
 // Connect to database
@@ -124,6 +125,9 @@ app.use(notificationMiddleware);
 
 // Outbound workflow middleware (apply to all routes)
 app.use(outboundWorkflowMiddleware);
+
+// Email trigger middleware (apply to all routes)
+app.use(emailTriggerMiddleware);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

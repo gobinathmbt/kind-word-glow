@@ -330,7 +330,10 @@ export const workflowServices = {
   getVehicleSchemaFields: () => apiClient.get("/api/workflows/vehicle-schema"),
 
   // Get all available schemas
-  getAvailableSchemas: () => apiClient.get("/api/workflows/available-schemas"),
+  getAvailableSchemas: (workflowType?: string) => 
+    apiClient.get("/api/workflows/available-schemas", { 
+      params: workflowType ? { workflow_type: workflowType } : {} 
+    }),
 
   // Get schema fields for target schema node
   getSchemaFields: (schemaType: string) => 

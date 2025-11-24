@@ -22,26 +22,15 @@ const SchemaSelectionNode = ({ data, isConnectable, id, onDataUpdate, workflowTy
 
   // Fetch available schemas
   const { data: availableSchemas, isLoading: isSchemasLoading } = useQuery({
-    queryKey: ['available-schemas'],
-    queryFn: () => workflowServices.getAvailableSchemas(),
+    queryKey: ['available-schemas', workflowType],
+    queryFn: () => workflowServices.getAvailableSchemas(workflowType),
   });
 
-  // Filter schemas based on workflow type
-  // For Vehicle Inbound: only show vehicle, master_vehicle, and advertise_vehicle
-  const allowedInboundSchemas = ['vehicle', 'master_vehicle', 'advertise_vehicle'];
-  
+  // Schemas are already filtered by the backend based on workflow type
+  // For Vehicle Inbound: backend returns only vehicle, master_vehicle, and advertise_vehicle
   const filteredSchemas = React.useMemo(() => {
-    const schemas = availableSchemas?.data?.data?.schemas || [];
-    
-    if (workflowType === 'vehicle_inbound') {
-      return schemas.filter((schema: any) => 
-        allowedInboundSchemas.includes(schema.schema_type)
-      );
-    }
-    
-    // For other workflow types, return all schemas
-    return schemas;
-  }, [availableSchemas, workflowType]);
+    return availableSchemas?.data?.data?.schemas || [];
+  }, [availableSchemas]);
 
   const handleConfigSave = () => {
     if (!config.schema_type) {

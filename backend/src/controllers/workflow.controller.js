@@ -636,14 +636,84 @@ const getAvailableSchemas = async (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
+    const { workflow_type } = req.query;
 
     // Get all model files from the models directory
     const modelsPath = path.join(__dirname, '../models');
     const modelFiles = fs.readdirSync(modelsPath).filter(file => file.endsWith('.js'));
 
-    const schemas = modelFiles
+    // Define schemas allowed for vehicle_outbound workflow type
+    const vehicleOutboundSchemas = [
+      'AdvertiseVehicle',
+      'Conversation',
+      'CostConfiguration',
+      'Dealership',
+      'DropdownMaster',
+      'GroupPermission',
+      'InspectionConfig',
+      'Integration',
+      'MasterVehicle',
+      'NotificationConfiguration',
+      'ServiceBay',
+      'Supplier',
+      'TradeinConfig',
+      'User',
+      'Vehicle',
+      'Workflow',
+      'WorkshopQuote',
+      'WorkshopReport'
+    ];
+
+    // Define schemas allowed for vehicle_inbound workflow type
+    const vehicleInboundSchemas = [
+      'Vehicle',
+      'MasterVehicle',
+      'AdvertiseVehicle'
+    ];
+
+    // Define schemas allowed for email_trigger workflow type (same as vehicle_outbound)
+    const emailTriggerSchemas = [
+      'AdvertiseVehicle',
+      'Conversation',
+      'CostConfiguration',
+      'Dealership',
+      'DropdownMaster',
+      'GroupPermission',
+      'InspectionConfig',
+      'Integration',
+      'MasterVehicle',
+      'NotificationConfiguration',
+      'ServiceBay',
+      'Supplier',
+      'TradeinConfig',
+      'User',
+      'Vehicle',
+      'Workflow',
+      'WorkshopQuote',
+      'WorkshopReport'
+    ];
+
+    let schemas = modelFiles
       .map(file => {
         const modelName = file.replace('.js', '');
+
+        // Filter schemas based on workflow type
+        if (workflow_type === 'vehicle_outbound') {
+          // Only include schemas in the allowed list for vehicle_outbound
+          if (!vehicleOutboundSchemas.includes(modelName)) {
+            return null;
+          }
+        } else if (workflow_type === 'vehicle_inbound') {
+          // Only include schemas in the allowed list for vehicle_inbound
+          if (!vehicleInboundSchemas.includes(modelName)) {
+            return null;
+          }
+        } else if (workflow_type === 'email_trigger') {
+          // Only include schemas in the allowed list for email_trigger
+          if (!emailTriggerSchemas.includes(modelName)) {
+            return null;
+          }
+        }
 
         // Convert model name to schema type format
         // e.g., "Vehicle" -> "vehicle", "MasterVehicle" -> "master_vehicle"
@@ -1218,23 +1288,53 @@ const executeWorkflow = async (req, res) => {
     workflowExecutionLog.email_status = { success_email: {}, error_email: {} };
 
     if (workflowExecutionLog.execution_status === 'success' && emailSuccessNode?.data?.config) {
-      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData);
+      console.log('📧 Attempting to send success email...');
+      console.log('Email node found:', emailSuccessNode ? 'Yes' : 'No');
+      console.log('Email config exists:', emailSuccessNode?.data?.config ? 'Yes' : 'No');
+      // Pass workflow creator ID to exclude them from "All Users" emails
+      const excludeUserId = workflow.created_by?._id || workflow.created_by;
+      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
       workflowExecutionLog.email_status.success_email = {
         sent: emailResult.success,
         error: emailResult.error || null,
         sent_at: new Date(),
       };
       workflowExecutionLog.email_sent = emailResult.success;
+      if (emailResult.success) {
+        console.log('✅ Success email sent successfully');
+      } else {
+        console.error('❌ Failed to send success email:', emailResult.error);
+      }
+    } else {
+      console.log('⚠️  Success email not sent:');
+      console.log('  - Execution status:', workflowExecutionLog.execution_status);
+      console.log('  - Email success node exists:', emailSuccessNode ? 'Yes' : 'No');
+      console.log('  - Email config exists:', emailSuccessNode?.data?.config ? 'Yes' : 'No');
     }
 
     if (workflowExecutionLog.execution_status !== 'success' && emailErrorNode?.data?.config) {
-      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData);
+      console.log('📧 Attempting to send error email...');
+      console.log('Email node found:', emailErrorNode ? 'Yes' : 'No');
+      console.log('Email config exists:', emailErrorNode?.data?.config ? 'Yes' : 'No');
+      // Pass workflow creator ID to exclude them from "All Users" emails
+      const excludeUserId = workflow.created_by?._id || workflow.created_by;
+      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
       workflowExecutionLog.email_status.error_email = {
         sent: emailResult.success,
         error: emailResult.error || null,
         sent_at: new Date(),
       };
       workflowExecutionLog.email_sent = emailResult.success;
+      if (emailResult.success) {
+        console.log('✅ Error email sent successfully');
+      } else {
+        console.error('❌ Failed to send error email:', emailResult.error);
+      }
+    } else {
+      console.log('⚠️  Error email not sent:');
+      console.log('  - Execution status:', workflowExecutionLog.execution_status);
+      console.log('  - Email error node exists:', emailErrorNode ? 'Yes' : 'No');
+      console.log('  - Email config exists:', emailErrorNode?.data?.config ? 'Yes' : 'No');
     }
 
     // Create execution summary
@@ -1533,7 +1633,8 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
     // Send appropriate email based on success/failure (same logic as Vehicle Inbound)
     if (apiResult.success && emailSuccessNode?.data?.config) {
       console.log('Sending success email for Vehicle Outbound workflow...');
-      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData);
+      const excludeUserId = workflow.created_by?._id || workflow.created_by;
+      const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
       if (emailResult.success) {
         console.log('Success email sent successfully');
       } else {
@@ -1541,7 +1642,8 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
       }
     } else if (!apiResult.success && emailErrorNode?.data?.config) {
       console.log('Sending error email for Vehicle Outbound workflow...');
-      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData);
+      const excludeUserId = workflow.created_by?._id || workflow.created_by;
+      const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
       if (emailResult.success) {
         console.log('Error email sent successfully');
       } else {
@@ -2003,117 +2105,117 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
 // };
 
 // Helper function to make outbound API calls
-const makeOutboundAPICall = async (authConfig, mappedData, workflow, vehicleData, workflowExecutionLog) => {
-  const axios = require('axios');
-  const executionStartTime = Date.now();
+// const makeOutboundAPICall = async (authConfig, mappedData, workflow, vehicleData, workflowExecutionLog) => {
+//   const axios = require('axios');
+//   const executionStartTime = Date.now();
 
-  try {
-    // Prepare headers
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+//   try {
+//     // Prepare headers
+//     const headers = {
+//       'Content-Type': 'application/json',
+//     };
 
-    // Add authentication headers if authentication is enabled
-    if (authConfig.enable_authentication && authConfig.type !== 'none') {
-      if (authConfig.type === 'jwt_token' && authConfig.jwt_token) {
-        headers['Authorization'] = `Bearer ${authConfig.jwt_token}`;
-      } else if (authConfig.type === 'standard' && authConfig.api_key && authConfig.api_secret) {
-        headers['x-api-key'] = authConfig.api_key;
-        headers['x-api-secret'] = authConfig.api_secret;
-      } else if (authConfig.type === 'static' && authConfig.static_token) {
-        headers['Authorization'] = `Bearer ${authConfig.static_token}`;
-      }
-    }
+//     // Add authentication headers if authentication is enabled
+//     if (authConfig.enable_authentication && authConfig.type !== 'none') {
+//       if (authConfig.type === 'jwt_token' && authConfig.jwt_token) {
+//         headers['Authorization'] = `Bearer ${authConfig.jwt_token}`;
+//       } else if (authConfig.type === 'standard' && authConfig.api_key && authConfig.api_secret) {
+//         headers['x-api-key'] = authConfig.api_key;
+//         headers['x-api-secret'] = authConfig.api_secret;
+//       } else if (authConfig.type === 'static' && authConfig.static_token) {
+//         headers['Authorization'] = `Bearer ${authConfig.static_token}`;
+//       }
+//     }
 
-    // Make the POST request
-    const response = await axios.post(authConfig.api_endpoint, mappedData, {
-      headers,
-      timeout: 30000,
-      validateStatus: (status) => status >= 200 && status < 300
-    });
+//     // Make the POST request
+//     const response = await axios.post(authConfig.api_endpoint, mappedData, {
+//       headers,
+//       timeout: 30000,
+//       validateStatus: (status) => status >= 200 && status < 300
+//     });
 
-    // Log success message
-    console.log(`The details have been pushed successfully to the respective API endpoint: ${authConfig.api_endpoint}`);
+//     // Log success message
+//     console.log(`The details have been pushed successfully to the respective API endpoint: ${authConfig.api_endpoint}`);
 
-    // ✅ Log exactly what details were pushed (your requested behavior)
-    console.log("Payload pushed to the API endpoint:", JSON.stringify(mappedData, null, 2));
+//     // ✅ Log exactly what details were pushed (your requested behavior)
+//     console.log("Payload pushed to the API endpoint:", JSON.stringify(mappedData, null, 2));
 
-    // Update execution log with success details
-    if (workflowExecutionLog) {
-      workflowExecutionLog.execution_status = 'success';
-      workflowExecutionLog.successful_vehicles = 1;
-      workflowExecutionLog.failed_vehicles = 0;
-      workflowExecutionLog.vehicle_results = [{
-        vehicle_stock_id: vehicleData.vehicle_stock_id || 'unknown',
-        status: 'success',
-        database_operation: 'none',
-        vehicle_id: vehicleData._id,
-        vehicle_type: vehicleData.vehicle_type,
-        error_message: null,
-        missing_fields: [],
-        validation_errors: [],
-      }];
-      workflowExecutionLog.execution_summary = `Successfully pushed vehicle ${vehicleData.vehicle_stock_id || 'unknown'} to API endpoint`;
-      workflowExecutionLog.execution_completed_at = new Date();
-      workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
-      await workflowExecutionLog.save();
-    }
+//     // Update execution log with success details
+//     if (workflowExecutionLog) {
+//       workflowExecutionLog.execution_status = 'success';
+//       workflowExecutionLog.successful_vehicles = 1;
+//       workflowExecutionLog.failed_vehicles = 0;
+//       workflowExecutionLog.vehicle_results = [{
+//         vehicle_stock_id: vehicleData.vehicle_stock_id || 'unknown',
+//         status: 'success',
+//         database_operation: 'none',
+//         vehicle_id: vehicleData._id,
+//         vehicle_type: vehicleData.vehicle_type,
+//         error_message: null,
+//         missing_fields: [],
+//         validation_errors: [],
+//       }];
+//       workflowExecutionLog.execution_summary = `Successfully pushed vehicle ${vehicleData.vehicle_stock_id || 'unknown'} to API endpoint`;
+//       workflowExecutionLog.execution_completed_at = new Date();
+//       workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+//       await workflowExecutionLog.save();
+//     }
 
-    // Send success email notification
-    await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
-      success: true,
-      status: response.status,
-      data: response.data,
-      endpoint: authConfig.api_endpoint
-    });
+//     // Send success email notification
+//     await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
+//       success: true,
+//       status: response.status,
+//       data: response.data,
+//       endpoint: authConfig.api_endpoint
+//     });
 
-    // Update workflow execution stats for successful execution
-    await updateWorkflowExecutionStats(workflow._id, true);
+//     // Update workflow execution stats for successful execution
+//     await updateWorkflowExecutionStats(workflow._id, true);
 
-    return {
-      success: true,
-      status: response.status,
-      data: response.data
-    };
-  } catch (error) {
-    console.error('API call failed:', error.message);
+//     return {
+//       success: true,
+//       status: response.status,
+//       data: response.data
+//     };
+//   } catch (error) {
+//     console.error('API call failed:', error.message);
 
-    // Update execution log with failure details
-    if (workflowExecutionLog) {
-      workflowExecutionLog.execution_status = 'failed';
-      workflowExecutionLog.successful_vehicles = 0;
-      workflowExecutionLog.failed_vehicles = 1;
-      workflowExecutionLog.vehicle_results = [{
-        vehicle_stock_id: vehicleData.vehicle_stock_id || 'unknown',
-        status: 'failed',
-        database_operation: 'none',
-        vehicle_id: vehicleData._id,
-        vehicle_type: vehicleData.vehicle_type,
-        error_message: error.message,
-        missing_fields: [],
-        validation_errors: [error.message],
-      }];
-      workflowExecutionLog.error_message = error.message;
-      workflowExecutionLog.error_stack = error.stack;
-      workflowExecutionLog.execution_summary = `Failed to push vehicle ${vehicleData.vehicle_stock_id || 'unknown'} to API endpoint: ${error.message}`;
-      workflowExecutionLog.execution_completed_at = new Date();
-      workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
-      await workflowExecutionLog.save();
-    }
+//     // Update execution log with failure details
+//     if (workflowExecutionLog) {
+//       workflowExecutionLog.execution_status = 'failed';
+//       workflowExecutionLog.successful_vehicles = 0;
+//       workflowExecutionLog.failed_vehicles = 1;
+//       workflowExecutionLog.vehicle_results = [{
+//         vehicle_stock_id: vehicleData.vehicle_stock_id || 'unknown',
+//         status: 'failed',
+//         database_operation: 'none',
+//         vehicle_id: vehicleData._id,
+//         vehicle_type: vehicleData.vehicle_type,
+//         error_message: error.message,
+//         missing_fields: [],
+//         validation_errors: [error.message],
+//       }];
+//       workflowExecutionLog.error_message = error.message;
+//       workflowExecutionLog.error_stack = error.stack;
+//       workflowExecutionLog.execution_summary = `Failed to push vehicle ${vehicleData.vehicle_stock_id || 'unknown'} to API endpoint: ${error.message}`;
+//       workflowExecutionLog.execution_completed_at = new Date();
+//       workflowExecutionLog.execution_duration_ms = Date.now() - executionStartTime;
+//       await workflowExecutionLog.save();
+//     }
 
-    // Send error email notification
-    await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
-      success: false,
-      error: error.message,
-      endpoint: authConfig.api_endpoint
-    });
+//     // Send error email notification
+//     await sendOutboundWorkflowEmail(workflow, vehicleData, mappedData, {
+//       success: false,
+//       error: error.message,
+//       endpoint: authConfig.api_endpoint
+//     });
 
-    // Update workflow execution stats for failed execution
-    await updateWorkflowExecutionStats(workflow._id, false, error.message);
+//     // Update workflow execution stats for failed execution
+//     await updateWorkflowExecutionStats(workflow._id, false, error.message);
 
-    throw error;
-  }
-};
+//     throw error;
+//   }
+// };
 
 
 // @desc    Get workflow execution logs

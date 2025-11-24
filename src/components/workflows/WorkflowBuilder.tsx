@@ -42,6 +42,8 @@ import TargetSchemaNode from "./nodes/TargetSchemaNode";
 import DestinationSchemaNode from "./nodes/DestinationSchemaNode";
 import ExportFieldsNode from "./nodes/ExportFieldsNode";
 import SchemaSelectionNode from "./nodes/SchemaSelectionNode";
+import BasicInfoNode from "./nodes/BasicInfoNode";
+import ConditionNode from "./nodes/ConditionNode";
 
 // Enhanced edge styles
 const edgeStyles = {
@@ -308,6 +310,97 @@ const getInitialNodesForWorkflowType = (workflowType: string): Node[] => {
     ];
   }
 
+  if (workflowType === "email_trigger") {
+    return [
+      {
+        id: "start-1",
+        type: "startNode",
+        position: { x: 50, y: 100 },
+        data: {
+          label: "Start Email Trigger",
+        },
+        sourcePosition: Position.Right,
+      },
+      {
+        id: "basic-info-1",
+        type: "basicInfoNode",
+        position: { x: 300, y: 100 },
+        data: {
+          label: "Basic Info",
+          config: {
+            trigger_type: "create",
+            target_schema: "",
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "condition-1",
+        type: "conditionNode",
+        position: { x: 550, y: 100 },
+        data: {
+          label: "Condition",
+          config: {
+            target_fields: [],
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "response-condition-1",
+        type: "enhancedConditionNode",
+        position: { x: 800, y: 100 },
+        data: {
+          label: "Response Condition",
+          config: {
+            conditions: [
+              {
+                field: "response.status",
+                operator: "equals",
+                value: "200",
+                logic: "AND",
+              },
+            ],
+          },
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "email-success-1",
+        type: "enhancedEmailNode",
+        position: { x: 1050, y: 50 },
+        data: {
+          label: "Success Email",
+          config: {},
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "email-error-1",
+        type: "enhancedEmailNode",
+        position: { x: 1050, y: 150 },
+        data: {
+          label: "Error Email",
+          config: {},
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      },
+      {
+        id: "end-1",
+        type: "endNode",
+        position: { x: 1300, y: 100 },
+        data: {
+          label: "End Workflow",
+        },
+        targetPosition: Position.Left,
+      },
+    ];
+  }
 
   return [];
 };
@@ -461,6 +554,66 @@ const getInitialEdgesForWorkflowType = (workflowType: string): Edge[] => {
     ];
   }
 
+  if (workflowType === "email_trigger") {
+    return [
+      {
+        id: "e1-2",
+        source: "start-1",
+        target: "basic-info-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e2-3",
+        source: "basic-info-1",
+        target: "condition-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e3-4",
+        source: "condition-1",
+        target: "response-condition-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e4-5",
+        source: "response-condition-1",
+        target: "email-success-1",
+        sourceHandle: "true",
+        style: edgeStyles.conditional.true,
+        type: 'smoothstep',
+        label: "Success",
+        labelStyle: { fill: '#10b981', fontWeight: 600 },
+      },
+      {
+        id: "e4-6",
+        source: "response-condition-1",
+        target: "email-error-1",
+        sourceHandle: "false",
+        style: edgeStyles.conditional.false,
+        type: 'smoothstep',
+        label: "Error",
+        labelStyle: { fill: '#ef4444', fontWeight: 600 },
+      },
+      {
+        id: "e5-7",
+        source: "email-success-1",
+        target: "end-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+      {
+        id: "e6-7",
+        source: "email-error-1",
+        target: "end-1",
+        style: edgeStyles.default,
+        type: 'smoothstep',
+      },
+    ];
+  }
+
   return [];
 };
 
@@ -562,6 +715,38 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
               } catch (error) {
                 console.error('Error fetching schema fields:', error);
               }
+            }, 0);
+          }
+
+          // If this is a basic info node update for email_trigger, propagate target_schema to condition node and email nodes
+          if (node.type === 'basicInfoNode' && newData.config && newData.targetSchemaSelected) {
+            setTimeout(() => {
+              setNodes((currentNodes) =>
+                currentNodes.map((currentNode) => {
+                  if (currentNode.type === 'conditionNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        targetSchema: newData.config.target_schema,
+                        isEnabled: true,
+                      },
+                    };
+                  }
+                  // Propagate target schema to email nodes for email_trigger workflow
+                  if (currentNode.type === 'enhancedEmailNode') {
+                    return {
+                      ...currentNode,
+                      data: {
+                        ...currentNode.data,
+                        targetSchema: newData.config.target_schema,
+                        workflowType: 'email_trigger',
+                      },
+                    };
+                  }
+                  return currentNode;
+                })
+              );
             }, 0);
           }
 
@@ -687,12 +872,14 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     authenticationNode: (props: any) => <AuthenticationNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
     dataMappingNode: (props: any) => <DataMappingNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
     enhancedConditionNode: (props: any) => <EnhancedConditionNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-    enhancedEmailNode: (props: any) => <EnhancedEmailNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    enhancedEmailNode: (props: any) => <EnhancedEmailNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
     endNode: (props: any) => <EndNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-    targetSchemaNode: (props: any) => <TargetSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} />,
-    destinationSchemaNode: (props: any) => <DestinationSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} />,
+    targetSchemaNode: (props: any) => <TargetSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
+    destinationSchemaNode: (props: any) => <DestinationSchemaNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
     exportFieldsNode: (props: any) => <ExportFieldsNode {...props} onDataUpdate={handleNodeDataUpdate} />,
     schemaSelectionNode: (props: any) => <SchemaSelectionNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
+    basicInfoNode: (props: any) => <BasicInfoNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
+    conditionNode: (props: any) => <ConditionNode {...props} onDataUpdate={handleNodeDataUpdate} workflowType={workflowType} />,
   }), [handleNodeDataUpdate, workflowType]);
 
   // Save workflow mutation
@@ -841,6 +1028,9 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                     </SelectItem>
                     <SelectItem value="vehicle_outbound">
                       Vehicle Outbound
+                    </SelectItem>
+                    <SelectItem value="email_trigger">
+                      Email Trigger
                     </SelectItem>
                   </SelectContent>
                 </Select>

@@ -329,6 +329,10 @@ const WorkflowManagement = () => {
     switch (type) {
       case "vehicle_inbound":
         return "Vehicle Inbound";
+      case "vehicle_outbound":
+        return "Vehicle Outbound";
+      case "email_trigger":
+        return "Email Trigger";
       default:
         return type;
     }
@@ -560,7 +564,7 @@ const WorkflowManagement = () => {
                   {workflow.description}
                 </p>
               )}
-              {workflow.custom_endpoint && workflow.workflow_type !== "vehicle_outbound" && (
+              {workflow.custom_endpoint && workflow.workflow_type !== "vehicle_outbound" && workflow.workflow_type !== "email_trigger" && (
                 <p className="text-xs text-blue-600 mt-1">
                   {BASE_URL}/api/workflow-execute/{workflow.custom_endpoint}
                 </p>
@@ -844,6 +848,9 @@ const WorkflowManagement = () => {
                   </SelectItem>
                   <SelectItem value="vehicle_outbound">
                     Vehicle Outbound
+                  </SelectItem>
+                  <SelectItem value="email_trigger">
+                    Email Trigger
                   </SelectItem>
                 </SelectContent>
               </Select>

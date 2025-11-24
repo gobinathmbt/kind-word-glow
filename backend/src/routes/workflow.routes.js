@@ -9,7 +9,7 @@ const router = express.Router();
 const validateWorkflowCreation = [
   body("name").notEmpty().trim().withMessage("Workflow name is required"),
   body("workflow_type")
-    .isIn(["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"])
+    .isIn(["vehicle_inbound", "vehicle_outbound", "email_trigger"])
     .withMessage("Invalid workflow type"),
   body("description").optional().trim(),
 ];
@@ -22,7 +22,7 @@ const validateWorkflowUpdate = [
     .withMessage("Workflow name cannot be empty"),
   body("workflow_type")
     .optional()
-    .isIn(["vehicle_inbound", "vehicle_outbound", "vehicle_property_trigger", "email_automation"])
+    .isIn(["vehicle_inbound", "vehicle_outbound", "email_trigger"])
     .withMessage("Invalid workflow type"),
   body("status")
     .optional()

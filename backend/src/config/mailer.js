@@ -83,7 +83,7 @@ class MailService {
     }
   }
 
-  async sendEmail({ to, subject, html, text }) {
+  async sendEmail({ to, subject, html, text, cc, attachments }) {
     try {
       // Initialize if not already done
       if (!this.transporter) {
@@ -98,8 +98,24 @@ class MailService {
         text
       };
 
+      // Add CC if provided
+      if (cc) {
+        mailOptions.cc = cc;
+      }
+
+      // Add attachments if provided
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments;
+      }
+
       const result = await this.transporter.sendMail(mailOptions);
       console.log(`📧 Email sent successfully to ${to}`);
+      if (cc) {
+        console.log(`   CC: ${cc}`);
+      }
+      if (attachments && attachments.length > 0) {
+        console.log(`   Attachments: ${attachments.length} file(s)`);
+      }
       return result;
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);

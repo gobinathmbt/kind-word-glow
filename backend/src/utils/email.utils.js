@@ -1,5 +1,6 @@
 const mailService = require('../config/mailer');
 const nodemailer = require('nodemailer');
+const User = require('../models/User');
 
 const replaceTemplateVariables = (template, data) => {
   if (!template) return '';
@@ -66,8 +67,13 @@ const replaceTemplateVariables = (template, data) => {
   // Replace {{vehicle.*}} variables for single vehicle
   if (data.vehicle) {
     Object.keys(data.vehicle).forEach(key => {
-      const regex = new RegExp(`\\{\\{vehicle\\.${key}\\}\\}`, 'g');
-      result = result.replace(regex, data.vehicle[key] || '');
+      // Replace {{vehicle.key}} format
+      const regexWithPrefix = new RegExp(`\\{\\{vehicle\\.${key}\\}\\}`, 'g');
+      result = result.replace(regexWithPrefix, data.vehicle[key] || '');
+      
+      // Also replace {{key}} format (without vehicle. prefix) for backward compatibility
+      const regexWithoutPrefix = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      result = result.replace(regexWithoutPrefix, data.vehicle[key] || '');
     });
   }
   
@@ -109,27 +115,85 @@ const replaceTemplateVariables = (template, data) => {
   return result;
 };
 
-const sendGmailEmail = async (config, data) => {
+const sendGmailEmail = async (config, data, userEmails = {}) => {
   try {
     const subject = replaceTemplateVariables(config.subject, data);
     const html = replaceTemplateVariables(config.html_content, data);
     const text = replaceTemplateVariables(config.text_content, data);
     
-    const result = await mailService.sendEmail({
-      to: config.to_email,
+    // Get recipient emails from user IDs
+    const toEmails = userEmails.to || [];
+    const ccEmails = userEmails.cc || [];
+    
+    // If no user-based recipients, fall back to legacy to_email field
+    const recipients = toEmails.length > 0 ? toEmails.join(',') : config.to_email;
+    
+    console.log(`\n📤 Preparing to send email to: ${recipients}`);
+    console.log(`   Total TO recipients: ${toEmails.length > 0 ? toEmails.length : 'legacy mode'}`);
+    
+    const emailOptions = {
+      to: recipients,
       subject,
       html,
       text,
-    });
+    };
+    
+    // Add CC if present
+    if (ccEmails.length > 0) {
+      emailOptions.cc = ccEmails.join(',');
+      console.log(`   Total CC recipients: ${ccEmails.length} user(s)`);
+      console.log(`   CC emails: ${ccEmails.join(', ')}`);
+    }
+    
+    // Add attachments if present
+    if (config.attachments && config.attachments.length > 0) {
+      const validAttachments = config.attachments.filter(att => att.name && (att.url || att.path || att.content));
+      if (validAttachments.length > 0) {
+        emailOptions.attachments = validAttachments.map(att => {
+          // Handle base64 content attachments (uploaded files)
+          if (att.content && att.encoding === 'base64') {
+            // Extract base64 data (remove data:mime;base64, prefix if present)
+            const base64Data = att.content.includes('base64,') 
+              ? att.content.split('base64,')[1] 
+              : att.content;
+            
+            return {
+              filename: att.name,
+              content: base64Data,
+              encoding: 'base64',
+              contentType: att.type || 'application/octet-stream'
+            };
+          }
+          // Handle URL/path attachments
+          return {
+            filename: att.name,
+            path: att.url || att.path,
+          };
+        });
+        console.log(`   Total Attachments: ${validAttachments.length} file(s)`);
+        validAttachments.forEach((att, index) => {
+          const source = att.content ? 'uploaded file' : (att.url || att.path);
+          const size = att.size ? ` (${(att.size / 1024).toFixed(2)} KB)` : '';
+          console.log(`     ${index + 1}. ${att.name}${size} - ${source}`);
+        });
+      }
+    }
+    
+    const result = await mailService.sendEmail(emailOptions);
+    
+    console.log(`✅ Email delivery initiated successfully`);
+    console.log(`   Message ID: ${result.messageId || 'N/A'}`);
+    console.log(`   Accepted: ${result.accepted ? result.accepted.join(', ') : 'N/A'}`);
+    console.log(`   Rejected: ${result.rejected && result.rejected.length > 0 ? result.rejected.join(', ') : 'None'}`);
     
     return { success: true, result };
   } catch (error) {
-    console.error('Gmail send error:', error);
+    console.error('❌ Gmail send error:', error);
     return { success: false, error: error.message };
   }
 };
 
-const sendSendGridEmail = async (config, data) => {
+const sendSendGridEmail = async (config, data, userEmails = {}) => {
   try {
     // SendGrid implementation would go here
     // For now, falling back to SMTP
@@ -137,36 +201,219 @@ const sendSendGridEmail = async (config, data) => {
     const html = replaceTemplateVariables(config.html_content, data);
     const text = replaceTemplateVariables(config.text_content, data);
     
-    const result = await mailService.sendEmail({
-      to: config.to_email,
+    // Get recipient emails from user IDs
+    const toEmails = userEmails.to || [];
+    const ccEmails = userEmails.cc || [];
+    
+    // If no user-based recipients, fall back to legacy to_email field
+    const recipients = toEmails.length > 0 ? toEmails.join(',') : config.to_email;
+    
+    console.log(`\n📤 Preparing to send email to: ${recipients}`);
+    console.log(`   Total TO recipients: ${toEmails.length > 0 ? toEmails.length : 'legacy mode'}`);
+    
+    const emailOptions = {
+      to: recipients,
       subject,
       html,
       text,
-    });
+    };
+    
+    // Add CC if present
+    if (ccEmails.length > 0) {
+      emailOptions.cc = ccEmails.join(',');
+      console.log(`   Total CC recipients: ${ccEmails.length} user(s)`);
+      console.log(`   CC emails: ${ccEmails.join(', ')}`);
+    }
+    
+    // Add attachments if present
+    if (config.attachments && config.attachments.length > 0) {
+      const validAttachments = config.attachments.filter(att => att.name && (att.url || att.path || att.content));
+      if (validAttachments.length > 0) {
+        emailOptions.attachments = validAttachments.map(att => {
+          // Handle base64 content attachments (uploaded files)
+          if (att.content && att.encoding === 'base64') {
+            // Extract base64 data (remove data:mime;base64, prefix if present)
+            const base64Data = att.content.includes('base64,') 
+              ? att.content.split('base64,')[1] 
+              : att.content;
+            
+            return {
+              filename: att.name,
+              content: base64Data,
+              encoding: 'base64',
+              contentType: att.type || 'application/octet-stream'
+            };
+          }
+          // Handle URL/path attachments
+          return {
+            filename: att.name,
+            path: att.url || att.path,
+          };
+        });
+        console.log(`   Total Attachments: ${validAttachments.length} file(s)`);
+        validAttachments.forEach((att, index) => {
+          const source = att.content ? 'uploaded file' : (att.url || att.path);
+          const size = att.size ? ` (${(att.size / 1024).toFixed(2)} KB)` : '';
+          console.log(`     ${index + 1}. ${att.name}${size} - ${source}`);
+        });
+      }
+    }
+    
+    const result = await mailService.sendEmail(emailOptions);
+    
+    console.log(`✅ Email delivery initiated successfully`);
+    console.log(`   Message ID: ${result.messageId || 'N/A'}`);
+    console.log(`   Accepted: ${result.accepted ? result.accepted.join(', ') : 'N/A'}`);
+    console.log(`   Rejected: ${result.rejected && result.rejected.length > 0 ? result.rejected.join(', ') : 'None'}`);
     
     return { success: true, result };
   } catch (error) {
-    console.error('SendGrid send error:', error);
+    console.error('❌ SendGrid send error:', error);
     return { success: false, error: error.message };
   }
 };
 
 
-const sendWorkflowEmail = async (emailConfig, data) => {
-  if (!emailConfig || !emailConfig.service) {
+// Helper function to get user emails from user IDs or all users
+const getUserEmailsFromConfig = async (emailConfig, companyId, excludeUserId = null) => {
+  try {
+    let users = [];
+    
+    // Check if to_email_type is 'all' or 'specific_users'
+    if (emailConfig.to_email_type === 'all') {
+      // Get all active users from the company
+      const query = {
+        company_id: companyId,
+        is_active: true
+      };
+      
+      // Exclude specific user if provided (e.g., the workflow creator or triggering user)
+      if (excludeUserId) {
+        query._id = { $ne: excludeUserId };
+      }
+      
+      users = await User.find(query).select('_id first_name last_name email').lean();
+      
+      console.log('\n========================================');
+      console.log('📧 EMAIL WORKFLOW - ALL USERS SELECTED');
+      console.log('========================================');
+      console.log(`Company ID: ${companyId}`);
+      if (excludeUserId) {
+        console.log(`Excluding User ID: ${excludeUserId}`);
+      }
+      console.log(`Total Users: ${users.length}`);
+      console.log('\n👥 User Details:');
+      users.forEach((user, index) => {
+        console.log(`  ${index + 1}. ${user.first_name} ${user.last_name} - ${user.email}`);
+      });
+      console.log('========================================\n');
+      
+    } else if (emailConfig.to_email_type === 'specific_users' && emailConfig.to_user_ids && emailConfig.to_user_ids.length > 0) {
+      // Get specific users by IDs
+      let userIds = emailConfig.to_user_ids;
+      
+      // Exclude specific user if provided
+      if (excludeUserId) {
+        userIds = userIds.filter(id => id.toString() !== excludeUserId.toString());
+      }
+      
+      users = await User.find({
+        _id: { $in: userIds },
+        company_id: companyId,
+        is_active: true
+      }).select('_id first_name last_name email').lean();
+      
+      console.log('\n========================================');
+      console.log('📧 EMAIL WORKFLOW - SPECIFIC USERS SELECTED');
+      console.log('========================================');
+      console.log(`Company ID: ${companyId}`);
+      if (excludeUserId) {
+        console.log(`Excluding User ID: ${excludeUserId}`);
+      }
+      console.log(`Selected Users: ${users.length}`);
+      console.log('\n👥 User Details:');
+      users.forEach((user, index) => {
+        console.log(`  ${index + 1}. ${user.first_name} ${user.last_name} - ${user.email}`);
+      });
+      console.log('========================================\n');
+    }
+    
+    // Extract TO email addresses
+    const toEmails = users.map(user => user.email);
+    
+    // Get CC users if specified
+    let ccEmails = [];
+    if (emailConfig.cc_user_ids && emailConfig.cc_user_ids.length > 0) {
+      const ccUsers = await User.find({
+        _id: { $in: emailConfig.cc_user_ids },
+        company_id: companyId,
+        is_active: true
+      }).select('_id first_name last_name email').lean();
+      
+      ccEmails = ccUsers.map(user => user.email);
+      
+      if (ccUsers.length > 0) {
+        console.log('\n📋 CC RECIPIENTS:');
+        console.log(`Total CC Users: ${ccUsers.length}`);
+        ccUsers.forEach((user, index) => {
+          console.log(`  ${index + 1}. ${user.first_name} ${user.last_name} - ${user.email}`);
+        });
+        console.log('');
+      }
+    }
+    
+    return {
+      to: toEmails,
+      cc: ccEmails
+    };
+  } catch (error) {
+    console.error('Error fetching user emails:', error);
+    return { to: [], cc: [] };
+  }
+};
+
+const sendWorkflowEmail = async (emailConfig, data, companyId = null, excludeUserId = null) => {
+  // Enhanced validation and logging
+  if (!emailConfig) {
+    console.error('❌ Email configuration is null or undefined');
     return { success: false, error: 'Email configuration missing' };
   }
   
+  // Default to 'gmail' if service is not specified
+  if (!emailConfig.service) {
+    console.warn('⚠️  Email service not specified, defaulting to Gmail');
+    emailConfig.service = 'gmail';
+  }
+  
   try {
+    console.log('\n🔧 Email Configuration Check:');
+    console.log(`  Service: ${emailConfig.service}`);
+    console.log(`  To Email Type: ${emailConfig.to_email_type || 'not set'}`);
+    console.log(`  Subject: ${emailConfig.subject ? 'configured' : 'missing'}`);
+    console.log(`  Company ID: ${companyId || 'not provided'}`);
+    console.log(`  Exclude User ID: ${excludeUserId || 'none'}`);
+    
+    // Get user emails based on configuration
+    let userEmails = { to: [], cc: [] };
+    
+    // If companyId is provided and user-based email configuration exists
+    if (companyId && (emailConfig.to_email_type === 'all' || emailConfig.to_email_type === 'specific_users')) {
+      userEmails = await getUserEmailsFromConfig(emailConfig, companyId, excludeUserId);
+      
+      if (userEmails.to.length === 0) {
+        console.warn('⚠️  No user emails found. Check user configuration.');
+      }
+    }
+    
     if (emailConfig.service === 'gmail') {
-      return await sendGmailEmail(emailConfig, data);
+      return await sendGmailEmail(emailConfig, data, userEmails);
     } else if (emailConfig.service === 'sendgrid') {
-      return await sendSendGridEmail(emailConfig, data);
+      return await sendSendGridEmail(emailConfig, data, userEmails);
     } else {
       return { success: false, error: `Unsupported email service: ${emailConfig.service}` };
     }
   } catch (error) {
-    console.error('Send workflow email error:', error);
+    console.error('❌ Send workflow email error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -176,4 +423,5 @@ module.exports = {
   sendWorkflowEmail,
   sendGmailEmail,
   sendSendGridEmail,
+  getUserEmailsFromConfig,
 };

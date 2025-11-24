@@ -9,6 +9,9 @@ const detectSchemaType = (entityData, requestPath) => {
     if (requestPath.includes('/workshop-report') || requestPath.includes('/workshopreport')) {
       return 'workshop_report';
     }
+    if (requestPath.includes('/workshop-quote') || requestPath.includes('/workshopquote')) {
+      return 'workshop_quote';
+    }
     if (requestPath.includes('/workshop')) {
       return 'workshop_quote';
     }
@@ -18,11 +21,11 @@ const detectSchemaType = (entityData, requestPath) => {
       return 'supplier';
     }
     
-    // Vehicle schemas
-    if (requestPath.includes('/mastervehicle')) {
+    // Vehicle schemas - order matters, check specific types first
+    if (requestPath.includes('/mastervehicle') || requestPath.includes('/master-vehicle')) {
       return 'master_vehicle';
     }
-    if (requestPath.includes('/advertise') || requestPath.includes('/adpublishing')) {
+    if (requestPath.includes('/advertise') || requestPath.includes('/adpublishing') || requestPath.includes('/advertise-vehicle')) {
       return 'advertise_vehicle';
     }
     if (requestPath.includes('/vehicle') || requestPath.includes('/inspection') || requestPath.includes('/tradein')) {
@@ -41,11 +44,11 @@ const detectSchemaType = (entityData, requestPath) => {
     }
     
     // User & Permission schemas
+    if (requestPath.includes('/group-permission') || requestPath.includes('/grouppermission')) {
+      return 'group_permission';
+    }
     if (requestPath.includes('/users') || requestPath.includes('/user')) {
       return 'user';
-    }
-    if (requestPath.includes('/group-permission')) {
-      return 'group_permission';
     }
     
     // Communication schemas
@@ -68,13 +71,13 @@ const detectSchemaType = (entityData, requestPath) => {
     if (requestPath.includes('/cost-configuration') || requestPath.includes('/costconfiguration')) {
       return 'cost_configuration';
     }
-    if (requestPath.includes('/inspection-config')) {
+    if (requestPath.includes('/inspection-config') || requestPath.includes('/inspectionconfig')) {
       return 'inspection_config';
     }
-    if (requestPath.includes('/tradein-config')) {
+    if (requestPath.includes('/tradein-config') || requestPath.includes('/tradeinconfig')) {
       return 'tradein_config';
     }
-    if (requestPath.includes('/notification-config')) {
+    if (requestPath.includes('/notification-config') || requestPath.includes('/notificationconfig')) {
       return 'notification_configuration';
     }
     if (requestPath.includes('/dropdown')) {
@@ -94,38 +97,36 @@ const detectSchemaType = (entityData, requestPath) => {
   }
 
   // Fallback: detect from entity data structure
-  // Workshop schemas
-  if (entityData.report_type !== undefined && entityData.quotes_data !== undefined) {
+  // Workshop schemas - check specific fields
+  if (entityData.report_type !== undefined && entityData.quotes_data !== undefined && entityData.vehicle_stock_id !== undefined) {
     return 'workshop_report';
   }
-  if (entityData.quote_type !== undefined) {
+  if (entityData.quote_type !== undefined && entityData.field_id !== undefined && entityData.field_name !== undefined) {
     return 'workshop_quote';
   }
   
-  // Supplier schema
-  if (entityData.supplier_shop_name !== undefined || (entityData.email !== undefined && entityData.name !== undefined && entityData.tags !== undefined)) {
+  // Supplier schema - check for unique supplier fields
+  if (entityData.supplier_shop_name !== undefined || (entityData.tags !== undefined && Array.isArray(entityData.tags) && entityData.email !== undefined && entityData.name !== undefined && !entityData.username)) {
     return 'supplier';
   }
   
-  // Vehicle schemas
-  if (entityData.vehicle_stock_id !== undefined || entityData.vin !== undefined) {
-    // Check if it's a master vehicle
+  // Vehicle schemas - check vehicle_type field
+  if (entityData.vehicle_stock_id !== undefined && entityData.vin !== undefined) {
     if (entityData.vehicle_type === 'master') {
       return 'master_vehicle';
     }
-    // Check if it's an advertise vehicle
     if (entityData.vehicle_type === 'advertisement') {
       return 'advertise_vehicle';
     }
-    // Default to vehicle schema
+    // Default to vehicle schema for inspection/tradein types
     return 'vehicle';
   }
   
   // Organization schemas
-  if (entityData.dealership_id !== undefined && entityData.dealership_name !== undefined) {
+  if (entityData.dealership_id !== undefined && entityData.dealership_name !== undefined && entityData.dealership_address !== undefined) {
     return 'dealership';
   }
-  if (entityData.bay_name !== undefined && entityData.bay_timings !== undefined) {
+  if (entityData.bay_name !== undefined && entityData.bay_timings !== undefined && Array.isArray(entityData.bay_timings)) {
     return 'service_bay';
   }
   if (entityData.company_name !== undefined && entityData.subscription_status !== undefined) {
@@ -133,15 +134,15 @@ const detectSchemaType = (entityData, requestPath) => {
   }
   
   // User & Permission schemas
-  if (entityData.username !== undefined && entityData.role !== undefined && (entityData.role === 'company_super_admin' || entityData.role === 'company_admin')) {
+  if (entityData.username !== undefined && entityData.role !== undefined && entityData.email !== undefined && (entityData.role === 'company_super_admin' || entityData.role === 'company_admin')) {
     return 'user';
   }
-  if (entityData.group_name !== undefined && entityData.permissions !== undefined && Array.isArray(entityData.permissions)) {
+  if (entityData.name !== undefined && entityData.permissions !== undefined && Array.isArray(entityData.permissions) && entityData.description !== undefined && !entityData.username) {
     return 'group_permission';
   }
   
   // Communication schemas
-  if (entityData.quote_id !== undefined && entityData.messages !== undefined && entityData.unread_count_company !== undefined) {
+  if (entityData.quote_id !== undefined && entityData.messages !== undefined && Array.isArray(entityData.messages) && entityData.unread_count_company !== undefined) {
     return 'conversation';
   }
   if (entityData.recipient_id !== undefined && entityData.configuration_id !== undefined && entityData.is_read !== undefined) {
@@ -157,22 +158,22 @@ const detectSchemaType = (entityData, requestPath) => {
   }
   
   // Configuration schemas
-  if (entityData.cost_type !== undefined && entityData.cost_setter !== undefined) {
+  if (entityData.cost_types !== undefined && Array.isArray(entityData.cost_types) && entityData.cost_setter !== undefined && Array.isArray(entityData.cost_setter)) {
     return 'cost_configuration';
   }
-  if (entityData.inspection_type !== undefined && entityData.categories !== undefined) {
+  if (entityData.config_name !== undefined && entityData.categories !== undefined && Array.isArray(entityData.categories) && entityData.settings !== undefined && entityData.settings.require_digital_signature !== undefined) {
     return 'inspection_config';
   }
-  if (entityData.tradein_type !== undefined && entityData.categories !== undefined) {
+  if (entityData.config_name !== undefined && entityData.categories !== undefined && Array.isArray(entityData.categories) && entityData.settings !== undefined && entityData.settings.require_customer_signature !== undefined) {
     return 'tradein_config';
   }
-  if (entityData.trigger_event !== undefined && entityData.notification_channels !== undefined) {
+  if (entityData.trigger_type !== undefined && entityData.target_schema !== undefined && entityData.notification_channels !== undefined) {
     return 'notification_configuration';
   }
-  if (entityData.dropdown_name !== undefined && entityData.dropdown_values !== undefined) {
+  if (entityData.dropdown_name !== undefined && entityData.values !== undefined && Array.isArray(entityData.values) && entityData.display_name !== undefined) {
     return 'dropdown_master';
   }
-  if (entityData.integration_type !== undefined && entityData.api_endpoint !== undefined) {
+  if (entityData.integration_type !== undefined && entityData.environments !== undefined && entityData.active_environment !== undefined) {
     return 'integration';
   }
   
@@ -180,7 +181,7 @@ const detectSchemaType = (entityData, requestPath) => {
   if (entityData.workflow_id !== undefined && entityData.execution_status !== undefined && entityData.vehicle_results !== undefined) {
     return 'workflow_execution';
   }
-  if (entityData.workflow_type !== undefined && entityData.flow_data !== undefined) {
+  if (entityData.workflow_type !== undefined && entityData.flow_data !== undefined && (entityData.workflow_type === 'vehicle_inbound' || entityData.workflow_type === 'vehicle_outbound')) {
     return 'workflow';
   }
 
@@ -372,7 +373,6 @@ const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, reque
           trigger.trigger_value
         );
         
-        console.log(`[Workflow test] Checking trigger for schema "${trigger.schema_type}": field="${trigger.trigger_field}", value="${fieldValue}", operator="${trigger.trigger_operator}", expected="${trigger.trigger_value}", result=${conditionMet}`);
       } else if (hasMultipleSchemas && referenceField) {
         // Cross-schema validation: fetch related data using reference field
         conditionMet = await evaluateCrossSchemaCondition(
@@ -428,21 +428,46 @@ const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField,
     const referenceValue = getNestedFieldValue(entityData, referenceField);
 
     if (!referenceValue) {
-      console.log(`[Workflow ${workflowName}] Reference field "${referenceField}" not found in entity data`);
       return false;
     }
 
-    // Convert schema_type to model name
-    const modelName = trigger.schema_type
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
+    // Convert schema_type to model name with special handling
+    let modelName;
+    const schemaTypeMap = {
+      'advertise_vehicle': 'AdvertiseVehicle',
+      'conversation': 'Conversation',
+      'cost_configuration': 'CostConfiguration',
+      'dealership': 'Dealership',
+      'dropdown_master': 'DropdownMaster',
+      'group_permission': 'GroupPermission',
+      'inspection_config': 'InspectionConfig',
+      'integration': 'Integration',
+      'master_vehicle': 'MasterVehicle',
+      'notification_configuration': 'NotificationConfiguration',
+      'service_bay': 'ServiceBay',
+      'supplier': 'Supplier',
+      'tradein_config': 'TradeinConfig',
+      'user': 'User',
+      'vehicle': 'Vehicle',
+      'workflow': 'Workflow',
+      'workshop_quote': 'WorkshopQuote',
+      'workshop_report': 'WorkshopReport'
+    };
+
+    modelName = schemaTypeMap[trigger.schema_type];
+    
+    if (!modelName) {
+      // Fallback to default conversion
+      modelName = trigger.schema_type
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
+    }
 
     let SchemaModel;
     try {
       SchemaModel = require(`../models/${modelName}`);
     } catch (error) {
-      console.error(`[Workflow ${workflowName}] Schema model "${modelName}" not found`);
       return false;
     }
 
@@ -466,7 +491,6 @@ const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField,
       trigger.trigger_value
     );
   } catch (error) {
-    console.error(`[Workflow ${workflowName}] Error in cross-schema validation:`, error.message);
     return false;
   }
 };
@@ -489,7 +513,7 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
       company_id: entityData.company_id
     };
     
-    // Vehicle schema fields
+    // Vehicle schema fields (Vehicle, MasterVehicle, AdvertiseVehicle)
     if (entityData.vehicle_stock_id) entitySummary.vehicle_stock_id = entityData.vehicle_stock_id;
     if (entityData.vehicle_type) entitySummary.vehicle_type = entityData.vehicle_type;
     if (entityData.make) entitySummary.make = entityData.make;
@@ -498,31 +522,35 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
     if (entityData.vin) entitySummary.vin = entityData.vin;
     if (entityData.plate_no) entitySummary.plate_no = entityData.plate_no;
     if (entityData.is_pricing_ready !== undefined) entitySummary.is_pricing_ready = entityData.is_pricing_ready;
+    if (entityData.chassis_no) entitySummary.chassis_no = entityData.chassis_no;
     
     // Workshop Quote schema fields
     if (entityData.quote_type) entitySummary.quote_type = entityData.quote_type;
     if (entityData.field_id) entitySummary.field_id = entityData.field_id;
+    if (entityData.field_name) entitySummary.field_name = entityData.field_name;
     if (entityData.status) entitySummary.status = entityData.status;
+    if (entityData.quote_amount) entitySummary.quote_amount = entityData.quote_amount;
     
     // Workshop Report schema fields
     if (entityData.report_type) entitySummary.report_type = entityData.report_type;
     if (entityData.stage_name) entitySummary.stage_name = entityData.stage_name;
     
     // Supplier schema fields
-    if (entityData.name) entitySummary.name = entityData.name;
+    if (entityData.name && !entityData.username) entitySummary.name = entityData.name;
     if (entityData.email) entitySummary.email = entityData.email;
     if (entityData.supplier_shop_name) entitySummary.supplier_shop_name = entityData.supplier_shop_name;
-    if (entityData.tags) entitySummary.tags = entityData.tags;
+    if (entityData.tags && Array.isArray(entityData.tags)) entitySummary.tags = entityData.tags;
     if (entityData.is_active !== undefined) entitySummary.is_active = entityData.is_active;
     
     // Dealership schema fields
     if (entityData.dealership_id) entitySummary.dealership_id = entityData.dealership_id;
     if (entityData.dealership_name) entitySummary.dealership_name = entityData.dealership_name;
     if (entityData.dealership_email) entitySummary.dealership_email = entityData.dealership_email;
+    if (entityData.dealership_address) entitySummary.dealership_address = entityData.dealership_address;
     
     // Service Bay schema fields
     if (entityData.bay_name) entitySummary.bay_name = entityData.bay_name;
-    if (entityData.dealership_id) entitySummary.dealership_id = entityData.dealership_id;
+    if (entityData.bay_description) entitySummary.bay_description = entityData.bay_description;
     if (entityData.primary_admin) entitySummary.primary_admin = entityData.primary_admin;
     
     // Company schema fields
@@ -537,13 +565,17 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
     if (entityData.last_name) entitySummary.last_name = entityData.last_name;
     
     // Group Permission schema fields
-    if (entityData.group_name) entitySummary.group_name = entityData.group_name;
-    if (entityData.permissions) entitySummary.permissions = entityData.permissions;
+    if (entityData.name && entityData.permissions && !entityData.username) {
+      entitySummary.group_name = entityData.name;
+      entitySummary.permissions = entityData.permissions;
+    }
+    if (entityData.description && entityData.permissions) entitySummary.description = entityData.description;
     
     // Conversation schema fields
     if (entityData.quote_id) entitySummary.quote_id = entityData.quote_id;
     if (entityData.supplier_id) entitySummary.supplier_id = entityData.supplier_id;
     if (entityData.last_message_at) entitySummary.last_message_at = entityData.last_message_at;
+    if (entityData.unread_count_company !== undefined) entitySummary.unread_count_company = entityData.unread_count_company;
     
     // Notification schema fields
     if (entityData.recipient_id) entitySummary.recipient_id = entityData.recipient_id;
@@ -558,15 +590,43 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
     
     // Subscription schema fields
     if (entityData.plan_id) entitySummary.plan_id = entityData.plan_id;
-    if (entityData.subscription_status) entitySummary.subscription_status = entityData.subscription_status;
     
-    // Configuration schema fields
-    if (entityData.cost_type) entitySummary.cost_type = entityData.cost_type;
-    if (entityData.inspection_type) entitySummary.inspection_type = entityData.inspection_type;
-    if (entityData.tradein_type) entitySummary.tradein_type = entityData.tradein_type;
+    // Cost Configuration schema fields
+    if (entityData.cost_types && Array.isArray(entityData.cost_types)) {
+      entitySummary.cost_types_count = entityData.cost_types.length;
+    }
+    if (entityData.cost_setter && Array.isArray(entityData.cost_setter)) {
+      entitySummary.cost_setter_count = entityData.cost_setter.length;
+    }
+    
+    // Inspection Config schema fields
+    if (entityData.config_name && entityData.categories) {
+      entitySummary.config_name = entityData.config_name;
+      entitySummary.categories_count = Array.isArray(entityData.categories) ? entityData.categories.length : 0;
+      if (entityData.is_default !== undefined) entitySummary.is_default = entityData.is_default;
+    }
+    
+    // Tradein Config schema fields (similar to inspection config)
+    if (entityData.config_name && entityData.version) {
+      entitySummary.config_name = entityData.config_name;
+      entitySummary.version = entityData.version;
+    }
+    
+    // Dropdown Master schema fields
     if (entityData.dropdown_name) entitySummary.dropdown_name = entityData.dropdown_name;
+    if (entityData.display_name) entitySummary.display_name = entityData.display_name;
+    if (entityData.values && Array.isArray(entityData.values)) {
+      entitySummary.values_count = entityData.values.length;
+    }
+    
+    // Integration schema fields
     if (entityData.integration_type) entitySummary.integration_type = entityData.integration_type;
-    if (entityData.trigger_event) entitySummary.trigger_event = entityData.trigger_event;
+    if (entityData.active_environment) entitySummary.active_environment = entityData.active_environment;
+    
+    // Notification Configuration schema fields
+    if (entityData.trigger_type) entitySummary.trigger_type = entityData.trigger_type;
+    if (entityData.target_schema) entitySummary.target_schema = entityData.target_schema;
+    if (entityData.notification_channels) entitySummary.notification_channels = entityData.notification_channels;
     
     // Workflow schema fields
     if (entityData.workflow_type) entitySummary.workflow_type = entityData.workflow_type;
@@ -720,16 +780,44 @@ const processLegacyExport = async (workflow, entityData, selectedFields) => {
 // Fetch related schema data
 const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, companyId) => {
   try {
-    const modelName = schemaType
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
+    // Convert schema_type to model name with special handling
+    let modelName;
+    const schemaTypeMap = {
+      'advertise_vehicle': 'AdvertiseVehicle',
+      'conversation': 'Conversation',
+      'cost_configuration': 'CostConfiguration',
+      'dealership': 'Dealership',
+      'dropdown_master': 'DropdownMaster',
+      'group_permission': 'GroupPermission',
+      'inspection_config': 'InspectionConfig',
+      'integration': 'Integration',
+      'master_vehicle': 'MasterVehicle',
+      'notification_configuration': 'NotificationConfiguration',
+      'service_bay': 'ServiceBay',
+      'supplier': 'Supplier',
+      'tradein_config': 'TradeinConfig',
+      'user': 'User',
+      'vehicle': 'Vehicle',
+      'workflow': 'Workflow',
+      'workshop_quote': 'WorkshopQuote',
+      'workshop_report': 'WorkshopReport'
+    };
+
+    modelName = schemaTypeMap[schemaType];
+    
+    if (!modelName) {
+      // Fallback to default conversion
+      modelName = schemaType
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
+    }
 
     let SchemaModel;
     try {
       SchemaModel = require(`../models/${modelName}`);
     } catch (error) {
-      console.log(`  Model "${modelName}" not found - skipping schema`);
+      console.log(`  Model "${modelName}" not found for schema type "${schemaType}" - skipping schema`);
       return null;
     }
 

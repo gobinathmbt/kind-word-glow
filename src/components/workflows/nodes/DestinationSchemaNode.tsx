@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { workflowServices } from '@/api/services';
 
-const DestinationSchemaNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
+const DestinationSchemaNode = ({ data, isConnectable, id, onDataUpdate, workflowType }: any) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [config, setConfig] = useState(
     data.config || {
@@ -89,8 +89,8 @@ const DestinationSchemaNode = ({ data, isConnectable, id, onDataUpdate }: any) =
 
   // Fetch available schemas
   const { data: availableSchemas, isLoading: isSchemasLoading } = useQuery({
-    queryKey: ['available-schemas'],
-    queryFn: () => workflowServices.getAvailableSchemas(),
+    queryKey: ['available-schemas', workflowType],
+    queryFn: () => workflowServices.getAvailableSchemas(workflowType),
   });
 
   // Function to fetch schema fields for a specific schema type
