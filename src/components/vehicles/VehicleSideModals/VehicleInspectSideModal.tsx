@@ -31,18 +31,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Car, Wrench, ClipboardList, Calculator, FileText, Building } from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, DollarSign, FileBarChart } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import VehicleOverviewSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleOverviewSection";
 import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleGeneralInfoSection";
 import VehicleSourceSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleSourceSection";
 import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleRegistrationSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleOdometerSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleAttachmentsSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
@@ -75,6 +73,7 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
   const [modePopoverOpen, setModePopoverOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"view" | "edit">("edit");
   const [isPricingReady, setIsPricingReady] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
@@ -107,8 +106,8 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
       });
       setIsPricingReady(!isPricingReady);
       toast.success(
-        `Vehicle ${
-          !isPricingReady ? "marked as" : "removed from"
+        `Vehicle ${!isPricingReady ? "marked as" : "removed from"
+          
         } pricing ready`
       );
       onUpdate();
@@ -117,12 +116,25 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      // Call onUpdate to refresh all APIs and reload the component
+      await onUpdate();
+      toast.success("Vehicle data refreshed successfully");
+    } catch (error) {
+      toast.error("Failed to refresh vehicle data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     if (vehicle && vehicle.vehicle_type === "inspection") {
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
-            .filter((item: any) => item.in_workshop)
-            .map((item: any) => item.stage_name)
+          .filter((item: any) => item.in_workshop)
+          .map((item: any) => item.stage_name)
         : [];
       setSelectedStages(currentlyInWorkshop);
     }
@@ -160,280 +172,280 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
     }
   };
 
-const handleConfirmAction = async () => {
-  try {
-    if (!pendingAction) return;
-
-    setIsUpdatingWorkshop(true);
-
-    if (pendingAction.type === "tradein") {
-      await vehicleServices.updateVehicleWorkshopStatus(
-        vehicle._id,
-        vehicleType,
-        {
-          is_workshop: true,
-          workshop_progress: "in_progress",
-        }
-      );
-      toast.success("Vehicle pushed to workshop successfully");
-
-      // Update local state immediately for tradein vehicles
-      if (vehicleType === "tradein") {
-        vehicle.is_workshop = true;
-        vehicle.workshop_progress = "in_progress";
-      }
-
-      // Immediately trigger update
-      onUpdate();
-    } else if (pendingAction.type === "inspection" && pendingAction.stages) {
-      await vehicleServices.updateVehicleWorkshopStatus(
-        vehicle._id,
-        vehicleType,
-        {
-          stages: pendingAction.stages,
-          workshop_action: pendingAction.action,
-        }
-      );
-
-      const actionText =
-        pendingAction.action === "push" ? "pushed to" : "removed from";
-      toast.success(`Selected stages ${actionText} workshop successfully`);
-
-      // Close modal
-      setStageSelectionOpen(false);
-
-      // Update local state immediately for inspection vehicles
-      if (pendingAction.action === "push") {
-        // Add the pushed stages to vehicle.is_workshop array
-        const updatedWorkshopStages = [...(vehicle.is_workshop || [])];
-        pendingAction.stages.forEach(stage => {
-          const existingStageIndex = updatedWorkshopStages.findIndex(
-            (item: any) => item.stage_name === stage
-          );
-          
-          if (existingStageIndex >= 0) {
-            // Update existing stage
-            updatedWorkshopStages[existingStageIndex] = {
-              ...updatedWorkshopStages[existingStageIndex],
-              in_workshop: true
-            };
-          } else {
-            // Add new stage
-            updatedWorkshopStages.push({
-              stage_name: stage,
-              in_workshop: true
-            });
-          }
-        });
-        vehicle.is_workshop = updatedWorkshopStages;
-
-        // Update workshop_progress array - change from "not_processed_yet" to "in_progress"
-        const updatedWorkshopProgress = [...(vehicle.workshop_progress || [])];
-        pendingAction.stages.forEach(stage => {
-          const existingProgressIndex = updatedWorkshopProgress.findIndex(
-            (item: any) => item.stage_name === stage
-          );
-          
-          if (existingProgressIndex >= 0) {
-            // Update existing progress
-            updatedWorkshopProgress[existingProgressIndex] = {
-              ...updatedWorkshopProgress[existingProgressIndex],
-              progress: "in_progress"
-            };
-          } else {
-            // Add new progress entry
-            updatedWorkshopProgress.push({
-              stage_name: stage,
-              progress: "in_progress"
-            });
-          }
-        });
-        vehicle.workshop_progress = updatedWorkshopProgress;
-        
-        // Also update selectedStages state
-        setSelectedStages((prev) => [...prev, ...pendingAction.stages!]);
-      } else {
-        // Remove stages from workshop
-        const updatedWorkshopStages = (vehicle.is_workshop || []).map((item: any) => {
-          if (pendingAction.stages!.includes(item.stage_name)) {
-            return {
-              ...item,
-              in_workshop: false
-            };
-          }
-          return item;
-        });
-        vehicle.is_workshop = updatedWorkshopStages;
-        
-        // Also update selectedStages state
-        setSelectedStages((prev) =>
-          prev.filter((stage) => !pendingAction.stages!.includes(stage))
-        );
-      }
-
-      // Trigger parent update to refresh vehicle data
-      onUpdate();
-    }
-  } catch (error) {
-    const actionText =
-      pendingAction.action === "push" ? "push to" : "remove from";
-    toast.error(`Failed to ${actionText} workshop`);
-  } finally {
-    setConfirmationOpen(false);
-    setPendingAction(null);
-    setIsUpdatingWorkshop(false);
-  }
-};
-
-// Also update the handleStageUpdate function for mixed actions
-const handleStageUpdate = async () => {
-  const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
-    ? vehicle.is_workshop
-        .filter((item: any) => item.in_workshop)
-        .map((item: any) => item.stage_name)
-    : [];
-
-  const stagesToPush = selectedStages.filter(
-    (stage) => !currentlyInWorkshop.includes(stage)
-  );
-  const stagesToRemove = currentlyInWorkshop.filter(
-    (stage: any) => !selectedStages.includes(stage) && canRemoveStage(stage)
-  );
-
-  if (stagesToPush.length === 0 && stagesToRemove.length === 0) {
-    toast.error("No changes to apply");
-    return;
-  }
-
-  const attemptingToRemoveInProgress = currentlyInWorkshop.filter(
-    (stage: any) => !selectedStages.includes(stage) && !canRemoveStage(stage)
-  );
-
-  if (attemptingToRemoveInProgress.length > 0) {
-    toast.error(
-      `Cannot remove stages that are in progress: ${attemptingToRemoveInProgress.join(
-        ", "
-      )}`
-    );
-    return;
-  }
-
-  // Handle mixed actions (both push and remove)
-  if (stagesToPush.length > 0 && stagesToRemove.length > 0) {
+  const handleConfirmAction = async () => {
     try {
+      if (!pendingAction) return;
+
       setIsUpdatingWorkshop(true);
 
-      // Push stages first
-      if (stagesToPush.length > 0) {
+      if (pendingAction.type === "tradein") {
         await vehicleServices.updateVehicleWorkshopStatus(
           vehicle._id,
           vehicleType,
           {
-            stages: stagesToPush,
-            workshop_action: "push",
+            is_workshop: true,
+            workshop_progress: "in_progress",
           }
         );
-        
-        // Update local state immediately for pushed stages
-        const updatedWorkshopStages = [...(vehicle.is_workshop || [])];
-        stagesToPush.forEach(stage => {
-          const existingStageIndex = updatedWorkshopStages.findIndex(
-            (item: any) => item.stage_name === stage
-          );
-          
-          if (existingStageIndex >= 0) {
-            updatedWorkshopStages[existingStageIndex] = {
-              ...updatedWorkshopStages[existingStageIndex],
-              in_workshop: true
-            };
-          } else {
-            updatedWorkshopStages.push({
-              stage_name: stage,
-              in_workshop: true
-            });
-          }
-        });
-        vehicle.is_workshop = updatedWorkshopStages;
+        toast.success("Vehicle pushed to workshop successfully");
 
-        // Update workshop_progress array for pushed stages
-        const updatedWorkshopProgress = [...(vehicle.workshop_progress || [])];
-        stagesToPush.forEach(stage => {
-          const existingProgressIndex = updatedWorkshopProgress.findIndex(
-            (item: any) => item.stage_name === stage
-          );
-          
-          if (existingProgressIndex >= 0) {
-            updatedWorkshopProgress[existingProgressIndex] = {
-              ...updatedWorkshopProgress[existingProgressIndex],
-              progress: "in_progress"
-            };
-          } else {
-            updatedWorkshopProgress.push({
-              stage_name: stage,
-              progress: "in_progress"
-            });
-          }
-        });
-        vehicle.workshop_progress = updatedWorkshopProgress;
-      }
+        // Update local state immediately for tradein vehicles
+        if (vehicleType === "tradein") {
+          vehicle.is_workshop = true;
+          vehicle.workshop_progress = "in_progress";
+        }
 
-      // Remove stages
-      if (stagesToRemove.length > 0) {
+        // Immediately trigger update
+        onUpdate();
+      } else if (pendingAction.type === "inspection" && pendingAction.stages) {
         await vehicleServices.updateVehicleWorkshopStatus(
           vehicle._id,
           vehicleType,
           {
-            stages: stagesToRemove,
-            workshop_action: "remove",
+            stages: pendingAction.stages,
+            workshop_action: pendingAction.action,
           }
         );
-        
-        // Update local state immediately for removed stages
-        const updatedWorkshopStages = (vehicle.is_workshop || []).map((item: any) => {
-          if (stagesToRemove.includes(item.stage_name)) {
-            return {
-              ...item,
-              in_workshop: false
-            };
-          }
-          return item;
-        });
-        vehicle.is_workshop = updatedWorkshopStages;
+
+        const actionText =
+          pendingAction.action === "push" ? "pushed to" : "removed from";
+        toast.success(`Selected stages ${actionText} workshop successfully`);
+
+        // Close modal
+        setStageSelectionOpen(false);
+
+        // Update local state immediately for inspection vehicles
+        if (pendingAction.action === "push") {
+          // Add the pushed stages to vehicle.is_workshop array
+          const updatedWorkshopStages = [...(vehicle.is_workshop || [])];
+          pendingAction.stages.forEach(stage => {
+            const existingStageIndex = updatedWorkshopStages.findIndex(
+              (item: any) => item.stage_name === stage
+            );
+
+            if (existingStageIndex >= 0) {
+              // Update existing stage
+              updatedWorkshopStages[existingStageIndex] = {
+                ...updatedWorkshopStages[existingStageIndex],
+                in_workshop: true
+              };
+            } else {
+              // Add new stage
+              updatedWorkshopStages.push({
+                stage_name: stage,
+                in_workshop: true
+              });
+            }
+          });
+          vehicle.is_workshop = updatedWorkshopStages;
+
+          // Update workshop_progress array - change from "not_processed_yet" to "in_progress"
+          const updatedWorkshopProgress = [...(vehicle.workshop_progress || [])];
+          pendingAction.stages.forEach(stage => {
+            const existingProgressIndex = updatedWorkshopProgress.findIndex(
+              (item: any) => item.stage_name === stage
+            );
+
+            if (existingProgressIndex >= 0) {
+              // Update existing progress
+              updatedWorkshopProgress[existingProgressIndex] = {
+                ...updatedWorkshopProgress[existingProgressIndex],
+                progress: "in_progress"
+              };
+            } else {
+              // Add new progress entry
+              updatedWorkshopProgress.push({
+                stage_name: stage,
+                progress: "in_progress"
+              });
+            }
+          });
+          vehicle.workshop_progress = updatedWorkshopProgress;
+
+          // Also update selectedStages state
+          setSelectedStages((prev) => [...prev, ...pendingAction.stages!]);
+        } else {
+          // Remove stages from workshop
+          const updatedWorkshopStages = (vehicle.is_workshop || []).map((item: any) => {
+            if (pendingAction.stages!.includes(item.stage_name)) {
+              return {
+                ...item,
+                in_workshop: false
+              };
+            }
+            return item;
+          });
+          vehicle.is_workshop = updatedWorkshopStages;
+
+          // Also update selectedStages state
+          setSelectedStages((prev) =>
+            prev.filter((stage) => !pendingAction.stages!.includes(stage))
+          );
+        }
+
+        // Trigger parent update to refresh vehicle data
+        onUpdate();
       }
-
-      toast.success("Workshop stages updated successfully");
-      setStageSelectionOpen(false);
-
-      // Update selectedStages state
-      const updatedStages = [
-        ...currentlyInWorkshop.filter(
-          (stage) => !stagesToRemove.includes(stage)
-        ),
-        ...stagesToPush,
-      ];
-      setSelectedStages(updatedStages);
-
-      // Trigger parent update to refresh vehicle data
-      onUpdate();
     } catch (error) {
-      toast.error("Failed to update workshop stages");
+      const actionText =
+        pendingAction.action === "push" ? "push to" : "remove from";
+      toast.error(`Failed to ${actionText} workshop`);
     } finally {
+      setConfirmationOpen(false);
+      setPendingAction(null);
       setIsUpdatingWorkshop(false);
     }
-    return;
-  }
+  };
 
-  // Handle single action (either push or remove)
-  const action = stagesToPush.length > 0 ? "push" : "remove";
-  const stages = stagesToPush.length > 0 ? stagesToPush : stagesToRemove;
+  // Also update the handleStageUpdate function for mixed actions
+  const handleStageUpdate = async () => {
+    const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
+      ? vehicle.is_workshop
+        .filter((item: any) => item.in_workshop)
+        .map((item: any) => item.stage_name)
+      : [];
 
-  setPendingAction({
-    type: "inspection",
-    action,
-    stages,
-  });
-  setConfirmationOpen(true);
-};
+    const stagesToPush = selectedStages.filter(
+      (stage) => !currentlyInWorkshop.includes(stage)
+    );
+    const stagesToRemove = currentlyInWorkshop.filter(
+      (stage: any) => !selectedStages.includes(stage) && canRemoveStage(stage)
+    );
+
+    if (stagesToPush.length === 0 && stagesToRemove.length === 0) {
+      toast.error("No changes to apply");
+      return;
+    }
+
+    const attemptingToRemoveInProgress = currentlyInWorkshop.filter(
+      (stage: any) => !selectedStages.includes(stage) && !canRemoveStage(stage)
+    );
+
+    if (attemptingToRemoveInProgress.length > 0) {
+      toast.error(
+        `Cannot remove stages that are in progress: ${attemptingToRemoveInProgress.join(
+          ", "
+        )}`
+      );
+      return;
+    }
+
+    // Handle mixed actions (both push and remove)
+    if (stagesToPush.length > 0 && stagesToRemove.length > 0) {
+      try {
+        setIsUpdatingWorkshop(true);
+
+        // Push stages first
+        if (stagesToPush.length > 0) {
+          await vehicleServices.updateVehicleWorkshopStatus(
+            vehicle._id,
+            vehicleType,
+            {
+              stages: stagesToPush,
+              workshop_action: "push",
+            }
+          );
+
+          // Update local state immediately for pushed stages
+          const updatedWorkshopStages = [...(vehicle.is_workshop || [])];
+          stagesToPush.forEach(stage => {
+            const existingStageIndex = updatedWorkshopStages.findIndex(
+              (item: any) => item.stage_name === stage
+            );
+
+            if (existingStageIndex >= 0) {
+              updatedWorkshopStages[existingStageIndex] = {
+                ...updatedWorkshopStages[existingStageIndex],
+                in_workshop: true
+              };
+            } else {
+              updatedWorkshopStages.push({
+                stage_name: stage,
+                in_workshop: true
+              });
+            }
+          });
+          vehicle.is_workshop = updatedWorkshopStages;
+
+          // Update workshop_progress array for pushed stages
+          const updatedWorkshopProgress = [...(vehicle.workshop_progress || [])];
+          stagesToPush.forEach(stage => {
+            const existingProgressIndex = updatedWorkshopProgress.findIndex(
+              (item: any) => item.stage_name === stage
+            );
+
+            if (existingProgressIndex >= 0) {
+              updatedWorkshopProgress[existingProgressIndex] = {
+                ...updatedWorkshopProgress[existingProgressIndex],
+                progress: "in_progress"
+              };
+            } else {
+              updatedWorkshopProgress.push({
+                stage_name: stage,
+                progress: "in_progress"
+              });
+            }
+          });
+          vehicle.workshop_progress = updatedWorkshopProgress;
+        }
+
+        // Remove stages
+        if (stagesToRemove.length > 0) {
+          await vehicleServices.updateVehicleWorkshopStatus(
+            vehicle._id,
+            vehicleType,
+            {
+              stages: stagesToRemove,
+              workshop_action: "remove",
+            }
+          );
+
+          // Update local state immediately for removed stages
+          const updatedWorkshopStages = (vehicle.is_workshop || []).map((item: any) => {
+            if (stagesToRemove.includes(item.stage_name)) {
+              return {
+                ...item,
+                in_workshop: false
+              };
+            }
+            return item;
+          });
+          vehicle.is_workshop = updatedWorkshopStages;
+        }
+
+        toast.success("Workshop stages updated successfully");
+        setStageSelectionOpen(false);
+
+        // Update selectedStages state
+        const updatedStages = [
+          ...currentlyInWorkshop.filter(
+            (stage) => !stagesToRemove.includes(stage)
+          ),
+          ...stagesToPush,
+        ];
+        setSelectedStages(updatedStages);
+
+        // Trigger parent update to refresh vehicle data
+        onUpdate();
+      } catch (error) {
+        toast.error("Failed to update workshop stages");
+      } finally {
+        setIsUpdatingWorkshop(false);
+      }
+      return;
+    }
+
+    // Handle single action (either push or remove)
+    const action = stagesToPush.length > 0 ? "push" : "remove";
+    const stages = stagesToPush.length > 0 ? stagesToPush : stagesToRemove;
+
+    setPendingAction({
+      type: "inspection",
+      action,
+      stages,
+    });
+    setConfirmationOpen(true);
+  };
 
   const getWorkshopStatusDisplay = () => {
     if (vehicle.vehicle_type !== "inspection") {
@@ -536,18 +548,7 @@ const handleStageUpdate = async () => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant={
-                            vehicle.vehicle_type === "inspection"
-                              ? Array.isArray(vehicle.is_workshop) &&
-                                vehicle.is_workshop.some(
-                                  (item: any) => item.in_workshop
-                                )
-                                ? "default"
-                                : "outline"
-                              : vehicle.is_workshop
-                              ? "default"
-                              : "outline"
-                          }
+                          variant="outline"
                           size="icon"
                           onClick={handlePushToWorkshop}
                           disabled={
@@ -560,13 +561,13 @@ const handleStageUpdate = async () => {
                             (
                               vehicle.vehicle_type === "inspection"
                                 ? Array.isArray(vehicle.is_workshop) &&
-                                  vehicle.is_workshop.some(
-                                    (item: any) => item.in_workshop
-                                  )
+                                vehicle.is_workshop.some(
+                                  (item: any) => item.in_workshop
+                                )
                                 : vehicle.is_workshop
                             )
-                              ? "bg-orange-500 hover:bg-orange-600 text-white"
-                              : ""
+                              ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                              : "bg-white hover:bg-white text-orange-600 hover:text-orange-700 border-gray-200 hover:border-orange-400 hover:shadow-sm"
                           }
                         >
                           <Wrench className="h-4 w-4" />
@@ -586,7 +587,11 @@ const handleStageUpdate = async () => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="icon">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                            >
                               {vehicle.vehicle_type === "inspection" ? (
                                 <ClipboardList className="h-4 w-4" />
                               ) : (
@@ -640,8 +645,9 @@ const handleStageUpdate = async () => {
                                   size="icon"
                                   onClick={handleWorkshopReport}
                                   disabled={vehicle.workshop_report_preparing}
+                                  className="bg-white hover:bg-white text-indigo-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-400 hover:shadow-sm"
                                 >
-                                  <FileText className="h-4 w-4" />
+                                  <FileBarChart className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -674,8 +680,9 @@ const handleStageUpdate = async () => {
                                   size="icon"
                                   onClick={handleWorkshopReport}
                                   disabled={hasPreparingReports && !hasReadyReports}
+                                  className="bg-white hover:bg-white text-indigo-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-400 hover:shadow-sm"
                                 >
-                                  <FileText className="h-4 w-4" />
+                                  <FileBarChart className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -704,22 +711,23 @@ const handleStageUpdate = async () => {
                     variant="outline"
                     size="icon"
                     onSuccess={onUpdate}
+                    className="bg-white hover:bg-white text-purple-600 hover:text-purple-700 border-gray-200 hover:border-purple-400 hover:shadow-sm"
                   />
 
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant={isPricingReady ? "default" : "outline"}
+                          variant="outline"
                           size="icon"
                           onClick={handleTogglePricingReady}
                           className={
                             isPricingReady
-                              ? "bg-green-500 hover:bg-green-600 text-white"
-                              : ""
+                              ? "bg-green-500 hover:bg-green-600 text-white border-green-500"
+                              : "bg-white hover:bg-white text-green-600 hover:text-green-700 border-gray-200 hover:border-green-400 hover:shadow-sm"
                           }
                         >
-                          <Calculator className="h-4 w-4" />
+                          <DollarSign className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -728,6 +736,25 @@ const handleStageUpdate = async () => {
                             ? "Pricing Ready"
                             : "Mark Pricing Ready"}
                         </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleRefresh}
+                          disabled={isRefreshing}
+                          className="bg-white hover:bg-white text-gray-600 hover:text-gray-700 border-gray-200 hover:border-gray-400 hover:shadow-sm"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -757,14 +784,12 @@ const handleStageUpdate = async () => {
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleEngineSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleSpecificationsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">
@@ -810,10 +835,10 @@ const handleStageUpdate = async () => {
               ))}
             {(!vehicle.workshop_report_ready ||
               vehicle.workshop_report_ready.length === 0) && (
-              <p className="text-center text-muted-foreground py-4">
-                No inspection stage reports available yet
-              </p>
-            )}
+                <p className="text-center text-muted-foreground py-4">
+                  No inspection stage reports available yet
+                </p>
+              )}
           </div>
         </DialogContent>
       </Dialog>
@@ -860,9 +885,8 @@ const handleStageUpdate = async () => {
                       className="rounded"
                     />
                     <span
-                      className={`font-medium ${
-                        !canEdit && inWorkshop ? "text-gray-500" : ""
-                      }`}
+                      className={`font-medium ${!canEdit && inWorkshop ? "text-gray-500" : ""
+                        }`}
                     >
                       {stageName}
                     </span>
@@ -883,8 +907,8 @@ const handleStageUpdate = async () => {
                         progress === "completed"
                           ? "default"
                           : progress === "in_progress"
-                          ? "destructive"
-                          : "secondary"
+                            ? "destructive"
+                            : "secondary"
                       }
                       className="text-xs"
                     >
@@ -902,8 +926,8 @@ const handleStageUpdate = async () => {
                 setStageSelectionOpen(false);
                 const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
                   ? vehicle.is_workshop
-                      .filter((item: any) => item.in_workshop)
-                      .map((item: any) => item.stage_name)
+                    .filter((item: any) => item.in_workshop)
+                    .map((item: any) => item.stage_name)
                   : [];
                 setSelectedStages(currentlyInWorkshop);
               }}

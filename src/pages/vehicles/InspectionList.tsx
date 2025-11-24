@@ -279,6 +279,23 @@ const InspectionList = () => {
     }
   };
 
+  const handleRefreshVehicleDetail = async () => {
+    if (!selectedVehicle) return;
+    
+    try {
+      const response = await vehicleServices.getVehicleDetail(
+        selectedVehicle.vehicle_stock_id,
+        selectedVehicle.vehicle_type
+      );
+      setSelectedVehicle(response.data.data);
+      // Also refresh the list in the background
+      refetch();
+    } catch (error) {
+      toast.error("Failed to refresh vehicle details");
+      throw error;
+    }
+  };
+
   const handleCreateSuccess = () => {
     refetch();
     setIsCreateModalOpen(false);
@@ -701,7 +718,7 @@ const InspectionList = () => {
         vehicle={selectedVehicle}
         isOpen={!!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
-        onUpdate={refetch}
+        onUpdate={handleRefreshVehicleDetail}
         vehicleType="inspection"
       />
 

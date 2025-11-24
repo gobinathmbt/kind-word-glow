@@ -273,6 +273,22 @@ const AdPublishingList = () => {
     }
   };
 
+  const handleRefreshVehicleDetail = async () => {
+    if (!selectedVehicle) return;
+    
+    try {
+      const response = await adPublishingServices.getAdVehicle(
+        selectedVehicle.vehicle_stock_id
+      );
+      setSelectedVehicle(response.data.data);
+      // Also refresh the list in the background
+      refetch();
+    } catch (error) {
+      toast.error("Failed to refresh vehicle details");
+      throw error;
+    }
+  };
+
   const handleCreateSuccess = () => {
     refetch();
     setIsCreateModalOpen(false);
@@ -686,7 +702,7 @@ const AdPublishingList = () => {
         vehicle={selectedVehicle}
         isOpen={!!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
-        onUpdate={refetch}
+        onUpdate={handleRefreshVehicleDetail}
         vehicleType="advertisement"
       />
 

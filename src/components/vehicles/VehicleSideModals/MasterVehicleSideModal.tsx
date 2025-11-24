@@ -26,7 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, Wrench, ClipboardList, Calculator, FileText } from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText, RefreshCw } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -36,11 +36,9 @@ import VehicleOverviewSection from "@/components/vehicles/VehicleSections/Master
 import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleGeneralInfoSection";
 import VehicleSourceSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleSourceSection";
 import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleRegistrationSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOdometerSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleAttachmentsSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
@@ -369,8 +367,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
           <SheetHeader className="pb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                  <Car className="h-6 w-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <Car className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <SheetTitle className="text-xl">
@@ -398,6 +396,7 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                     variant="outline"
                     size="icon"
                     onSuccess={onUpdate}
+                    className="bg-white hover:bg-white border-transparent hover:border-purple-500"
                   />
 
                   <TooltipProvider>
@@ -410,10 +409,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                           className={`h-9 w-9 ${
                             isPricingReady
                               ? "bg-green-500 hover:bg-green-600 text-white"
-                              : ""
+                              : "bg-white hover:bg-white border-transparent hover:border-green-500"
                           }`}
                         >
-                          <Calculator className="h-4 w-4" />
+                          <Calculator className="h-4 w-4 text-green-500" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -422,6 +421,24 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                             ? "Pricing Ready"
                             : "Mark Pricing Ready"}
                         </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={onUpdate}
+                          className="h-9 w-9 bg-white hover:bg-white border-transparent hover:border-blue-500"
+                        >
+                          <RefreshCw className="h-4 w-4 text-blue-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh Vehicle Data</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -451,14 +468,12 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleEngineSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleSpecificationsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">

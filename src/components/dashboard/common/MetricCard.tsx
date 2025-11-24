@@ -34,14 +34,14 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             )}
             onClick={onClick}
         >
-            <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-3">
+            <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
                     <div className="flex-1 min-w-0 overflow-hidden">
-                        <p className="text-sm font-medium text-muted-foreground mb-2">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5 sm:mb-2">
                             {title}
                         </p>
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                            <h3 className="text-3xl font-bold tracking-tight break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                        <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+                            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                 {value}
                             </h3>
                             {trend && (
@@ -52,7 +52,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                             )}
                         </div>
                         {subtitle && (
-                            <p className="text-xs text-muted-foreground mt-2">
+                            <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">
                                 {subtitle}
                             </p>
                         )}

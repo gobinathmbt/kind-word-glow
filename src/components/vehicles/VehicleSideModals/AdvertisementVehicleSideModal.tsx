@@ -20,7 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Car, Wrench, ClipboardList, Calculator, FileText } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Car, Wrench, ClipboardList, Calculator, FileText, RefreshCw } from "lucide-react";
 import { vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -30,11 +36,9 @@ import VehicleOverviewSection from "@/components/vehicles/VehicleSections/Advert
 import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleGeneralInfoSection";
 import VehicleSourceSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleSourceSection";
 import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleRegistrationSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleImportSection";
 import VehicleEngineSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleEngineSection";
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOdometerSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOwnershipSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleAttachmentsSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
@@ -66,6 +70,7 @@ const AdvertisementVehicleSideModal: React.FC<
     action?: "push" | "remove";
     stages?: string[];
   } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Move all hooks before any conditional returns
   useEffect(() => {
@@ -310,6 +315,18 @@ const AdvertisementVehicleSideModal: React.FC<
     setWorkshopReportModalOpen(true);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await onUpdate();
+      toast.success("Data refreshed successfully");
+    } catch (error) {
+      toast.error("Failed to refresh data");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
   const getConfirmationMessage = () => {
     if (!pendingAction) return "";
 
@@ -366,7 +383,29 @@ const AdvertisementVehicleSideModal: React.FC<
                     variant="outline"
                     size="icon"
                     onSuccess={onUpdate}
+                    className="bg-white hover:bg-white text-purple-600 hover:text-purple-700 border-gray-200 hover:border-purple-400 hover:shadow-sm"
                   />
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleRefresh}
+                          disabled={isRefreshing}
+                          className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                        >
+                          <RefreshCw 
+                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh Data</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
@@ -393,14 +432,12 @@ const AdvertisementVehicleSideModal: React.FC<
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
-              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleEngineSection vehicle={vehicle} onUpdate={onUpdate} />
               <VehicleSpecificationsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">
