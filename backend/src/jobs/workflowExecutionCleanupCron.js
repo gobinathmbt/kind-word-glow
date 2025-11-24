@@ -13,8 +13,6 @@ const cleanupWorkflowExecutionLogs = async () => {
     const result = await WorkflowExecution.deleteMany({
       created_at: { $lt: sevenDaysAgo },
     });
-    
-    console.log(`✅ Workflow execution logs cleanup completed: ${result.deletedCount} records deleted`);
   } catch (error) {
     console.error('❌ Workflow execution logs cleanup error:', error);
   }
@@ -26,11 +24,8 @@ const cleanupWorkflowExecutionLogs = async () => {
 const startWorkflowExecutionCleanupCron = () => {
   // Run daily at 2:00 AM
   cron.schedule('0 2 * * *', async () => {
-    console.log('🔄 Running workflow execution logs cleanup...');
     await cleanupWorkflowExecutionLogs();
   });
-  
-  console.log('⏰ Workflow execution cleanup cron job initialized (daily at 2:00 AM)');
 };
 
 module.exports = {

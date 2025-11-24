@@ -973,7 +973,6 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
       status: workflow?.status || "draft",
     };
 
-    console.log("Final workflow data:", workflowData);
     saveWorkflowMutation.mutate(workflowData);
   };
 

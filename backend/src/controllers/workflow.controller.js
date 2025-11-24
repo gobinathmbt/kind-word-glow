@@ -1288,9 +1288,6 @@ const executeWorkflow = async (req, res) => {
     workflowExecutionLog.email_status = { success_email: {}, error_email: {} };
 
     if (workflowExecutionLog.execution_status === 'success' && emailSuccessNode?.data?.config) {
-      console.log('📧 Attempting to send success email...');
-      console.log('Email node found:', emailSuccessNode ? 'Yes' : 'No');
-      console.log('Email config exists:', emailSuccessNode?.data?.config ? 'Yes' : 'No');
       // Pass workflow creator ID to exclude them from "All Users" emails
       const excludeUserId = workflow.created_by?._id || workflow.created_by;
       const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
@@ -1300,22 +1297,9 @@ const executeWorkflow = async (req, res) => {
         sent_at: new Date(),
       };
       workflowExecutionLog.email_sent = emailResult.success;
-      if (emailResult.success) {
-        console.log('✅ Success email sent successfully');
-      } else {
-        console.error('❌ Failed to send success email:', emailResult.error);
-      }
-    } else {
-      console.log('⚠️  Success email not sent:');
-      console.log('  - Execution status:', workflowExecutionLog.execution_status);
-      console.log('  - Email success node exists:', emailSuccessNode ? 'Yes' : 'No');
-      console.log('  - Email config exists:', emailSuccessNode?.data?.config ? 'Yes' : 'No');
     }
 
     if (workflowExecutionLog.execution_status !== 'success' && emailErrorNode?.data?.config) {
-      console.log('📧 Attempting to send error email...');
-      console.log('Email node found:', emailErrorNode ? 'Yes' : 'No');
-      console.log('Email config exists:', emailErrorNode?.data?.config ? 'Yes' : 'No');
       // Pass workflow creator ID to exclude them from "All Users" emails
       const excludeUserId = workflow.created_by?._id || workflow.created_by;
       const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
@@ -1325,16 +1309,6 @@ const executeWorkflow = async (req, res) => {
         sent_at: new Date(),
       };
       workflowExecutionLog.email_sent = emailResult.success;
-      if (emailResult.success) {
-        console.log('✅ Error email sent successfully');
-      } else {
-        console.error('❌ Failed to send error email:', emailResult.error);
-      }
-    } else {
-      console.log('⚠️  Error email not sent:');
-      console.log('  - Execution status:', workflowExecutionLog.execution_status);
-      console.log('  - Email error node exists:', emailErrorNode ? 'Yes' : 'No');
-      console.log('  - Email config exists:', emailErrorNode?.data?.config ? 'Yes' : 'No');
     }
 
     // Create execution summary
@@ -1548,8 +1522,6 @@ const updateWorkflowExecutionStats = async (workflowId, isSuccess, errorMessage 
     workflow.execution_stats.last_execution = new Date();
 
     await workflow.save();
-
-    console.log(`Workflow execution stats updated for workflow ${workflowId}: Total=${workflow.execution_stats.total_executions}, Success=${workflow.execution_stats.successful_executions}, Failed=${workflow.execution_stats.failed_executions}`);
   } catch (error) {
     console.error('Error updating workflow execution stats:', error);
   }
@@ -1632,23 +1604,11 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
 
     // Send appropriate email based on success/failure (same logic as Vehicle Inbound)
     if (apiResult.success && emailSuccessNode?.data?.config) {
-      console.log('Sending success email for Vehicle Outbound workflow...');
       const excludeUserId = workflow.created_by?._id || workflow.created_by;
       const emailResult = await sendWorkflowEmail(emailSuccessNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
-      if (emailResult.success) {
-        console.log('Success email sent successfully');
-      } else {
-        console.error('Failed to send success email:', emailResult.error);
-      }
     } else if (!apiResult.success && emailErrorNode?.data?.config) {
-      console.log('Sending error email for Vehicle Outbound workflow...');
       const excludeUserId = workflow.created_by?._id || workflow.created_by;
       const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
-      if (emailResult.success) {
-        console.log('Error email sent successfully');
-      } else {
-        console.error('Failed to send error email:', emailResult.error);
-      }
     }
   } catch (error) {
     console.error('Error sending outbound workflow email:', error);

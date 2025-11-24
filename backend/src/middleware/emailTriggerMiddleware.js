@@ -310,11 +310,6 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
 
     if (!conditionNode || !conditionNode.data?.config || !conditionNode.data.config.target_fields) {
       // No conditions configured - trigger immediately
-      console.log(`\n[Email Trigger Workflow: ${workflow.name}] Trigger activated (no conditions)`);
-      console.log(`Trigger Type: ${triggerType}`);
-      console.log(`Target Schema: ${targetSchema}`);
-      console.log('Trigger activated and working successfully.');
-      
       // Send email notifications (same approach as Vehicle Outbound workflow)
       await sendEmailTriggerWorkflowEmail(workflow, entityData, {
         success: true,
@@ -329,10 +324,6 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
 
     if (conditions.length === 0) {
       // No conditions configured - trigger immediately
-      console.log(`\n[Email Trigger Workflow: ${workflow.name}] Trigger activated (no conditions)`);
-      console.log(`Trigger Type: ${triggerType}`);
-      console.log(`Target Schema: ${targetSchema}`);
-      console.log('Trigger activated and working successfully.');
       
       // Send email notifications (same approach as Vehicle Outbound workflow)
       await sendEmailTriggerWorkflowEmail(workflow, entityData, {
@@ -392,33 +383,6 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
 
     // Only trigger if all conditions are met
     if (allConditionsMet) {
-      console.log(`\n========================================`);
-      console.log(`[Email Trigger Workflow: ${workflow.name}]`);
-      console.log(`========================================`);
-      console.log(`Trigger Type: ${triggerType}`);
-      console.log(`Target Schema: ${targetSchema}`);
-      console.log(`\nConditions Evaluated:`);
-      evaluatedConditions.forEach((cond, index) => {
-        console.log(`  ${index + 1}. ${cond.field_name} ${cond.operator} "${cond.value}"`);
-        console.log(`     Actual Value: ${cond.actual_value}`);
-        console.log(`     Result: ${cond.result ? 'PASS' : 'FAIL'}`);
-        if (index < evaluatedConditions.length - 1) {
-          console.log(`     Logic: ${cond.logic.toUpperCase()}`);
-        }
-      });
-      console.log(`\nEntity Details:`);
-      console.log(JSON.stringify({
-        _id: entityData._id,
-        ...Object.keys(entityData).slice(0, 10).reduce((acc, key) => {
-          if (key !== '_id' && key !== '__v') {
-            acc[key] = entityData[key];
-          }
-          return acc;
-        }, {})
-      }, null, 2));
-      console.log(`\n✅ Trigger activated and working successfully.`);
-      console.log(`========================================\n`);
-
       // Send email notifications (same approach as Vehicle Outbound workflow)
       await sendEmailTriggerWorkflowEmail(workflow, entityData, {
         success: true,
@@ -550,24 +514,14 @@ const sendEmailTriggerWorkflowEmail = async (workflow, entityData, triggerResult
       emailSentSuccessfully = emailResult.success;
       emailError = emailResult.error;
       
-      if (emailResult.success) {
-        console.log('✅ Success email sent successfully');
-      } else {
-        console.error('❌ Failed to send success email:', emailResult.error);
-      }
+      emailSentSuccessfully = emailResult.success;
+      emailError = emailResult.error;
     } else if (!triggerResult.success && emailErrorNode?.data?.config) {
       emailType = 'error';
-      console.log('\n[Email Trigger] Sending error email...');
       const excludeUserId = workflow.created_by?._id || workflow.created_by;
       const emailResult = await sendWorkflowEmail(emailErrorNode.data.config, emailData, workflow.company_id._id || workflow.company_id, excludeUserId);
       emailSentSuccessfully = emailResult.success;
       emailError = emailResult.error;
-      
-      if (emailResult.success) {
-        console.log('✅ Error email sent successfully');
-      } else {
-        console.error('❌ Failed to send error email:', emailResult.error);
-      }
     }
 
     // Create execution log for Email Trigger workflow
@@ -626,7 +580,6 @@ const sendEmailTriggerWorkflowEmail = async (workflow, entityData, triggerResult
     });
 
     await workflowExecutionLog.save();
-    console.log('✅ Workflow execution log saved successfully');
 
     // Update workflow execution stats
     const { updateWorkflowExecutionStats } = require('../controllers/workflow.controller');
@@ -679,7 +632,6 @@ const sendEmailTriggerWorkflowEmail = async (workflow, entityData, triggerResult
       });
 
       await workflowExecutionLog.save();
-      console.log('✅ Failure execution log saved');
 
       // Update workflow execution stats for failed execution
       const { updateWorkflowExecutionStats } = require('../controllers/workflow.controller');

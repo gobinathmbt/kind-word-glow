@@ -104,7 +104,6 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
   useEffect(() => {
     if (schemaFieldsData?.data?.data?.fields) {
       const fields = schemaFieldsData.data.data.fields;
-      console.log(fields)
       const variables = fields.map((field: any) => ({
         field_name: field.field_name,
         field_type: field.field_type,
@@ -117,18 +116,10 @@ const EnhancedEmailNode = ({ data, isConnectable, id, onDataUpdate }: any) => {
     }
   }, [schemaFieldsData]);
 
-  // Process users data and console log
+  // Process users data
   useEffect(() => {
     if (usersData?.data?.data) {
       const users = usersData.data.data;
-      
-      // Console log user names based on logged-in user's company ID
-      console.log('=== Email Workflow - Users List ===');
-      console.log('Company ID:', completeUser?.company_id?._id);
-      console.log('Total Users:', users.length);
-      console.log('User Names:', users.map((u: any) => `${u.first_name} ${u.last_name}`));
-      console.log('Full User Objects:', users);
-      console.log('===================================');
 
       const options = users.map((user: any) => ({
         value: user._id,

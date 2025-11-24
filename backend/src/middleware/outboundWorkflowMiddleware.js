@@ -498,15 +498,7 @@ const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField,
 // Execute the outbound workflow
 const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, companyId) => {
   try {
-    // Console log which triggers were activated
-    console.log('\n========================================');
-    console.log(`[Workflow: ${workflow.name}] TRIGGER ACTIVATED`);
-    console.log('========================================');
-    console.log('Activated Triggers:');
-    activatedTriggers.forEach((trigger, index) => {
-      console.log(`  ${index + 1}. ${trigger.schema_type}.${trigger.trigger_field} ${trigger.trigger_operator} "${trigger.trigger_value}"`);
-    });
-    console.log('\nEntity Details:');
+    // Triggers were activated
     // Log relevant fields based on what's available in the entity
     const entitySummary = {
       _id: entityData._id,
@@ -632,8 +624,6 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
     if (entityData.workflow_type) entitySummary.workflow_type = entityData.workflow_type;
     if (entityData.workflow_id) entitySummary.workflow_id = entityData.workflow_id;
     if (entityData.execution_status) entitySummary.execution_status = entityData.execution_status;
-    
-    console.log(JSON.stringify(entitySummary, null, 2));
 
     // Log Destination Schema details
     const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
@@ -643,22 +633,6 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
         ...(destConfig.target_schemas || []),
         ...(destConfig.destination_schemas || [])
       ];
-
-      console.log('\nDestination Schemas Selected:');
-      if (allDestSchemas.length > 0) {
-        allDestSchemas.forEach((schema, index) => {
-          console.log(`  ${index + 1}. ${schema.schema_type}`);
-        });
-
-        // Log reference field if different schemas are used
-        if (destConfig.reference_field) {
-          console.log(`\nReference Field: ${destConfig.reference_field}`);
-          const referenceValue = getNestedFieldValue(entityData, destConfig.reference_field);
-          console.log(`Reference Value from Entity: ${referenceValue}`);
-        }
-      } else {
-        console.log('  No destination schemas configured');
-      }
     }
 
     // Find the Export Fields node to get selected_fields configuration
@@ -674,16 +648,7 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
         await processSchemaBasedExport(workflow, entityData, selectedFieldsConfig, companyId);
       } else if (Array.isArray(selectedFieldsConfig) && selectedFieldsConfig.length > 0) {
         await processLegacyExport(workflow, entityData, selectedFieldsConfig);
-      } else {
-        console.log('\nNo export fields configured');
       }
-    } else {
-      console.log('\nNo Export Fields node configured');
-      console.log('Entity Details:');
-      console.log({
-        _id: entityData._id || 'N/A',
-        company_id: entityData.company_id || 'N/A'
-      });
     }
   } catch (error) {
     console.error(`Error executing outbound workflow ${workflow.name}:`, error);
@@ -692,8 +657,6 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
 
 // Process schema-based export (new format)
 const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConfig, companyId) => {
-  console.log('\nExport Fields Configuration (Selected Fields by Schema):');
-  console.log('========================================');
 
   // Get destination schema node to access reference field
   const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
@@ -709,8 +672,6 @@ const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConf
   // Process each schema's selected fields
   for (const [schemaType, fieldNames] of Object.entries(selectedFieldsConfig)) {
     if (!Array.isArray(fieldNames) || fieldNames.length === 0) continue;
-
-    console.log(`\n[${schemaType.toUpperCase()}]`);
 
     let schemaData = null;
 
@@ -730,7 +691,6 @@ const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConf
       const fieldValue = getNestedFieldValue(schemaData, fieldName);
       if (fieldValue !== undefined) {
         schemaExportData[fieldName] = fieldValue;
-        console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
       }
     });
 
@@ -739,8 +699,6 @@ const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConf
     // Merge into allMappedData for API call
     Object.assign(allMappedData, schemaExportData);
   }
-
-  console.log('\n========================================');
 
   // Apply data mapping
   const finalMappedData = applyDataMapping(workflow, allMappedData);
@@ -760,15 +718,7 @@ const processLegacyExport = async (workflow, entityData, selectedFields) => {
     }
   });
 
-  // Console log the selected fields
-  console.log('\nExport Fields Configuration (Selected Fields):');
-  console.log('========================================');
-  const currentSchemaType = detectSchemaType(entityData, '');
-  console.log(`[${currentSchemaType.toUpperCase()}]`);
-  for (const [fieldName, fieldValue] of Object.entries(filteredEntityData)) {
-    console.log(`  ${fieldName}: ${JSON.stringify(fieldValue)}`);
-  }
-  console.log('========================================\n');
+
 
   // Apply data mapping
   const mappedEntityData = applyDataMapping(workflow, filteredEntityData);
@@ -817,7 +767,6 @@ const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, co
     try {
       SchemaModel = require(`../models/${modelName}`);
     } catch (error) {
-      console.log(`  Model "${modelName}" not found for schema type "${schemaType}" - skipping schema`);
       return null;
     }
 
@@ -833,13 +782,11 @@ const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, co
     const schemaData = await SchemaModel.findOne(query).lean();
 
     if (!schemaData) {
-      console.log(`  No data found for this schema`);
       return null;
     }
 
     return schemaData;
   } catch (error) {
-    console.log(`  Error fetching data: ${error.message}`);
     return null;
   }
 };
@@ -879,7 +826,6 @@ const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
     const authNode = workflow.flow_data?.nodes?.find(node => node.type === 'authenticationNode');
 
     if (!authNode || !authNode.data?.config?.api_endpoint) {
-      console.log('No API endpoint configured');
       return;
     }
 
@@ -931,7 +877,7 @@ const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
       validateStatus: (status) => status >= 200 && status < 300
     });
 
-    // Log success message
+    // Update execution log with success detail
     console.log(`The details have been pushed successfully to the respective API endpoint: ${authConfig.api_endpoint}`);
     console.log("Payload pushed to the API endpoint:", JSON.stringify(mappedData, null, 2));
 

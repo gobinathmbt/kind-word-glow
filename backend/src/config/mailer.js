@@ -109,13 +109,6 @@ class MailService {
       }
 
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`📧 Email sent successfully to ${to}`);
-      if (cc) {
-        console.log(`   CC: ${cc}`);
-      }
-      if (attachments && attachments.length > 0) {
-        console.log(`   Attachments: ${attachments.length} file(s)`);
-      }
       return result;
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);
