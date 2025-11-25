@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { adPublishingServices } from "@/api/services";
 
 interface VehicleOwnershipSectionProps {
   vehicle: any;
@@ -28,7 +28,7 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleOwnership(vehicle._id,vehicle.vehicle_type, {
+      await adPublishingServices.updateAdVehicle(vehicle._id, {
         vehicle_ownership: {
           origin: formData.origin,
           no_of_previous_owners: formData.no_of_previous_owners,
@@ -40,8 +40,9 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
       toast.success("Ownership information updated successfully");
       setIsEditing(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update ownership information");
+    } catch (error: any) {
+      console.error("Failed to update ownership information:", error);
+      toast.error(error?.response?.data?.message || "Failed to update ownership information");
     }
   };
 

@@ -34,7 +34,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleImport(vehicle._id,vehicle.vehicle_type, {
+      await vehicleServices.updateVehicleImport(vehicle._id, vehicle.vehicle_type, {
         vehicle_import_details: [{
           delivery_port: formData.delivery_port,
           vessel_name: formData.vessel_name,
@@ -49,8 +49,9 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
       toast.success("Import details updated successfully");
       setIsEditing(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update import details");
+    } catch (error: any) {
+      console.error("Failed to update import details:", error);
+      toast.error(error?.response?.data?.message || "Failed to update import details");
     }
   };
 

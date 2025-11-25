@@ -40,8 +40,9 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
       toast.success("Ownership information updated successfully");
       setIsEditing(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update ownership information");
+    } catch (error: any) {
+      console.error("Failed to update ownership information:", error);
+      toast.error(error?.response?.data?.message || "Failed to update ownership information");
     }
   };
 

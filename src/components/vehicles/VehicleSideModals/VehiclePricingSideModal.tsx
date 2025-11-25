@@ -20,6 +20,8 @@ import VehicleEngineSection from "@/components/vehicles/VehicleSections/TradeInS
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOdometerSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleAttachmentsSection";
+import VehicleImportSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleImportSection";
+import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOwnershipSection";
 import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
 import { useAuth } from "@/auth/AuthContext";
 import {
@@ -199,6 +201,12 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Import Section */}
+              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Ownership Section */}
+              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">

@@ -40,6 +40,8 @@ import VehicleEngineSection from "@/components/vehicles/VehicleSections/MasterSe
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOdometerSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleAttachmentsSection";
+import VehicleImportSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleImportSection";
+import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOwnershipSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
 
@@ -474,6 +476,12 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Import Section */}
+              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Ownership Section */}
+              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">

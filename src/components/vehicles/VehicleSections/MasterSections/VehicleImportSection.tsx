@@ -49,8 +49,9 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
       toast.success("Import details updated successfully");
       setIsEditing(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update import details");
+    } catch (error: any) {
+      console.error("Failed to update import details:", error);
+      toast.error(error?.response?.data?.message || "Failed to update import details");
     }
   };
 

@@ -26,7 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, Wrench, ClipboardList, Calculator, FileText, RefreshCw } from "lucide-react";
+import { Car, FileText, RefreshCw } from "lucide-react";
 import { vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +41,8 @@ import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOdometerSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleAttachmentsSection";
 import AdvertisementSection from "@/components/vehicles/VehicleSections/AdvertisementSections/AdvertisementSection";
+import VehicleImportSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleImportSection";
+import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOwnershipSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
 
@@ -439,6 +441,12 @@ const AdvertisementVehicleSideModal: React.FC<
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Import Section */}
+              <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Ownership Section */}
+              <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
               
               {/* Advertisement Section */}
               <AdvertisementSection vehicle={vehicle} onUpdate={onUpdate} />
