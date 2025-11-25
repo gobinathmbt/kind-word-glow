@@ -40,6 +40,7 @@ import VehicleEngineSection from "@/components/vehicles/VehicleSections/Advertis
 import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleSpecificationsSection";
 import VehicleOdometerSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOdometerSection";
 import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleAttachmentsSection";
+import AdvertisementSection from "@/components/vehicles/VehicleSections/AdvertisementSections/AdvertisementSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
 
@@ -412,7 +413,7 @@ const AdvertisementVehicleSideModal: React.FC<
           </SheetHeader>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="attachments">Attachments</TabsTrigger>
@@ -438,6 +439,9 @@ const AdvertisementVehicleSideModal: React.FC<
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
+              
+              {/* Advertisement Section */}
+              <AdvertisementSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
             <TabsContent value="attachments">

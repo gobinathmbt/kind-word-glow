@@ -38,6 +38,7 @@ import { useAuth } from "@/auth/AuthContext";
 import S3ConfigDialog from "@/components/integrations/S3ConfigDialog";
 import SendGridConfigDialog from "@/components/integrations/SendGridConfigDialog";
 import AutoGrabConfigDialog from "@/components/integrations/AutoGrabConfigDialog";
+import OnlycarsPublishConfigDialog from "@/components/integrations/OnlycarsPublishConfigDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { hasPermission } from "@/utils/permissionController";
@@ -189,12 +190,23 @@ const Integration = () => {
 
   // Get existing integration for a module
   const getExistingIntegration = (moduleType: string) => {
+    // Handle multiple possible integration type names for the same module
+    const typeVariants: Record<string, string[]> = {
+      'onlycars_publish_integration': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
+      'onlycars_publish': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
+      'vehicle_publish_only_cars': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
+      'autograb_vehicle_pricing_integration': ['autograb_vehicle_pricing_integration', 'autograb_vehicle_pricing'],
+    };
+
+    const possibleTypes = typeVariants[moduleType] || [moduleType];
+
     return integrationsData?.data?.find(
-      (integration: Integration) => integration.integration_type === moduleType
+      (integration: Integration) => possibleTypes.includes(integration.integration_type)
     );
   };
 
   const handleConfigureModule = (moduleType: string) => {
+    console.log("Configuring module:", moduleType);
     const existing = getExistingIntegration(moduleType);
     setSelectedIntegration(existing || null);
     setSelectedModule(moduleType);
@@ -591,6 +603,16 @@ const Integration = () => {
 
       {selectedModule === "autograb_vehicle_pricing_integration" && (
         <AutoGrabConfigDialog
+          isOpen={true}
+          onClose={handleCloseDialog}
+          integration={selectedIntegration}
+        />
+      )}
+
+      {(selectedModule === "onlycars_publish_integration" || 
+        selectedModule === "onlycars_publish" ||
+        selectedModule === "vehicle_publish_only_cars") && (
+        <OnlycarsPublishConfigDialog
           isOpen={true}
           onClose={handleCloseDialog}
           integration={selectedIntegration}

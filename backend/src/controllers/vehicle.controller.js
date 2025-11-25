@@ -103,6 +103,7 @@ const getVehicleStock = async (req, res) => {
     // Execute queries in parallel
     const [vehicles, total, statusCounts] = await Promise.all([
       Vehicle.find(filter, projection)
+        .populate('dealership_id', 'dealership_name')
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)

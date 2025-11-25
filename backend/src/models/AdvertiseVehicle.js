@@ -277,6 +277,68 @@ const VehicleSchema = new mongoose.Schema({
   },
   last_processing_error: String,
 
+  // Advertisement Platforms (for external publishing)
+  advertisement_platforms: [
+    {
+      provider: {
+        type: String,
+        enum: ["OnlyCars", "TradeMe"],
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["draft", "published", "failed", "sold"],
+        default: "draft",
+      },
+      is_active: {
+        type: Boolean,
+        default: true,
+      },
+      payload: mongoose.Schema.Types.Mixed,
+      history: [
+        {
+          payload: mongoose.Schema.Types.Mixed,
+          updated_by: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+          updated_at: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      published_at: Date,
+      published_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      withdrawn_at: Date,
+      withdrawn_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      created_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      updated_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      created_at: {
+        type: Date,
+        default: Date.now,
+      },
+      updated_at: {
+        type: Date,
+        default: Date.now,
+      },
+      error_message: String,
+      external_listing_id: String,
+    },
+  ],
+
   // Custom Fields (for any additional fields not in schema)
   custom_fields: mongoose.Schema.Types.Mixed,
 
