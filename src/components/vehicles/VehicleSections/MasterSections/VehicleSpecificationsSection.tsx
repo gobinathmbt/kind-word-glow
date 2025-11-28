@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil, Plus, Trash2 } from "lucide-react";
@@ -57,7 +56,6 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
             "other_feature"
           ],
         });
-        console.log("Specifications Dropdown API Response:", response.data);
         return response.data;
       } catch (error) {
         console.error("Error fetching specifications dropdown data:", error);
@@ -69,7 +67,6 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
   // Extract dropdown options
   const getDropdownOptions = (dropdownName: string) => {
     if (isLoadingDropdowns) {
-      console.log(`Loading dropdown options for ${dropdownName}...`);
       return [];
     }
     
@@ -79,13 +76,11 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
     }
     
     if (!dropdownData?.success) {
-      console.log("No dropdown data or unsuccessful response:", dropdownData);
       return [];
     }
     
     const dropdown = dropdownData.data.find((item: any) => item.dropdown_name === dropdownName);
     const options = dropdown?.values || [];
-    console.log(`Options for ${dropdownName}:`, options);
     
     // Ensure each option has the required fields
     return options.map((option: any) => ({

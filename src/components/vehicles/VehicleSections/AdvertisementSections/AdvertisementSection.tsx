@@ -31,15 +31,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Send, CheckCircle2, XCircle, Clock, Ban, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Plus, Edit, Trash2, Send, CheckCircle2, XCircle, Clock, Ban, ExternalLink, Image as ImageIcon, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import axios from "axios";
+import AdvertisementLogsDialog from "./AdvertisementLogsDialog";
 
 interface Advertisement {
   _id: string;
   provider: string;
-  status: "draft" | "published" | "failed" | "sold";
+  status: "draft" | "published" | "failed" | "sold" | "withdrawn";
   is_active: boolean;
   payload: any;
   published_at?: string;
@@ -69,6 +70,8 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
   const [adToDelete, setAdToDelete] = useState<string>("");
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [adToWithdraw, setAdToWithdraw] = useState<string>("");
+  const [logsDialogOpen, setLogsDialogOpen] = useState(false);
+  const [selectedAdForLogs, setSelectedAdForLogs] = useState<Advertisement | null>(null);
 
   // Form state for OnlyCars - Complete payload fields
   const [formData, setFormData] = useState({
@@ -370,27 +373,17 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
       setLoading(true);
       const payload = buildPayload();
 
-      console.log('Saving draft:', {
-        editMode,
-        editingAdId,
-        vehicleId: vehicle._id,
-        provider: selectedProvider,
-        payloadKeys: Object.keys(payload)
-      });
-
       if (editMode && editingAdId) {
         const response = await axios.put(
           `/api/adpublishing/${vehicle._id}/advertisements/${editingAdId}`,
           { payload }
         );
-        console.log('Update response:', response.data);
         toast.success("Advertisement draft updated successfully");
       } else {
         const response = await axios.post(`/api/adpublishing/${vehicle._id}/advertisements`, {
           provider: selectedProvider,
           payload,
         });
-        console.log('Create response:', response.data);
         toast.success("Advertisement draft saved successfully");
       }
 
@@ -468,18 +461,19 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", icon: any }> = {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", icon: any, className?: string }> = {
       draft: { variant: "secondary", icon: Clock },
       published: { variant: "default", icon: CheckCircle2 },
       failed: { variant: "destructive", icon: XCircle },
-      sold: { variant: "outline", icon: Ban },
+      sold: { variant: "outline", icon: Ban, className: "border-orange-500 text-orange-700 bg-orange-50" },
+      withdrawn: { variant: "outline", icon: Ban },
     };
 
     const config = variants[status] || { variant: "secondary", icon: Clock };
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
+      <Badge variant={config.variant} className={`flex items-center gap-1 ${config.className || ""}`}>
         <Icon className="h-3 w-3" />
         {status.toUpperCase()}
       </Badge>
@@ -589,8 +583,8 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                                       </TableCell>                                                                 
                                       <TableCell className="text-right py-3">
                                         <div className="flex items-center justify-end gap-2 flex-wrap">
-                                          {/* Edit button - available for draft, published, and failed */}
-                                          {(ad.status === "draft" || ad.status === "published" || ad.status === "failed") && (
+                                          {/* Edit button - available for draft, withdrawn, and failed (NOT published or sold) */}
+                                          {(ad.status === "draft" || ad.status === "withdrawn" || ad.status === "failed") && (
                                             <Button
                                               variant="outline"
                                               size="sm"
@@ -603,8 +597,9 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                                             </Button>
                                           )}
                                           
-                                          {/* Publish button - for draft and failed */}
-                                          {(ad.status === "draft" || ad.status === "failed") && (
+                                          {/* Publish button - for draft, failed, withdrawn, and sold (OnlyCars only) */}
+                                          {(ad.status === "draft" || ad.status === "failed" || ad.status === "withdrawn" || 
+                                            (ad.status === "sold" && ad.provider === "OnlyCars")) && (
                                             <Button
                                               size="sm"
                                               onClick={() => handlePublish(ad._id)}
@@ -633,18 +628,18 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                                             </Button>
                                           )}
                                           
-                                          {/* Delete button - always available */}
+                                          {/* Show Logs button - always available */}
                                           <Button
-                                            variant="destructive"
                                             size="sm"
                                             onClick={() => {
-                                              setAdToDelete(ad._id);
-                                              setDeleteDialogOpen(true);
+                                              setSelectedAdForLogs(ad);
+                                              setLogsDialogOpen(true);
                                             }}
                                             disabled={loading}
-                                            className="min-w-[40px]"
+                                            className="min-w-[90px]"
                                           >
-                                            <Trash2 className="h-3 w-3" />
+                                            <FileText className="h-3 w-3 mr-1" />
+                                            Show Logs
                                           </Button>
                                         </div>
                                       </TableCell>
@@ -1214,6 +1209,17 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Advertisement Logs Dialog */}
+      {selectedAdForLogs && (
+        <AdvertisementLogsDialog
+          vehicleId={vehicle._id}
+          advertisementId={selectedAdForLogs._id}
+          provider={selectedAdForLogs.provider}
+          open={logsDialogOpen}
+          onOpenChange={setLogsDialogOpen}
+        />
+      )}
     </>
   );
 };

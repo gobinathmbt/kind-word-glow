@@ -3,12 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Edit3, Save, X, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { masterVehicleServices, vehicleServices } from "@/api/services";
+import { masterVehicleServices } from "@/api/services";
 import MediaViewer, { MediaItem } from "@/components/common/MediaViewer";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
@@ -216,8 +215,6 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       if (cleanedData.year && typeof cleanedData.year === 'string') {
         cleanedData.year = parseInt(cleanedData.year);
       }
-
-      console.log("Updating vehicle with data:", cleanedData);
 
       // Update vehicle data in database
       await masterVehicleServices.updateMasterVehicle(vehicle._id, cleanedData);

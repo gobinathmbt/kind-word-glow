@@ -43,7 +43,6 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
         const response = await companyServices.getMasterdropdownvalues({
           dropdown_name: ["engine_type", "transmission_type", "primary_fuel_type", "engine_features"],
         });
-        console.log("Dropdown API Response:", response.data);
         return response.data;
       } catch (error) {
         console.error("Error fetching dropdown data:", error);
@@ -55,7 +54,6 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
   // Extract dropdown options
   const getDropdownOptions = (dropdownName: string) => {
     if (isLoadingDropdowns) {
-      console.log(`Loading dropdown options for ${dropdownName}...`);
       return [];
     }
     
@@ -65,13 +63,11 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
     }
     
     if (!dropdownData?.success) {
-      console.log("No dropdown data or unsuccessful response:", dropdownData);
       return [];
     }
     
     const dropdown = dropdownData.data.find((item: any) => item.dropdown_name === dropdownName);
     const options = dropdown?.values || [];
-    console.log(`Options for ${dropdownName}:`, options);
     
     // Ensure each option has the required fields
     return options.map((option: any) => ({

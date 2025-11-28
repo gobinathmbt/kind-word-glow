@@ -16,7 +16,8 @@ const {
   publishAdvertisement,
   deleteAdvertisement,
   withdrawAdvertisement,
-  getAdvertisementHistory
+  getAdvertisementHistory,
+  getAdvertisementLogs
 } = require('../controllers/advertisement.controller');
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.get('/:vehicleId/advertisements', getVehicleAdvertisements);
 router.post('/:vehicleId/advertisements', createAdvertisement);
 router.put('/:vehicleId/advertisements/:advertisementId', updateAdvertisement);
 router.get('/:vehicleId/advertisements/:advertisementId/history', getAdvertisementHistory);
+router.get('/:vehicleId/advertisements/:advertisementId/logs', getAdvertisementLogs);
 router.post('/:vehicleId/advertisements/:advertisementId/publish', publishAdvertisement);
 router.post('/:vehicleId/advertisements/:advertisementId/withdraw', withdrawAdvertisement);
 router.delete('/:vehicleId/advertisements/:advertisementId', deleteAdvertisement);

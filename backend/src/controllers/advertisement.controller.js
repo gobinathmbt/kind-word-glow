@@ -1,4 +1,5 @@
 const AdVehicle = require('../models/AdvertiseVehicle');
+const AdvertiseData = require('../models/AdvertiseData');
 const { logEvent } = require('./logs.controller');
 const axios = require('axios');
 
@@ -22,9 +23,17 @@ const getVehicleAdvertisements = async (req, res) => {
       });
     }
 
+    // Fetch advertisements from AdvertiseData collection based on unique combination
+    const advertisements = await AdvertiseData.find({
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id,
+      dealership_id: vehicle.dealership_id,
+      vehicle_type: vehicle.vehicle_type
+    }).sort({ created_at: -1 });
+
     res.status(200).json({
       success: true,
-      data: vehicle.advertisement_platforms || []
+      data: advertisements
     });
 
   } catch (error) {
@@ -36,7 +45,7 @@ const getVehicleAdvertisements = async (req, res) => {
   }
 };
 
-// @desc    Create advertisement for a platform
+// @desc    Create or Update advertisement for a platform (Upsert based on unique combination)
 // @route   POST /api/adpublishing/:vehicleId/advertisements
 // @access  Private
 const createAdvertisement = async (req, res) => {
@@ -57,60 +66,103 @@ const createAdvertisement = async (req, res) => {
       });
     }
 
-    // Allow multiple advertisements per provider - no check for existing platform
+    // Find existing advertisement based on unique combination
+    const existingAd = await AdvertiseData.findOne({
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id,
+      dealership_id: vehicle.dealership_id,
+      vehicle_type: vehicle.vehicle_type,
+      provider: advertisementData.provider
+    });
 
-    // Create new advertisement entry
-    const newAdvertisement = {
-      provider: advertisementData.provider,
-      status: 'draft',
-      is_active: true,
-      payload: advertisementData.payload,
-      created_by: req.user.id,
-      created_at: new Date(),
-      updated_at: new Date()
-    };
+    let advertisement;
+    let isNew = false;
 
-    // Initialize advertisement_platforms if it doesn't exist
-    if (!vehicle.advertisement_platforms) {
-      vehicle.advertisement_platforms = [];
+    if (existingAd) {
+      // Update existing advertisement
+      if (!existingAd.history) {
+        existingAd.history = [];
+      }
+      
+      existingAd.history.push({
+        payload: JSON.parse(JSON.stringify(existingAd.payload)),
+        updated_by: req.user.id,
+        updated_at: new Date()
+      });
+
+      existingAd.payload = advertisementData.payload;
+      existingAd.updated_by = req.user.id;
+      existingAd.status = 'draft'; // Reset to draft on update
+      
+      advertisement = await existingAd.save();
+    } else {
+      // Create new advertisement
+      isNew = true;
+      advertisement = new AdvertiseData({
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        company_id: req.user.company_id,
+        dealership_id: vehicle.dealership_id,
+        vehicle_type: vehicle.vehicle_type,
+        provider: advertisementData.provider,
+        status: 'draft',
+        is_active: true,
+        payload: advertisementData.payload,
+        created_by: req.user.id
+      });
+
+      await advertisement.save();
     }
 
-    vehicle.advertisement_platforms.push(newAdvertisement);
+    // Update vehicle with advertisement data (only ID and basic info)
+    const adFieldName = advertisementData.provider === 'OnlyCars' ? 'onlycars_advertise_data' : 'trademe_advertise_data';
+    vehicle[adFieldName] = {
+      advertise_data_id: advertisement._id,
+      status: advertisement.status,
+      published_at: advertisement.published_at,
+      external_listing_id: advertisement.external_listing_id,
+      last_updated: new Date()
+    };
     await vehicle.save();
 
-    // Log the payload for debugging
     console.log('='.repeat(80));
-    console.log('ADVERTISEMENT PAYLOAD - DRAFT CREATED');
+    console.log(`ADVERTISEMENT PAYLOAD - ${isNew ? 'CREATED' : 'UPDATED'}`);
+    console.log('Advertisement ID saved to vehicle:', advertisement._id);
+    console.log('='.repeat(80));
 
     await logEvent({
       event_type: 'ad_publishing',
-      event_action: 'advertisement_draft_created',
-      event_description: `Advertisement draft created for ${advertisementData.provider}`,
+      event_action: isNew ? 'advertisement_draft_created' : 'advertisement_draft_updated',
+      event_description: `Advertisement draft ${isNew ? 'created' : 'updated'} for ${advertisementData.provider}`,
       user_id: req.user.id,
       company_id: req.user.company_id,
       user_role: req.user.role,
+      resource_type: 'advertisement',
+      resource_id: advertisement._id.toString(),
+      severity: 'info',
+      status: 'success',
       metadata: {
         vehicle_stock_id: vehicle.vehicle_stock_id,
-        provider: advertisementData.provider
+        provider: advertisementData.provider,
+        advertisement_id: advertisement._id.toString()
       }
     });
 
-    res.status(201).json({
+    res.status(isNew ? 201 : 200).json({
       success: true,
-      message: 'Advertisement draft created successfully',
-      data: newAdvertisement
+      message: `Advertisement draft ${isNew ? 'created' : 'updated'} successfully`,
+      data: advertisement
     });
 
   } catch (error) {
-    console.error('Create advertisement error:', error);
+    console.error('Create/Update advertisement error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating advertisement'
+      message: 'Error creating/updating advertisement'
     });
   }
 };
 
-// @desc    Update advertisement
+// @desc    Update advertisement (with provider change support - creates new if provider changed)
 // @route   PUT /api/adpublishing/:vehicleId/advertisements/:advertisementId
 // @access  Private
 const updateAdvertisement = async (req, res) => {
@@ -121,7 +173,8 @@ const updateAdvertisement = async (req, res) => {
     console.log('Update Advertisement Request:', {
       vehicleId,
       advertisementId,
-      hasPayload: !!updateData.payload
+      hasPayload: !!updateData.payload,
+      newProvider: updateData.provider
     });
 
     const vehicle = await AdVehicle.findOne({
@@ -137,68 +190,173 @@ const updateAdvertisement = async (req, res) => {
       });
     }
 
-    const advertisementIndex = vehicle.advertisement_platforms?.findIndex(
-      ad => ad._id.toString() === advertisementId
-    );
+    // Find the current advertisement
+    const currentAd = await AdvertiseData.findOne({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    });
 
-    console.log('Advertisement Index:', advertisementIndex);
-    console.log('Total Advertisements:', vehicle.advertisement_platforms?.length);
-
-    if (advertisementIndex === -1 || advertisementIndex === undefined) {
+    if (!currentAd) {
       return res.status(404).json({
         success: false,
         message: 'Advertisement not found'
       });
     }
 
-    const provider = vehicle.advertisement_platforms[advertisementIndex].provider;
+    // Check if provider is being changed
+    const providerChanged = updateData.provider && updateData.provider !== currentAd.provider;
 
-    // Update the advertisement - use direct property assignment for Mongoose subdocuments
-    const advertisement = vehicle.advertisement_platforms[advertisementIndex];
-    
-    // Save current payload to history before updating
-    if (!advertisement.history) {
-      advertisement.history = [];
-    }
-    
-    advertisement.history.push({
-      payload: JSON.parse(JSON.stringify(advertisement.payload)), // Deep clone the current payload
-      updated_by: req.user.id,
-      updated_at: new Date()
-    });
-    
-    // Update with new payload
-    advertisement.payload = updateData.payload;
-    advertisement.updated_at = new Date();
-    advertisement.updated_by = req.user.id;
-    
-    // Mark the subdocument as modified
-    vehicle.markModified('advertisement_platforms');
-    
-    await vehicle.save();
-
-    // Log the updated payload
-    console.log('='.repeat(80));
-    console.log('ADVERTISEMENT PAYLOAD - UPDATED');
-
-    await logEvent({
-      event_type: 'ad_publishing',
-      event_action: 'advertisement_updated',
-      event_description: `Advertisement updated for ${provider}`,
-      user_id: req.user.id,
-      company_id: req.user.company_id,
-      user_role: req.user.role,
-      metadata: {
+    if (providerChanged) {
+      // Provider changed - find or create new advertisement with new provider
+      const newProviderAd = await AdvertiseData.findOne({
         vehicle_stock_id: vehicle.vehicle_stock_id,
-        provider
-      }
-    });
+        company_id: req.user.company_id,
+        dealership_id: vehicle.dealership_id,
+        vehicle_type: vehicle.vehicle_type,
+        provider: updateData.provider
+      });
 
-    res.status(200).json({
-      success: true,
-      message: 'Advertisement updated successfully',
-      data: vehicle.advertisement_platforms[advertisementIndex]
-    });
+      if (newProviderAd) {
+        // Update existing advertisement with new provider
+        if (!newProviderAd.history) {
+          newProviderAd.history = [];
+        }
+        
+        newProviderAd.history.push({
+          payload: JSON.parse(JSON.stringify(newProviderAd.payload)),
+          updated_by: req.user.id,
+          updated_at: new Date()
+        });
+
+        newProviderAd.payload = updateData.payload;
+        newProviderAd.updated_by = req.user.id;
+        newProviderAd.status = 'draft';
+        
+        await newProviderAd.save();
+
+        console.log('='.repeat(80));
+        console.log('PROVIDER CHANGED - UPDATED EXISTING ADVERTISEMENT');
+        console.log('Old Provider:', currentAd.provider);
+        console.log('New Provider:', updateData.provider);
+        console.log('='.repeat(80));
+
+        await logEvent({
+          event_type: 'ad_publishing',
+          event_action: 'advertisement_provider_changed',
+          event_description: `Advertisement provider changed from ${currentAd.provider} to ${updateData.provider}`,
+          user_id: req.user.id,
+          company_id: req.user.company_id,
+          user_role: req.user.role,
+          resource_type: 'advertisement',
+          resource_id: newProviderAd._id.toString(),
+          severity: 'info',
+          status: 'success',
+          metadata: {
+            vehicle_stock_id: vehicle.vehicle_stock_id,
+            old_provider: currentAd.provider,
+            new_provider: updateData.provider,
+            advertisement_id: newProviderAd._id.toString()
+          }
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: 'Advertisement updated with new provider',
+          data: newProviderAd
+        });
+      } else {
+        // Create new advertisement with new provider
+        const newAd = new AdvertiseData({
+          vehicle_stock_id: vehicle.vehicle_stock_id,
+          company_id: req.user.company_id,
+          dealership_id: vehicle.dealership_id,
+          vehicle_type: vehicle.vehicle_type,
+          provider: updateData.provider,
+          status: 'draft',
+          is_active: true,
+          payload: updateData.payload,
+          created_by: req.user.id
+        });
+
+        await newAd.save();
+
+        console.log('='.repeat(80));
+        console.log('PROVIDER CHANGED - CREATED NEW ADVERTISEMENT');
+        console.log('Old Provider:', currentAd.provider);
+        console.log('New Provider:', updateData.provider);
+        console.log('='.repeat(80));
+
+        await logEvent({
+          event_type: 'ad_publishing',
+          event_action: 'advertisement_provider_changed',
+          event_description: `Advertisement provider changed from ${currentAd.provider} to ${updateData.provider}. New advertisement created`,
+          user_id: req.user.id,
+          company_id: req.user.company_id,
+          user_role: req.user.role,
+          resource_type: 'advertisement',
+          resource_id: newAd._id.toString(),
+          severity: 'info',
+          status: 'success',
+          metadata: {
+            vehicle_stock_id: vehicle.vehicle_stock_id,
+            old_provider: currentAd.provider,
+            new_provider: updateData.provider,
+            advertisement_id: newAd._id.toString()
+          }
+        });
+
+        return res.status(201).json({
+          success: true,
+          message: 'Advertisement created with new provider',
+          data: newAd
+        });
+      }
+    } else {
+      // Provider unchanged - update current advertisement
+      if (!currentAd.history) {
+        currentAd.history = [];
+      }
+      
+      currentAd.history.push({
+        payload: JSON.parse(JSON.stringify(currentAd.payload)),
+        updated_by: req.user.id,
+        updated_at: new Date()
+      });
+      
+      currentAd.payload = updateData.payload;
+      currentAd.updated_by = req.user.id;
+      
+      await currentAd.save();
+
+      console.log('='.repeat(80));
+      console.log('ADVERTISEMENT PAYLOAD - UPDATED');
+      console.log('='.repeat(80));
+
+      await logEvent({
+        event_type: 'ad_publishing',
+        event_action: 'advertisement_updated',
+        event_description: `Advertisement updated for ${currentAd.provider}`,
+        user_id: req.user.id,
+        company_id: req.user.company_id,
+        user_role: req.user.role,
+        resource_type: 'advertisement',
+        resource_id: currentAd._id.toString(),
+        severity: 'info',
+        status: 'success',
+        metadata: {
+          vehicle_stock_id: vehicle.vehicle_stock_id,
+          provider: currentAd.provider,
+          advertisement_id: currentAd._id.toString()
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Advertisement updated successfully',
+        data: currentAd
+      });
+    }
 
   } catch (error) {
     console.error('Update advertisement error:', error);
@@ -229,18 +387,20 @@ const publishAdvertisement = async (req, res) => {
       });
     }
 
-    const advertisementIndex = vehicle.advertisement_platforms?.findIndex(
-      ad => ad._id.toString() === advertisementId
-    );
+    // Find advertisement in AdvertiseData collection
+    const advertisement = await AdvertiseData.findOne({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    });
 
-    if (advertisementIndex === -1 || advertisementIndex === undefined) {
+    if (!advertisement) {
       return res.status(404).json({
         success: false,
         message: 'Advertisement not found'
       });
     }
 
-    const advertisement = vehicle.advertisement_platforms[advertisementIndex];
     const provider = advertisement.provider;
     const payload = advertisement.payload;
 
@@ -253,6 +413,9 @@ const publishAdvertisement = async (req, res) => {
     console.log('Initial Payload:', JSON.stringify(payload, null, 2));
     console.log('='.repeat(80));
 
+    // Track API call duration
+    const startTime = Date.now();
+    
     try {
       let updatedPayload;
 
@@ -266,11 +429,8 @@ const publishAdvertisement = async (req, res) => {
       }
 
       // Step 2: Save the updated payload to database FIRST
-      vehicle.advertisement_platforms[advertisementIndex].payload = updatedPayload;
-      vehicle.advertisement_platforms[advertisementIndex].updated_at = new Date();
-      vehicle.markModified(`advertisement_platforms.${advertisementIndex}.payload`);
-      
-      await vehicle.save();
+      advertisement.payload = updatedPayload;
+      await advertisement.save();
 
       console.log('='.repeat(80));
       console.log('PAYLOAD SAVED TO DATABASE BEFORE API CALL');
@@ -280,7 +440,7 @@ const publishAdvertisement = async (req, res) => {
       console.log('Updated Payload:', JSON.stringify(updatedPayload, null, 2));
       console.log('='.repeat(80));
 
-      // Step 3: Now make the API call with the updated payload
+      // Step 3: Now make the API call with the updated payload and track duration
       let publishResult;
       
       if (provider === 'OnlyCars') {
@@ -288,16 +448,39 @@ const publishAdvertisement = async (req, res) => {
       } else if (provider === 'TradeMe') {
         publishResult = await callTradeMeAPI(updatedPayload, req.user.company_id);
       }
+      
+      const duration = Date.now() - startTime;
 
       // Step 4: Update status to published after successful API call
-      vehicle.advertisement_platforms[advertisementIndex].status = 'published';
-      vehicle.advertisement_platforms[advertisementIndex].published_at = new Date();
-      vehicle.advertisement_platforms[advertisementIndex].published_by = req.user.id;
-      vehicle.advertisement_platforms[advertisementIndex].updated_at = new Date();
-      vehicle.advertisement_platforms[advertisementIndex].external_listing_id = 
-        publishResult.listing_id || null;
-      vehicle.advertisement_platforms[advertisementIndex].error_message = null;
+      advertisement.status = 'published';
+      advertisement.published_at = new Date();
+      advertisement.published_by = req.user.id;
+      advertisement.external_listing_id = publishResult.listing_id || null;
+      
+      // Store API response inside payload with proper format
+      advertisement.payload = {
+        ...advertisement.payload,
+        api_response: {
+          success: true,
+          message: `Successfully published to ${provider}`,
+          data: publishResult.response,
+          listing_id: publishResult.listing_id,
+          timestamp: new Date().toISOString()
+        }
+      };
+      advertisement.markModified('payload');
 
+      await advertisement.save();
+
+      // Update vehicle with published status
+      const adFieldName = provider === 'OnlyCars' ? 'onlycars_advertise_data' : 'trademe_advertise_data';
+      vehicle[adFieldName] = {
+        advertise_data_id: advertisement._id,
+        status: 'published',
+        published_at: advertisement.published_at,
+        external_listing_id: publishResult.listing_id,
+        last_updated: new Date()
+      };
       await vehicle.save();
 
       console.log('='.repeat(80));
@@ -309,29 +492,69 @@ const publishAdvertisement = async (req, res) => {
       await logEvent({
         event_type: 'ad_publishing',
         event_action: 'advertisement_published',
-        event_description: `Advertisement published to ${provider}`,
+        event_description: `Advertisement published to ${provider} successfully`,
         user_id: req.user.id,
         company_id: req.user.company_id,
         user_role: req.user.role,
+        resource_type: 'advertisement',
+        resource_id: advertisement._id.toString(),
+        severity: 'info',
+        status: 'success',
+        response_time_ms: duration,
         metadata: {
           vehicle_stock_id: vehicle.vehicle_stock_id,
           provider,
-          external_listing_id: publishResult.listing_id
+          external_listing_id: publishResult.listing_id,
+          advertisement_id: advertisement._id.toString(),
+          api_response: {
+            success: true,
+            listing_id: publishResult.listing_id,
+            response_data: publishResult.response
+          }
         }
       });
 
       res.status(200).json({
         success: true,
         message: `Advertisement published to ${provider} successfully`,
-        data: vehicle.advertisement_platforms[advertisementIndex]
+        data: advertisement
       });
 
     } catch (publishError) {
-      // Update status to failed (payload is already saved with yard_id from Step 2)
-      vehicle.advertisement_platforms[advertisementIndex].status = 'failed';
-      vehicle.advertisement_platforms[advertisementIndex].error_message = publishError.message;
-      vehicle.advertisement_platforms[advertisementIndex].updated_at = new Date();
+      // Calculate duration even for failures
+      const duration = Date.now() - startTime;
       
+      // Update status to failed (payload is already saved with yard_id from Step 2)
+      advertisement.status = 'failed';
+      
+      // Store error response inside payload with proper API response format
+      advertisement.payload = {
+        ...advertisement.payload,
+        api_response: {
+          success: false,
+          message: `Failed to publish to ${provider}: ${publishError.message}`,
+          error: {
+            type: publishError.name || 'PublishError',
+            message: publishError.message,
+            code: publishError.code || publishError.response?.status || null,
+            details: publishError.response?.data || null
+          },
+          timestamp: new Date().toISOString()
+        }
+      };
+      advertisement.markModified('payload');
+      
+      await advertisement.save();
+
+      // Update vehicle with failed status
+      const adFieldName = provider === 'OnlyCars' ? 'onlycars_advertise_data' : 'trademe_advertise_data';
+      vehicle[adFieldName] = {
+        advertise_data_id: advertisement._id,
+        status: 'failed',
+        published_at: null,
+        external_listing_id: null,
+        last_updated: new Date()
+      };
       await vehicle.save();
 
       console.error('='.repeat(80));
@@ -347,10 +570,22 @@ const publishAdvertisement = async (req, res) => {
         user_id: req.user.id,
         company_id: req.user.company_id,
         user_role: req.user.role,
+        resource_type: 'advertisement',
+        resource_id: advertisement._id.toString(),
+        severity: 'error',
+        status: 'failure',
+        error_message: publishError.message,
+        response_time_ms: duration,
         metadata: {
           vehicle_stock_id: vehicle.vehicle_stock_id,
           provider,
-          error: publishError.message
+          error: publishError.message,
+          advertisement_id: advertisement._id.toString(),
+          api_response: {
+            success: false,
+            error: publishError.message,
+            error_details: publishError.response?.data || publishError.toString()
+          }
         }
       });
 
@@ -451,30 +686,23 @@ async function prepareOnlyCarsPayload(payload, vehicle, companyId) {
 async function callOnlyCarsAPI(payload, companyId) {
   const Integration = require('../models/Integration');
   
-  // Fetch integration config for API credentials
+  // Fetch integration config for API credentials (keeping this for other config if needed)
   const integration = await Integration.findOne({
     company_id: companyId,
     integration_type: 'onlycars_publish_integration',
     is_active: true
   });
 
-  const activeEnv = integration.active_environment || 'production';
-  const config = integration.environments[activeEnv].configuration;
-
-  // Prepare API endpoint and headers
-  const apiUrl = config.base_url.endsWith('/') 
-    ? config.base_url + 'api/import/item' 
-    : config.base_url + '/api/import/item';
-
+  // Use your specific URL and token directly
+  const apiUrl = "https://www.onlycars.co.nz/api/import/item/ajmotors";
   const authHeaders = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${config.api_key}`
+    'Authorization': 'Bearer 4vvUXzKSbKYZ3O6a8iCfLnXvtqPOBSQR0rAF0Z2yf5NwOOwBZ5XyrJadoj0gJPAX'
   };
 
   console.log('='.repeat(80));
   console.log('SENDING TO ONLYCARS API');
   console.log('='.repeat(80));
-  console.log('Environment:', activeEnv);
   console.log('URL:', apiUrl);
   console.log('Dealer Name:', payload.dealer_name);
   console.log('Yard ID:', payload.yard_id);
@@ -482,7 +710,7 @@ async function callOnlyCarsAPI(payload, companyId) {
   console.log('='.repeat(80));
 
   try {
-    // Make API call to OnlyCars
+    // Make API call to OnlyCars with your specific endpoint
     const response = await axios.post(apiUrl, payload, {
       headers: authHeaders,
       timeout: 30000 // 30 second timeout
@@ -551,33 +779,40 @@ const deleteAdvertisement = async (req, res) => {
       });
     }
 
-    const advertisementIndex = vehicle.advertisement_platforms?.findIndex(
-      ad => ad._id.toString() === advertisementId
-    );
+    // Find and delete advertisement from AdvertiseData collection
+    const advertisement = await AdvertiseData.findOneAndDelete({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    });
 
-    if (advertisementIndex === -1 || advertisementIndex === undefined) {
+    if (!advertisement) {
       return res.status(404).json({
         success: false,
         message: 'Advertisement not found'
       });
     }
 
-    const provider = vehicle.advertisement_platforms[advertisementIndex].provider;
-
-    // Remove the advertisement
-    vehicle.advertisement_platforms.splice(advertisementIndex, 1);
+    // Remove advertisement data from vehicle
+    const adFieldName = advertisement.provider === 'OnlyCars' ? 'onlycars_advertise_data' : 'trademe_advertise_data';
+    vehicle[adFieldName] = undefined;
     await vehicle.save();
 
     await logEvent({
       event_type: 'ad_publishing',
       event_action: 'advertisement_deleted',
-      event_description: `Advertisement deleted for ${provider}`,
+      event_description: `Advertisement deleted for ${advertisement.provider}`,
       user_id: req.user.id,
       company_id: req.user.company_id,
       user_role: req.user.role,
+      resource_type: 'advertisement',
+      resource_id: advertisement._id.toString(),
+      severity: 'info',
+      status: 'success',
       metadata: {
         vehicle_stock_id: vehicle.vehicle_stock_id,
-        provider
+        provider: advertisement.provider,
+        advertisement_id: advertisement._id.toString()
       }
     });
 
@@ -615,27 +850,27 @@ const withdrawAdvertisement = async (req, res) => {
       });
     }
 
-    const advertisementIndex = vehicle.advertisement_platforms?.findIndex(
-      ad => ad._id.toString() === advertisementId
-    );
+    // Find advertisement in AdvertiseData collection
+    const advertisement = await AdvertiseData.findOne({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    });
 
-    if (advertisementIndex === -1 || advertisementIndex === undefined) {
+    if (!advertisement) {
       return res.status(404).json({
         success: false,
         message: 'Advertisement not found'
       });
     }
 
-    const advertisement = vehicle.advertisement_platforms[advertisementIndex];
-
     // Update status to sold (withdrawn)
-    vehicle.advertisement_platforms[advertisementIndex].status = 'sold';
-    vehicle.advertisement_platforms[advertisementIndex].withdrawn_at = new Date();
-    vehicle.advertisement_platforms[advertisementIndex].withdrawn_by = req.user.id;
-    vehicle.advertisement_platforms[advertisementIndex].updated_at = new Date();
-    vehicle.advertisement_platforms[advertisementIndex].is_active = false;
+    advertisement.status = 'sold';
+    advertisement.withdrawn_at = new Date();
+    advertisement.withdrawn_by = req.user.id;
+    advertisement.is_active = false;
 
-    await vehicle.save();
+    await advertisement.save();
 
     console.log('='.repeat(80));
     console.log('ADVERTISEMENT WITHDRAWN');
@@ -649,20 +884,25 @@ const withdrawAdvertisement = async (req, res) => {
     await logEvent({
       event_type: 'ad_publishing',
       event_action: 'advertisement_withdrawn',
-      event_description: `Advertisement withdrawn for ${advertisement.provider}`,
+      event_description: `Advertisement withdrawn from ${advertisement.provider}`,
       user_id: req.user.id,
       company_id: req.user.company_id,
       user_role: req.user.role,
+      resource_type: 'advertisement',
+      resource_id: advertisement._id.toString(),
+      severity: 'info',
+      status: 'success',
       metadata: {
         vehicle_stock_id: vehicle.vehicle_stock_id,
-        provider: advertisement.provider
+        provider: advertisement.provider,
+        advertisement_id: advertisement._id.toString()
       }
     });
 
     res.status(200).json({
       success: true,
       message: 'Advertisement withdrawn successfully',
-      data: vehicle.advertisement_platforms[advertisementIndex]
+      data: advertisement
     });
 
   } catch (error) {
@@ -685,7 +925,7 @@ const getAdvertisementHistory = async (req, res) => {
       _id: vehicleId,
       company_id: req.user.company_id,
       vehicle_type: 'advertisement'
-    }).populate('advertisement_platforms.history.updated_by', 'name email');
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -694,9 +934,12 @@ const getAdvertisementHistory = async (req, res) => {
       });
     }
 
-    const advertisement = vehicle.advertisement_platforms?.find(
-      ad => ad._id.toString() === advertisementId
-    );
+    // Find advertisement in AdvertiseData collection
+    const advertisement = await AdvertiseData.findOne({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    }).populate('history.updated_by', 'name email');
 
     if (!advertisement) {
       return res.status(404).json({
@@ -719,6 +962,79 @@ const getAdvertisementHistory = async (req, res) => {
   }
 };
 
+// @desc    Get advertisement activity logs
+// @route   GET /api/adpublishing/:vehicleId/advertisements/:advertisementId/logs
+// @access  Private
+const getAdvertisementLogs = async (req, res) => {
+  try {
+    const { vehicleId, advertisementId } = req.params;
+    const { event_action, limit = 50 } = req.query;
+
+    const vehicle = await AdVehicle.findOne({
+      _id: vehicleId,
+      company_id: req.user.company_id,
+      vehicle_type: 'advertisement'
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
+    // Find advertisement to verify it exists and belongs to this company
+    const advertisement = await AdvertiseData.findOne({
+      _id: advertisementId,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      company_id: req.user.company_id
+    });
+
+    if (!advertisement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Advertisement not found'
+      });
+    }
+
+    // Import GlobalLog model
+    const GlobalLog = require('../models/GlobalLog');
+
+    // Build filter for logs
+    const filter = {
+      event_type: 'ad_publishing',
+      company_id: req.user.company_id,
+      $or: [
+        { resource_id: advertisementId },
+        { 'metadata.advertisement_id': advertisementId }
+      ]
+    };
+
+    if (event_action && event_action !== 'all') {
+      filter.event_action = event_action;
+    }
+
+    // Fetch logs
+    const logs = await GlobalLog.find(filter)
+      .populate('user_id', 'username email first_name last_name')
+      .sort({ created_at: -1 })
+      .limit(parseInt(limit))
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: logs
+    });
+
+  } catch (error) {
+    console.error('Get advertisement logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving advertisement logs'
+    });
+  }
+};
+
 module.exports = {
   getVehicleAdvertisements,
   createAdvertisement,
@@ -726,5 +1042,6 @@ module.exports = {
   publishAdvertisement,
   deleteAdvertisement,
   withdrawAdvertisement,
-  getAdvertisementHistory
+  getAdvertisementHistory,
+  getAdvertisementLogs
 };

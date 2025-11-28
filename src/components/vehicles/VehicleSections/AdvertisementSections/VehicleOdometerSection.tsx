@@ -74,7 +74,6 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         const response = await companyServices.getMasterdropdownvalues({
           dropdown_name: ["odometer_status"],
         });
-        console.log("Odometer Status API Response:", response.data);
         
         // Response structure: { success: true, data: [{ dropdown_name, values: [...] }] }
         if (response.data?.success && response.data?.data && Array.isArray(response.data.data)) {
@@ -84,11 +83,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
           );
           
           if (odometerDropdown && odometerDropdown.values && Array.isArray(odometerDropdown.values)) {
-            console.log("Found odometer_status dropdown with values:", odometerDropdown.values);
             return odometerDropdown.values;
           }
-          
-          console.log("odometer_status dropdown not found in response");
+
         }
         return [];
       } catch (error) {
@@ -105,7 +102,6 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     }
     
     if (odometerStatusData.length === 0) {
-      console.log("No odometer status values found in dropdown");
       return [];
     }
 
@@ -123,9 +119,7 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         value: item.option_value,
         label: item.display_value || item.option_value,
       }))
-      .filter((option) => option.value && option.value.trim() !== ""); // Final filter to ensure no empty values
-
-    console.log("Mapped odometer status options:", options);
+      .filter((option) => option.value && option.value.trim() !== ""); 
     return options;
   }, [odometerStatusData]);
 
@@ -151,9 +145,7 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
   // Calculate latest reading (most recent entry's reading, not max reading)
   const latestReading = useMemo(() => {
     if (odometerEntries.length === 0) return 0;
-    // Get the most recent entry (same logic as latestEntry)
     const sorted = [...odometerEntries].sort((a, b) => {
-      // First priority: created_at (most recent entry first)
       if (a.created_at && b.created_at) {
         const createdA = new Date(a.created_at).getTime();
         const createdB = new Date(b.created_at).getTime();

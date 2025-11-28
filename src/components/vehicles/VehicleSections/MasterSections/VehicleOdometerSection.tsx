@@ -74,7 +74,6 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         const response = await companyServices.getMasterdropdownvalues({
           dropdown_name: ["odometer_status"],
         });
-        console.log("Odometer Status API Response:", response.data);
         
         // Response structure: { success: true, data: [{ dropdown_name, values: [...] }] }
         if (response.data?.success && response.data?.data && Array.isArray(response.data.data)) {
@@ -84,11 +83,8 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
           );
           
           if (odometerDropdown && odometerDropdown.values && Array.isArray(odometerDropdown.values)) {
-            console.log("Found odometer_status dropdown with values:", odometerDropdown.values);
             return odometerDropdown.values;
           }
-          
-          console.log("odometer_status dropdown not found in response");
         }
         return [];
       } catch (error) {
@@ -105,7 +101,6 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     }
     
     if (odometerStatusData.length === 0) {
-      console.log("No odometer status values found in dropdown");
       return [];
     }
 
@@ -125,7 +120,6 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
       }))
       .filter((option) => option.value && option.value.trim() !== ""); // Final filter to ensure no empty values
 
-    console.log("Mapped odometer status options:", options);
     return options;
   }, [odometerStatusData]);
 

@@ -81,12 +81,8 @@ const OnlycarsPublishConfigDialog: React.FC<OnlycarsPublishConfigDialogProps> = 
     },
   });
 
-  // Removed: No longer auto-creating dealerships in Multi Dealership table
-  // OnlyCars dealership configurations are now independent
-
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Save the integration configuration only (no dealership creation)
       if (integration) {
         return integrationServices.updateIntegration(integration._id, data);
       }
@@ -95,7 +91,6 @@ const OnlycarsPublishConfigDialog: React.FC<OnlycarsPublishConfigDialogProps> = 
     onSuccess: () => {
       toast.success("OnlyCars Publish configuration saved successfully");
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
-      // Removed: No longer invalidating dealerships query since we're not creating them
       onClose();
     },
     onError: (error: any) => {
@@ -106,7 +101,6 @@ const OnlycarsPublishConfigDialog: React.FC<OnlycarsPublishConfigDialogProps> = 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
     const activeEnvData = formData[activeEnvironment];
     if (!activeEnvData.api_key.trim()) {
       toast.error(`API Key is required for ${activeEnvironment} environment`);
@@ -118,7 +112,6 @@ const OnlycarsPublishConfigDialog: React.FC<OnlycarsPublishConfigDialogProps> = 
       return;
     }
 
-    // Validate URL format
     try {
       new URL(activeEnvData.base_url);
     } catch {
@@ -131,7 +124,6 @@ const OnlycarsPublishConfigDialog: React.FC<OnlycarsPublishConfigDialogProps> = 
       return;
     }
 
-    // Validate dealer configurations
     for (const dealer of activeEnvData.dealers) {
       if (!dealer.dealership_name.trim() || !dealer.yard_id.trim()) {
         toast.error("All dealer entries must have both Dealership Name and Yard ID");
