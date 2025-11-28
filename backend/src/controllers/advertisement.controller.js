@@ -686,23 +686,42 @@ async function prepareOnlyCarsPayload(payload, vehicle, companyId) {
 async function callOnlyCarsAPI(payload, companyId) {
   const Integration = require('../models/Integration');
   
-  // Fetch integration config for API credentials (keeping this for other config if needed)
+  // Fetch integration config for API credentials
   const integration = await Integration.findOne({
     company_id: companyId,
     integration_type: 'onlycars_publish_integration',
     is_active: true
   });
 
-  // Use your specific URL and token directly
-  const apiUrl = "https://www.onlycars.co.nz/api/import/item/ajmotors";
+  if (!integration) {
+    throw new Error('OnlyCars Publish integration is not configured for this company.');
+  }
+
+  // Get active environment configuration
+  const activeEnv = integration.active_environment || 'production';
+  const envConfig = integration.environments[activeEnv];
+
+  if (!envConfig || !envConfig.is_active) {
+    throw new Error(`OnlyCars ${activeEnv} environment is not active.`);
+  }
+
+  const config = envConfig.configuration;
+
+  if (!config.api_key || !config.base_url) {
+    throw new Error('OnlyCars API credentials (api_key and base_url) are not configured.');
+  }
+
+  // Use the active environment's API URL and key
+  const apiUrl = config.base_url;
   const authHeaders = {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer 4vvUXzKSbKYZ3O6a8iCfLnXvtqPOBSQR0rAF0Z2yf5NwOOwBZ5XyrJadoj0gJPAX'
+    'Authorization': `Bearer ${config.api_key}`
   };
 
   console.log('='.repeat(80));
   console.log('SENDING TO ONLYCARS API');
   console.log('='.repeat(80));
+  console.log('Environment:', activeEnv);
   console.log('URL:', apiUrl);
   console.log('Dealer Name:', payload.dealer_name);
   console.log('Yard ID:', payload.yard_id);
@@ -710,7 +729,7 @@ async function callOnlyCarsAPI(payload, companyId) {
   console.log('='.repeat(80));
 
   try {
-    // Make API call to OnlyCars with your specific endpoint
+    // Make API call to OnlyCars with the active environment's endpoint
     const response = await axios.post(apiUrl, payload, {
       headers: authHeaders,
       timeout: 30000 // 30 second timeout
