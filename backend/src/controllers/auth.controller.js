@@ -30,7 +30,7 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("Login attempt:", { email, password: "HIDDEN" });
+
 
     // Find user in both MasterAdmin and User collections
     let user = await MasterAdmin.findOne({ email }).select("+password");
@@ -85,18 +85,25 @@ const login = async (req, res) => {
 
       // Check company subscription status
       if (company.subscription_status === "inactive") {
+        // Check if this is a newly registered company (no subscription history)
+        const hasSubscriptionHistory = await Subscription.findOne({
+          company_id: company._id,
+          payment_status: "completed"
+        });
+
         if (user.role === "company_admin") {
           return res.status(403).json({
             success: false,
             message: "Subscription ended. Contact your administrator.",
           });
         }
-        // For company_super_admin, allow login but set flag to show subscription modal
+        // For company_super_admin, force subscription modal
         if (user.role === "company_super_admin") {
           userData = {
             ...userData,
             subscription_modal_required: true,
             subscription_modal_force: true,
+            is_new_registration: !hasSubscriptionHistory, // Flag for new registrations
           };
         }
       } else if (company.subscription_status === "grace_period") {
@@ -124,9 +131,8 @@ const login = async (req, res) => {
     }
 
     // Check password - use the comparePassword method from the model
-    console.log("Comparing passwords...");
     const isPasswordValid = await user.comparePassword(password);
-    console.log("Password comparison result:", isPasswordValid);
+
 
     if (!isPasswordValid) {
       if (userType === "user") {
@@ -216,7 +222,7 @@ const login = async (req, res) => {
       user_agent: req.get("User-Agent"),
     });
 
-    console.log("Login successful, sending response...");
+
 
     res.status(200).json({
       success: true,
@@ -392,6 +398,12 @@ const getMe = async (req, res) => {
 
       // Check company subscription status
       if (company.subscription_status === "inactive") {
+        // Check if this is a newly registered company (no subscription history)
+        const hasSubscriptionHistory = await Subscription.findOne({
+          company_id: company._id,
+          payment_status: "completed"
+        });
+
         if (user.role === "company_admin") {
           return res.status(403).json({
             success: false,
@@ -403,6 +415,7 @@ const getMe = async (req, res) => {
             ...userData,
             subscription_modal_required: true,
             subscription_modal_force: true,
+            is_new_registration: !hasSubscriptionHistory, // Flag for new registrations
           };
         }
       } else if (company.subscription_status === "grace_period") {

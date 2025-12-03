@@ -32,20 +32,33 @@ const MasterAdminSchema = new mongoose.Schema({
   },
   last_login: Date,
   payment_settings: {
-    stripe: {
-      publishable_key: String,
-      secret_key: String,
-      webhook_secret: String
+    stripe_secret_key: {
+      type: String,
+      default: ''
     },
-    paypal: {
-      client_id: String,
-      client_secret: String,
-      webhook_id: String
+    stripe_publishable_key: {
+      type: String,
+      default: ''
     },
-    razorpay: {
-      key_id: String,
-      key_secret: String,
-      webhook_secret: String
+    paypal_client_id: {
+      type: String,
+      default: ''
+    },
+    paypal_client_secret: {
+      type: String,
+      default: ''
+    },
+    razorpay_key_id: {
+      type: String,
+      default: ''
+    },
+    razorpay_key_secret: {
+      type: String,
+      default: ''
+    },
+    google_maps_api_key: {
+      type: String,
+      default: ''
     }
   },
   smtp_settings: {

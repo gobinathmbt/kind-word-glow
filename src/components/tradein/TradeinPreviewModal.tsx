@@ -43,7 +43,6 @@ export const TradeinPreviewModal: React.FC<TradeinPreviewModalProps> = ({
   const transformConfigForPreview = (config: any) => {
     if (!config) return null;
     
-    console.log("Original config for preview:", config);
     
     // If config already has categories with sections, return as is
     if (config.categories && Array.isArray(config.categories)) {

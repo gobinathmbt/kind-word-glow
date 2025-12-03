@@ -43,6 +43,22 @@ const SubscriptionSchema = new mongoose.Schema({
     enum: ['stripe', 'paypal', 'razorpay']
   },
   payment_transaction_id: String,
+  
+  // Razorpay specific fields
+  razorpay_order_id: String,
+  razorpay_payment_id: String,
+  razorpay_signature: String,
+  
+  // Stripe specific fields
+  stripe_payment_intent_id: String,
+  stripe_client_secret: String,
+  stripe_charge_id: String,
+  stripe_customer_id: String,
+  
+  // PayPal specific fields
+  paypal_order_id: String,
+  paypal_payer_id: String,
+  paypal_payer_email: String,
   is_active: {
     type: Boolean,
     default: true

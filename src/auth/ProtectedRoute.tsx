@@ -42,7 +42,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check subscription status - handled in DashboardLayout
+  // Check subscription status for company users
+  // Block access if subscription is required and forced (new registrations without payment)
+  if (user.subscription_modal_force && user.role !== 'master_admin') {
+    // Redirect to login which will show the subscription modal
+    return <Navigate to="/login" replace />;
+  }
 
   if (!allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;

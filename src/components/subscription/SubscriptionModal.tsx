@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   Users,
@@ -26,10 +27,12 @@ import {
   Loader2,
   X,
   AlertTriangle,
+  Settings,
+  Cpu,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { subscriptionServices } from "@/api/services";
+import { subscriptionServices, companyServices } from "@/api/services";
 import CheckoutModal from "./CheckoutModal";
 
 interface SubscriptionModalProps {
@@ -65,6 +68,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const [pricingConfig, setPricingConfig] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [moduleCategories, setModuleCategories] = useState({
+    superadmin: [],
+    integration: [],
+  });
+  const [activeTab, setActiveTab] = useState("superadmin");
 
   // Clean up any timers when component unmounts
   useEffect(() => {
@@ -85,6 +93,48 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     },
     enabled: isOpen,
   });
+
+  // Load dropdown configurations for module categorization
+  const { data: dropdownData, isLoading: isLoadingDropdowns } = useQuery({
+    queryKey: ["module-dropdowns"],
+    queryFn: async () => {
+      const response = await companyServices.getMasterdropdownvalues({
+        dropdown_name: ["company_superadmin_modules", "company_integration_modules"],
+      });
+      return response.data;
+    },
+    enabled: isOpen,
+  });
+
+  // Categorize modules based on dropdown configurations
+  useEffect(() => {
+    if (pricingConfig?.modules && dropdownData?.data) {
+      const superadminDropdown = dropdownData.data.find(
+        (item: any) => item.dropdown_name === "company_superadmin_modules"
+      );
+      const integrationDropdown = dropdownData.data.find(
+        (item: any) => item.dropdown_name === "company_integration_modules"
+      );
+
+      const superadminModuleNames = superadminDropdown?.values?.map(
+        (v: any) => v.option_value
+      ) || [];
+      const integrationModuleNames = integrationDropdown?.values?.map(
+        (v: any) => v.option_value
+      ) || [];
+
+      const categorizedModules = {
+        superadmin: pricingConfig.modules.filter((module: any) =>
+          superadminModuleNames.includes(module.module_name)
+        ),
+        integration: pricingConfig.modules.filter((module: any) =>
+          integrationModuleNames.includes(module.module_name)
+        ),
+      };
+
+      setModuleCategories(categorizedModules);
+    }
+  }, [pricingConfig, dropdownData]);
 
   // Pre-populate data for renewal/upgrade
   useEffect(() => {
@@ -192,6 +242,30 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
   };
 
+  // Check if user has made changes (for upgrade mode)
+  const hasChanges = () => {
+    if (mode === "new" || mode === "renewal") {
+      // For new subscriptions or renewals, always allow if modules selected and amount > 0
+      return subscriptionData.selected_modules.length > 0 && pricing?.total_amount > 0;
+    }
+    
+    if (mode === "upgrade" && currentSubscription) {
+      // Check if user count increased
+      const userCountIncreased = subscriptionData.number_of_users > currentSubscription.number_of_users;
+      
+      // Check if new modules selected (modules not in current subscription)
+      const currentModules = currentSubscription.module_access || [];
+      const hasNewModules = subscriptionData.selected_modules.some(
+        (module) => !currentModules.includes(module)
+      );
+      
+      // Must have changes AND amount > 0
+      return (userCountIncreased || hasNewModules) && pricing?.total_amount > 0;
+    }
+    
+    return false;
+  };
+
   const handleProceedToCheckout = () => {
     setShowCheckout(true);
     // Close the subscription modal when checkout opens
@@ -206,8 +280,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
   const handleCheckoutSuccess = () => {
     setShowCheckout(false);
-    onSuccess?.();
-    // Modal is already closed, no need to call onClose again
+    // Call onSuccess which will handle navigation and modal closing
+    if (onSuccess) {
+      onSuccess();
+    } else if (refetchSubscription) {
+      refetchSubscription();
+    }
   };
 
   return (
@@ -332,74 +410,170 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                       <Label className="text-sm font-medium flex-shrink-0">
                         Select Modules
                       </Label>
-                      <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                        {pricingConfig?.modules?.map((module) => {
-                          const isSelected =
-                            subscriptionData.selected_modules.includes(
-                              module.module_name
-                            );
-                          const isCurrentlyActive =
-                            currentSubscription?.module_access?.includes(
-                              module.module_name
-                            );
-                          const isFreeModule = module.cost_per_module === 0;
-                          const isDisabled =
-                            (mode === "upgrade" && isCurrentlyActive) || isFreeModule;
+                      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                        <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
+                          <TabsTrigger value="superadmin" className="flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            Super Admin ({moduleCategories.superadmin.length})
+                          </TabsTrigger>
+                          <TabsTrigger value="integration" className="flex items-center gap-2">
+                            <Cpu className="h-4 w-4" />
+                            Integration ({moduleCategories.integration.length})
+                          </TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="superadmin" className="flex-1 overflow-y-auto pr-2 space-y-3 mt-4">
+                          {moduleCategories.superadmin.length > 0 ? (
+                            moduleCategories.superadmin.map((module) => {
+                              const isSelected =
+                                subscriptionData.selected_modules.includes(
+                                  module.module_name
+                                );
+                              const isCurrentlyActive =
+                                currentSubscription?.module_access?.includes(
+                                  module.module_name
+                                );
+                              const isFreeModule = module.cost_per_module === 0;
+                              const isDisabled =
+                                (mode === "upgrade" && isCurrentlyActive) || isFreeModule;
 
-                          return (
-                            <div
-                              key={module.module_name}
-                              className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                                isDisabled
-                                  ? "bg-muted/50 opacity-60"
-                                  : "hover:bg-muted/20"
-                              }`}
-                            >
-                              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                  <Label className="font-medium text-sm truncate block">
-                                    {module.display_value}
-                                  </Label>
-                                  <div className="flex gap-1 mt-1 flex-wrap">
-                                    {isCurrentlyActive && (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-xs"
-                                      >
-                                        Current
-                                      </Badge>
-                                    )}
-                                    {isFreeModule && (
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs bg-green-500 hover:bg-green-600"
-                                      >
-                                        FREE
-                                      </Badge>
-                                    )}
+                              return (
+                                <div
+                                  key={module.module_name}
+                                  className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                                    isDisabled
+                                      ? "bg-muted/50 opacity-60"
+                                      : "hover:bg-muted/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <Settings className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <Label className="font-medium text-sm truncate block">
+                                        {module.display_value}
+                                      </Label>
+                                      <div className="flex gap-1 mt-1 flex-wrap">
+                                        {isCurrentlyActive && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            Current
+                                          </Badge>
+                                        )}
+                                        {isFreeModule && (
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-green-500 hover:bg-green-600"
+                                          >
+                                            FREE
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2 flex-shrink-0">
+                                    <Badge variant="outline" className="text-xs">
+                                      ${module.cost_per_module}/day
+                                    </Badge>
+                                    <Switch
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) =>
+                                        handleModuleToggle(
+                                          module.module_name,
+                                          checked
+                                        )
+                                      }
+                                      disabled={isDisabled}
+                                    />
                                   </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center space-x-2 flex-shrink-0">
-                                <Badge variant="outline" className="text-xs">
-                                  ${module.cost_per_module}/day
-                                </Badge>
-                                <Switch
-                                  checked={isSelected}
-                                  onCheckedChange={(checked) =>
-                                    handleModuleToggle(
-                                      module.module_name,
-                                      checked
-                                    )
-                                  }
-                                  disabled={isDisabled}
-                                />
-                              </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No Super Admin modules available</p>
                             </div>
-                          );
-                        })}
-                      </div>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="integration" className="flex-1 overflow-y-auto pr-2 space-y-3 mt-4">
+                          {moduleCategories.integration.length > 0 ? (
+                            moduleCategories.integration.map((module) => {
+                              const isSelected =
+                                subscriptionData.selected_modules.includes(
+                                  module.module_name
+                                );
+                              const isCurrentlyActive =
+                                currentSubscription?.module_access?.includes(
+                                  module.module_name
+                                );
+                              const isFreeModule = module.cost_per_module === 0;
+                              const isDisabled =
+                                (mode === "upgrade" && isCurrentlyActive) || isFreeModule;
+
+                              return (
+                                <div
+                                  key={module.module_name}
+                                  className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                                    isDisabled
+                                      ? "bg-muted/50 opacity-60"
+                                      : "hover:bg-muted/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <Cpu className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <Label className="font-medium text-sm truncate block">
+                                        {module.display_value}
+                                      </Label>
+                                      <div className="flex gap-1 mt-1 flex-wrap">
+                                        {isCurrentlyActive && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            Current
+                                          </Badge>
+                                        )}
+                                        {isFreeModule && (
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-green-500 hover:bg-green-600"
+                                          >
+                                            FREE
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2 flex-shrink-0">
+                                    <Badge variant="outline" className="text-xs">
+                                      ${module.cost_per_module}/day
+                                    </Badge>
+                                    <Switch
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) =>
+                                        handleModuleToggle(
+                                          module.module_name,
+                                          checked
+                                        )
+                                      }
+                                      disabled={isDisabled}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Cpu className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No Integration modules available</p>
+                            </div>
+                          )}
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </CardContent>
                 </Card>
@@ -493,15 +667,30 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               </div>
 
               {pricing && (
-                <div className="flex justify-center">
-                  <Button
-                    onClick={handleProceedToCheckout}
-                    disabled={!pricing}
-                    size="lg"
-                    className="w-full max-w-md"
-                  >
-                    Proceed to Checkout - ${pricing.total_amount}
-                  </Button>
+                <div className="space-y-3">
+                  {mode === "upgrade" && !hasChanges() && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        {pricing.total_amount <= 0 
+                          ? "No changes detected. Please increase users or select new modules to upgrade."
+                          : subscriptionData.number_of_users <= (currentSubscription?.number_of_users || 0) && subscriptionData.selected_modules.every((m) => (currentSubscription?.module_access || []).includes(m))
+                          ? "Please increase the number of users or select new modules to proceed with the upgrade."
+                          : "Please make changes to proceed with the upgrade."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleProceedToCheckout}
+                      disabled={!pricing || !hasChanges()}
+                      size="lg"
+                      className="w-full max-w-md"
+                    >
+                      Proceed to Checkout - ${pricing.total_amount}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -514,6 +703,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         <CheckoutModal
           isOpen={showCheckout}
           onClose={handleCheckoutClose}
+          onCloseSubscription={onClose}  
           subscriptionData={subscriptionData}
           pricing={pricing}
           mode={mode}

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Download, FileText, Calendar, CreditCard } from "lucide-react";
+import { X, FileText, Calendar, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 
 interface InvoiceViewModalProps {
@@ -25,24 +25,36 @@ const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({
 }) => {
   if (!invoice) return null;
 
+  // Determine currency symbol based on payment method
+  const currencySymbol = invoice.payment_method === 'razorpay' ? 'Rs.' : '$';
+
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case "paid":
-        return "default";
+      case "completed":
+        return "default"; // Green for success
       case "pending":
-        return "secondary";
-      case "overdue":
-        return "destructive";
+        return "secondary"; // Yellow/gray for pending
+      case "failed":
+        return "destructive"; // Red for failed
       default:
         return "secondary";
     }
   };
 
-  const handleDownloadPDF = () => {
-    // Here you would implement PDF generation
-    // For now, we'll just show a toast
-    console.log("Download PDF for invoice:", invoice.invoice_number);
+  const getPaymentStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Success";
+      case "pending":
+        return "Pending";
+      case "failed":
+        return "Failed";
+      default:
+        return status;
+    }
   };
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -63,13 +75,12 @@ const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={getPaymentStatusColor(invoice.payment_status)}>
-                  {invoice.payment_status}
+                <Badge 
+                  variant={getPaymentStatusColor(invoice.payment_status)}
+                  className={invoice.payment_status === "completed" ? "bg-green-500 hover:bg-green-600" : invoice.payment_status === "failed" ? "bg-red-500 hover:bg-red-600" : ""}
+                >
+                  {getPaymentStatusLabel(invoice.payment_status)}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
-                  <Download className="h-4 w-4 mr-1" />
-                  Download PDF
-                </Button>
                 <Button variant="ghost" size="sm" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -173,9 +184,9 @@ const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({
                           </div>
                         </td>
                         <td className="text-right py-3">{item.quantity}</td>
-                        <td className="text-right py-3">${item.unit_price}</td>
+                        <td className="text-right py-3">{currencySymbol}{item.unit_price}</td>
                         <td className="text-right py-3 font-medium">
-                          ${item.total_price}
+                          {currencySymbol}{item.total_price}
                         </td>
                       </tr>
                     ))}
@@ -189,24 +200,24 @@ const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${invoice.subtotal}</span>
+                  <span>{currencySymbol}{invoice.subtotal}</span>
                 </div>
                 {invoice.tax_amount > 0 && (
                   <div className="flex justify-between">
                     <span>Tax ({invoice.tax_rate}%):</span>
-                    <span>${invoice.tax_amount}</span>
+                    <span>{currencySymbol}{invoice.tax_amount}</span>
                   </div>
                 )}
                 {invoice.discount_amount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount:</span>
-                    <span>-${invoice.discount_amount}</span>
+                    <span>-{currencySymbol}{invoice.discount_amount}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total:</span>
-                  <span>${invoice.total_amount}</span>
+                  <span>{currencySymbol}{invoice.total_amount}</span>
                 </div>
               </div>
             </CardContent>
@@ -222,21 +233,129 @@ const InvoiceViewModal: React.FC<InvoiceViewModalProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm text-muted-foreground">Transaction ID:</span>
-                    <p className="font-medium font-mono text-sm">
-                      {invoice.payment_transaction_id}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-muted-foreground">Payment Status:</span>
-                    <div className="mt-1">
-                      <Badge variant={getPaymentStatusColor(invoice.payment_status)}>
-                        {invoice.payment_status}
-                      </Badge>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Payment Method:</span>
+                      <p className="font-medium capitalize">
+                        {invoice.payment_method || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Payment Status:</span>
+                      <div className="mt-1">
+                        <Badge 
+                          variant={getPaymentStatusColor(invoice.payment_status)}
+                          className={invoice.payment_status === "completed" ? "bg-green-500 hover:bg-green-600" : invoice.payment_status === "failed" ? "bg-red-500 hover:bg-red-600" : ""}
+                        >
+                          {getPaymentStatusLabel(invoice.payment_status)}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
+
+                  <Separator />
+
+                  {/* Gateway-Specific Details */}
+                  {invoice.payment_method === "razorpay" && (
+                    <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                      <h4 className="font-semibold text-sm">Razorpay Payment Details</h4>
+                      {invoice.razorpay_payment_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Payment ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.razorpay_payment_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.razorpay_order_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Order ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.razorpay_order_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.razorpay_signature && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Signature:</span>
+                          <p className="font-mono text-xs break-all text-muted-foreground">
+                            {invoice.razorpay_signature}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {invoice.payment_method === "stripe" && (
+                    <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                      <h4 className="font-semibold text-sm">Stripe Payment Details</h4>
+                      {invoice.stripe_payment_intent_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Payment Intent ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.stripe_payment_intent_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.stripe_charge_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Charge ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.stripe_charge_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.stripe_customer_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Customer ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.stripe_customer_id}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {invoice.payment_method === "paypal" && (
+                    <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                      <h4 className="font-semibold text-sm">PayPal Payment Details</h4>
+                      {invoice.paypal_order_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Order ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.paypal_order_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.paypal_payer_id && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Payer ID:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.paypal_payer_id}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.paypal_payer_email && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Payer Email:</span>
+                          <p className="font-mono text-sm break-all">
+                            {invoice.paypal_payer_email}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Generic Transaction ID (fallback) */}
+                  {!["razorpay", "stripe", "paypal"].includes(invoice.payment_method) && (
+                    <div>
+                      <span className="text-sm text-muted-foreground">Transaction ID:</span>
+                      <p className="font-medium font-mono text-sm break-all">
+                        {invoice.payment_transaction_id}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

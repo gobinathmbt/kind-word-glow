@@ -42,8 +42,6 @@ export const VehicleCostDetailsReport: React.FC<VehicleCostDetailsReportProps> =
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleCostDetails(params);
-      console.log('Cost Details API Response:', response);
-      console.log('Cost Details Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load cost details data');

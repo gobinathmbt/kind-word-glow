@@ -11,6 +11,13 @@ const {
   getSubscriptionHistory,
   getCompanySubscriptionInfo
 } = require('../controllers/subscription.controller');
+const {
+  fetchInvoiceFromGateway,
+  getInvoiceReceiptUrl,
+  sendStripeReceiptEmail,
+  sendPayPalReceiptEmail,
+  sendRazorpayReceiptEmail
+} = require('../controllers/invoice.gateway.controller');
 
 // All routes require authentication
 router.use(protect);
@@ -35,5 +42,20 @@ router.get('/history', authorize('company_super_admin'), getSubscriptionHistory)
 
 // Get company subscription info
 router.get('/company-info', authorize('company_super_admin', 'company_admin'), getCompanySubscriptionInfo);
+
+// Fetch invoice from payment gateway
+router.get('/:subscriptionId/invoice-from-gateway', authorize('company_super_admin'), fetchInvoiceFromGateway);
+
+// Get invoice receipt URL
+router.get('/:subscriptionId/receipt-url', authorize('company_super_admin'), getInvoiceReceiptUrl);
+
+// Send Stripe receipt via email
+router.post('/:subscriptionId/send-stripe-receipt', authorize('company_super_admin'), sendStripeReceiptEmail);
+
+// Send PayPal receipt via email
+router.post('/:subscriptionId/send-paypal-receipt', authorize('company_super_admin'), sendPayPalReceiptEmail);
+
+// Send Razorpay receipt via email
+router.post('/:subscriptionId/send-razorpay-receipt', authorize('company_super_admin'), sendRazorpayReceiptEmail);
 
 module.exports = router;

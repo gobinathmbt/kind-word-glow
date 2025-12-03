@@ -42,8 +42,6 @@ export const VehicleQueueProcessingReport: React.FC<VehicleQueueProcessingReport
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleQueueProcessing(params);
-      console.log('Queue Processing API Response:', response);
-      console.log('Queue Processing Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load queue processing data');

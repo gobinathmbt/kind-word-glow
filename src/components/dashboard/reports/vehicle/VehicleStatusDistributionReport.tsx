@@ -42,8 +42,6 @@ export const VehicleStatusDistributionReport: React.FC<VehicleStatusDistribution
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleStatusDistribution(params);
-      console.log('Status Distribution API Response:', response);
-      console.log('Status Distribution Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load status distribution data');

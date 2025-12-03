@@ -161,11 +161,6 @@ const CalculationSettingsDialog: React.FC<CalculationSettingsDialogProps> = ({
   // Delete calculation mutation
   const deleteCalculationMutation = useMutation({
   mutationFn: async (calculationId: string) => {
-    console.log('Deleting calculation with:', {
-      configId,
-      categoryId,
-      calculationId
-    });
     
     if (configType === "inspection") {
       return await configServices.deleteInspectionCalculation(

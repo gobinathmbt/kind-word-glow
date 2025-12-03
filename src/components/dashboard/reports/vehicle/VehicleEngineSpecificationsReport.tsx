@@ -41,8 +41,6 @@ export const VehicleEngineSpecificationsReport: React.FC<VehicleEngineSpecificat
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleEngineSpecifications(params);
-      console.log('Engine Specifications API Response:', response);
-      console.log('Engine Specifications Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load engine specifications data');

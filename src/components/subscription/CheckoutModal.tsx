@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,14 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Package, Users, Calendar, Calculator } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { X, Package, Users, Calendar, Calculator, AlertTriangle, Loader2 } from "lucide-react";
 import { StripePayment } from "./payments/StripePayment";
 import { PayPalPayment } from "./payments/PayPalPayment";
 import { RazorpayPayment } from "./payments/RazorpayPayment";
+import apiClient from "@/api/axios";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCloseSubscription: () => void;
   subscriptionData: {
     number_of_days: number;
     number_of_users: number;
@@ -45,6 +48,7 @@ interface CheckoutModalProps {
 const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
+  onCloseSubscription,
   subscriptionData,
   pricing,
   mode,
@@ -53,8 +57,88 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   userProfile,
 }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"stripe" | "paypal" | "razorpay">("stripe");
+  const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+  // Fetch payment settings when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchPaymentSettings();
+    }
+  }, [isOpen]);
+
+  const fetchPaymentSettings = async () => {
+    setIsLoadingSettings(true);
+    try {
+      const response = await apiClient.get('/api/payment-settings/public');
+      if (response.data.success) {
+        setPaymentSettings(response.data.data);
+        
+        // Auto-select first available payment method
+        if (!response.data.data.stripe_publishable_key && !response.data.data.paypal_client_id && response.data.data.razorpay_key_id) {
+          setSelectedPaymentMethod('razorpay');
+        } else if (!response.data.data.stripe_publishable_key && response.data.data.paypal_client_id) {
+          setSelectedPaymentMethod('paypal');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  // Check if a payment method is available
+  const isPaymentMethodAvailable = (method: string) => {
+    if (!paymentSettings) return false;
+    
+    switch (method) {
+      case 'stripe':
+        return !!paymentSettings.stripe_publishable_key;
+      case 'paypal':
+        return !!paymentSettings.paypal_client_id;
+      case 'razorpay':
+        return !!paymentSettings.razorpay_key_id;
+      default:
+        return false;
+    }
+  };
+
+  // Handle payment method selection with validation
+  const handlePaymentMethodSelect = (method: "stripe" | "paypal" | "razorpay") => {
+    // Log the keys for the selected gateway
+    console.log(`=== ${method.toUpperCase()} Payment Gateway Keys (from Database) ===`);
+    switch (method) {
+      case 'stripe':
+        console.log('Stripe Publishable Key:', paymentSettings?.stripe_publishable_key || 'NOT CONFIGURED');
+        break;
+      case 'paypal':
+        console.log('PayPal Client ID:', paymentSettings?.paypal_client_id || 'NOT CONFIGURED');
+        break;
+      case 'razorpay':
+        console.log('Razorpay Key ID:', paymentSettings?.razorpay_key_id || 'NOT CONFIGURED');
+        break;
+    }
+    console.log('===========================================');
+    
+    setSelectedPaymentMethod(method);
+  };
 
   const renderPaymentComponent = () => {
+    // Check if payment method is available
+    if (!isPaymentMethodAvailable(selectedPaymentMethod)) {
+      return (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Cannot proceed.</strong> Key details are not provided for this payment gateway.
+            <br />
+            <span className="text-sm">Please contact the administrator to configure {selectedPaymentMethod.charAt(0).toUpperCase() + selectedPaymentMethod.slice(1)} payment gateway keys.</span>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
     const commonProps = {
       subscriptionData,
       pricing,
@@ -63,6 +147,8 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
       currentSubscription,
       userProfile,
       onClose,
+      onCloseSubscription,
+      paymentSettings,
     };
 
     switch (selectedPaymentMethod) {
@@ -200,26 +286,57 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <CardTitle>Payment Method</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Payment Method Selection */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {["stripe", "paypal", "razorpay"].map((method) => (
-                      <Button
-                        key={method}
-                        variant={selectedPaymentMethod === method ? "default" : "outline"}
-                        onClick={() => setSelectedPaymentMethod(method as any)}
-                        className="capitalize"
-                      >
-                        {method}
-                      </Button>
-                    ))}
-                  </div>
+                  {isLoadingSettings ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span>Loading payment options...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Payment Method Selection */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {["stripe", "paypal", "razorpay"].map((method) => {
+                          const isAvailable = isPaymentMethodAvailable(method);
+                          return (
+                            <div key={method} className="relative">
+                              <Button
+                                variant={selectedPaymentMethod === method ? "default" : "outline"}
+                                onClick={() => handlePaymentMethodSelect(method as any)}
+                                className="capitalize w-full"
+                                disabled={!isAvailable}
+                              >
+                                {method}
+                              </Button>
+                              {!isAvailable && (
+                                <div className="absolute -top-1 -right-1">
+                                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                  <Separator />
+                      {/* Show warning if no payment methods available */}
+                      {!isPaymentMethodAvailable('stripe') && 
+                       !isPaymentMethodAvailable('paypal') && 
+                       !isPaymentMethodAvailable('razorpay') && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            No payment gateways are configured. Please contact the administrator to set up payment gateway keys.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
-                  {/* Payment Component */}
-                  <div className="min-h-[300px]">
-                    {renderPaymentComponent()}
-                  </div>
+                      <Separator />
+
+                      {/* Payment Component */}
+                      <div className="min-h-[300px]">
+                        {renderPaymentComponent()}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>

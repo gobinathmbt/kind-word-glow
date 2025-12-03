@@ -42,8 +42,6 @@ export const VehicleImportTimelineReport: React.FC<VehicleImportTimelineReportPr
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleImportTimeline(params);
-      console.log('Import Timeline API Response:', response);
-      console.log('Import Timeline Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load import timeline data');

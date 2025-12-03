@@ -2,7 +2,9 @@
 const Plan = require('../models/Plan');
 const Subscription = require('../models/Subscriptions');
 const Company = require('../models/Company');
+const MasterAdmin = require('../models/MasterAdmin');
 const { logEvent } = require('./logs.controller');
+const env = require('../config/env');
 
 // Get pricing configuration
 const getPricingConfig = async (req, res) => {
@@ -146,6 +148,28 @@ const createSubscription = async (req, res) => {
     const companyId = req.user.company_id;
     const company = await Company.findById(companyId);
 
+    // Clean up old pending subscriptions (older than 15 minutes) for this company
+    await Subscription.deleteMany({
+      company_id: companyId,
+      payment_status: 'pending',
+      created_at: { $lt: new Date(Date.now() - 15 * 60 * 1000) }
+    });
+
+    // Check for recent pending subscription to reuse (prevent duplicates)
+    const recentPending = await Subscription.findOne({
+      company_id: companyId,
+      payment_status: 'pending',
+      payment_method: payment_method,
+      created_at: { $gte: new Date(Date.now() - 10 * 60 * 1000) }
+    });
+
+    if (recentPending) {
+      return res.status(200).json({
+        success: true,
+        data: recentPending
+      });
+    }
+
     let startDate, endDate;
     
     if (is_upgrade) {
@@ -197,6 +221,72 @@ const createSubscription = async (req, res) => {
       payment_status: 'pending'
     });
 
+    // Create payment gateway order/intent based on payment method
+    if (payment_method === 'razorpay') {
+      try {
+        // Fetch payment settings from database
+        const masterAdmin = await MasterAdmin.findOne();
+        
+        if (!masterAdmin?.payment_settings?.razorpay_key_id || !masterAdmin?.payment_settings?.razorpay_key_secret) {
+          throw new Error('Razorpay credentials not configured. Please configure them in Master Admin → Settings → Payment Settings');
+        }
+        
+        const Razorpay = require('razorpay');
+        const razorpay = new Razorpay({
+          key_id: masterAdmin.payment_settings.razorpay_key_id,
+          key_secret: masterAdmin.payment_settings.razorpay_key_secret
+        });
+
+        // Convert amount to paise (smallest currency unit)
+        const amountInPaise = Math.round(total_amount * 100);
+
+        const razorpayOrder = await razorpay.orders.create({
+          amount: amountInPaise,
+          currency: 'INR',
+          receipt: `sub_${subscription._id}`,
+          notes: {
+            subscription_id: subscription._id.toString(),
+            company_id: companyId.toString()
+          }
+        });
+
+        subscription.razorpay_order_id = razorpayOrder.id;
+      } catch (razorpayError) {
+        console.error('Razorpay order creation error:', razorpayError);
+        // Continue without Razorpay order - frontend will handle gracefully
+      }
+    } else if (payment_method === 'stripe') {
+      try {
+        // Fetch payment settings from database
+        const masterAdmin = await MasterAdmin.findOne();
+        
+        if (!masterAdmin?.payment_settings?.stripe_secret_key) {
+          throw new Error('Stripe credentials not configured. Please configure them in Master Admin → Settings → Payment Settings');
+        }
+        
+        const stripe = require('stripe')(masterAdmin.payment_settings.stripe_secret_key);
+        
+        // Convert amount to cents (smallest currency unit for USD)
+        const amountInCents = Math.round(total_amount * 100);
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amountInCents,
+          currency: 'usd',
+          metadata: {
+            subscription_id: subscription._id.toString(),
+            company_id: companyId.toString()
+          },
+          description: `Subscription for ${number_of_users} users - ${number_of_days} days`
+        });
+
+        subscription.stripe_payment_intent_id = paymentIntent.id;
+        subscription.stripe_client_secret = paymentIntent.client_secret;
+      } catch (stripeError) {
+        console.error('Stripe payment intent creation error:', stripeError);
+        // Continue without Stripe payment intent - frontend will handle gracefully
+      }
+    }
+
     await subscription.save();
 
     // // Generate invoice
@@ -208,24 +298,13 @@ const createSubscription = async (req, res) => {
     //   // Don't fail the subscription creation if invoice generation fails
     // }
 
-    // Update Company with module access
-    const moduleNames = moduleDetails.map(m => m.module_name);
-
-    await Company.findByIdAndUpdate(companyId, {
-      module_access: moduleNames, // store only module names
-      subscription_status: 'active',
-      subscription_start_date: startDate,
-      subscription_end_date: endDate,
-      grace_period_end: gracePeriodEnd,
-      number_of_days,
-      number_of_users,
-      user_limit: number_of_users
-    });
+    // DO NOT update Company table here - wait for payment confirmation
+    // Company will be updated only when payment status is 'completed' in updatePaymentStatus
 
     await logEvent({
       event_type: 'system_operation',
       event_action: 'subscription_created',
-      event_description: `Subscription created for company`,
+      event_description: `Subscription created for company (pending payment)`,
       company_id: companyId,
       user_id: req.user.id,
       metadata: {
@@ -253,7 +332,22 @@ const createSubscription = async (req, res) => {
 const updatePaymentStatus = async (req, res) => {
   try {
     const { subscriptionId } = req.params;
-    const { payment_status, payment_transaction_id } = req.body;
+    const { 
+      payment_status, 
+      payment_transaction_id,
+      // Razorpay specific
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature,
+      // Stripe specific
+      stripe_payment_intent_id,
+      stripe_charge_id,
+      stripe_customer_id,
+      // PayPal specific
+      paypal_order_id,
+      paypal_payer_id,
+      paypal_payer_email
+    } = req.body;
 
     const subscription = await Subscription.findById(subscriptionId);
     if (!subscription) {
@@ -263,19 +357,108 @@ const updatePaymentStatus = async (req, res) => {
       });
     }
 
+    // Prevent updating completed payment to failed (race condition protection)
+    if (subscription.payment_status === 'completed' && payment_status === 'failed') {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment already completed',
+        data: subscription
+      });
+    }
+
+    // Update payment status
+    // Only two final states: "completed" or "failed"
+    
+    // If payment failed, delete the pending subscription instead of updating it
+    if (payment_status === 'failed') {
+      await Subscription.findByIdAndDelete(subscriptionId);
+      
+      await logEvent({
+        event_type: 'system_operation',
+        event_action: 'payment_failed',
+        event_description: `Payment failed - subscription deleted`,
+        company_id: subscription.company_id,
+        metadata: {
+          subscription_id: subscriptionId,
+          payment_method: subscription.payment_method,
+          amount: subscription.total_amount
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment failed - subscription not saved',
+        data: { deleted: true }
+      });
+    }
     subscription.payment_status = payment_status;
+    
+    // Store generic transaction ID
     if (payment_transaction_id) {
       subscription.payment_transaction_id = payment_transaction_id;
+    }
+    
+    // Store Razorpay payment details (only if payment method is Razorpay)
+    if (subscription.payment_method === 'razorpay') {
+      if (razorpay_payment_id) {
+        subscription.razorpay_payment_id = razorpay_payment_id;
+        subscription.payment_transaction_id = razorpay_payment_id; // Also store as transaction ID
+      }
+      if (razorpay_order_id) {
+        subscription.razorpay_order_id = razorpay_order_id;
+      }
+      if (razorpay_signature) {
+        subscription.razorpay_signature = razorpay_signature;
+      }
+    }
+    
+    // Store Stripe payment details (only if payment method is Stripe)
+    if (subscription.payment_method === 'stripe') {
+      if (stripe_payment_intent_id) {
+        subscription.stripe_payment_intent_id = stripe_payment_intent_id;
+        subscription.payment_transaction_id = stripe_payment_intent_id; // Also store as transaction ID
+      }
+      if (stripe_charge_id) {
+        subscription.stripe_charge_id = stripe_charge_id;
+      }
+      if (stripe_customer_id) {
+        subscription.stripe_customer_id = stripe_customer_id;
+      }
+    }
+    
+    // Store PayPal payment details (only if payment method is PayPal)
+    if (subscription.payment_method === 'paypal') {
+      if (paypal_order_id) {
+        subscription.paypal_order_id = paypal_order_id;
+        subscription.payment_transaction_id = paypal_order_id; // Also store as transaction ID
+      }
+      if (paypal_payer_id) {
+        subscription.paypal_payer_id = paypal_payer_id;
+      }
+      if (paypal_payer_email) {
+        subscription.paypal_payer_email = paypal_payer_email;
+      }
     }
 
     await subscription.save();
 
-    // If payment completed, update company subscription status
+    // If payment completed, update company subscription status and module access
     if (payment_status === 'completed') {
+      // Extract module names from subscription
+      const moduleNames = subscription.selected_modules.map(m => m.module_name);
+      
+      // Calculate grace period end
+      const gracePeriodEnd = new Date(subscription.subscription_end_date);
+      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 2);
+
       await Company.findByIdAndUpdate(subscription.company_id, {
+        module_access: moduleNames, // store only module names
         subscription_status: 'active',
         subscription_start_date: subscription.subscription_start_date,
         subscription_end_date: subscription.subscription_end_date,
+        grace_period_end: gracePeriodEnd,
+        number_of_days: subscription.number_of_days,
+        number_of_users: subscription.number_of_users,
         user_limit: subscription.number_of_users
       });
 
@@ -445,8 +628,7 @@ const checkExpiredSubscriptions = async () => {
       await Company.findByIdAndUpdate(company._id, {
         subscription_status: 'inactive'
       });
-      
-      console.log(`Company ${company.company_name} subscription set to inactive`);
+
     }
 
     // Update companies entering grace period
@@ -461,11 +643,30 @@ const checkExpiredSubscriptions = async () => {
         subscription_status: 'grace_period'
       });
       
-      console.log(`Company ${company.company_name} entered grace period`);
     }
+
+    // Clean up abandoned pending subscriptions
+    await cleanupPendingSubscriptions();
 
   } catch (error) {
     console.error('CRON job error:', error);
+  }
+};
+
+// Clean up abandoned pending subscriptions (can be called by cron job)
+const cleanupPendingSubscriptions = async () => {
+  try {
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    
+    const result = await Subscription.deleteMany({
+      payment_status: 'pending',
+      created_at: { $lt: fifteenMinutesAgo }
+    });
+
+    return result.deletedCount;
+  } catch (error) {
+    console.error('Cleanup pending subscriptions error:', error);
+    return 0;
   }
 };
 
@@ -526,5 +727,6 @@ module.exports = {
   getSubscriptionHistory,
   getSubscriptionStatus,
   checkExpiredSubscriptions,
-  getCompanySubscriptionInfo
+  getCompanySubscriptionInfo,
+  cleanupPendingSubscriptions
 };

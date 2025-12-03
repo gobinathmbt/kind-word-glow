@@ -50,6 +50,8 @@ const currencyRoutes = require("./routes/currency.routes");
 const costConfigurationRoutes = require("./routes/costConfiguration.routes");
 const costSetterRoutes = require("./routes/costSetter.routes");
 const dashboardReportRoutes = require("./routes/dashboardReport.routes");
+const googleMapsRoutes = require("./routes/googlemaps.routes");
+const paymentSettingsRoutes = require("./routes/paymentSettings.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -183,6 +185,8 @@ app.use("/api/company/currencies", currencyRoutes);
 app.use("/api/company/cost-configuration", costConfigurationRoutes);
 app.use("/api/company/cost-setter", costSetterRoutes);
 app.use("/api/dashboard-report", dashboardReportRoutes);
+app.use("/api/googlemaps", googleMapsRoutes);
+app.use("/api/payment-settings", paymentSettingsRoutes);
 
 
 app.get("/api/health", async (req, res) => {

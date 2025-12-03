@@ -1249,7 +1249,6 @@ const addTradeinField = async (req, res) => {
       (section) => section.section_id === req.params.sectionId
     );
     
-    console.log("Found section:", section);
 
     if (!section) {
       return res.status(404).json({
@@ -1258,7 +1257,6 @@ const addTradeinField = async (req, res) => {
       });
     }
 
-    console.log("Section fields:", section.fields);
 
     // Initialize fields array if it doesn't exist
     if (!section.fields) {
@@ -1358,7 +1356,6 @@ const updateTradeinField = async (req, res) => {
     const { id: configId, fieldId } = req.params;
     const updateData = { ...req.body };
 
-    console.log(`Updating field: config=${configId}, field=${fieldId}`);
 
     const config = await TradeinConfig.findOne({
       _id: configId,
@@ -1470,7 +1467,6 @@ const updateTradeinField = async (req, res) => {
     
     await config.save();
 
-    console.log("Field updated successfully:", targetField.field_name);
 
     res.status(200).json({
       success: true,

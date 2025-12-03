@@ -107,7 +107,22 @@ const CompanySettings = () => {
     loadConfigurations();
   }, []);
 
-  const handleUpgradeClick = () => {
+  const handleUpgradeClick = async () => {
+    // Fetch payment settings from database
+    try {
+      const response = await apiClient.get("/api/payment-settings/public");
+      if (response.data.success) {
+        console.log("=== Payment Gateway Keys (from Database) ===");
+        console.log("Stripe Publishable Key:", response.data.data.stripe_publishable_key);
+        console.log("PayPal Client ID:", response.data.data.paypal_client_id);
+        console.log("Razorpay Key ID:", response.data.data.razorpay_key_id);
+        console.log("Google Maps API Key:", response.data.data.google_maps_api_key);
+        console.log("===========================================");
+      }
+    } catch (error) {
+      console.error("Failed to fetch payment settings:", error);
+    }
+    
     setSubscriptionModalMode("upgrade");
     setShowSubscriptionModal(true);
   };
@@ -244,7 +259,7 @@ const CompanySettings = () => {
             <div className="space-y-6">
               {/* Current Subscription Status */}
               {companySubscription &&
-              companySubscription.subscription_status !== "inactive" ? (
+                companySubscription.subscription_status !== "inactive" ? (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -262,23 +277,23 @@ const CompanySettings = () => {
                   <CardContent>
                     {companySubscription?.subscription_status ===
                       "grace_period" && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          Your subscription has expired. You have{" "}
-                          {companySubscription?.days_remaining || 0} days
-                          remaining in the grace period.
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="ml-4"
-                            onClick={handleRenewClick}
-                          >
-                            Renew Now
-                          </Button>
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                        <Alert variant="destructive" className="mb-4">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Your subscription has expired. You have{" "}
+                            {companySubscription?.days_remaining || 0} days
+                            remaining in the grace period.
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="ml-4"
+                              onClick={handleRenewClick}
+                            >
+                              Renew Now
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="text-center p-4 bg-muted/50 rounded-lg">
@@ -323,8 +338,8 @@ const CompanySettings = () => {
                         <p className="text-lg">
                           {companySubscription?.subscription_start_date
                             ? new Date(
-                                companySubscription.subscription_start_date
-                              ).toLocaleDateString()
+                              companySubscription.subscription_start_date
+                            ).toLocaleDateString()
                             : "N/A"}
                         </p>
                       </div>
@@ -333,8 +348,8 @@ const CompanySettings = () => {
                         <p className="text-lg">
                           {companySubscription?.subscription_end_date
                             ? new Date(
-                                companySubscription.subscription_end_date
-                              ).toLocaleDateString()
+                              companySubscription.subscription_end_date
+                            ).toLocaleDateString()
                             : "N/A"}
                         </p>
                       </div>
@@ -614,16 +629,16 @@ const CompanySettings = () => {
                       Test Trade-in
                     </Button>
                   </div>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Company Info Tab */}
-        <TabsContent value="company-info">
-          <CompanyInfoTab />
-        </TabsContent>
-      </Tabs>
+          {/* Company Info Tab */}
+          <TabsContent value="company-info">
+            <CompanyInfoTab />
+          </TabsContent>
+        </Tabs>
 
         {/* Subscription Modal */}
         <SubscriptionModal
@@ -663,14 +678,15 @@ const CompanySettings = () => {
 
         {/* Active Modules Dialog */}
         <Dialog open={showActiveModules} onOpenChange={setShowActiveModules}>
-          <DialogContent className="max-w-4xl max-h-[80vh]">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl max-h-[80vh] p-0 flex flex-col">
+            <div className="p-6 pb-3 border-b">
               <DialogTitle className="flex items-center gap-2">
                 <Grid className="h-5 w-5" />
                 Active Modules
               </DialogTitle>
-            </DialogHeader>
-            <div className="overflow-y-auto">
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {companySubscription?.module_access?.map((module, index) => (
                   <Card key={index} className="bg-muted/50">
@@ -685,11 +701,13 @@ const CompanySettings = () => {
                   </Card>
                 ))}
               </div>
-              {(!companySubscription?.module_access || companySubscription.module_access.length === 0) && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No active modules found
-                </div>
-              )}
+
+              {(!companySubscription?.module_access ||
+                companySubscription.module_access.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No active modules found
+                  </div>
+                )}
             </div>
           </DialogContent>
         </Dialog>

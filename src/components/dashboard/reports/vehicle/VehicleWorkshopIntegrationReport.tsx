@@ -42,8 +42,6 @@ export const VehicleWorkshopIntegrationReport: React.FC<VehicleWorkshopIntegrati
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleWorkshopIntegration(params);
-      console.log('Workshop Integration API Response:', response);
-      console.log('Workshop Integration Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load workshop integration data');

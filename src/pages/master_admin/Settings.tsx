@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Cloud, Save, TestTube } from "lucide-react";
+import { User, Mail, Shield, Cloud, Save, TestTube, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/auth/AuthContext";
 import apiClient from "@/api/axios";
@@ -46,6 +46,16 @@ const MasterSettings = () => {
     workshop_sqs_queue_url: "",
   });
 
+  const [paymentSettings, setPaymentSettings] = useState({
+    stripe_secret_key: "",
+    stripe_publishable_key: "",
+    paypal_client_id: "",
+    paypal_client_secret: "",
+    razorpay_key_id: "",
+    razorpay_key_secret: "",
+    google_maps_api_key: "",
+  });
+
   // Load AWS settings on component mount
   useEffect(() => {
     const loadAwsSettings = async () => {
@@ -60,6 +70,22 @@ const MasterSettings = () => {
     };
 
     loadAwsSettings();
+  }, []);
+
+  // Load Payment settings on component mount
+  useEffect(() => {
+    const loadPaymentSettings = async () => {
+      try {
+        const response = await apiClient.get("/api/master/payment-settings");
+        if (response.data.success) {
+          setPaymentSettings(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to load payment settings:", error);
+      }
+    };
+
+    loadPaymentSettings();
   }, []);
 
   const handleProfileUpdate = async (e) => {
@@ -135,6 +161,16 @@ const MasterSettings = () => {
     }
   };
 
+  const handlePaymentSettingsUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await apiClient.put("/api/master/payment-settings", paymentSettings);
+      toast.success("Payment settings updated successfully");
+    } catch (error) {
+      toast.error("Failed to update payment settings");
+    }
+  };
+
   return (
     <DashboardLayout title="Settings">
       <div className="space-y-6">
@@ -159,6 +195,10 @@ const MasterSettings = () => {
             <TabsTrigger value="aws" className="flex items-center gap-2">
               <Cloud className="h-4 w-4" />
               AWS Settings
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Payment Settings
             </TabsTrigger>
             <TabsTrigger value="system" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -528,6 +568,193 @@ const MasterSettings = () => {
                       Test Connection
                     </Button>
                   </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payment Settings */}
+          <TabsContent value="payment">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Gateway Configuration</CardTitle>
+                <CardDescription>
+                  Configure payment gateway API keys and Google Maps API key for the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePaymentSettingsUpdate} className="space-y-6">
+                  {/* Stripe Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Stripe Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="stripe_publishable_key">Stripe Publishable Key</Label>
+                        <Input
+                          id="stripe_publishable_key"
+                          value={paymentSettings.stripe_publishable_key}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              stripe_publishable_key: e.target.value,
+                            })
+                          }
+                          placeholder="pk_test_..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Public key for client-side Stripe integration
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="stripe_secret_key">Stripe Secret Key</Label>
+                        <Input
+                          id="stripe_secret_key"
+                          type="password"
+                          value={paymentSettings.stripe_secret_key}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              stripe_secret_key: e.target.value,
+                            })
+                          }
+                          placeholder="sk_test_..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Secret key for server-side Stripe API calls
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* PayPal Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">PayPal Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="paypal_client_id">PayPal Client ID</Label>
+                        <Input
+                          id="paypal_client_id"
+                          value={paymentSettings.paypal_client_id}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              paypal_client_id: e.target.value,
+                            })
+                          }
+                          placeholder="AXX..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          PayPal REST API Client ID
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="paypal_client_secret">PayPal Client Secret</Label>
+                        <Input
+                          id="paypal_client_secret"
+                          type="password"
+                          value={paymentSettings.paypal_client_secret}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              paypal_client_secret: e.target.value,
+                            })
+                          }
+                          placeholder="EXX..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          PayPal REST API Client Secret
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Razorpay Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Razorpay Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="razorpay_key_id">Razorpay Key ID</Label>
+                        <Input
+                          id="razorpay_key_id"
+                          value={paymentSettings.razorpay_key_id}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              razorpay_key_id: e.target.value,
+                            })
+                          }
+                          placeholder="rzp_test_..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Razorpay API Key ID
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="razorpay_key_secret">Razorpay Key Secret</Label>
+                        <Input
+                          id="razorpay_key_secret"
+                          type="password"
+                          value={paymentSettings.razorpay_key_secret}
+                          onChange={(e) =>
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              razorpay_key_secret: e.target.value,
+                            })
+                          }
+                          placeholder="Your Razorpay secret key"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Razorpay API Key Secret
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Google Maps API Key */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Google Maps API</h3>
+                    <div>
+                      <Label htmlFor="google_maps_api_key">Google Maps API Key</Label>
+                      <Input
+                        id="google_maps_api_key"
+                        value={paymentSettings.google_maps_api_key}
+                        onChange={(e) =>
+                          setPaymentSettings({
+                            ...paymentSettings,
+                            google_maps_api_key: e.target.value,
+                          })
+                        }
+                        placeholder="AIza..."
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Google Maps API key for address autocomplete and geocoding
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-blue-900 dark:text-blue-100">
+                      Important Notes:
+                    </h4>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                      <li>• These keys will be used by all companies for payment processing</li>
+                      <li>• Keys are stored securely in the database</li>
+                      <li>• Publishable/public keys are accessible to company users</li>
+                      <li>• Secret keys are only accessible to the backend server</li>
+                      <li>• Changes take effect immediately for all new transactions</li>
+                    </ul>
+                  </div>
+
+                  <Button type="submit" className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Payment Settings
+                  </Button>
                 </form>
               </CardContent>
             </Card>

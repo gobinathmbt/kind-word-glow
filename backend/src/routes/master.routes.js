@@ -22,6 +22,11 @@ const {
   updateMaintenanceSettings
 } = require('../controllers/master.controller');
 
+const {
+  getPaymentSettings,
+  updatePaymentSettings
+} = require('../controllers/paymentSettings.controller');
+
 const router = express.Router();
 
 // Public maintenance check route (no auth required)
@@ -86,6 +91,10 @@ router.get('/aws-settings', getAwsSettings);
 // Website maintenance routes
 router.get('/maintenance', getMaintenanceSettings);
 router.put('/maintenance', updateMaintenanceSettings);
+
+// Payment settings routes
+router.get('/payment-settings', getPaymentSettings);
+router.put('/payment-settings', updatePaymentSettings);
 
 // Master admin dropdown routes
 router.use('/dropdowns', require('./master.dropdown.routes'));

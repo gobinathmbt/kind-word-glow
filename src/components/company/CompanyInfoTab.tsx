@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Building2, Lock, Save, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { companyServices } from "@/api/services";
-import axios from "axios";
+import { companyServices, paymentSettingsServices } from "@/api/services";
 import { countries } from "countries-list";
-import { getCountry } from "countries-and-timezones";
+import { getAllCountries } from "countries-and-timezones";
 
 interface CompanyInfo {
   company_name: string;
@@ -38,17 +37,8 @@ interface PasswordData {
 }
 
 interface AddressSuggestion {
-  display_name: string;
-  address: {
-    country?: string;
-    city?: string;
-    town?: string;
-    village?: string;
-    county?: string;
-    state?: string;
-    region?: string;
-    postcode?: string;
-  };
+  description: string;
+  place_id: string;
 }
 
 const CompanyInfoTab = () => {
@@ -79,23 +69,86 @@ const CompanyInfoTab = () => {
     confirm_password: "",
   });
 
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const googleMapsLoadedRef = useRef(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
+
   // Safe string getter
   const getSafeString = (value: unknown): string => {
     return typeof value === "string" ? value : "";
+  };
+
+  // Get country code from country name
+  const getCountryCode = (countryName: string): string => {
+    if (!countryName) return "";
+
+    // Try exact match first
+    const exactMatch = Object.entries(countries).find(
+      ([code, country]) =>
+        country.name.toLowerCase() === countryName.toLowerCase()
+    );
+
+    if (exactMatch) {
+      return exactMatch[0];
+    }
+
+    // Try partial match
+    const partialMatch = Object.entries(countries).find(
+      ([code, country]) =>
+        country.name.toLowerCase().includes(countryName.toLowerCase()) ||
+        countryName.toLowerCase().includes(country.name.toLowerCase())
+    );
+
+    if (partialMatch) {
+      return partialMatch[0];
+    }
+
+    // Special cases for common country name variations
+    const countryMap: { [key: string]: string } = {
+      "united states": "US",
+      "usa": "US",
+      "united kingdom": "GB",
+      "uk": "GB",
+      "uae": "AE",
+      "united arab emirates": "AE",
+    };
+
+    const lowerCountryName = countryName.toLowerCase();
+    if (countryMap[lowerCountryName]) {
+      return countryMap[lowerCountryName];
+    }
+
+    return "";
   };
 
   // Get currency for a country
   const getCurrencyForCountry = (countryName: string): string => {
     if (!countryName) return "";
 
-    const countryEntry = Object.entries(countries).find(
-      ([code, country]) =>
-        country.name.toLowerCase() === countryName.toLowerCase()
-    );
+    const countryCode = getCountryCode(countryName);
+    if (!countryCode) {
+      return "";
+    }
 
-    if (countryEntry) {
-      const [_, countryData] = countryEntry;
-      return getSafeString(countryData.currency);
+    try {
+      const countryData = countries[countryCode as keyof typeof countries];
+      
+      if (countryData) {
+        // Handle if currency is an array (take first element)
+        if (Array.isArray(countryData.currency)) {
+          const currencyValue = countryData.currency[0];
+          return getSafeString(currencyValue);
+        }
+        // Handle if currency is a string
+        else if (countryData.currency) {
+          return getSafeString(countryData.currency);
+        }
+      }
+    } catch (error) {
+      console.error("Error getting currency for country:", error);
     }
 
     return "";
@@ -105,13 +158,19 @@ const CompanyInfoTab = () => {
   const getTimezoneForCountry = (countryName: string): string => {
     if (!countryName) return "";
 
+    const countryCode = getCountryCode(countryName);
+    if (!countryCode) {
+      return "";
+    }
+
     try {
-      const countryData = getCountry(countryName);
-      if (
-        countryData &&
-        countryData.timezones &&
-        countryData.timezones.length > 0
-      ) {
+      // Get all countries data
+      const allCountries = getAllCountries();
+      
+      // Find country by code
+      const countryData = allCountries[countryCode];
+
+      if (countryData && Array.isArray(countryData.timezones) && countryData.timezones.length > 0) {
         return getSafeString(countryData.timezones[0]);
       }
     } catch (error) {
@@ -121,58 +180,192 @@ const CompanyInfoTab = () => {
     return "";
   };
 
-  // Search address using OpenStreetMap Nominatim API
+  // Fetch Google Maps API key from backend
+  useEffect(() => {
+    const fetchGoogleMapsApiKey = async () => {
+      try {
+        const response = await paymentSettingsServices.getPublicPaymentSettings();
+        if (response.data.success && response.data.data.google_maps_api_key) {
+          setGoogleMapsApiKey(response.data.data.google_maps_api_key);
+        } else {
+          console.error("Google Maps API key is not configured");
+          toast.error("Google Maps API key is not configured. Address autocomplete will not work. Please contact your administrator.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch Google Maps API key:", error);
+        toast.error("Failed to load address autocomplete service.");
+      }
+    };
+
+    fetchGoogleMapsApiKey();
+  }, []);
+
+  // Load Google Maps API
+  useEffect(() => {
+    // Don't load if API key is not available yet
+    if (!googleMapsApiKey) {
+      return;
+    }
+
+    const loadGoogleMapsAPI = () => {
+      if (googleMapsLoadedRef.current || window.google?.maps?.places) {
+        // Already loaded
+        if (window.google?.maps?.places) {
+          autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+          const mapDiv = document.createElement('div');
+          const map = new google.maps.Map(mapDiv);
+          placesServiceRef.current = new google.maps.places.PlacesService(map);
+          googleMapsLoadedRef.current = true;
+        }
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+        const mapDiv = document.createElement('div');
+        const map = new google.maps.Map(mapDiv);
+        placesServiceRef.current = new google.maps.places.PlacesService(map);
+        googleMapsLoadedRef.current = true;
+      };
+      script.onerror = () => {
+        console.error("Failed to load Google Maps API");
+        toast.error("Failed to load address search. Please refresh the page.");
+      };
+      document.head.appendChild(script);
+    };
+
+    loadGoogleMapsAPI();
+  }, [googleMapsApiKey]);
+
+  // Search address using Google Maps Places API
   const searchAddress = async (query: string) => {
-    if (query.length < 3) {
+    if (query.length < 2) {
       setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (!autocompleteServiceRef.current) {
+      console.error("Google Maps Autocomplete service not initialized");
       return;
     }
 
     setIsSearchingAddress(true);
     try {
-      const response = await axios.get<AddressSuggestion[]>(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          query
-        )}&addressdetails=1&limit=5`
+      autocompleteServiceRef.current.getPlacePredictions(
+        {
+          input: query,
+        },
+        (predictions, status) => {
+          setIsSearchingAddress(false);
+          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+            const suggestions: AddressSuggestion[] = predictions.map((prediction) => ({
+              description: prediction.description,
+              place_id: prediction.place_id,
+            }));
+            setAddressSuggestions(suggestions);
+            setShowSuggestions(true);
+          } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            setAddressSuggestions([]);
+            setShowSuggestions(false);
+          } else {
+            console.error("Address search error:", status);
+            setAddressSuggestions([]);
+            setShowSuggestions(false);
+          }
+        }
       );
-      setAddressSuggestions(response.data);
-      setShowSuggestions(true);
     } catch (err) {
       console.error("Address search error:", err);
-      toast.error("Failed to search address");
-    } finally {
       setIsSearchingAddress(false);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
     }
   };
 
   // Handle address selection
   const handleAddressSelect = (suggestion: AddressSuggestion) => {
-    const addr = suggestion.address;
+    if (!placesServiceRef.current) {
+      console.error("Google Maps Places service not initialized");
+      toast.error("Address service not ready. Please try again.");
+      return;
+    }
 
-    const selectedCountry = getSafeString(addr.country);
-    const selectedCity = getSafeString(
-      addr.city || addr.town || addr.village || addr.county
+    setIsSearchingAddress(true);
+    
+    placesServiceRef.current.getDetails(
+      {
+        placeId: suggestion.place_id,
+        fields: ['address_components', 'formatted_address'],
+      },
+      (place, status) => {
+        setIsSearchingAddress(false);
+        
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          let selectedCity = '';
+          let selectedState = '';
+          let selectedCountry = '';
+          let selectedPincode = '';
+
+          // Parse address components
+          place.address_components?.forEach((component) => {
+            const types = component.types;
+            
+            if (types.includes('locality')) {
+              selectedCity = component.long_name;
+            } else if (types.includes('administrative_area_level_3') && !selectedCity) {
+              selectedCity = component.long_name;
+            } else if (types.includes('administrative_area_level_2') && !selectedCity) {
+              selectedCity = component.long_name;
+            }
+            
+            if (types.includes('administrative_area_level_1')) {
+              selectedState = component.long_name;
+            }
+            
+            if (types.includes('country')) {
+              selectedCountry = component.long_name;
+            }
+            
+            if (types.includes('postal_code')) {
+              selectedPincode = component.long_name;
+            }
+          });
+
+          // Auto-fill timezone and currency based on country
+          const timezone = getTimezoneForCountry(selectedCountry);
+          const currency = getCurrencyForCountry(selectedCountry);
+
+          setCompanyInfo((prev) => ({
+            ...prev,
+            address: place.formatted_address || suggestion.description,
+            city: selectedCity,
+            state: selectedState,
+            country: selectedCountry,
+            pincode: selectedPincode,
+            timezone,
+            currency,
+          }));
+
+          // Show success message
+          if (timezone && currency) {
+            toast.success(`Address auto-filled with timezone (${timezone}) and currency (${currency})`);
+          } else if (!timezone || !currency) {
+            toast.warning("Address filled, but timezone/currency could not be detected. Please verify.");
+          }
+
+          setShowSuggestions(false);
+          setAddressSuggestions([]);
+        } else {
+          console.error("Failed to get place details:", status);
+          toast.error("Failed to get address details");
+        }
+      }
     );
-    const selectedState = getSafeString(addr.state || addr.region);
-    const selectedPincode = getSafeString(addr.postcode);
-
-    // Auto-fill timezone and currency based on country
-    const timezone = getTimezoneForCountry(selectedCountry);
-    const currency = getCurrencyForCountry(selectedCountry);
-
-    setCompanyInfo((prev) => ({
-      ...prev,
-      address: getSafeString(suggestion.display_name),
-      city: selectedCity,
-      state: selectedState,
-      country: selectedCountry,
-      pincode: selectedPincode,
-      timezone,
-      currency,
-    }));
-
-    setShowSuggestions(false);
-    setAddressSuggestions([]);
   };
 
   // Load company info on mount
@@ -182,13 +375,20 @@ const CompanyInfoTab = () => {
 
   // Close suggestions when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setShowSuggestions(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        addressInputRef.current &&
+        !addressInputRef.current.contains(event.target as Node) &&
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
     };
 
-    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -360,39 +560,46 @@ const CompanyInfoTab = () => {
             <div className="space-y-2 relative">
               <Label htmlFor="address">Address</Label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
                 <Input
+                  ref={addressInputRef}
                   id="address"
                   value={companyInfo.address}
                   onChange={(e) =>
                     handleInfoChange("address", e.target.value)
                   }
-                  placeholder="Start typing your address..."
+                  onFocus={() => {
+                    if (addressSuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  placeholder="Search for address..."
                   className="pl-10 pr-10"
                   required
                   autoComplete="off"
                 />
                 {isSearchingAddress && (
-                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground z-10" />
                 )}
               </div>
 
               {showSuggestions && addressSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                <div 
+                  ref={suggestionsRef}
+                  className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-80 overflow-auto"
+                >
                   {addressSuggestions.map(
-                    (suggestion: any, index: number) => (
+                    (suggestion, index) => (
                       <button
-                        key={index}
+                        key={suggestion.place_id || index}
                         type="button"
-                        className="w-full text-left px-4 py-2 hover:bg-gray-100 border-b last:border-b-0"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors duration-150 border-b last:border-b-0 flex items-start space-x-3"
                         onClick={() => handleAddressSelect(suggestion)}
                       >
-                        <div className="flex items-start space-x-2">
-                          <MapPin className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm">
-                            {suggestion.display_name}
-                          </span>
-                        </div>
+                        <MapPin className="h-5 w-5 mt-0.5 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-900 flex-1">
+                          {suggestion.description}
+                        </span>
                       </button>
                     )
                   )}
@@ -466,14 +673,19 @@ const CompanyInfoTab = () => {
             </div>
 
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2 text-blue-900">
-                💡 Address Auto-Fill
+              <h4 className="font-semibold mb-2 text-blue-900 flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Address Search - Powered by Google Maps
               </h4>
-              <p className="text-sm text-blue-800">
-                Start typing your address and select from suggestions. City,
-                State, Country, Pin Code, Timezone, and Currency will be
-                automatically filled.
+              <p className="text-sm text-blue-800 mb-2">
+                Start typing your address in the Address field above. The search works exactly like Google Maps:
               </p>
+              <ul className="text-sm text-blue-800 space-y-1 ml-4">
+                <li>• Type at least 2 characters to see suggestions</li>
+                <li>• Search for any location worldwide</li>
+                <li>• Select from the dropdown to auto-fill all address fields</li>
+                <li>• City, State, Country, Pin Code, Timezone, and Currency are automatically populated</li>
+              </ul>
             </div>
 
             <Button type="submit" disabled={loading}>

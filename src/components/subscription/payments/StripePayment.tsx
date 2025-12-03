@@ -13,9 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, CreditCard, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
+import { useQueryClient } from "@tanstack/react-query";
 
-// Initialize Stripe with your publishable key
-const stripePromise = loadStripe("pk_test_51Pbd1iRx349WEEQWwzaRaHaqvRNiPzAJBPDyjxQhPKF8dgH2GDW4aSV0Ne9wI8ycKVfl5LT3E4GD1tWAdQLGQgkO00Msfk1ujR");
+// Stripe promise will be initialized dynamically with database key
+let stripePromise: Promise<any> | null = null;
 
 interface StripePaymentProps {
   subscriptionData: any;
@@ -25,6 +26,8 @@ interface StripePaymentProps {
   currentSubscription?: any;
   userProfile?: any;
   onClose: () => void;
+  onCloseSubscription?: () => void;
+  paymentSettings?: any;
 }
 
 // Inner component that uses Stripe hooks (must be wrapped in Elements provider)
@@ -39,9 +42,9 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [billingDetails, setBillingDetails] = useState({
     name: userProfile?.name || "",
     email: userProfile?.email || "",
@@ -55,36 +58,19 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
     },
   });
 
-  // Create payment intent when component mounts
-  useEffect(() => {
-    const createPaymentIntent = async () => {
-      try {
-        setIsProcessing(true);
-        // Create subscription and get client secret from your backend
-        const response = await subscriptionServices.createSubscription({
-          ...subscriptionData,
-          total_amount: pricing.total_amount,
-          payment_method: "stripe",
-          is_upgrade: mode === "upgrade",
-          is_renewal: mode === "renewal",
-        });
-        
-        setClientSecret(response.data.clientSecret);
-      } catch (error: any) {
-        console.error("Error creating payment intent:", error);
-        toast.error(error.response?.data?.message || "Failed to initialize payment");
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    createPaymentIntent();
-  }, []);
+  // Don't create subscription on mount - wait for user to submit payment
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!stripe || !elements || !clientSecret) {
+    if (!stripe || !elements) {
+      return;
+    }
+
+    // Validate billing details
+    if (!billingDetails.name || !billingDetails.email) {
+      setPaymentError("Please fill in all required billing details");
+      toast.error("Please fill in all required billing details");
       return;
     }
 
@@ -100,34 +86,106 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
       return;
     }
 
+    let subscriptionId: string | null = null;
+
     try {
-      // Confirm card payment with Stripe
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: billingDetails,
-        },
+      // Step 1: Create subscription in backend to get payment intent
+      const subscriptionResponse = await subscriptionServices.createSubscription({
+        ...subscriptionData,
+        total_amount: pricing.total_amount,
+        payment_method: "stripe",
+        is_upgrade: mode === "upgrade",
+        is_renewal: mode === "renewal",
+        billing_info: billingDetails,
       });
 
-      if (stripeError) {
-        setPaymentError(stripeError.message || "An error occurred with your payment");
-        toast.error(stripeError.message || "Payment failed");
+      const subscription = subscriptionResponse.data.data;
+      subscriptionId = subscription._id;
+
+      // Step 2: Get client secret from subscription response
+      const clientSecret = subscription.stripe_client_secret;
+      
+      if (!clientSecret) {
+        setPaymentError("Failed to initialize Stripe payment");
+        toast.error("Failed to initialize Stripe payment");
+        
+        // Mark as failed
+        if (subscriptionId) {
+          await subscriptionServices.updatePaymentStatus(subscriptionId, {
+            payment_status: "failed",
+          });
+        }
         return;
       }
 
-      if (paymentIntent.status === "succeeded") {
-        // Update payment status in your backend
-        await subscriptionServices.updatePaymentStatus(subscriptionData._id, {
+      // Step 3: Confirm card payment with Stripe
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: billingDetails,
+          },
+        }
+      );
+
+      if (confirmError) {
+        // Mark payment as failed
+        if (subscriptionId) {
+          await subscriptionServices.updatePaymentStatus(subscriptionId, {
+            payment_status: "failed",
+          });
+        }
+        setPaymentError(confirmError.message || "Payment confirmation failed");
+        toast.error(confirmError.message || "Payment failed");
+        return;
+      }
+
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        // Step 4: Update payment status in backend with Stripe-specific details
+        const paymentData: any = {
           payment_status: "completed",
           payment_transaction_id: paymentIntent.id,
-        });
+          stripe_payment_intent_id: paymentIntent.id,
+        };
 
-        toast.success("Payment successful! Your subscription is now active.");
-        onSuccess?.();
-        onClose();
+        // Add optional fields if available
+        if ((paymentIntent as any).charges?.data?.[0]?.id) {
+          paymentData.stripe_charge_id = (paymentIntent as any).charges.data[0].id;
+        }
+        if ((paymentIntent as any).customer) {
+          paymentData.stripe_customer_id = (paymentIntent as any).customer;
+        }
+
+        await subscriptionServices.updatePaymentStatus(subscriptionId, paymentData);
+
+        // Invalidate subscription history query to trigger automatic refresh
+        queryClient.invalidateQueries({ queryKey: ["subscription-history"] });
+        queryClient.invalidateQueries({ queryKey: ["company-subscription-info"] });
+
+        toast.success("Payment successful! Your subscription is now active.", { duration: 3000 });
+        
+        // Call success handler which will navigate to dashboard
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          onClose();
+        }
       }
     } catch (error: any) {
       console.error("Payment error:", error);
+      
+      // Mark as failed if we have subscription ID
+      if (subscriptionId) {
+        try {
+          await subscriptionServices.updatePaymentStatus(subscriptionId, {
+            payment_status: "failed",
+          });
+        } catch (updateError) {
+          console.error("Error updating payment status:", updateError);
+        }
+      }
+      
       setPaymentError(error.message || "An unexpected error occurred");
       toast.error("Failed to process payment. Please try again.");
     } finally {
@@ -253,7 +311,7 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
 
         <Button
           type="submit"
-          disabled={!stripe || isProcessing || !clientSecret}
+          disabled={!stripe || isProcessing}
           className="w-full"
           size="lg"
         >
@@ -277,6 +335,22 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
 
 // Outer wrapper component that provides the Elements context
 const StripePayment: React.FC<StripePaymentProps> = (props) => {
+  const { paymentSettings } = props;
+  
+  // Initialize Stripe with database key
+  if (paymentSettings?.stripe_publishable_key && !stripePromise) {
+    stripePromise = loadStripe(paymentSettings.stripe_publishable_key);
+  }
+  
+  if (!paymentSettings?.stripe_publishable_key) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        <p>Stripe payment gateway is not configured.</p>
+        <p className="text-sm mt-2">Please contact the administrator.</p>
+      </div>
+    );
+  }
+  
   return (
     <Elements stripe={stripePromise}>
       <StripePaymentForm {...props} />

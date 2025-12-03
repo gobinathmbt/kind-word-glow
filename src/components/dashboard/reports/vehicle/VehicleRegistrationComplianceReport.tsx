@@ -41,8 +41,6 @@ export const VehicleRegistrationComplianceReport: React.FC<VehicleRegistrationCo
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleRegistrationCompliance(params);
-      console.log('Registration Compliance API Response:', response);
-      console.log('Registration Compliance Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load registration compliance data');

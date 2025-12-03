@@ -263,7 +263,6 @@ const TradeinConfig = () => {
       const response = await configServices.getTradeinConfigDetails(
         selectedConfig._id
       );
-      console.log("Config Details API Response:", response.data); // Debug log
       return response.data.data;
     },
     enabled: !!selectedConfig?._id,
@@ -272,14 +271,10 @@ const TradeinConfig = () => {
   // Debug the selected config details
   React.useEffect(() => {
     if (selectedConfigDetails) {
-      console.log("Selected Config Details Loaded:", selectedConfigDetails);
-      console.log("Categories:", selectedConfigDetails.categories);
       if (selectedConfigDetails.categories) {
         selectedConfigDetails.categories.forEach((category: any, index: number) => {
-          console.log(`Category ${index}:`, category.category_name, "Sections:", category.sections?.length);
           if (category.sections) {
             category.sections.forEach((section: any, secIndex: number) => {
-              console.log(`  Section ${secIndex}:`, section.section_name, "Fields:", section.fields?.length);
             });
           }
         });
@@ -865,15 +860,8 @@ const TradeinConfig = () => {
   const handlePreview = () => {
     if (!selectedConfigDetails) {
       toast.error("No configuration selected to preview");
-      console.log("No selectedConfigDetails available");
       return;
     }
-    
-    console.log("Opening preview with config:", selectedConfigDetails);
-    console.log("Categories count:", selectedConfigDetails.categories?.length);
-    console.log("Total sections:", selectedConfigDetails.categories?.reduce((acc: number, cat: any) => acc + (cat.sections?.length || 0), 0));
-    console.log("Total fields:", selectedConfigDetails.categories?.reduce((acc: number, cat: any) => 
-      acc + (cat.sections?.reduce((secAcc: number, sec: any) => secAcc + (sec.fields?.length || 0), 0) || 0), 0));
     
     setIsPreviewOpen(true);
   };

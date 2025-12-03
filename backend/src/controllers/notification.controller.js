@@ -4,7 +4,6 @@ const { getNotificationSocketIO } = require('../controllers/socket.controller');
 
 // Get notifications for a user
 const getNotifications = async (req, res) => {
-  console.log(req.user)
   try {
     const { page = 1, limit = 20, is_read = 'all', type = 'all' } = req.query;
     const userId = req.user.id;

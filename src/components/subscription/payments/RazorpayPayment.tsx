@@ -12,6 +12,7 @@ import {
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
+import { useQueryClient } from "@tanstack/react-query";
 
 declare global {
   interface Window {
@@ -42,6 +43,8 @@ interface RazorpayPaymentProps {
   currentSubscription?: any;
   userProfile?: any;
   onClose: () => void;
+  onCloseSubscription?: () => void;
+  paymentSettings?: any;
 }
 
 const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
@@ -52,7 +55,10 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
   currentSubscription,
   userProfile,
   onClose,
+  onCloseSubscription,
+  paymentSettings,
 }) => {
+  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [billingInfo, setBillingInfo] = useState({
     email: userProfile?.email || "",
@@ -67,13 +73,11 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
     if (paymentScreenOpened) {
       // Close the subscription/checkout screen when payment screen opens
       onClose();
+      onCloseSubscription();
     }
-  }, [paymentScreenOpened, onClose]);
+  }, [paymentScreenOpened, onClose, onCloseSubscription]);
 
-  const createSubscription = async (
-    paymentMethod: string,
-    orderId?: string
-  ) => {
+  const createSubscription = async (paymentMethod: string) => {
     try {
       const response = await subscriptionServices.createSubscription({
         ...subscriptionData,
@@ -82,7 +86,6 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
         is_upgrade: mode === "upgrade",
         is_renewal: mode === "renewal",
         billing_info: billingInfo,
-        razorpay_order_id: orderId,
       });
       return response.data.data;
     } catch (error) {
@@ -91,6 +94,11 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
   };
 
   const handleRazorpayPayment = async () => {
+    if (!paymentSettings?.razorpay_key_id) {
+      toast.error("Razorpay Key ID not configured");
+      return;
+    }
+    
     if (!billingInfo.email || !billingInfo.name || !billingInfo.phone) {
       toast.error("Please fill in all required fields", {
         position: "top-right",
@@ -111,11 +119,12 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       const subscription = await createSubscription("razorpay");
 
       // Convert amount properly - Razorpay expects amount in paise (smallest currency unit)
-      // If pricing.total_amount is in INR, multiply by 100 to convert to paise
-      const amountInPaise = Math.round(pricing.total_amount * 75);
+      // If pricing.total_amount is in USD, convert to INR first (approx 83 INR per USD), then to paise
+      // If pricing.total_amount is already in INR, just multiply by 100 to convert to paise
+      const amountInPaise = Math.round(pricing.total_amount * 100);
 
       const options = {
-        key: "rzp_test_z6CO9LKvjNQKsS", // Replace with your Razorpay key
+        key: paymentSettings.razorpay_key_id,
         amount: amountInPaise, // Already converted to paise
         currency: "INR",
         name: "Subscription Service",
@@ -131,19 +140,31 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
           try {
             setIsProcessing(true);
 
-            // Verify payment and update subscription
+            // Verify payment and update subscription with Razorpay-specific details
             await subscriptionServices.updatePaymentStatus(subscription._id, {
               payment_status: "completed",
               payment_transaction_id: response.razorpay_payment_id,
+              razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
             });
 
+            // Invalidate subscription history query to trigger automatic refresh
+            queryClient.invalidateQueries({ queryKey: ["subscription-history"] });
+            queryClient.invalidateQueries({ queryKey: ["company-subscription-info"] });
+
             toast.success(
-              "Payment successful! Your subscription is now active."
+              "Payment successful! Your subscription is now active.",
+              { duration: 3000 }
             );
-            onSuccess?.();
-            // No need to call onClose here as it's already closed when payment screen opened
+            
+            // Close payment screen flag
+            setPaymentScreenOpened(false);
+            
+            // Call success handler which will navigate to dashboard
+            if (onSuccess) {
+              onSuccess();
+            }
           } catch (error) {
             console.error("Payment verification error:", error);
             toast.error(
@@ -166,10 +187,18 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
           color: "#2563eb",
         },
         modal: {
-          ondismiss: function () {
+          ondismiss: async function () {
+            try {
+              // Mark payment as failed when user cancels
+              await subscriptionServices.updatePaymentStatus(subscription._id, {
+                payment_status: "failed",
+              });
+            } catch (error) {
+              console.error("Error updating payment status:", error);
+            }
             setIsProcessing(false);
             setPaymentScreenOpened(false);
-            toast.info("Payment cancelled by user");
+            toast.error("Payment cancelled by user");
           },
         },
       };
@@ -188,6 +217,16 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
       setPaymentScreenOpened(false);
     }
   };
+
+  // Check if Razorpay is configured
+  if (!paymentSettings?.razorpay_key_id) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        <p>Razorpay payment gateway is not configured.</p>
+        <p className="text-sm mt-2">Please contact the administrator.</p>
+      </div>
+    );
+  }
 
   // Format amount for display (in INR)
   const displayAmount = pricing.total_amount.toFixed(2);

@@ -61,6 +61,7 @@ export interface CompleteUser {
   is_primary_admin?: boolean;
   subscription_modal_required?: boolean;
   subscription_modal_force?: boolean;
+  is_new_registration?: boolean;
   subscription_status?: string;
   subscription_days_remaining?: number;
   username?: string;
@@ -82,6 +83,7 @@ interface User {
   last_name?: string;
   subscription_modal_required?: boolean;
   subscription_modal_force?: boolean;
+  is_new_registration?: boolean;
   subscription_status?: string;
   subscription_days_remaining?: number;
 }

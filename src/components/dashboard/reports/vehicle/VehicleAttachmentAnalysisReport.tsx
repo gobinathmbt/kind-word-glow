@@ -42,8 +42,6 @@ export const VehicleAttachmentAnalysisReport: React.FC<VehicleAttachmentAnalysis
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleAttachmentAnalysis(params);
-      console.log('Attachment Analysis API Response:', response);
-      console.log('Attachment Analysis Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load attachment analysis data');

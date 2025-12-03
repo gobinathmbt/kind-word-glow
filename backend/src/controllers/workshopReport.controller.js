@@ -92,7 +92,6 @@ const completeWorkshop = async (req, res) => {
   try {
     const { vehicleId, vehicleType } = req.params;
     const { confirmation, stageName } = req.body; // stageName for inspection
-    console.log(confirmation, stageName);
 
     // Validate confirmation
     if (confirmation !== "CONFIRM") {
@@ -136,7 +135,6 @@ const completeWorkshop = async (req, res) => {
       if (progressIndex !== -1) {
         vehicle.workshop_progress[progressIndex].progress = "completed";
         vehicle.workshop_progress[progressIndex].completed_at = new Date();
-        console.log(`Updated existing progress for ${stageName}`);
       } else {
         // Force add if doesn't exist
         vehicle.workshop_progress.push({
@@ -145,7 +143,6 @@ const completeWorkshop = async (req, res) => {
           completed_at: new Date(),
           started_at: new Date(), // Add started date as well
         });
-        console.log(`Added new progress entry for ${stageName}`);
       }
 
       // FORCE UPDATE workshop_report_preparing for specific stage
@@ -154,14 +151,12 @@ const completeWorkshop = async (req, res) => {
       );
       if (preparingIndex !== -1) {
         vehicle.workshop_report_preparing[preparingIndex].preparing = true;
-        console.log(`Updated existing preparing status for ${stageName}`);
       } else {
         // Force add if doesn't exist
         vehicle.workshop_report_preparing.push({
           stage_name: stageName,
           preparing: true,
         });
-        console.log(`Added new preparing entry for ${stageName}`);
       }
 
       // FORCE UPDATE workshop_report_ready for specific stage (set to false initially)
@@ -172,7 +167,6 @@ const completeWorkshop = async (req, res) => {
         vehicle.workshop_report_ready[reportReadyIndex].ready = false;
         vehicle.workshop_report_ready[reportReadyIndex].generated_at =
           new Date();
-        console.log(`Updated existing report ready status for ${stageName}`);
       } else {
         // Force add if doesn't exist
         vehicle.workshop_report_ready.push({
@@ -180,7 +174,6 @@ const completeWorkshop = async (req, res) => {
           ready: false,
           generated_at: new Date(),
         });
-        console.log(`Added new report ready entry for ${stageName}`);
       }
 
       // FORCE UPDATE is_workshop for specific stage (mark as completed in workshop)
@@ -190,7 +183,6 @@ const completeWorkshop = async (req, res) => {
       if (workshopIndex !== -1) {
         vehicle.is_workshop[workshopIndex].in_workshop = true; // Keep in workshop but mark as completed
         vehicle.is_workshop[workshopIndex].completed_at = new Date();
-        console.log(`Updated existing workshop status for ${stageName}`);
       } else {
         // Force add if doesn't exist
         vehicle.is_workshop.push({
@@ -199,7 +191,6 @@ const completeWorkshop = async (req, res) => {
           pushed_at: new Date(),
           completed_at: new Date(),
         });
-        console.log(`Added new workshop entry for ${stageName}`);
       }
 
       // Mark arrays as modified to ensure Mongoose saves them
@@ -210,10 +201,6 @@ const completeWorkshop = async (req, res) => {
 
       // Save with force
       const savedVehicle = await vehicle.save();
-      console.log(
-        "Vehicle saved successfully with stage completion:",
-        savedVehicle._id
-      );
 
       // Send stage-specific data to SQS
       const {
@@ -229,7 +216,6 @@ const completeWorkshop = async (req, res) => {
       });
 
       if (!queueResult.success) {
-        console.log("Queue failed, rolling back changes");
 
         // ROLLBACK: Restore previous states
         const rollbackProgressIndex = vehicle.workshop_progress.findIndex(
@@ -291,7 +277,6 @@ const completeWorkshop = async (req, res) => {
 };
 // Generate workshop report (called by SQS processor)
 const generateWorkshopReport = async (messageData) => {
-  console.log(messageData);
   try {
     const {
       vehicle_id,
@@ -301,9 +286,6 @@ const generateWorkshopReport = async (messageData) => {
       completed_by,
     } = messageData;
 
-    console.log(
-      `🏗️ Generating workshop report for vehicle ${vehicle_stock_id}`
-    );
 
     // Get all required data
     const vehicle = await Vehicle.findById(vehicle_id);
@@ -341,7 +323,6 @@ const generateWorkshopReport = async (messageData) => {
       );
     }
 
-    console.log(`✅ Workshop report generated for vehicle ${vehicle_stock_id}`);
     return { success: true };
   } catch (error) {
     console.error("Generate workshop report error:", error);
@@ -848,11 +829,9 @@ const generateInspectionReport = async (
 
   // If no stages need report generation, exit early
   if (stagesToGenerate.length === 0) {
-    console.log("No stages require report generation at this time");
     return;
   }
 
-  console.log(`Generating reports for stages: ${stagesToGenerate.join(", ")}`);
 
   // Filter resultData to only include stages that need report generation
   const stagesToProcess = resultData.filter((category) =>
@@ -1049,25 +1028,16 @@ const generateInspectionReport = async (
     vehicle.markModified("workshop_report_ready");
     vehicle.markModified("workshop_report_preparing");
 
-    console.log(
-      `Report generated successfully for stage: ${category.category_name}`
-    );
   }
 
   // Force save the vehicle document with explicit field updates
   try {
     await vehicle.save();
-    console.log(
-      `Vehicle document saved with updated workshop_report_ready and workshop_report_preparing fields`
-    );
   } catch (error) {
     console.error("Error saving vehicle document:", error);
     throw error;
   }
 
-  console.log(
-    `Report generation completed for ${reportReadyFlags.length} stages`
-  );
 };
 const generateTradeinReport = async (
   vehicle,
@@ -1100,11 +1070,9 @@ const generateTradeinReport = async (
 
   // If no stages need report generation, exit early
   if (stagesToGenerate.length === 0) {
-    console.log("No stages require report generation at this time");
     return;
   }
 
-  console.log(`Generating reports for stages: ${stagesToGenerate.join(", ")}`);
 
   // Filter resultData to only include stages that need report generation
   const stagesToProcess = resultData.filter((category) =>
@@ -1301,25 +1269,15 @@ const generateTradeinReport = async (
     vehicle.markModified("workshop_report_ready");
     vehicle.markModified("workshop_report_preparing");
 
-    console.log(
-      `Report generated successfully for stage: ${category.category_name}`
-    );
   }
 
   // Force save the vehicle document with explicit field updates
   try {
     await vehicle.save();
-    console.log(
-      `Vehicle document saved with updated workshop_report_ready and workshop_report_preparing fields`
-    );
   } catch (error) {
     console.error("Error saving vehicle document:", error);
     throw error;
   }
-
-  console.log(
-    `Report generation completed for ${reportReadyFlags.length} stages`
-  );
 };
 
 

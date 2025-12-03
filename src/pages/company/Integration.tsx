@@ -206,7 +206,6 @@ const Integration = () => {
   };
 
   const handleConfigureModule = (moduleType: string) => {
-    console.log("Configuring module:", moduleType);
     const existing = getExistingIntegration(moduleType);
     setSelectedIntegration(existing || null);
     setSelectedModule(moduleType);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -10,23 +10,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Loader2, ChevronLeft, ChevronRight, Download, CheckCircle2, Mail } from "lucide-react";
 import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { subscriptionServices } from "@/api/services";
 import InvoiceViewModal from "@/components/subscription/InvoiceViewModal";
+import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
+import { generateGatewayInvoicePDF } from "@/utils/gatewayInvoicePdfGenerator";
+import { toast } from "sonner";
 
 const SubscriptionHistoryTable: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const limit = 10;
+  const queryClient = useQueryClient();
 
   // Load subscription history with pagination
   const {
     data: subscriptionResponse,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["subscription-history", currentPage],
     queryFn: async () => {
@@ -38,30 +44,70 @@ const SubscriptionHistoryTable: React.FC = () => {
         throw error;
       }
     },
+    staleTime: 0, // Always refetch when component mounts or dialog opens
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid unnecessary calls
   });
+
+  // Prefetch next and previous pages for smoother navigation
+  useEffect(() => {
+    const pagination = subscriptionResponse?.pagination;
+    if (!pagination) return;
+
+    // Prefetch next page
+    if (pagination.hasNextPage) {
+      queryClient.prefetchQuery({
+        queryKey: ["subscription-history", currentPage + 1],
+        queryFn: async () => {
+          const response = await subscriptionServices.getSubscriptionHistory(currentPage + 1, limit);
+          return response.data;
+        },
+      });
+    }
+
+    // Prefetch previous page
+    if (pagination.hasPrevPage && currentPage > 1) {
+      queryClient.prefetchQuery({
+        queryKey: ["subscription-history", currentPage - 1],
+        queryFn: async () => {
+          const response = await subscriptionServices.getSubscriptionHistory(currentPage - 1, limit);
+          return response.data;
+        },
+      });
+    }
+  }, [currentPage, subscriptionResponse, queryClient, limit]);
 
   const subscriptionData = subscriptionResponse?.data || [];
   const pagination = subscriptionResponse?.pagination;
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
       case "completed":
-      case "paid":
-        return "default";
+        return "default"; // Green for success
       case "pending":
-        return "secondary";
+        return "secondary"; // Yellow/gray for pending
       case "failed":
-      case "overdue":
-        return "destructive";
+        return "destructive"; // Red for failed
       default:
         return "secondary";
     }
   };
 
-  const handleViewInvoice = (subscription: any) => {
-    // Prepare invoice data from subscription data
-    const invoiceData = {
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Success";
+      case "pending":
+        return "Pending";
+      case "failed":
+        return "Failed";
+      default:
+        return status;
+    }
+  };
+
+  const prepareInvoiceData = (subscription: any) => {
+    return {
       _id: subscription._id,
       invoice_number:
         subscription.invoice_number ||
@@ -73,7 +119,22 @@ const SubscriptionHistoryTable: React.FC = () => {
       payment_method: subscription.payment_method || "card",
       payment_date: subscription.payment_date,
       payment_transaction_id:
-        subscription.transaction_id || subscription.payment_id,
+        subscription.payment_transaction_id || subscription.transaction_id || subscription.payment_id,
+
+      // Razorpay specific fields
+      razorpay_payment_id: subscription.razorpay_payment_id,
+      razorpay_order_id: subscription.razorpay_order_id,
+      razorpay_signature: subscription.razorpay_signature,
+
+      // Stripe specific fields
+      stripe_payment_intent_id: subscription.stripe_payment_intent_id,
+      stripe_charge_id: subscription.stripe_charge_id,
+      stripe_customer_id: subscription.stripe_customer_id,
+
+      // PayPal specific fields
+      paypal_order_id: subscription.paypal_order_id,
+      paypal_payer_id: subscription.paypal_payer_id,
+      paypal_payer_email: subscription.paypal_payer_email,
 
       // Billing info
       billing_info: {
@@ -102,8 +163,8 @@ const SubscriptionHistoryTable: React.FC = () => {
         ...(subscription.selected_modules?.map((module: any) => ({
           description: `Module: ${module.module_name}`,
           quantity: 1,
-          unit_price: module.price || 0,
-          total_price: module.price || 0,
+          unit_price: module.cost || 0,
+          total_price: module.cost || 0,
         })) || []),
       ],
 
@@ -122,9 +183,71 @@ const SubscriptionHistoryTable: React.FC = () => {
         } user${subscription.number_of_users === 1 ? "" : "s"}.`,
       subscription_id: subscription._id,
     };
+  };
 
+  const handleViewInvoice = (subscription: any) => {
+    const invoiceData = prepareInvoiceData(subscription);
     setSelectedInvoice(invoiceData);
     setShowInvoiceModal(true);
+  };
+
+  const handleDownloadPDF = async (subscription: any) => {
+    // Only fetch from gateway if payment is completed and has transaction_id
+    if (
+      subscription.payment_status === "completed" &&
+      subscription.payment_transaction_id &&
+      subscription.payment_method
+    ) {
+      try {
+        toast.loading("Fetching invoice from payment gateway...", { id: "invoice-download" });
+        
+        // Fetch invoice from payment gateway
+        const response = await subscriptionServices.fetchInvoiceFromGateway(subscription._id);
+        
+        if (response.data.success) {
+          // Prepare billing info
+          const billingInfo = {
+            name: subscription.company_name || subscription.billing_name || "Company Name",
+            email: subscription.company_email || subscription.billing_email || "",
+            phone: subscription.billing_phone || "",
+          };
+          
+          // Generate PDF from gateway data
+          generateGatewayInvoicePDF(response.data, billingInfo);
+          
+          toast.success(
+            `Invoice downloaded from ${subscription.payment_method.toUpperCase()} gateway!`,
+            { id: "invoice-download" }
+          );
+        } else {
+          throw new Error("Failed to fetch invoice from gateway");
+        }
+      } catch (error: any) {
+        console.error("Error fetching invoice from gateway:", error);
+        toast.dismiss("invoice-download");
+        
+        // Fallback to local invoice generation
+        toast.warning("Generating local invoice as fallback...");
+        try {
+          const invoiceData = prepareInvoiceData(subscription);
+          generateInvoicePDF(invoiceData);
+          toast.success(`Local invoice ${invoiceData.invoice_number} downloaded!`);
+        } catch (fallbackError) {
+          console.error("Error generating fallback PDF:", fallbackError);
+          toast.error("Failed to generate invoice. Please try again.");
+        }
+      }
+    } else {
+      // For pending/failed payments or missing transaction_id, use local generation
+      try {
+        const invoiceData = prepareInvoiceData(subscription);
+        generateInvoicePDF(invoiceData);
+        toast.success(`Invoice ${invoiceData.invoice_number} downloaded successfully!`);
+      } catch (error) {
+        console.error("Error generating PDF:", error);
+        toast.error("Failed to generate PDF. Please try again.");
+      }
+    }
   };
 
   const handleNextPage = () => {
@@ -136,6 +259,81 @@ const SubscriptionHistoryTable: React.FC = () => {
   const handlePrevPage = () => {
     if (pagination?.hasPrevPage) {
       setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const handleSendStripeReceipt = async (subscription: any) => {
+    try {
+      setSendingEmail(subscription._id);
+      toast.loading("Sending Stripe receipt via email...", { id: "send-receipt" });
+      
+      const response = await subscriptionServices.sendStripeReceiptEmail(subscription._id);
+      
+      if (response.data.success) {
+        
+        toast.success(
+          `Receipt sent successfully to ${response.data.email}`,
+          { id: "send-receipt" }
+        );
+      } else {
+        throw new Error(response.data.message || "Failed to send receipt");
+      }
+    } catch (error: any) {
+      console.error("❌ Error sending Stripe receipt:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to send receipt email";
+      toast.error(errorMessage, { id: "send-receipt" });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
+  const handleSendPayPalReceipt = async (subscription: any) => {
+    try {
+      setSendingEmail(subscription._id);
+      toast.loading("Sending PayPal receipt via email...", { id: "send-receipt" });
+      
+      const response = await subscriptionServices.sendPayPalReceiptEmail(subscription._id);
+      
+      if (response.data.success) {
+        
+        toast.success(
+          `Receipt sent successfully to ${response.data.email}`,
+          { id: "send-receipt" }
+        );
+      } else {
+        throw new Error(response.data.message || "Failed to send receipt");
+      }
+    } catch (error: any) {
+      console.error("❌ Error sending PayPal receipt:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to send receipt email";
+      toast.error(errorMessage, { id: "send-receipt" });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
+  const handleSendRazorpayReceipt = async (subscription: any) => {
+    try {
+      setSendingEmail(subscription._id);
+      toast.loading("Sending Razorpay receipt via email...", { id: "send-receipt" });
+      
+      const response = await subscriptionServices.sendRazorpayReceiptEmail(subscription._id);
+      
+      if (response.data.success) {
+        
+        toast.success(
+          `Receipt sent successfully to ${response.data.email}`,
+          { id: "send-receipt" }
+        );
+      } else {
+        throw new Error(response.data.message || "Failed to send receipt");
+      }
+    } catch (error: any) {
+      console.error("❌ Error sending Razorpay receipt:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to send receipt email";
+      toast.error(errorMessage, { id: "send-receipt" });
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -193,6 +391,7 @@ const SubscriptionHistoryTable: React.FC = () => {
                     <TableHead>Users</TableHead>
                     <TableHead>Modules</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Payment Method</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -248,22 +447,109 @@ const SubscriptionHistoryTable: React.FC = () => {
                         ${subscription.total_amount}
                       </TableCell>
                       <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant="outline" className="capitalize">
+                            {subscription.payment_method || "N/A"}
+                          </Badge>
+                          {subscription.payment_transaction_id && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[150px]" title={subscription.payment_transaction_id}>
+                              {subscription.payment_transaction_id}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant={getStatusColor(subscription.payment_status)}
+                          className={subscription.payment_status === "completed" ? "bg-green-500 hover:bg-green-600" : subscription.payment_status === "failed" ? "bg-red-500 hover:bg-red-600" : ""}
                         >
-                          {subscription.payment_status}
+                          {getStatusLabel(subscription.payment_status)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewInvoice(subscription)}
-                          className="h-8 w-8 p-0"
-                          title="View Invoice"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewInvoice(subscription)}
+                            className="h-8 w-8 p-0"
+                            title="View Invoice"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadPDF(subscription)}
+                            className="h-8 w-8 p-0 relative"
+                            title={
+                              subscription.payment_status === "completed" &&
+                              subscription.payment_transaction_id
+                                ? `Download from ${subscription.payment_method?.toUpperCase()} Gateway`
+                                : "Download Invoice"
+                            }
+                          >
+                            <Download className="h-4 w-4" />
+                            {subscription.payment_status === "completed" &&
+                              subscription.payment_transaction_id && (
+                                <CheckCircle2 className="h-3 w-3 text-green-500 absolute -top-1 -right-1" />
+                              )}
+                          </Button>
+                          {subscription.payment_method === "stripe" &&
+                            subscription.payment_status === "completed" &&
+                            subscription.payment_transaction_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSendStripeReceipt(subscription)}
+                                disabled={sendingEmail === subscription._id}
+                                className="h-8 w-8 p-0"
+                                title="Send Stripe Receipt via Email"
+                              >
+                                {sendingEmail === subscription._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          {subscription.payment_method === "paypal" &&
+                            subscription.payment_status === "completed" &&
+                            subscription.payment_transaction_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSendPayPalReceipt(subscription)}
+                                disabled={sendingEmail === subscription._id}
+                                className="h-8 w-8 p-0"
+                                title="Send PayPal Receipt via Email"
+                              >
+                                {sendingEmail === subscription._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          {subscription.payment_method === "razorpay" &&
+                            subscription.payment_status === "completed" &&
+                            subscription.payment_transaction_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSendRazorpayReceipt(subscription)}
+                                disabled={sendingEmail === subscription._id}
+                                className="h-8 w-8 p-0"
+                                title="Send Razorpay Receipt via Email"
+                              >
+                                {sendingEmail === subscription._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

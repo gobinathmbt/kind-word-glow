@@ -353,7 +353,6 @@ const updateValue = async (req, res) => {
 const reorderValues = async (req, res) => {
   try {
     const { valueIds } = req.body;
-    console.log('Reordering values:', valueIds);
     const dropdown = await DropdownMaster.findOne({
       _id: req.params.id,
       company_id: req.user.company_id

@@ -43,10 +43,7 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleOverviewByType(params);
-      console.log('Vehicle Overview API Response:', response);
-      console.log('Vehicle Overview Data:', response.data?.data);
-      console.log('Type Distribution:', response.data?.data?.typeDistribution);
-      console.log('Summary:', response.data?.data?.summary);
+
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load vehicle overview data');
@@ -71,17 +68,14 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
 
   const renderMetrics = () => {
     if (!data) {
-      console.log('renderMetrics: No data available');
       return null;
     }
 
-    console.log('renderMetrics: Data available', data);
     const inspectionData = data.typeDistribution?.find((t: any) => t._id === 'inspection');
     const tradeinData = data.typeDistribution?.find((t: any) => t._id === 'tradein');
     const masterData = data.typeDistribution?.find((t: any) => t._id === 'master');
     const advertisementData = data.typeDistribution?.find((t: any) => t._id === 'advertisement');
 
-    console.log('Metrics Data:', { inspectionData, tradeinData, masterData, advertisementData });
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -116,7 +110,6 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
       return null;
     }
 
-    console.log('renderCharts: Processing data', data);
 
     // Type Distribution Pie Chart
     const typeColors: Record<string, string> = {
@@ -135,7 +128,6 @@ export const VehicleOverviewByTypeReport: React.FC<VehicleOverviewByTypeReportPr
       };
     }) || [];
 
-    console.log('Type Data for Pie Chart:', typeData);
 
     // Status by Type Stacked Bar Chart
     const statusByTypeData = data.typeDistribution?.map((item: any) => {

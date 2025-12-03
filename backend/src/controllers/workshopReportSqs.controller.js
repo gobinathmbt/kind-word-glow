@@ -76,8 +76,7 @@ const sendToWorkshopReportQueue = async (workshopData) => {
     };
 
     const result = await sqs.sendMessage(params);
-    console.log(`✅ Workshop report generation queued: ${result.MessageId}`);
-    
+
     return {
       success: true,
       messageId: result.MessageId,
@@ -96,11 +95,9 @@ const sendToWorkshopReportQueue = async (workshopData) => {
 const processWorkshopReportFromQueue = async (messageBody) => {
   try {
     const workshopData = JSON.parse(messageBody);
-    console.log(`🏗️ Processing workshop report from queue: ${workshopData.vehicle_stock_id}`);
     
     // Validate message type
     if (workshopData.message_type !== 'workshop_report_generation') {
-      console.log('⚠️ Ignoring non-workshop-report message');
       return { success: true, skipped: true };
     }
 
@@ -122,7 +119,6 @@ const processWorkshopReportFromQueue = async (messageBody) => {
       }
     });
 
-    console.log(`✅ Workshop report generated successfully for vehicle ${workshopData.vehicle_stock_id}`);
     return {
       success: true,
       vehicle_id: workshopData.vehicle_id,
@@ -217,7 +213,6 @@ const deleteMessageFromWorkshopQueue = async (receiptHandle) => {
 
 // Process messages from workshop SQS queue
 const processWorkshopQueueMessages = async () => {
-  console.log('Checking workshop SQS queue for messages...');
   
   try {
     const receiveResult = await receiveFromWorkshopQueue();
@@ -233,7 +228,7 @@ const processWorkshopQueueMessages = async () => {
     }
 
     const messages = receiveResult.messages;
-    console.log(`Received ${messages.length} messages from workshop queue`);
+
 
     if (messages.length === 0) {
       return {
@@ -251,7 +246,6 @@ const processWorkshopQueueMessages = async () => {
     // Process each message
     for (const message of messages) {
       try {
-        console.log(`Processing workshop message: ${message.MessageId}`);
         
         // Process workshop report message
         const processResult = await processWorkshopReportFromQueue(message.Body);
@@ -270,7 +264,6 @@ const processWorkshopQueueMessages = async () => {
               status: 'success'
             };
             
-            console.log(`Successfully processed workshop message: ${message.MessageId}`);
             results.push(resultData);
           } else {
             console.error(`Failed to delete workshop message ${message.MessageId} from queue`);
@@ -285,7 +278,6 @@ const processWorkshopQueueMessages = async () => {
           // Delete skipped messages as well
           const deleteResult = await deleteMessageFromWorkshopQueue(message.ReceiptHandle);
           if (deleteResult.success) {
-            console.log(`Skipped and deleted non-workshop message: ${message.MessageId}`);
             results.push({
               message_id: message.MessageId,
               status: 'skipped'
@@ -298,7 +290,6 @@ const processWorkshopQueueMessages = async () => {
           const deleteResult = await deleteMessageFromWorkshopQueue(message.ReceiptHandle);
           
           if (deleteResult.success) {
-            console.log(`Permanently deleted failed workshop message: ${message.MessageId}`);
             failedCount++;
             results.push({
               message_id: message.MessageId,
@@ -323,7 +314,6 @@ const processWorkshopQueueMessages = async () => {
           const deleteResult = await deleteMessageFromWorkshopQueue(message.ReceiptHandle);
           
           if (deleteResult.success) {
-            console.log(`Permanently deleted errored workshop message: ${message.MessageId}`);
             failedCount++;
             results.push({
               message_id: message.MessageId,
@@ -351,7 +341,6 @@ const processWorkshopQueueMessages = async () => {
       }
     }
 
-    console.log(`Workshop queue processing completed: ${processedCount} processed, ${failedCount} failed`);
     
     return {
       success: true,
@@ -376,7 +365,6 @@ const processWorkshopQueueMessages = async () => {
 let workshopQueueInterval;
 
 const startWorkshopQueueConsumer = () => {
-  console.log('Starting SQS workshop queue consumer...');
   
   // Process immediately
   processWorkshopQueueMessages();
@@ -386,14 +374,12 @@ const startWorkshopQueueConsumer = () => {
     processWorkshopQueueMessages();
   }, 15000); // 15 seconds
   
-  console.log('Workshop queue consumer started - checking every 15 seconds');
 };
 
 const stopWorkshopQueueConsumer = () => {
   if (workshopQueueInterval) {
     clearInterval(workshopQueueInterval);
     workshopQueueInterval = null;
-    console.log('Workshop queue consumer stopped');
   }
 };
 

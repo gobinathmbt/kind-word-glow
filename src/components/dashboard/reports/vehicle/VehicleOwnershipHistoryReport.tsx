@@ -41,8 +41,6 @@ export const VehicleOwnershipHistoryReport: React.FC<VehicleOwnershipHistoryRepo
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleOwnershipHistory(params);
-      console.log('Ownership History API Response:', response);
-      console.log('Ownership History Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load ownership history data');

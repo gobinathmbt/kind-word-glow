@@ -878,8 +878,7 @@ const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
     });
 
     // Update execution log with success detail
-    console.log(`The details have been pushed successfully to the respective API endpoint: ${authConfig.api_endpoint}`);
-    console.log("Payload pushed to the API endpoint:", JSON.stringify(mappedData, null, 2));
+
 
     // Update execution log with success details
     workflowExecutionLog.execution_status = 'success';

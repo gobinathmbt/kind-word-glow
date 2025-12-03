@@ -42,8 +42,6 @@ export const VehicleOdometerTrendsReport: React.FC<VehicleOdometerTrendsReportPr
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehicleOdometerTrends(params);
-      console.log('Odometer Trends API Response:', response);
-      console.log('Odometer Trends Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load odometer trends data');

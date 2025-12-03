@@ -27,6 +27,14 @@ import SubscriptionModal from "@/components/subscription/SubscriptionModal";
 type LoginMode = "company" | "supplier";
 
 const Login = () => {
+
+  // Redirect to dashboard after automatic reload
+const redirect = sessionStorage.getItem("redirect_after_refresh");
+if (redirect) {
+  sessionStorage.removeItem("redirect_after_refresh");
+  window.location.href = redirect;
+}
+
   const [mode, setMode] = useState<LoginMode>("company");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,6 +42,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [forceSubscription, setForceSubscription] = useState(false);
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -47,16 +56,22 @@ const Login = () => {
       await login(email, password);
     },
     onSuccess: () => {
-      toast.success("Login successful");
-
       const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
 
+      // Check if subscription is required
       if (userData.subscription_modal_force) {
         setForceSubscription(true);
+        setIsNewRegistration(userData.is_new_registration || false);
         setShowSubscriptionModal(true);
+        
+        // Only show success toast for non-new registrations
+        if (!userData.is_new_registration) {
+          toast.success("Login successful");
+        }
         return;
       }
 
+      toast.success("Login successful");
       handleNavigationAfterLogin(userData);
     },
     onError: (err: any) => {
@@ -106,11 +121,33 @@ const Login = () => {
     }
   };
 
-  const handleSubscriptionComplete = () => {
-    setShowSubscriptionModal(false);
+  const handleSubscriptionComplete = async () => {
+  setShowSubscriptionModal(false);
+
+  try {
+    // Login again to get updated subscription data
+    await login(email, password);
+
     const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-    handleNavigationAfterLogin(userData);
-  };
+
+    // Decide where to go after reload
+    let dashboardRoute = "/company/dashboard";
+    if (userData.role === "master_admin") {
+      dashboardRoute = "/master/dashboard";
+    }
+
+    // Save next route temporarily
+    sessionStorage.setItem("redirect_after_refresh", dashboardRoute);
+
+    // Auto refresh the screen
+    window.location.reload();
+
+  } catch (error) {
+    console.error("Post-payment login error =>", error);
+    toast.error("Something went wrong. Please login again.");
+  }
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,6 +409,7 @@ const Login = () => {
           mode="new"
           canClose={!forceSubscription}
           refetchSubscription={handleSubscriptionComplete}
+          onSuccess={handleSubscriptionComplete}
           fullScreen={forceSubscription}
         />
       )}

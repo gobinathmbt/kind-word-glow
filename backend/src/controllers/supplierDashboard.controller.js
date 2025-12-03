@@ -191,12 +191,6 @@ const startWork = async (req, res) => {
     const { quoteId } = req.params;
     const supplierId = req.supplier.supplier_id;
 
-    console.log(
-      "Starting work for supplier:",
-      supplierId,
-      "on quote:",
-      quoteId
-    );
     const quote = await WorkshopQuote.findOne({
       _id: quoteId,
       $or: [

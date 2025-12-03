@@ -41,8 +41,6 @@ export const VehiclePricingAnalysisReport: React.FC<VehiclePricingAnalysisReport
         params.to = dateRange.to;
       }
       const response = await dashboardAnalyticsServices.getVehiclePricingAnalysis(params);
-      console.log('Pricing Analysis API Response:', response);
-      console.log('Pricing Analysis Data:', response.data?.data);
       setData(response.data?.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load pricing analysis data');

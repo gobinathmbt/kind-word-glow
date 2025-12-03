@@ -17,7 +17,6 @@ const checkExpiredSubscriptions = async () => {
         subscription_status: 'inactive'
       });
       
-      console.log(`Company ${company.company_name} subscription set to inactive`);
     }
 
     // Update companies entering grace period
@@ -31,8 +30,6 @@ const checkExpiredSubscriptions = async () => {
       await Company.findByIdAndUpdate(company._id, {
         subscription_status: 'grace_period'
       });
-      
-      console.log(`Company ${company.company_name} entered grace period`);
     }
 
   } catch (error) {
@@ -43,11 +40,9 @@ const checkExpiredSubscriptions = async () => {
 // Run every hour to check for expired subscriptions
 const startSubscriptionCronJob = () => {
   cron.schedule('0 * * * *', async () => {
-    console.log('Running subscription expiry check...');
     await checkExpiredSubscriptions();
   });
 
-  console.log('Subscription CRON job started - runs every hour');
 };
 
 module.exports = { startSubscriptionCronJob };
