@@ -277,35 +277,27 @@ const VehicleSchema = new mongoose.Schema({
   },
   last_processing_error: String,
 
-  // OnlyCars Advertisement Data (stored inside vehicle)
-  onlycars_advertise_data: {
-    advertise_data_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "AdvertiseData",
+  // Advertisement Data (unified for all providers)
+  advertisement_data: [
+    {
+      provider: {
+        type: String,
+        enum: ["OnlyCars", "TradeMe"],
+        required: true,
+      },
+      advertise_data_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "AdvertiseData",
+      },
+      status: {
+        type: String,
+        enum: ["draft", "published", "failed", "sold", "withdrawn"],
+      },
+      published_at: Date,
+      external_listing_id: String,
+      last_updated: Date,
     },
-    status: {
-      type: String,
-      enum: ["draft", "published", "failed", "sold"],
-    },
-    published_at: Date,
-    external_listing_id: String,
-    last_updated: Date,
-  },
-
-  // TradeMe Advertisement Data (stored inside vehicle)
-  trademe_advertise_data: {
-    advertise_data_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "AdvertiseData",
-    },
-    status: {
-      type: String,
-      enum: ["draft", "published", "failed", "sold"],
-    },
-    published_at: Date,
-    external_listing_id: String,
-    last_updated: Date,
-  },
+  ],
 
   // Custom Fields (for any additional fields not in schema)
   custom_fields: mongoose.Schema.Types.Mixed,

@@ -137,6 +137,52 @@ const AdvertisementLogsDialog: React.FC<AdvertisementLogsDialogProps> = ({
                         {log.error_message}
                       </div>
                     )}
+
+                    {/* Image Upload Results */}
+                    {log.metadata?.api_response?.image_upload && (
+                      <div className="mt-3 border-t pt-3">
+                        <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <span>Image Upload Results:</span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {log.metadata.api_response.image_upload.uploaded}/{log.metadata.api_response.image_upload.total} uploaded
+                          </Badge>
+                        </div>
+                        
+                        {log.metadata.api_response.image_upload.results && (
+                          <div className="space-y-1.5">
+                            {log.metadata.api_response.image_upload.results.map((result: any, idx: number) => (
+                              <div 
+                                key={idx}
+                                className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${
+                                  result.success 
+                                    ? 'bg-green-50 text-green-800' 
+                                    : 'bg-red-50 text-red-800'
+                                }`}
+                              >
+                                {result.success ? (
+                                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+                                ) : (
+                                  <XCircle className="h-3 w-3 flex-shrink-0" />
+                                )}
+                                <span className="font-medium">Position {result.position}:</span>
+                                {result.success ? (
+                                  <span>
+                                    Uploaded successfully
+                                    {result.attempts > 1 && ` (${result.attempts} attempts)`}
+                                    {result.photoId && ` • ID: ${result.photoId}`}
+                                  </span>
+                                ) : (
+                                  <span>
+                                    Failed - {result.error}
+                                    {result.attempts > 1 && ` (${result.attempts} attempts)`}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

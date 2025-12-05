@@ -39,6 +39,7 @@ import S3ConfigDialog from "@/components/integrations/S3ConfigDialog";
 import SendGridConfigDialog from "@/components/integrations/SendGridConfigDialog";
 import AutoGrabConfigDialog from "@/components/integrations/AutoGrabConfigDialog";
 import OnlycarsPublishConfigDialog from "@/components/integrations/OnlycarsPublishConfigDialog";
+import TrademePublishConfigDialog from "@/components/integrations/TrademePublishConfigDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { hasPermission } from "@/utils/permissionController";
@@ -195,6 +196,10 @@ const Integration = () => {
       'onlycars_publish_integration': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
       'onlycars_publish': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
       'vehicle_publish_only_cars': ['onlycars_publish_integration', 'onlycars_publish', 'vehicle_publish_only_cars'],
+      'trademe_publish_integration': ['trademe_publish_integration', 'trademe_publish', 'vehicle_publish_trade_me', 'Trademe Publish'],
+      'trademe_publish': ['trademe_publish_integration', 'trademe_publish', 'vehicle_publish_trade_me', 'Trademe Publish'],
+      'vehicle_publish_trade_me': ['trademe_publish_integration', 'trademe_publish', 'vehicle_publish_trade_me', 'Trademe Publish'],
+      'Trademe Publish': ['trademe_publish_integration', 'trademe_publish', 'vehicle_publish_trade_me', 'Trademe Publish'],
       'autograb_vehicle_pricing_integration': ['autograb_vehicle_pricing_integration', 'autograb_vehicle_pricing'],
     };
 
@@ -612,6 +617,18 @@ const Integration = () => {
         selectedModule === "onlycars_publish" ||
         selectedModule === "vehicle_publish_only_cars") && (
         <OnlycarsPublishConfigDialog
+          isOpen={true}
+          onClose={handleCloseDialog}
+          integration={selectedIntegration}
+        />
+      )}
+
+      {(selectedModule === "trademe_publish_integration" || 
+        selectedModule === "trademe_publish" ||
+        selectedModule === "vehicle_publish_trade_me" ||
+        selectedModule === "Trademe Publish" ||
+        selectedModule?.toLowerCase().includes("trademe")) && (
+        <TrademePublishConfigDialog
           isOpen={true}
           onClose={handleCloseDialog}
           integration={selectedIntegration}

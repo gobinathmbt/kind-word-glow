@@ -231,6 +231,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           label: "Vehicle MetaData",
           path: "/master/vehicle-metadata",
         },
+        {
+          icon: Database,
+          label: "Trademe Metadata",
+          path: "/master/trademe-metadata",
+        },
         { icon: Settings, label: "Settings", path: "/master/settings" },
       ];
     }

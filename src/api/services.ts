@@ -40,26 +40,6 @@ export const subscriptionServices = {
   getCompanySubscriptionInfo: () =>
     apiClient.get("/api/subscription/company-info"),
 
-  // Fetch invoice from payment gateway
-  fetchInvoiceFromGateway: (subscriptionId: string) =>
-    apiClient.get(`/api/subscription/${subscriptionId}/invoice-from-gateway`),
-
-  // Get invoice receipt URL
-  getInvoiceReceiptUrl: (subscriptionId: string) =>
-    apiClient.get(`/api/subscription/${subscriptionId}/receipt-url`),
-
-  // Send Stripe receipt via email
-  sendStripeReceiptEmail: (subscriptionId: string) =>
-    apiClient.post(`/api/subscription/${subscriptionId}/send-stripe-receipt`),
-
-  // Send PayPal receipt via email
-  sendPayPalReceiptEmail: (subscriptionId: string) =>
-    apiClient.post(`/api/subscription/${subscriptionId}/send-paypal-receipt`),
-
-  // Send Razorpay receipt via email
-  sendRazorpayReceiptEmail: (subscriptionId: string) =>
-    apiClient.post(`/api/subscription/${subscriptionId}/send-razorpay-receipt`),
-
   // Invoice Services
   getInvoices: (params = {}) => apiClient.get("/api/invoices", { params }),
 
@@ -69,12 +49,6 @@ export const subscriptionServices = {
 
   updateInvoicePaymentStatus: (invoiceId, data) =>
     apiClient.patch(`/api/invoices/${invoiceId}/payment-status`, data),
-};
-
-// Payment Settings Services (Public)
-export const paymentSettingsServices = {
-  getPublicPaymentSettings: () => apiClient.get("/api/payment-settings/public"),
-  getGoogleMapsApiKey: () => apiClient.get("/api/payment-settings/google-maps-key"),
 };
 
 // Master Admin Services
@@ -154,6 +128,33 @@ export const masterServices = {
   // Public maintenance settings (no auth required)
   getPublicMaintenanceSettings: () =>
     apiClient.get("/api/master/maintenance/public"),
+};
+
+// Trademe Metadata Services
+export const trademeMetadataServices = {
+  // Get all trademe metadata with pagination and filters
+  getAll: (params = {}) =>
+    apiClient.get("/api/master/trademe-metadata", { params }),
+
+  // Get single trademe metadata by ID
+  getById: (id: string) =>
+    apiClient.get(`/api/master/trademe-metadata/${id}`),
+
+  // Update trademe metadata
+  update: (id: string, data: any) =>
+    apiClient.put(`/api/master/trademe-metadata/${id}`, data),
+
+  // Delete trademe metadata
+  delete: (id: string) =>
+    apiClient.delete(`/api/master/trademe-metadata/${id}`),
+
+  // Toggle active status
+  toggleStatus: (id: string, data: any) =>
+    apiClient.patch(`/api/master/trademe-metadata/${id}/status`, data),
+
+  // Get counts by metadata type
+  getCounts: () =>
+    apiClient.get("/api/master/trademe-metadata/counts"),
 };
 
 // Vehicle Metadata Services

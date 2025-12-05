@@ -27,7 +27,7 @@ const AdvertiseDataSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["draft", "published", "failed", "sold"],
+    enum: ["draft", "published", "failed", "sold", "withdrawn"],
     default: "draft",
   },
   is_active: {
@@ -35,6 +35,7 @@ const AdvertiseDataSchema = new mongoose.Schema({
     default: true,
   },
   payload: mongoose.Schema.Types.Mixed,
+  final_payload: mongoose.Schema.Types.Mixed, // The final transformed payload sent to the API
   history: [
     {
       payload: mongoose.Schema.Types.Mixed,
@@ -75,6 +76,7 @@ const AdvertiseDataSchema = new mongoose.Schema({
     default: Date.now,
   },
   external_listing_id: String,
+  last_api_response: mongoose.Schema.Types.Mixed,
 });
 
 AdvertiseDataSchema.index(

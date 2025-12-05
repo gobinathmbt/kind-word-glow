@@ -28,6 +28,7 @@ import CustomModuleConfig from "./pages/master_admin/CustomModuleConfig";
 import WebsiteMaintenance from "./pages/master_admin/WebsiteMaintenance";
 import GlobalLogs from "./pages/master_admin/GlobalLogs";
 import VehicleMetadata from "./pages/master_admin/VehicleMetadata";
+import TrademeMetadata from "./pages/master_admin/TrademeMetadata";
 
 // Notification Pages
 import NotificationConfiguration from "./pages/company/NotificationConfiguration";
@@ -151,6 +152,11 @@ const App = () => {
       <Route path="/master/vehicle-metadata" element={
         <ProtectedRoute allowedRoles={['master_admin']}>
           <VehicleMetadata />
+        </ProtectedRoute>
+      } />
+      <Route path="/master/trademe-metadata" element={
+        <ProtectedRoute allowedRoles={['master_admin']}>
+          <TrademeMetadata />
         </ProtectedRoute>
       } />
       <Route path="/master/settings" element={

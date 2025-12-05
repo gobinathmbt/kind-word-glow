@@ -40,6 +40,7 @@ const logsRoutes = require("./routes/logs.routes");
 const subscriptionRoutes = require("./routes/subscription.routes");
 const customModuleRoutes = require("./routes/customModule.routes");
 const vehicleMetadataRoutes = require("./routes/vehicleMetadata.routes");
+const trademeMetadataRoutes = require("./routes/trademeMetadata.routes");
 const socketRoutes = require("./routes/socketRoutes");
 const commonVehicleRoutes = require("./routes/commonvehicle.routes");
 const notificationConfigRoutes = require("./routes/notificationConfig.routes");
@@ -50,8 +51,6 @@ const currencyRoutes = require("./routes/currency.routes");
 const costConfigurationRoutes = require("./routes/costConfiguration.routes");
 const costSetterRoutes = require("./routes/costSetter.routes");
 const dashboardReportRoutes = require("./routes/dashboardReport.routes");
-const googleMapsRoutes = require("./routes/googlemaps.routes");
-const paymentSettingsRoutes = require("./routes/paymentSettings.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -175,6 +174,7 @@ app.use("/api/dealership", dealershipRoutes);
 app.use("/api/master-inspection", masterInspectionRoutes);
 app.use("/api/master/custom-modules", customModuleRoutes);
 app.use("/api/master/vehicle-metadata", vehicleMetadataRoutes);
+app.use("/api/master/trademe-metadata", trademeMetadataRoutes);
 app.use("/api/socket_connection", socketRoutes);
 app.use("/api/common-vehicle", commonVehicleRoutes);
 app.use("/api/notification-config", notificationConfigRoutes);
@@ -185,8 +185,6 @@ app.use("/api/company/currencies", currencyRoutes);
 app.use("/api/company/cost-configuration", costConfigurationRoutes);
 app.use("/api/company/cost-setter", costSetterRoutes);
 app.use("/api/dashboard-report", dashboardReportRoutes);
-app.use("/api/googlemaps", googleMapsRoutes);
-app.use("/api/payment-settings", paymentSettingsRoutes);
 
 
 app.get("/api/health", async (req, res) => {
