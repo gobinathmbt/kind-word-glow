@@ -246,10 +246,13 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
     await resetForm();
   };
 
-  const handleEdit = (ad: Advertisement) => {
+  const handleEdit = async (ad: Advertisement) => {
     setSelectedProvider(ad.provider);
     setEditMode(true);
     setEditingAdId(ad._id);
+    // First load vehicle data (same as Create)
+    await resetForm();
+    // Then overlay saved payload data
     loadFormData(ad.payload, ad.provider);
     setSideModalOpen(true);
   };
@@ -416,66 +419,73 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
     const providerToUse = provider || selectedProvider;
     if (providerToUse === "TradeMe") {
       // Load TradeMe data into OnlyCars form (we use single form for both)
+      // Only update fields that exist in payload, keep vehicle data for missing fields
       const price = payload.PriceDisplay || payload.retailPrice || "";
-      setFormData({
-        ...formData,
-        title: payload.title || payload.Title || "",
-        subtitle: payload.subtitle || payload.Subtitle || "",
-        description: payload.description || payload.Description || "",
-        price: price.toString(),
-        odometer: (payload.odometer || payload.Odometer || "").toString(),
-        year: (payload.year || payload.Year || "").toString(),
-        make: payload.make || payload.Make || "",
-        model: payload.model || payload.Model || "",
-        body: payload.bodyType || payload.BodyStyle || "",
-        transmission: payload.transmission || payload.Transmission || "",
-        fuel_type: payload.fuelType || payload.FuelType || "",
-        doors: (payload.numberOfDoors || payload.NumberOfDoors || "").toString(),
-        seats: (payload.numberOfSeats || payload.NumberOfSeats || "").toString(),
-        engine_size: (payload.engineSize || payload.EngineSize || "").toString(),
-        cylinders: (payload.numberOfCylinders || payload.NumberOfCylinders || "").toString(),
-        VIN: payload.vin || payload.VIN || "",
-        rego_number: payload.registrationNumber || payload.RegistrationPlate || "",
-        item_id: payload.stockNumber || formData.item_id,
-        images: payload.photos?.map((url: string, idx: number) => ({ url, index: (idx + 1).toString() })) || payload.Photos?.map((url: string, idx: number) => ({ url, index: (idx + 1).toString() })) || [],
-        status: payload.status || vehicle.vehicle_other_details?.[0]?.status || vehicle.status || "pending",
-        // TradeMe specific fields
-        duration: payload.duration?.toString() || "45",
-        price_type: payload.price_type || payload.PriceType || "",
-        excludes_gst: payload.excludes_gst || payload.ExcludesGst || false,
-        orc_included: payload.orc_included || payload.orcIncluded || false,
-        orc_amount: payload.orc_amount?.toString() || payload.orcAmount?.toString() || "",
-        chassis: payload.chassis || payload.Chassis || "",
-        pickup_type: payload.pickup_type || payload.PickupType || "",
-        is_shipping_arranged: payload.is_shipping_arranged || payload.IsShippingToBeArranged || false,
-        shipping_options: payload.shipping_options || payload.ShippingOptions || [],
-        youtube_url: payload.youtube_url || payload.YoutubeUrl || "",
-        site_link: payload.site_link || payload.SiteLink || "",
-        colour: payload.color || payload.colour || "",
-        condition: payload.condition || "",
-        features: payload.features || "",
-        price_special: payload.price_special || "",
-        price_info: payload.price_info || "",
-        series: payload.series || "",
-        variant: payload.variant || "",
-        engine_make: payload.engine_make || "",
-        engine_number: payload.engine_number || "",
-        engine_power: payload.engine_power?.toString() || "",
-        fuel_capacity: payload.fuel_capacity?.toString() || "",
-        fuel_consumption: payload.fuel_consumption?.toString() || "",
-        fuel_cost: payload.fuel_cost?.toString() || "",
-        gears: payload.gears?.toString() || "",
-        drive_type: payload.drive_type || "",
-        towing: payload.towing?.toString() || "",
-        induction: payload.induction || "",
-        rego_expiry: payload.rego_expiry || "",
-        build_date: payload.build_date?.toString() || "",
-        compliance_date: payload.compliance_date || "",
-        safety_features: payload.safety_features || [],
-        interior_features: payload.interior_features || [],
-        other_feature: payload.other_feature || [],
-        images_updated_at: payload.images_updated_at || "",
-      });
+      
+      const updates: any = {
+        ...formData, // Keep all existing vehicle data
+      };
+      
+      // Only override with payload data if it exists
+      if (payload.title || payload.Title) updates.title = payload.title || payload.Title;
+      if (payload.subtitle || payload.Subtitle) updates.subtitle = payload.subtitle || payload.Subtitle;
+      if (payload.description || payload.Description) updates.description = payload.description || payload.Description;
+      if (price) updates.price = price.toString();
+      if (payload.odometer || payload.Odometer) updates.odometer = (payload.odometer || payload.Odometer).toString();
+      if (payload.year || payload.Year) updates.year = (payload.year || payload.Year).toString();
+      if (payload.make || payload.Make) updates.make = payload.make || payload.Make;
+      if (payload.model || payload.Model) updates.model = payload.model || payload.Model;
+      if (payload.bodyType || payload.BodyStyle) updates.body = payload.bodyType || payload.BodyStyle;
+      if (payload.transmission || payload.Transmission) updates.transmission = payload.transmission || payload.Transmission;
+      if (payload.fuelType || payload.FuelType) updates.fuel_type = payload.fuelType || payload.FuelType;
+      if (payload.numberOfDoors || payload.NumberOfDoors) updates.doors = (payload.numberOfDoors || payload.NumberOfDoors).toString();
+      if (payload.numberOfSeats || payload.NumberOfSeats) updates.seats = (payload.numberOfSeats || payload.NumberOfSeats).toString();
+      if (payload.engineSize || payload.EngineSize) updates.engine_size = (payload.engineSize || payload.EngineSize).toString();
+      if (payload.numberOfCylinders || payload.NumberOfCylinders) updates.cylinders = (payload.numberOfCylinders || payload.NumberOfCylinders).toString();
+      if (payload.vin || payload.VIN) updates.VIN = payload.vin || payload.VIN;
+      if (payload.registrationNumber || payload.RegistrationPlate) updates.rego_number = payload.registrationNumber || payload.RegistrationPlate;
+      if (payload.stockNumber) updates.item_id = payload.stockNumber;
+      if (payload.photos || payload.Photos) updates.images = (payload.photos || payload.Photos)?.map((url: string, idx: number) => ({ url, index: (idx + 1).toString() }));
+      if (payload.status) updates.status = payload.status;
+      
+      // TradeMe specific fields - always update these
+      updates.duration = payload.duration?.toString() || "45";
+      if (payload.price_type || payload.PriceType) updates.price_type = payload.price_type || payload.PriceType;
+      if (payload.excludes_gst !== undefined || payload.ExcludesGst !== undefined) updates.excludes_gst = payload.excludes_gst || payload.ExcludesGst || false;
+      if (payload.orc_included !== undefined || payload.orcIncluded !== undefined) updates.orc_included = payload.orc_included || payload.orcIncluded || false;
+      if (payload.orc_amount || payload.orcAmount) updates.orc_amount = payload.orc_amount?.toString() || payload.orcAmount?.toString();
+      if (payload.chassis || payload.Chassis) updates.chassis = payload.chassis || payload.Chassis;
+      if (payload.pickup_type || payload.PickupType) updates.pickup_type = payload.pickup_type || payload.PickupType;
+      if (payload.is_shipping_arranged !== undefined || payload.IsShippingToBeArranged !== undefined) updates.is_shipping_arranged = payload.is_shipping_arranged || payload.IsShippingToBeArranged || false;
+      if (payload.shipping_options || payload.ShippingOptions) updates.shipping_options = payload.shipping_options || payload.ShippingOptions;
+      if (payload.youtube_url || payload.YoutubeUrl) updates.youtube_url = payload.youtube_url || payload.YoutubeUrl;
+      if (payload.site_link || payload.SiteLink) updates.site_link = payload.site_link || payload.SiteLink;
+      if (payload.color || payload.colour) updates.colour = payload.color || payload.colour;
+      if (payload.condition) updates.condition = payload.condition;
+      if (payload.features) updates.features = payload.features;
+      if (payload.price_special) updates.price_special = payload.price_special;
+      if (payload.price_info) updates.price_info = payload.price_info;
+      if (payload.series) updates.series = payload.series;
+      if (payload.variant) updates.variant = payload.variant;
+      if (payload.engine_make) updates.engine_make = payload.engine_make;
+      if (payload.engine_number) updates.engine_number = payload.engine_number;
+      if (payload.engine_power) updates.engine_power = payload.engine_power?.toString();
+      if (payload.fuel_capacity) updates.fuel_capacity = payload.fuel_capacity?.toString();
+      if (payload.fuel_consumption) updates.fuel_consumption = payload.fuel_consumption?.toString();
+      if (payload.fuel_cost) updates.fuel_cost = payload.fuel_cost?.toString();
+      if (payload.gears) updates.gears = payload.gears?.toString();
+      if (payload.drive_type) updates.drive_type = payload.drive_type;
+      if (payload.towing) updates.towing = payload.towing?.toString();
+      if (payload.induction) updates.induction = payload.induction;
+      if (payload.rego_expiry) updates.rego_expiry = payload.rego_expiry;
+      if (payload.build_date) updates.build_date = payload.build_date?.toString();
+      if (payload.compliance_date) updates.compliance_date = payload.compliance_date;
+      if (payload.safety_features) updates.safety_features = payload.safety_features;
+      if (payload.interior_features) updates.interior_features = payload.interior_features;
+      if (payload.other_feature) updates.other_feature = payload.other_feature;
+      if (payload.images_updated_at) updates.images_updated_at = payload.images_updated_at;
+      
+      setFormData(updates);
     } else {
       setFormData({
         dealer_id: payload.dealer_id || "",

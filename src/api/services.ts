@@ -40,6 +40,26 @@ export const subscriptionServices = {
   getCompanySubscriptionInfo: () =>
     apiClient.get("/api/subscription/company-info"),
 
+   // Fetch invoice from payment gateway
+  fetchInvoiceFromGateway: (subscriptionId: string) =>
+    apiClient.get(`/api/subscription/${subscriptionId}/invoice-from-gateway`),
+
+  // Get invoice receipt URL
+  getInvoiceReceiptUrl: (subscriptionId: string) =>
+    apiClient.get(`/api/subscription/${subscriptionId}/receipt-url`),
+
+  // Send Stripe receipt via email
+  sendStripeReceiptEmail: (subscriptionId: string) =>
+    apiClient.post(`/api/subscription/${subscriptionId}/send-stripe-receipt`),
+
+  // Send PayPal receipt via email
+  sendPayPalReceiptEmail: (subscriptionId: string) =>
+    apiClient.post(`/api/subscription/${subscriptionId}/send-paypal-receipt`),
+
+  // Send Razorpay receipt via email
+  sendRazorpayReceiptEmail: (subscriptionId: string) =>
+    apiClient.post(`/api/subscription/${subscriptionId}/send-razorpay-receipt`),
+
   // Invoice Services
   getInvoices: (params = {}) => apiClient.get("/api/invoices", { params }),
 
@@ -49,6 +69,12 @@ export const subscriptionServices = {
 
   updateInvoicePaymentStatus: (invoiceId, data) =>
     apiClient.patch(`/api/invoices/${invoiceId}/payment-status`, data),
+};
+
+// Payment Settings Services (Public)
+export const paymentSettingsServices = {
+  getPublicPaymentSettings: () => apiClient.get("/api/payment-settings/public"),
+  getGoogleMapsApiKey: () => apiClient.get("/api/payment-settings/google-maps-key"),
 };
 
 // Master Admin Services
