@@ -88,7 +88,9 @@ const InsertWorkshopFieldModal: React.FC<InsertWorkshopFieldModalProps> = ({
   });
 
   useEffect(() => {
-    setS3Uploader(new S3Uploader(s3Config));
+    if (s3Config) {
+      setS3Uploader(new S3Uploader(s3Config));
+    }
   }, [s3Config]);
   const handleInputChange = (field: string, value: any) => {
     if (field === "dropdown_name") {

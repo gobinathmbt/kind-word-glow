@@ -450,7 +450,7 @@ const PdfReportGenerator: React.FC<PdfReportGeneratorProps> = ({
                         )}
 
                       {/* Sections */}
-                      {config.sections
+                      {config.sections && config.sections.length > 0 && config.sections
                         .sort(
                           (a: any, b: any) =>
                             (a.display_order || 0) - (b.display_order || 0)

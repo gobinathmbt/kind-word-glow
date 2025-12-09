@@ -33,6 +33,15 @@ const AddTradeinCategoryDialog: React.FC<AddTradeinCategoryDialogProps> = ({
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
 
+  // Clear form when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setCategoryName('');
+      setDescription('');
+      setCategoryId('');
+    }
+  }, [isOpen]);
+
   // Auto-generate category ID from category name
   useEffect(() => {
     const generatedId = categoryName

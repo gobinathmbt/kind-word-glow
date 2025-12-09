@@ -27,10 +27,11 @@ const getMasterConfiguration = async (req, res) => {
       is_active: true,
     };
     let lastConfigId;
+    let isTemplateFreeMode = false;
 
     // If configId is provided, use it instead of is_active
     if (configId) {
-            query = {
+      query = {
         company_id,
         _id: configId,
       };
@@ -48,7 +49,15 @@ const getMasterConfiguration = async (req, res) => {
             ? vehicle.last_inspection_config_id
             : vehicle.last_tradein_config_id;
 
-        if (lastConfigId) {
+        // Check if vehicle has data but no config_id (template-free mode)
+        const hasData = vehicle_type === "inspection" 
+          ? vehicle.inspection_result && vehicle.inspection_result.length > 0
+          : vehicle.trade_in_result && vehicle.trade_in_result.length > 0;
+
+        if (!lastConfigId && hasData) {
+          // This is template-free mode
+          isTemplateFreeMode = true;
+        } else if (lastConfigId) {
           query = {
             company_id,
             _id: lastConfigId,
@@ -258,7 +267,7 @@ const getMasterConfiguration = async (req, res) => {
         company: {
           _id: company._id,
           name: company.company_name,
-          last_config_id: lastConfigId,
+          last_config_id: isTemplateFreeMode ? "template_free_mode" : lastConfigId,
         },
         workshopSections:
           workshopSections.length > 0 ? workshopSections : undefined,
@@ -315,8 +324,12 @@ const saveInspectionData = async (req, res) => {
         });
       }
 
-      if (config_id) {
+      // Only save config_id if it's a valid ObjectId (not "template_free_mode")
+      if (config_id && config_id !== "template_free_mode") {
         vehicle.last_inspection_config_id = config_id;
+      } else if (config_id === "template_free_mode") {
+        // For template-free mode, set to null or undefined
+        vehicle.last_inspection_config_id = null;
       }
     } else if (vehicle_type === "tradein") {
       if (inspection_result) {
@@ -341,8 +354,13 @@ const saveInspectionData = async (req, res) => {
         });
       }
 
-      if (config_id) {
+      // Only save config_id if it's a valid ObjectId (not "template_free_mode")
+      if (config_id && config_id !== "template_free_mode") {
         vehicle.last_tradein_config_id = config_id;
+      } 
+      if (config_id === "template_free_mode") {
+        // For template-free mode, set to null or undefined
+        vehicle.last_tradein_config_id = null;
       }
     }
 

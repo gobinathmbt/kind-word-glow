@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Car, ArrowLeft, FileText, Save, Loader2, Eye } from "lucide-react";
+import { Car, ArrowLeft, FileText, Save, Loader2, Eye, RotateCcw } from "lucide-react";
 
 interface MasterInspectionHeaderProps {
   vehicle: any;
@@ -15,6 +15,7 @@ interface MasterInspectionHeaderProps {
   onSave: () => void;
   onViewPdf: () => void;
   hasCurrentPdf: boolean;
+  onResetTemplate?: () => void;
 }
 
 const MasterInspectionHeader: React.FC<MasterInspectionHeaderProps> = ({
@@ -29,8 +30,10 @@ const MasterInspectionHeader: React.FC<MasterInspectionHeaderProps> = ({
   onSave,
   onViewPdf,
   hasCurrentPdf,
+  onResetTemplate,
 }) => {
   const isViewMode = mode === "view";
+  const isTemplateFreeMode = config?._id === "template_free_mode";
 
   return (
     <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b shadow-sm">
@@ -79,6 +82,17 @@ const MasterInspectionHeader: React.FC<MasterInspectionHeaderProps> = ({
 
           {!isViewMode && (
             <div className="flex space-x-2">
+              {isTemplateFreeMode && onResetTemplate && (
+                <Button
+                  onClick={onResetTemplate}
+                  variant="outline"
+                  className="shadow-sm bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Template
+                </Button>
+              )}
+
               <Button
                 onClick={onGenerateReport}
                 variant="outline"

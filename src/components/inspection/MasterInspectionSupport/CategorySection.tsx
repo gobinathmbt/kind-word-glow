@@ -6,7 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Settings, Plus } from "lucide-react";
+import { Settings, Plus, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import InspectionFormField from "./InspectionFormField";
@@ -54,6 +54,14 @@ interface CategorySectionProps {
     sectionIndex?: number
   ) => void;
   onInsertWorkshopField?: (categoryId: string) => void;
+  onAddSection?: (categoryId: string) => void;
+  onAddCategory?: () => void;
+  onEditCategory?: (category: any) => void;
+  onDeleteCategory?: (category: any) => void;
+  onEditSection?: (section: any, categoryId: string) => void;
+  onDeleteSection?: (section: any, categoryId: string) => void;
+  onEditField?: (field: any, categoryId: string, sectionId: string) => void;
+  onDeleteField?: (field: any, categoryId: string, sectionId: string) => void;
   onOpenMediaViewer: (media: MediaItem[], currentMediaId?: string) => void;
   getDropdownById: (dropdownId: any) => any;
   isViewMode: boolean;
@@ -85,6 +93,14 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   onEditWorkshopField,
   onDeleteWorkshopField,
   onInsertWorkshopField,
+  onAddSection,
+  onAddCategory,
+  onEditCategory,
+  onDeleteCategory,
+  onEditSection,
+  onDeleteSection,
+  onEditField,
+  onDeleteField,
   onOpenMediaViewer,
   getDropdownById,
   isViewMode,
@@ -111,7 +127,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       className="space-y-6"
     >
       <TabsList className="w-full justify-start h-auto bg-transparent p-0 overflow-x-auto">
-        <div className="flex space-x-1 pb-2">
+        <div className="flex space-x-1 pb-2 items-center">
           {sortedCategories.map((category: any) => (
             <TabsTrigger
               key={category.category_id}
@@ -121,6 +137,17 @@ const CategorySection: React.FC<CategorySectionProps> = ({
               {category.category_name}
             </TabsTrigger>
           ))}
+          {config._id === "template_free_mode" && isEditMode && onAddCategory && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAddCategory}
+              className="flex items-center gap-1 bg-purple-50 hover:bg-purple-100 text-purple-700 hover:text-purple-800 border-purple-200 ml-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Category
+            </Button>
+          )}
         </div>
       </TabsList>
 
@@ -130,38 +157,72 @@ const CategorySection: React.FC<CategorySectionProps> = ({
           value={category.category_id}
           className="space-y-6 mt-0"
         >
-          {/* Category Header with Insert Job cards Button */}
-          {/* <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"> */}
-          {/* do not remove, might be needed later */}
-          {/* <div>  
-              <h3 className="text-lg font-semibold">{category.category_name}</h3>
-              {category.description && (
-                <p className="text-sm text-muted-foreground">
-                  {category.description}
-                </p>
+          {/* Category Header with Add Section Button - Only for Template Free Mode */}
+          {config._id === "template_free_mode" && (
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg mb-4">
+              <div>  
+                <h3 className="text-lg font-semibold">{category.category_name}</h3>
+                {category.description && (
+                  <p className="text-sm text-muted-foreground">
+                    {category.description}
+                  </p>
+                )}
+              </div>
+              {isEditMode && (
+                <div className="flex items-center gap-2">
+                  {onEditCategory && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onEditCategory(category)}
+                      className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border-blue-200"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Edit Category
+                    </Button>
+                  )}
+                  {onDeleteCategory && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onDeleteCategory(category)}
+                      className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border-red-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Category
+                    </Button>
+                  )}
+                  {onAddSection && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onAddSection(category.category_id)}
+                      className="flex items-center gap-1 bg-green-50 hover:bg-green-100 text-green-700 hover:text-green-800 border-green-200"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Section
+                    </Button>
+                  )}
+                </div>
               )}
-            </div> */}
-          {/* {isEditMode && onInsertWorkshopField && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onInsertWorkshopField(category.category_id)}
-                className="flex items-center gap-1"
-              >
-                <Plus className="h-3 w-3" />
-               Insert Job cards
-              </Button>
-            )} */}
-          {/* </div> */}
+            </div>
+          )}
       
 
-          <Accordion type="multiple" className="space-y-4">
-            {category.sections
-              .sort(
-                (a: any, b: any) =>
-                  (a.display_order || 0) - (b.display_order || 0)
-              )
-              .map((section: any, sectionIndex: number) => (
+          {/* Show empty state if no sections in template free mode */}
+          {config._id === "template_free_mode" && (!category.sections || category.sections.length === 0) ? (
+            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+              <p className="text-muted-foreground mb-3">No sections yet in this category.</p>
+              <p className="text-sm text-muted-foreground">Click "Add Section" above to create your first section.</p>
+            </div>
+          ) : (
+            <Accordion type="multiple" className="space-y-4">
+              {category.sections
+                .sort(
+                  (a: any, b: any) =>
+                    (a.display_order || 0) - (b.display_order || 0)
+                )
+                .map((section: any, sectionIndex: number) => (
                 <AccordionItem
                   key={section.section_id}
                   value={section.section_id}
@@ -172,40 +233,86 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                   }`}
                 >
                   <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      {isWorkshopSection(section) && (
-                        <Settings className="h-4 w-4 text-yellow-600" />
-                      )}
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary">
-                          {section.display_order + 1 || "?"}
-                        </span>
+                    <div className="flex items-center justify-between w-full mr-4">
+                      <div className="flex items-center space-x-3">
+                        {isWorkshopSection(section) && (
+                          <Settings className="h-4 w-4 text-yellow-600" />
+                        )}
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary">
+                            {section.display_order + 1 || "?"}
+                          </span>
+                        </div>
+                        <div className="text-left">
+                          <h3 className="font-semibold">
+                            {section.section_name}
+                            {isWorkshopSection(section) && (
+                              <Badge
+                                variant="outline"
+                                className="ml-2 bg-yellow-100 text-yellow-800"
+                              >
+                                Workshop
+                              </Badge>
+                            )}
+                          </h3>
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <h3 className="font-semibold">
-                          {section.section_name}
-                          {isWorkshopSection(section) && (
-                            <Badge
-                              variant="outline"
-                              className="ml-2 bg-yellow-100 text-yellow-800"
+                      {config._id === "template_free_mode" && isEditMode && (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {onEditSection && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onEditSection(section, category.category_id)}
+                              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                              Workshop
-                            </Badge>
+                              <Edit className="h-3 w-3" />
+                            </Button>
                           )}
-                        </h3>
-                      </div>
+                          {onDeleteSection && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onDeleteSection(section, category.category_id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-0">
+                    {/* Add Field button for template free mode */}
+                    {config._id === "template_free_mode" && isEditMode && (
+                      <div className="px-4 pt-4 pb-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (onInsertWorkshopField) {
+                              onInsertWorkshopField(category.category_id);
+                            }
+                          }}
+                          className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Field to this Section
+                        </Button>
+                      </div>
+                    )}
+                    
                     <div className="space-y-4 px-4 pb-4">
-                      {section.fields
-                        .sort(
-                          (a: any, b: any) =>
-                            (a.display_order || 0) - (b.display_order || 0)
-                        )
-                        .map((field: any) => (
-                          <div key={field.field_id}>
-                            <InspectionFormField
+                      {section.fields && section.fields.length > 0 ? (
+                        section.fields
+                          .sort(
+                            (a: any, b: any) =>
+                              (a.display_order || 0) - (b.display_order || 0)
+                          )
+                          .map((field: any) => (
+                            <div key={field.field_id}>
+                              <InspectionFormField
                               field={field}
                               categoryIndex={categoryIndex}
                               sectionIndex={sectionIndex}
@@ -229,6 +336,8 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                               onRemoveVideo={onRemoveVideo}
                               onEditWorkshopField={onEditWorkshopField}
                               onDeleteWorkshopField={onDeleteWorkshopField}
+                              onEditField={config._id === "template_free_mode" ? () => onEditField?.(field, category.category_id, section.section_id) : undefined}
+                              onDeleteField={config._id === "template_free_mode" ? () => onDeleteField?.(field, category.category_id, section.section_id) : undefined}
                               onOpenMediaViewer={onOpenMediaViewer}
                               getDropdownById={getDropdownById}
                               isViewMode={isViewMode}
@@ -236,14 +345,25 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                               vehicleType={vehicleType}
                             />
                           </div>
-                        ))}
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p className="mb-2">No fields in this section yet.</p>
+                          {config._id === "template_free_mode" && isEditMode && onInsertWorkshopField && (
+                            <p className="text-sm">
+                              Click "Add Field" above to add custom fields.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
               ))}
-          </Accordion>
+            </Accordion>
+          )}
 
-              <InspectionCalculations config={config} calculations={calculations} vehicleType={vehicleType} />
+          <InspectionCalculations config={config} calculations={calculations} vehicleType={vehicleType} />
         </TabsContent>
       ))}
     </Tabs>

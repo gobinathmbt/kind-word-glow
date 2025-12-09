@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Settings, Calendar, Check } from "lucide-react";
+import { Loader2, Settings, Calendar, Check, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 import { masterInspectionServices } from "@/api/services";
 
@@ -26,11 +26,12 @@ interface ConfigurationSelectionDialogProps {
   companyId: string;
   vehicleType: string;
   onConfigurationSelected: (configId: string) => void;
+  onTemplateFreeMode?: () => void;
 }
 
 const ConfigurationSelectionDialog: React.FC<
   ConfigurationSelectionDialogProps
-> = ({ isOpen, companyId, vehicleType, onConfigurationSelected }) => {
+> = ({ isOpen, companyId, vehicleType, onConfigurationSelected, onTemplateFreeMode }) => {
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
@@ -72,6 +73,12 @@ const ConfigurationSelectionDialog: React.FC<
     onConfigurationSelected(selectedConfigId);
   };
 
+  const handleTemplateFreeMode = () => {
+    if (onTemplateFreeMode) {
+      onTemplateFreeMode();
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -90,15 +97,54 @@ const ConfigurationSelectionDialog: React.FC<
         <DialogHeader className="pb-4 border-b">
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <Settings className="h-6 w-6 text-primary" />
-            <span>Select Configuration</span>
+            <span>Select Configuration Mode</span>
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-2">
-            Choose a configuration to proceed with the {vehicleType} process.
-            You must select one to continue.
+            Choose a pre-configured template or start with a blank template-free mode.
           </p>
         </DialogHeader>
 
         <div className="overflow-y-auto max-h-96 py-4">
+          {/* Template Free Mode Option */}
+          {onTemplateFreeMode && (
+            <div className="mb-4">
+              <Card
+                className="cursor-pointer transition-all hover:shadow-md border-2 border-dashed border-blue-300 bg-blue-50/50 hover:border-blue-500"
+                onClick={handleTemplateFreeMode}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                        <FileEdit className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-base text-blue-900 mb-1">
+                        Template Free Mode
+                      </h4>
+                      <p className="text-sm text-blue-700">
+                        Start with a blank form and add fields on the spot as you fill details
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Divider */}
+          {onTemplateFreeMode && configurations.length > 0 && (
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">OR</span>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
@@ -112,12 +158,16 @@ const ConfigurationSelectionDialog: React.FC<
             <div className="text-center py-8">
               <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">
-                No Configurations Found
+                No Pre-configured Templates Found
               </h3>
-              <p className="text-muted-foreground">
-                No active configurations available for {vehicleType}. Please
-                create one first.
+              <p className="text-muted-foreground mb-4">
+                No active configurations available for {vehicleType}.
               </p>
+              {onTemplateFreeMode && (
+                <p className="text-sm text-blue-600">
+                  You can use Template Free Mode above to proceed without a template.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -170,23 +220,25 @@ const ConfigurationSelectionDialog: React.FC<
         </div>
 
         <div className="flex justify-end space-x-3 pt-4 border-t">
-          <Button
-            onClick={handleConfirm}
-            disabled={!selectedConfigId || loading}
-            className="min-w-[120px]"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Continue
-              </>
-            )}
-          </Button>
+          {configurations.length > 0 && (
+            <Button
+              onClick={handleConfirm}
+              disabled={!selectedConfigId || loading}
+              className="min-w-[120px]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Continue with Template
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

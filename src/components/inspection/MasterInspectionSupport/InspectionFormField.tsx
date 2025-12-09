@@ -75,6 +75,8 @@ interface InspectionFormFieldProps {
     categoryIndex?: number,
     sectionIndex?: number
   ) => void;
+  onEditField?: () => void;
+  onDeleteField?: () => void;
   onOpenMediaViewer: (media: MediaItem[], currentMediaId?: string) => void;
   getDropdownById: (dropdownId: any) => any;
   isViewMode: boolean;
@@ -106,6 +108,8 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
   onWorkshopFlagChange,
   onEditWorkshopField,
   onDeleteWorkshopField,
+  onEditField,
+  onDeleteField,
   onOpenMediaViewer,
   getDropdownById,
   isViewMode,
@@ -573,6 +577,28 @@ const InspectionFormField: React.FC<InspectionFormFieldProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Edit/Delete buttons for template-free mode */}
+          {onEditField && !disabled && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              onClick={onEditField}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
+          {onDeleteField && !disabled && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={onDeleteField}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          
           {/* Workshop Work Required Flag */}
           {!disabled && (
             <TooltipProvider>
