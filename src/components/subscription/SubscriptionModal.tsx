@@ -268,14 +268,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
   const handleProceedToCheckout = () => {
     setShowCheckout(true);
-    // Close the subscription modal when checkout opens
-    if (onClose) {
-      onClose();
-    }
+    // Don't close the subscription modal - just hide it so state is preserved
+    // The modal will be hidden by the condition: open={isOpen && !showCheckout}
   };
 
   const handleCheckoutClose = () => {
     setShowCheckout(false);
+    // Subscription modal will automatically show again since showCheckout is false
   };
 
   const handleCheckoutSuccess = () => {
