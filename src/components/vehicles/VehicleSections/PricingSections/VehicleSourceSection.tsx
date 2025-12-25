@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { vehicleServices, commonVehicleServices } from "@/api/services";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleSourceSectionProps {
   vehicle: any;
@@ -31,13 +32,14 @@ const VehicleSourceSection: React.FC<VehicleSourceSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleSource(vehicle._id,vehicle.vehicle_type, {
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_source: [{
           supplier: formData.supplier,
           purchase_date: formData.purchase_date,
           purchase_type: formData.purchase_type,
           purchase_notes: formData.purchase_notes,
-        }]
+        }],
+        module_section: "Pricing Source Info" // Add section name for activity logging
       });
       toast.success("Vehicle source updated successfully");
       setIsEditing(false);
@@ -83,40 +85,68 @@ const VehicleSourceSection: React.FC<VehicleSourceSectionProps> = ({
               {isEditing ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="supplier">Supplier</Label>
+                    <FieldWithHistory
+                      fieldName="supplier"
+                      fieldDisplayName="Supplier"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Vehicle Source Info"
+                      label="Supplier"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="supplier"
                         value={formData.supplier}
                         onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="purchase_date">Purchase Date</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="purchase_date"
+                      fieldDisplayName="Purchase Date"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Vehicle Source Info"
+                      label="Purchase Date"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="purchase_date"
                         type="date"
                         value={formData.purchase_date}
                         onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="purchase_type">Purchase Type</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="purchase_type"
+                      fieldDisplayName="Purchase Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Vehicle Source Info"
+                      label="Purchase Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="purchase_type"
                         value={formData.purchase_type}
                         onChange={(e) => setFormData({ ...formData, purchase_type: e.target.value })}
                       />
-                    </div>
+                    </FieldWithHistory>
                   </div>
-                  <div>
-                    <Label htmlFor="purchase_notes">Purchase Notes</Label>
+                  <FieldWithHistory
+                    fieldName="purchase_notes"
+                    fieldDisplayName="Purchase Notes"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Vehicle Source Info"
+                    label="Purchase Notes"
+                    showHistoryIcon={!isEditing}
+                  >
                     <Textarea
                       id="purchase_notes"
                       value={formData.purchase_notes}
                       onChange={(e) => setFormData({ ...formData, purchase_notes: e.target.value })}
                     />
-                  </div>
+                  </FieldWithHistory>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleCancel}>
                       <X className="h-4 w-4 mr-2" />
@@ -130,23 +160,49 @@ const VehicleSourceSection: React.FC<VehicleSourceSectionProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Supplier</Label>
+                  <FieldWithHistory
+                    fieldName="supplier"
+                    fieldDisplayName="Supplier"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Vehicle Source Info"
+                    label="Supplier"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.supplier || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Purchase Date</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="purchase_date"
+                    fieldDisplayName="Purchase Date"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Vehicle Source Info"
+                    label="Purchase Date"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.purchase_date ? new Date(formData.purchase_date).toLocaleDateString() : 'N/A'}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Purchase Type</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="purchase_type"
+                    fieldDisplayName="Purchase Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Vehicle Source Info"
+                    label="Purchase Type"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.purchase_type || "N/A"}</p>
-                  </div>
+                  </FieldWithHistory>
                   <div className="col-span-2">
-                    <Label className="text-sm font-medium">Purchase Notes</Label>
-                    <p className="text-sm text-muted-foreground">{formData.purchase_notes || "N/A"}</p>
+                    <FieldWithHistory
+                      fieldName="purchase_notes"
+                      fieldDisplayName="Purchase Notes"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Vehicle Source Info"
+                      label="Purchase Notes"
+                    >
+                      <p className="text-sm text-muted-foreground">{formData.purchase_notes || "N/A"}</p>
+                    </FieldWithHistory>
                   </div>
                 </div>
               )}

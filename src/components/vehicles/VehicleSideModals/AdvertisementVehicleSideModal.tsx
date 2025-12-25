@@ -26,8 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, FileText, RefreshCw } from "lucide-react";
-import { vehicleServices } from "@/api/services";
+import { Car, FileText, RefreshCw, Trash2 } from "lucide-react";
+import { vehicleServices, adPublishingServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -45,6 +45,7 @@ import VehicleImportSection from "@/components/vehicles/VehicleSections/Advertis
 import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/AdvertisementSections/VehicleOwnershipSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
+import ActivityStreamSection from "../VehicleSections/Common/ActivityStreamSection";
 
 interface AdvertisementVehicleSideModalProps {
   vehicle: any;
@@ -69,7 +70,7 @@ const AdvertisementVehicleSideModal: React.FC<
   // Confirmation dialog states
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: "tradein" | "inspection";
+    type: "tradein" | "inspection" | "soft_delete";
     action?: "push" | "remove";
     stages?: string[];
   } | null>(null);
@@ -94,8 +95,8 @@ const AdvertisementVehicleSideModal: React.FC<
       // Set currently selected stages based on workshop status
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
-            .filter((item: any) => item.in_workshop)
-            .map((item: any) => item.stage_name)
+          .filter((item: any) => item.in_workshop)
+          .map((item: any) => item.stage_name)
         : [];
       setSelectedStages(currentlyInWorkshop);
     }
@@ -174,10 +175,31 @@ const AdvertisementVehicleSideModal: React.FC<
           onUpdate();
         }, 100);
       }
+
+      if (pendingAction.type === "soft_delete") {
+        console.log("Attempting to soft delete advertisement vehicle:", vehicle._id);
+        await adPublishingServices.softDeleteAdVehicle(vehicle._id);
+        console.log("Soft delete successful");
+        toast.success("Vehicle deleted successfully");
+
+        // First refresh the list to remove the deleted vehicle
+        await onUpdate();
+
+        // Then close the modal after the list is updated
+        onClose();
+        setConfirmationOpen(false);
+        setPendingAction(null);
+        return;
+      }
     } catch (error) {
-      const actionText =
-        pendingAction.action === "push" ? "push to" : "remove from";
-      toast.error(`Failed to ${actionText} workshop`);
+      if (pendingAction.type === "soft_delete") {
+        console.error("Soft delete failed:", error);
+        toast.error(`Failed to delete vehicle: ${error.response?.data?.message || error.message}`);
+      } else {
+        const actionText =
+          pendingAction.action === "push" ? "push to" : "remove from";
+        toast.error(`Failed to ${actionText} workshop`);
+      }
     } finally {
       setConfirmationOpen(false);
       setPendingAction(null);
@@ -189,8 +211,8 @@ const AdvertisementVehicleSideModal: React.FC<
     // Get currently in workshop stages
     const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
       ? vehicle.is_workshop
-          .filter((item: any) => item.in_workshop)
-          .map((item: any) => item.stage_name)
+        .filter((item: any) => item.in_workshop)
+        .map((item: any) => item.stage_name)
       : [];
 
     // Determine which stages to push and which to remove
@@ -273,6 +295,8 @@ const AdvertisementVehicleSideModal: React.FC<
       }
       return;
     }
+
+
   };
 
   // Function to get workshop status display for inspection
@@ -330,6 +354,11 @@ const AdvertisementVehicleSideModal: React.FC<
     }
   };
 
+  const handleSoftDelete = () => {
+    setPendingAction({ type: "soft_delete" });
+    setConfirmationOpen(true);
+  };
+
   const getConfirmationMessage = () => {
     if (!pendingAction) return "";
 
@@ -344,6 +373,10 @@ const AdvertisementVehicleSideModal: React.FC<
       return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
     }
 
+    if (pendingAction.type === "soft_delete") {
+      return "Are you sure you want to delete this vehicle? This action will mark the vehicle as inactive but it can be restored later.";
+    }
+
     return "";
   };
 
@@ -352,6 +385,7 @@ const AdvertisementVehicleSideModal: React.FC<
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           onCloseClick={onClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
         >
           <SheetHeader className="pb-6">
@@ -399,13 +433,31 @@ const AdvertisementVehicleSideModal: React.FC<
                           disabled={isRefreshing}
                           className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
                         >
-                          <RefreshCw 
-                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          <RefreshCw
+                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
                           />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Refresh Data</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSoftDelete}
+                          className="bg-white hover:bg-white text-red-600 hover:text-red-700 border-gray-200 hover:border-red-400 hover:shadow-sm"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Vehicle</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -415,10 +467,11 @@ const AdvertisementVehicleSideModal: React.FC<
           </SheetHeader>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="attachments">Attachments</TabsTrigger>
+              <TabsTrigger value="activity">Activity Stream</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -441,13 +494,13 @@ const AdvertisementVehicleSideModal: React.FC<
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Import Section */}
               <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Ownership Section */}
               <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Advertisement Section */}
               <AdvertisementSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
@@ -458,6 +511,10 @@ const AdvertisementVehicleSideModal: React.FC<
                 onUpdate={onUpdate}
                 vehicleType={vehicleType}
               />
+            </TabsContent>
+
+            <TabsContent value="activity">
+              <ActivityStreamSection vehicleType="advertisement" stockId={vehicle.vehicle_stock_id} />
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -496,10 +553,10 @@ const AdvertisementVehicleSideModal: React.FC<
               ))}
             {(!vehicle.workshop_report_ready ||
               vehicle.workshop_report_ready.length === 0) && (
-              <p className="text-center text-muted-foreground py-4">
-                No inspection stage reports available yet
-              </p>
-            )}
+                <p className="text-center text-muted-foreground py-4">
+                  No inspection stage reports available yet
+                </p>
+              )}
           </div>
         </DialogContent>
       </Dialog>
@@ -548,9 +605,8 @@ const AdvertisementVehicleSideModal: React.FC<
                       className="rounded"
                     />
                     <span
-                      className={`font-medium ${
-                        !canEdit && inWorkshop ? "text-gray-500" : ""
-                      }`}
+                      className={`font-medium ${!canEdit && inWorkshop ? "text-gray-500" : ""
+                        }`}
                     >
                       {stageName}
                     </span>
@@ -571,8 +627,8 @@ const AdvertisementVehicleSideModal: React.FC<
                         progress === "completed"
                           ? "default"
                           : progress === "in_progress"
-                          ? "destructive"
-                          : "secondary"
+                            ? "destructive"
+                            : "secondary"
                       }
                       className="text-xs"
                     >
@@ -591,8 +647,8 @@ const AdvertisementVehicleSideModal: React.FC<
                 // Reset to current workshop state
                 const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
                   ? vehicle.is_workshop
-                      .filter((item: any) => item.in_workshop)
-                      .map((item: any) => item.stage_name)
+                    .filter((item: any) => item.in_workshop)
+                    .map((item: any) => item.stage_name)
                   : [];
                 setSelectedStages(currentlyInWorkshop);
               }}

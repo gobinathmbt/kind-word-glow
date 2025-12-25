@@ -9,8 +9,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Save, X, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { vehicleServices, companyServices } from "@/api/services";
+import { vehicleServices, companyServices, commonVehicleServices } from "@/api/services";
 import ReactSelect from "react-select";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleSpecificationsSectionProps {
   vehicle: any;
@@ -140,7 +141,7 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleSpecifications(vehicle._id,vehicle.vehicle_type, {
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_specifications: [{
           number_of_seats: formData.number_of_seats,
           number_of_doors: formData.number_of_doors,
@@ -156,7 +157,8 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
           safety_features: formData.safety_features,
           interior_features: formData.interior_features,
           other_feature: formData.other_feature,
-        }]
+        }],
+        module_section: "Pricing Specifications" // Add section name for activity logging
       });
 
       toast.success("Specifications updated successfully");

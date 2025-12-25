@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { vehicleServices } from "@/api/services";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleOwnershipSectionProps {
   vehicle: any;
@@ -18,17 +19,34 @@ interface VehicleOwnershipSectionProps {
 
 const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehicle, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const ownership = vehicle.vehicle_ownership || {};
+  // Fix: vehicle_ownership is stored as an array in the database, access the first element
+  const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
+    ? vehicle.vehicle_ownership[0] 
+    : {};
   const [formData, setFormData] = useState({
     origin: ownership.origin || "",
     no_of_previous_owners: ownership.no_of_previous_owners || "",
-    security_interest_on_ppsr: ownership.security_interest_on_ppsr || false,
+    security_interest_on_ppsr: ownership.security_interest_on_ppsr === true, // Explicit boolean check
     comments: ownership.comments || "",
   });
 
+  // Update form data when vehicle data changes (after save/refresh)
+  useEffect(() => {
+    const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
+      ? vehicle.vehicle_ownership[0] 
+      : {};
+    setFormData({
+      origin: ownership.origin || "",
+      no_of_previous_owners: ownership.no_of_previous_owners || "",
+      security_interest_on_ppsr: ownership.security_interest_on_ppsr === true, // Explicit boolean check
+      comments: ownership.comments || "",
+    });
+  }, [vehicle.vehicle_ownership, vehicle._id]); // Add vehicle._id to dependencies to ensure refresh
+
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleOwnership(vehicle._id,vehicle.vehicle_type, {
+      await vehicleServices.updateVehicleOwnership(vehicle._id, vehicle.vehicle_type, {
+        module_section: "Vehicle Ownership",
         vehicle_ownership: {
           origin: formData.origin,
           no_of_previous_owners: formData.no_of_previous_owners,
@@ -46,10 +64,14 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
   };
 
   const handleCancel = () => {
+    // Fix: vehicle_ownership is stored as an array in the database, access the first element
+    const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
+      ? vehicle.vehicle_ownership[0] 
+      : {};
     setFormData({
       origin: ownership.origin || "",
       no_of_previous_owners: ownership.no_of_previous_owners || "",
-      security_interest_on_ppsr: ownership.security_interest_on_ppsr || false,
+      security_interest_on_ppsr: ownership.security_interest_on_ppsr === true, // Explicit boolean check
       comments: ownership.comments || "",
     });
     setIsEditing(false);
@@ -81,39 +103,69 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
               {isEditing ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="origin">Origin</Label>
+                    <FieldWithHistory
+                      fieldName="origin"
+                      fieldDisplayName="Origin"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="inspection"
+                      moduleName="Vehicle Ownership"
+                      label="Origin"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="origin"
                         value={formData.origin}
                         onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="no_of_previous_owners">Previous Owners</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="no_of_previous_owners"
+                      fieldDisplayName="Previous Owners"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="inspection"
+                      moduleName="Vehicle Ownership"
+                      label="Previous Owners"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="no_of_previous_owners"
                         type="number"
                         value={formData.no_of_previous_owners}
                         onChange={(e) => setFormData({ ...formData, no_of_previous_owners: e.target.value })}
                       />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={formData.security_interest_on_ppsr}
-                        onCheckedChange={(checked) => setFormData({ ...formData, security_interest_on_ppsr: checked })}
-                      />
-                      <Label>Security Interest on PPSR</Label>
-                    </div>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="security_interest_on_ppsr"
+                      fieldDisplayName="Security Interest on PPSR"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="inspection"
+                      moduleName="Vehicle Ownership"
+                      label="Security Interest on PPSR"
+                      showHistoryIcon={!isEditing}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={formData.security_interest_on_ppsr}
+                          onCheckedChange={(checked) => setFormData({ ...formData, security_interest_on_ppsr: checked })}
+                        />
+                      </div>
+                    </FieldWithHistory>
                   </div>
-                  <div>
-                    <Label htmlFor="comments">Comments</Label>
+                  <FieldWithHistory
+                    fieldName="comments"
+                    fieldDisplayName="Comments"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="inspection"
+                    moduleName="Vehicle Ownership"
+                    label="Comments"
+                    showHistoryIcon={!isEditing}
+                  >
                     <Textarea
                       id="comments"
                       value={formData.comments}
                       onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                     />
-                  </div>
+                  </FieldWithHistory>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleCancel}>
                       <X className="h-4 w-4 mr-2" />
@@ -127,21 +179,47 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Origin</Label>
+                  <FieldWithHistory
+                    fieldName="origin"
+                    fieldDisplayName="Origin"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="inspection"
+                    moduleName="Vehicle Ownership"
+                    label="Origin"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.origin || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Previous Owners</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="no_of_previous_owners"
+                    fieldDisplayName="Previous Owners"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="inspection"
+                    moduleName="Vehicle Ownership"
+                    label="Previous Owners"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.no_of_previous_owners || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Security Interest on PPSR</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="security_interest_on_ppsr"
+                    fieldDisplayName="Security Interest on PPSR"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="inspection"
+                    moduleName="Vehicle Ownership"
+                    label="Security Interest on PPSR"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.security_interest_on_ppsr ? 'Yes' : 'No'}</p>
-                  </div>
+                  </FieldWithHistory>
                   <div className="col-span-2">
-                    <Label className="text-sm font-medium">Comments</Label>
-                    <p className="text-sm text-muted-foreground">{formData.comments || "N/A"}</p>
+                    <FieldWithHistory
+                      fieldName="comments"
+                      fieldDisplayName="Comments"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="inspection"
+                      moduleName="Vehicle Ownership"
+                      label="Comments"
+                    >
+                      <p className="text-sm text-muted-foreground">{formData.comments || "N/A"}</p>
+                    </FieldWithHistory>
                   </div>
                 </div>
               )}

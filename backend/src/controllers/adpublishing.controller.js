@@ -1,12 +1,14 @@
 const AdVehicle = require('../models/AdvertiseVehicle');
 const { logEvent } = require('./logs.controller');
+const { calculateChanges, logActivity } = require('./vehicleActivityLog.controller');
+const ActivityLoggingService = require('../services/activityLogging.service');
 
 // @desc    Get all advertisement vehicles
 // @route   GET /api/adpublishing
 // @access  Private (Company Admin/Super Admin)
 const getAdVehicles = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, search, dealership } = req.query;
+    const { page = 1, limit = 20, status, search, dealership, deleted_only } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
     const numericPage = parseInt(page);
@@ -16,6 +18,20 @@ const getAdVehicles = async (req, res) => {
       company_id: req.user.company_id,
       vehicle_type: 'advertisement'
     };
+
+    // Handle soft delete filter
+    if (deleted_only === 'true') {
+      filter.isActive = false;
+    } else {
+      // Show active vehicles (isActive: true OR isActive field doesn't exist)
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }
+        ]
+      });
+    }
 
     // Handle dealership-based access for non-primary company_super_admin
     if (!req.user.is_primary_admin &&
@@ -49,14 +65,14 @@ const getAdVehicles = async (req, res) => {
         { plate_no: searchRegex },
         { vin: searchRegex }
       ];
-      
+
       // Add numeric searches (vehicle_stock_id and year) if the search term is a number
       if (!isNaN(searchTerm)) {
         const numericSearch = parseInt(searchTerm);
         searchConditions.push({ vehicle_stock_id: numericSearch });
         searchConditions.push({ year: numericSearch });
       }
-      
+
       filter.$or = searchConditions;
     }
 
@@ -285,6 +301,7 @@ const createAdVehicle = async (req, res) => {
       body_style,
       status: "pending",
       queue_status: "processed",
+      isActive: true, // Set as active by default
     };
 
     // Add vehicle source information
@@ -316,6 +333,22 @@ const createAdVehicle = async (req, res) => {
 
     const newVehicle = new AdVehicle(vehicleData);
     await newVehicle.save();
+
+    // Log Activity
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: newVehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: 'Advertisement Vehicle',
+      action: 'create',
+      user_id: req.user.id,
+      changes: calculateChanges({}, newVehicle),
+      metadata: {
+        vehicle_stock_id: newVehicle.vehicle_stock_id,
+        make: make,
+        model: model
+      }
+    });
 
     // Log the event
     await logEvent({
@@ -355,15 +388,11 @@ const createAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateAdVehicle = async (req, res) => {
   try {
-    const adVehicle = await AdVehicle.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        company_id: req.user.company_id,
-        vehicle_type: 'advertisement'
-      },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const adVehicle = await AdVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'advertisement'
+    });
 
     if (!adVehicle) {
       return res.status(404).json({
@@ -371,6 +400,37 @@ const updateAdVehicle = async (req, res) => {
         message: 'Advertisement vehicle not found'
       });
     }
+
+    const oldVehicle = adVehicle.toObject();
+
+    // Special handling for vehicle_odometer to preserve _id
+    if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
+      adVehicle.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
+        ...entry, // Preserves _id if it exists
+        reading: Number(entry.reading),
+        reading_date: entry.reading_date ? new Date(entry.reading_date) : new Date(),
+        odometerCertified: entry.odometerCertified || false,
+        odometerStatus: entry.odometerStatus || "",
+        created_at: entry.created_at ? new Date(entry.created_at) : new Date(),
+      }));
+      // Remove from req.body so it doesn't get overwritten by set()
+      delete req.body.vehicle_odometer;
+    }
+
+    // Apply updates
+    adVehicle.set(req.body);
+    await adVehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: adVehicle.toObject(),
+      req,
+      vehicle: adVehicle,
+      options: {
+        vehicleType: 'advertisement'
+      }
+    });
 
     await logEvent({
       event_type: 'ad_publishing',
@@ -414,6 +474,26 @@ const deleteAdVehicle = async (req, res) => {
         message: 'Advertisement vehicle not found'
       });
     }
+
+    // Log Activity
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: adVehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: 'Advertisement Vehicle',
+      action: 'delete',
+      user_id: req.user.id,
+      changes: [{
+        field: 'vehicle_deleted',
+        old_value: `${adVehicle.make} ${adVehicle.model}`,
+        new_value: null
+      }],
+      metadata: {
+        vehicle_stock_id: adVehicle.vehicle_stock_id,
+        make: adVehicle.make,
+        model: adVehicle.model
+      }
+    });
 
     await logEvent({
       event_type: 'ad_publishing',
@@ -465,6 +545,29 @@ const publishAdVehicle = async (req, res) => {
       });
     }
 
+    // Log Activity
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: adVehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: 'Advertisement Vehicle',
+      action: 'update',
+      user_id: req.user.id,
+      changes: [{
+        field: 'status',
+        old_value: 'draft',
+        new_value: 'published'
+      }, {
+        field: 'published_at',
+        old_value: null,
+        new_value: new Date()
+      }],
+      metadata: {
+        vehicle_stock_id: adVehicle.vehicle_stock_id,
+        action_type: 'publish'
+      }
+    });
+
     await logEvent({
       event_type: 'ad_publishing',
       event_action: 'ad_vehicle_published',
@@ -490,11 +593,300 @@ const publishAdVehicle = async (req, res) => {
   }
 };
 
+// @desc    Get advertisement vehicle attachments
+// @route   GET /api/adpublishing/:id/attachments
+// @access  Private (Company Admin/Super Admin)
+const getAdVehicleAttachments = async (req, res) => {
+  try {
+    const vehicle = await AdVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Advertisement vehicle not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments || [],
+    });
+  } catch (error) {
+    console.error("Get advertisement vehicle attachments error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving advertisement vehicle attachments",
+    });
+  }
+};
+
+// @desc    Upload advertisement vehicle attachment
+// @route   POST /api/adpublishing/:id/attachments
+// @access  Private (Company Admin/Super Admin)
+const uploadAdVehicleAttachment = async (req, res) => {
+  try {
+    const vehicle = await AdVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Advertisement vehicle not found",
+      });
+    }
+
+    // Add the new attachment
+    vehicle.vehicle_attachments = vehicle.vehicle_attachments || [];
+    vehicle.vehicle_attachments.push(req.body);
+
+    await vehicle.save();
+
+    // Log Activity
+    const attachmentType = req.body.type || 'file';
+    const fileName = req.body.filename || req.body.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: 'Vehicle Attachments',
+      action: 'create',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: null,
+        new_value: fileName,
+        action_type: 'add'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: req.body.size
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments,
+    });
+  } catch (error) {
+    console.error("Upload advertisement vehicle attachment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error uploading advertisement vehicle attachment",
+    });
+  }
+};
+
+// @desc    Delete advertisement vehicle attachment
+// @route   DELETE /api/adpublishing/:id/attachments/:attachmentId
+// @access  Private (Company Admin/Super Admin)
+const deleteAdVehicleAttachment = async (req, res) => {
+  try {
+    const vehicle = await AdVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Advertisement vehicle not found",
+      });
+    }
+
+    // Find the attachment to be deleted for logging
+    const attachmentToDelete = vehicle.vehicle_attachments.find(
+      (attachment) => attachment._id.toString() === req.params.attachmentId
+    );
+
+    if (!attachmentToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: "Attachment not found",
+      });
+    }
+
+    // Remove the attachment
+    vehicle.vehicle_attachments = vehicle.vehicle_attachments.filter(
+      (attachment) => attachment._id.toString() !== req.params.attachmentId
+    );
+
+    await vehicle.save();
+
+    // Log Activity
+    const attachmentType = attachmentToDelete.type || 'file';
+    const fileName = attachmentToDelete.filename || attachmentToDelete.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: 'Vehicle Attachments',
+      action: 'delete',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: fileName,
+        new_value: null,
+        action_type: 'remove'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: attachmentToDelete.size
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments,
+    });
+  } catch (error) {
+    console.error("Delete advertisement vehicle attachment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting advertisement vehicle attachment",
+    });
+  }
+};
+
+// @desc    Soft delete advertisement vehicle
+// @route   PATCH /api/adpublishing/:id/soft-delete
+// @access  Private (Company Admin/Super Admin)
+const softDeleteAdVehicle = async (req, res) => {
+  try {
+    // First, let's check if the vehicle exists at all
+    const existingVehicle = await AdVehicle.findOne({ _id: req.params.id });
+    const vehicle = await AdVehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } } // Handle vehicles without isActive field
+        ]
+      },
+      { isActive: false },
+      { new: true }
+    );
+
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Advertisement vehicle not found or already deleted",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "ad_vehicle_soft_deleted",
+      event_description: `Advertisement vehicle soft deleted: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Advertisement vehicle deleted successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Soft delete advertisement vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting advertisement vehicle",
+    });
+  }
+};
+
+// @desc    Restore advertisement vehicle
+// @route   PATCH /api/adpublishing/:id/restore
+// @access  Private (Company Admin/Super Admin)
+const restoreAdVehicle = async (req, res) => {
+  try {
+   // First, let's check if the vehicle exists and is deleted
+    const existingVehicle = await AdVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id
+    });
+    const vehicle = await AdVehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        isActive: false,
+      },
+      { isActive: true },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Advertisement vehicle not found or already active",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "ad_vehicle_restored",
+      event_description: `Advertisement vehicle restored: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Advertisement vehicle restored successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Restore advertisement vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error restoring advertisement vehicle",
+    });
+  }
+};
+
 module.exports = {
   getAdVehicles,
   getAdVehicle,
   createAdVehicle,
   updateAdVehicle,
   deleteAdVehicle,
-  publishAdVehicle
+  softDeleteAdVehicle,
+  restoreAdVehicle,
+  publishAdVehicle,
+  getAdVehicleAttachments,
+  uploadAdVehicleAttachment,
+  deleteAdVehicleAttachment,
 };

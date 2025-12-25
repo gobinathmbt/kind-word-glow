@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { masterVehicleServices, companyServices } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 import {
   Select,
@@ -44,7 +45,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     make: vehicle?.make || "",
     model: vehicle?.model || "",
     variant: vehicle?.variant || "",
-    year: vehicle?.year || "",
+    year: vehicle?.year ? vehicle.year.toString() : "",
     body_style: vehicle?.body_style || "",
     vehicle_type: vehicle?.vehicle_type || "",
     vin: vehicle?.vin || "",
@@ -53,7 +54,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     model_no: vehicle?.model_no || "",
 
     // Source info
-    purchase_date: sourceDetails.purchase_date || "",
+    purchase_date: sourceDetails.purchase_date ? new Date(sourceDetails.purchase_date).toISOString().split('T')[0] : "",
     purchase_type: sourceDetails.purchase_type || "",
     supplier: sourceDetails.supplier || "",
     purchase_notes: sourceDetails.purchase_notes || "",
@@ -70,6 +71,47 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     sold_price: otherDetails.sold_price || 0,
     included_in_exports: otherDetails.included_in_exports || true,
   });
+
+  // Sync form data with vehicle prop whenever it changes
+  React.useEffect(() => {
+    if (vehicle) {
+      const otherDetails = vehicle?.vehicle_other_details?.[0] || {};
+      const sourceDetails = vehicle?.vehicle_source?.[0] || {};
+
+      setFormData({
+        // Basic vehicle info
+        status: otherDetails.status || "",
+        make: vehicle?.make || "",
+        model: vehicle?.model || "",
+        variant: vehicle?.variant || "",
+        year: vehicle?.year ? vehicle.year.toString() : "",
+        body_style: vehicle?.body_style || "",
+        vehicle_type: vehicle?.vehicle_type || "",
+        vin: vehicle?.vin || "",
+        plate_no: vehicle?.plate_no || "",
+        chassis_no: vehicle?.chassis_no || "",
+        model_no: vehicle?.model_no || "",
+
+        // Source info
+        purchase_date: sourceDetails.purchase_date ? new Date(sourceDetails.purchase_date).toISOString().split('T')[0] : "",
+        purchase_type: sourceDetails.purchase_type || "",
+        supplier: sourceDetails.supplier || "",
+        purchase_notes: sourceDetails.purchase_notes || "",
+
+        // Other details
+        trader_acquisition: otherDetails.trader_acquisition || "",
+        odometer_certified: otherDetails.odometer_certified || false,
+        odometer_status: otherDetails.odometer_status || "",
+        purchase_price: otherDetails.purchase_price || 0,
+        exact_expenses: otherDetails.exact_expenses || 0,
+        estimated_expenses: otherDetails.estimated_expenses || 0,
+        gst_inclusive: otherDetails.gst_inclusive || false,
+        retail_price: otherDetails.retail_price || 0,
+        sold_price: otherDetails.sold_price || 0,
+        included_in_exports: otherDetails.included_in_exports || true,
+      });
+    }
+  }, [vehicle]);
 
   // Handler functions for VehicleMetadataSelector
   const handleMakeChange = (displayName: string) => {
@@ -96,6 +138,7 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     try {
       // Update master vehicle with all data in one call
       await masterVehicleServices.updateMasterVehicle(vehicle._id, {
+        module_section: "Vehicle General Info",
         make: formData.make,
         model: formData.model,
         variant: formData.variant,
@@ -146,14 +189,14 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
       make: vehicle?.make || "",
       model: vehicle?.model || "",
       variant: vehicle?.variant || "",
-      year: vehicle?.year || "",
+      year: vehicle?.year ? vehicle.year.toString() : "",
       body_style: vehicle?.body_style || "",
       vehicle_type: vehicle?.vehicle_type || "",
       vin: vehicle?.vin || "",
       plate_no: vehicle?.plate_no || "",
       chassis_no: vehicle?.chassis_no || "",
       model_no: vehicle?.model_no || "",
-      purchase_date: sourceDetails.purchase_date || "",
+      purchase_date: sourceDetails.purchase_date ? new Date(sourceDetails.purchase_date).toISOString().split('T')[0] : "",
       purchase_type: sourceDetails.purchase_type || "",
       supplier: sourceDetails.supplier || "",
       purchase_notes: sourceDetails.purchase_notes || "",
@@ -171,23 +214,23 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
     setIsEditing(false);
   };
 
-  
-    const { data: vehicleStatus } = useQuery({
-      queryKey: ["vehicle-status"],
-      queryFn: async () => {
-        const response = await companyServices.getCompanyMasterdropdownvalues({
-          dropdown_name: ["vehicle_status"],
-        });
-        return response.data?.data[0]?.values || [];
-      },
-    });
-  
-    const handleInputChange = (field: string, value: string) => {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    };
+
+  const { data: vehicleStatus } = useQuery({
+    queryKey: ["vehicle-status"],
+    queryFn: async () => {
+      const response = await companyServices.getCompanyMasterdropdownvalues({
+        dropdown_name: ["vehicle_status"],
+      });
+      return response.data?.data[0]?.values || [];
+    },
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   return (
     <Accordion type="single" collapsible>
@@ -241,8 +284,15 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
+                    <FieldWithHistory
+                      fieldName="status"
+                      fieldDisplayName="Status"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Status"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Select
                         value={formData.status}
                         onValueChange={(value) =>
@@ -269,9 +319,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="vehicle_type">Vehicle Type</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="vehicle_type"
+                      fieldDisplayName="Vehicle Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Vehicle Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="vehicle_type"
                         value={formData.vehicle_type}
@@ -283,9 +341,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                         }
                         disabled
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="vin">VIN</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="vin"
+                      fieldDisplayName="VIN"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="VIN"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="vin"
                         value={formData.vin}
@@ -293,9 +359,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           setFormData({ ...formData, vin: e.target.value })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="plate_no">Reg Plate No</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="plate_no"
+                      fieldDisplayName="Registration Plate Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Reg Plate No"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="plate_no"
                         value={formData.plate_no}
@@ -303,9 +377,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           setFormData({ ...formData, plate_no: e.target.value })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="chassis_no">Chassis</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="chassis_no"
+                      fieldDisplayName="Chassis Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Chassis"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="chassis_no"
                         value={formData.chassis_no}
@@ -316,9 +398,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="model_no">Model No</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="model_no"
+                      fieldDisplayName="Model Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Model No"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="model_no"
                         value={formData.model_no}
@@ -326,9 +416,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           setFormData({ ...formData, model_no: e.target.value })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="purchase_date">Purchase Date</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="purchase_date"
+                      fieldDisplayName="Purchase Date"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Purchase Date"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="purchase_date"
                         type="date"
@@ -340,9 +438,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="purchase_type">Purchase Type</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="purchase_type"
+                      fieldDisplayName="Purchase Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Purchase Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="purchase_type"
                         value={formData.purchase_type}
@@ -354,9 +460,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                         }
                         disabled
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="supplier">Supplier</Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="supplier"
+                      fieldDisplayName="Supplier"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Supplier"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="supplier"
                         value={formData.supplier}
@@ -364,11 +478,17 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           setFormData({ ...formData, supplier: e.target.value })
                         }
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="trader_acquisition">
-                        Trader Acquisition
-                      </Label>
+                    </FieldWithHistory>
+                    
+                    <FieldWithHistory
+                      fieldName="trader_acquisition"
+                      fieldDisplayName="Trader Acquisition"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Trader Acquisition"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="trader_acquisition"
                         value={formData.trader_acquisition}
@@ -379,19 +499,29 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                           })
                         }
                       />
-                    </div>
+                    </FieldWithHistory>
+                    
                     <div className="col-span-3">
-                      <Label htmlFor="purchase_notes">Purchase Notes</Label>
-                      <Input
-                        id="purchase_notes"
-                        value={formData.purchase_notes}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            purchase_notes: e.target.value,
-                          })
-                        }
-                      />
+                      <FieldWithHistory
+                        fieldName="purchase_notes"
+                        fieldDisplayName="Purchase Notes"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "master"}
+                        moduleName="Vehicle General Info"
+                        label="Purchase Notes"
+                        showHistoryIcon={!isEditing}
+                      >
+                        <Input
+                          id="purchase_notes"
+                          value={formData.purchase_notes}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              purchase_notes: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldWithHistory>
                     </div>
                   </div>
                   <div className="flex justify-end space-x-2">
@@ -407,105 +537,214 @@ const VehicleGeneralInfoSection: React.FC<VehicleGeneralInfoSectionProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Status</Label>
+                  <FieldWithHistory
+                    fieldName="status"
+                    fieldDisplayName="Status"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Status"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.status || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Manufacture</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="make"
+                    fieldDisplayName="Manufacture"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Manufacture"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.make || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Model</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="model"
+                    fieldDisplayName="Model"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Model"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.model || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Variant</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="variant"
+                    fieldDisplayName="Variant"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Variant"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.variant || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Year</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="year"
+                    fieldDisplayName="Year"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Year"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.year || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Body Style</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="body_style"
+                    fieldDisplayName="Body Style"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Body Style"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.body_style || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Vehicle Type</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="vehicle_type"
+                    fieldDisplayName="Vehicle Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Vehicle Type"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.vehicle_type || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">VIN</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="vin"
+                    fieldDisplayName="VIN"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="VIN"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.vin || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Reg Plate No</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="plate_no"
+                    fieldDisplayName="Registration Plate Number"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Reg Plate No"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.plate_no || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Chassis</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="chassis_no"
+                    fieldDisplayName="Chassis Number"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Chassis"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.chassis_no || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Model No</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="model_no"
+                    fieldDisplayName="Model Number"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Model No"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.model_no || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Purchase Date</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="purchase_date"
+                    fieldDisplayName="Purchase Date"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Purchase Date"
+                  >
                     <p className="text-sm text-muted-foreground">
-                      {formData.purchase_date || "N/A"}
+                      {formData.purchase_date ? new Date(formData.purchase_date).toLocaleDateString() : "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Purchase Type</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="purchase_type"
+                    fieldDisplayName="Purchase Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Purchase Type"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.purchase_type || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Supplier</Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="supplier"
+                    fieldDisplayName="Supplier"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Supplier"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.supplier || "N/A"}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Trader Acquisition
-                    </Label>
+                  </FieldWithHistory>
+                  
+                  <FieldWithHistory
+                    fieldName="trader_acquisition"
+                    fieldDisplayName="Trader Acquisition"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "master"}
+                    moduleName="Vehicle General Info"
+                    label="Trader Acquisition"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.trader_acquisition || "N/A"}
                     </p>
-                  </div>
+                  </FieldWithHistory>
+                  
                   <div className="col-span-4">
-                    <Label className="text-sm font-medium">
-                      Purchase Notes
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {formData.purchase_notes || "N/A"}
-                    </p>
+                    <FieldWithHistory
+                      fieldName="purchase_notes"
+                      fieldDisplayName="Purchase Notes"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle General Info"
+                      label="Purchase Notes"
+                    >
+                      <p className="text-sm text-muted-foreground">
+                        {formData.purchase_notes || "N/A"}
+                      </p>
+                    </FieldWithHistory>
                   </div>
                 </div>
               )}

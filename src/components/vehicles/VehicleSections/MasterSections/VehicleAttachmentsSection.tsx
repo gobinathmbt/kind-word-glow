@@ -30,7 +30,7 @@ import {
   Play,
 } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices, companyServices } from "@/api/services";
+import { vehicleServices, companyServices, masterVehicleServices } from "@/api/services";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
 import {
   Select,
@@ -276,16 +276,29 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-const handleFilesSelected = (files: File[]) => {
-  setSelectedFiles((prev) => [...prev, ...files]);
-};
+  const handleFilesSelected = (files: File[]) => {
+    setSelectedFiles((prev) => [...prev, ...files]);
+  };
 
   const handleRemoveFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const uploadToS3AndSave = async () => {
-    if (!s3Uploader || selectedFiles.length === 0) return;
+    if (!s3Uploader) {
+      toast.error("S3 configuration not loaded. Please refresh the page.");
+      return;
+    }
+
+    if (selectedFiles.length === 0) {
+      toast.error("Please select at least one file to upload");
+      return;
+    }
+
+    if (!uploadCategory) {
+      toast.error(`Please select a ${uploadType === "images" ? "image" : "file"} category`);
+      return;
+    }
 
     setUploading(true);
     const uploadedAttachments = [];
@@ -294,8 +307,7 @@ const handleFilesSelected = (files: File[]) => {
       for (const [index, file] of selectedFiles.entries()) {
         setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }));
 
-        const s3Category =
-          uploadType === "images" ? uploadCategory : uploadCategory;
+        const s3Category = uploadCategory;
 
         const uploadResult = await s3Uploader.uploadFile(file, s3Category);
 
@@ -321,22 +333,25 @@ const handleFilesSelected = (files: File[]) => {
       }
 
       for (const attachmentData of uploadedAttachments) {
-        await vehicleServices.uploadVehicleAttachment(
+        await masterVehicleServices.uploadVehicleAttachment(
           vehicle._id,
-          vehicleType,
-          attachmentData
+          {
+            ...attachmentData,
+            module_section: "Vehicle Attachments",
+          }
         );
       }
 
       toast.success(
-        `Successfully uploaded ${selectedFiles.length} ${uploadType}`
+        `Successfully uploaded ${selectedFiles.length} ${uploadType === "images" ? "image(s)" : "file(s)"}`
       );
       setSelectedFiles([]);
       setUploadDialogOpen(false);
       setUploadProgress({});
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to upload files");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to upload files";
+      toast.error(errorMessage);
       console.error("Upload error:", error);
     } finally {
       setUploading(false);
@@ -345,20 +360,28 @@ const handleFilesSelected = (files: File[]) => {
 
   const handleDeleteAttachment = async (attachment: any) => {
     try {
+      // Delete from S3 first
       if (s3Uploader && attachment.s3_key) {
-        await s3Uploader.deleteFile(attachment.s3_key);
+        try {
+          await s3Uploader.deleteFile(attachment.s3_key);
+        } catch (s3Error) {
+          console.warn("Failed to delete from S3, continuing with database deletion:", s3Error);
+          // Continue even if S3 deletion fails
+        }
       }
 
-      await vehicleServices.deleteVehicleAttachment(
+      // Delete from database
+      await masterVehicleServices.deleteVehicleAttachment(
         vehicle._id,
-        vehicleType,
-        attachment._id
+        attachment._id,
+        { module_section: "Vehicle Attachments" }
       );
 
       toast.success("Attachment deleted successfully");
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to delete attachment");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete attachment";
+      toast.error(errorMessage);
       console.error("Delete error:", error);
     }
   };
@@ -634,7 +657,7 @@ const handleFilesSelected = (files: File[]) => {
                     </h4>
                     <Button
                       onClick={uploadToS3AndSave}
-                      disabled={uploading}
+                      disabled={uploading || !uploadCategory || !s3Uploader}
                       size="sm"
                     >
                       {uploading ? (

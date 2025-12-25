@@ -269,9 +269,11 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         updatedEntries = [...odometerEntries, newEntry];
       }
 
-      // Update backend
+      // Update backend - preserve _id if it exists for proper matching
       await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+        module_section: "Vehicle Odometer",
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,
@@ -302,7 +304,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
       const updatedEntries = odometerEntries.filter((_, i) => i !== deleteIndex);
 
       await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+        module_section: "Vehicle Odometer",
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,

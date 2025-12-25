@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices } from "@/api/services";
+import { commonVehicleServices } from "@/api/services";
 import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleImportSectionProps {
@@ -22,7 +22,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const importData = vehicle.vehicle_import_details?.[0] || {};
-
+  
   const [formData, setFormData] = useState({
     delivery_port: importData.delivery_port || "",
     vessel_name: importData.vessel_name || "",
@@ -35,8 +35,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
 
   const handleSave = async () => {
     try {
-      await vehicleServices.updateVehicleImport(vehicle._id, vehicle.vehicle_type, {
-        module_section: "Vehicle Import Details",
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_import_details: [{
           delivery_port: formData.delivery_port,
           vessel_name: formData.vessel_name,
@@ -45,14 +44,16 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
           eta: formData.eta,
           date_on_yard: formData.date_on_yard,
           imported_as_damaged: formData.imported_as_damaged,
-        }]
+        }],
+        module_section: "Pricing Import Details" // Add section name for activity logging
       });
 
       toast.success("Import details updated successfully");
       setIsEditing(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Failed to update import details");
+    } catch (error: any) {
+      console.error("Failed to update import details:", error);
+      toast.error(error?.response?.data?.message || "Failed to update import details");
     }
   };
 
@@ -99,8 +100,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="delivery_port"
                       fieldDisplayName="Delivery Port"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="Delivery Port"
                       showHistoryIcon={!isEditing}
                     >
@@ -114,8 +115,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="vessel_name"
                       fieldDisplayName="Vessel Name"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="Vessel Name"
                       showHistoryIcon={!isEditing}
                     >
@@ -129,8 +130,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="voyage"
                       fieldDisplayName="Voyage"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="Voyage"
                       showHistoryIcon={!isEditing}
                     >
@@ -144,8 +145,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="imported_as_damaged"
                       fieldDisplayName="Imported as Damaged"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="Imported as Damaged"
                       showHistoryIcon={!isEditing}
                     >
@@ -160,8 +161,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="etd"
                       fieldDisplayName="ETD"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="ETD"
                       showHistoryIcon={!isEditing}
                     >
@@ -176,8 +177,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="eta"
                       fieldDisplayName="ETA"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="ETA"
                       showHistoryIcon={!isEditing}
                     >
@@ -192,8 +193,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                       fieldName="date_on_yard"
                       fieldDisplayName="Date on Yard"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType="inspection"
-                      moduleName="Vehicle Import Details"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Import Details"
                       label="Date on Yard"
                       showHistoryIcon={!isEditing}
                     >
@@ -222,8 +223,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="delivery_port"
                     fieldDisplayName="Delivery Port"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="Delivery Port"
                   >
                     <p className="text-sm text-muted-foreground">{formData.delivery_port || "N/A"}</p>
@@ -232,8 +233,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="vessel_name"
                     fieldDisplayName="Vessel Name"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="Vessel Name"
                   >
                     <p className="text-sm text-muted-foreground">{formData.vessel_name || "N/A"}</p>
@@ -242,8 +243,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="voyage"
                     fieldDisplayName="Voyage"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="Voyage"
                   >
                     <p className="text-sm text-muted-foreground">{formData.voyage || "N/A"}</p>
@@ -252,8 +253,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="imported_as_damaged"
                     fieldDisplayName="Imported as Damaged"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="Imported as Damaged"
                   >
                     <p className="text-sm text-muted-foreground">{formData.imported_as_damaged ? 'Yes' : 'No'}</p>
@@ -262,8 +263,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="etd"
                     fieldDisplayName="ETD"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="ETD"
                   >
                     <p className="text-sm text-muted-foreground">
@@ -274,8 +275,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="eta"
                     fieldDisplayName="ETA"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="ETA"
                   >
                     <p className="text-sm text-muted-foreground">
@@ -286,8 +287,8 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                     fieldName="date_on_yard"
                     fieldDisplayName="Date on Yard"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType="inspection"
-                    moduleName="Vehicle Import Details"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Import Details"
                     label="Date on Yard"
                   >
                     <p className="text-sm text-muted-foreground">

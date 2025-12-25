@@ -1,6 +1,8 @@
 const Vehicle = require("../models/Vehicle");
 const Dealership = require("../models/Dealership");
 const { logEvent } = require("./logs.controller");
+const { calculateChanges, logActivity } = require("./vehicleActivityLog.controller");
+const ActivityLoggingService = require("../services/activityLogging.service");
 const {
   processSingleVehicle,
   processBulkVehicles,
@@ -16,7 +18,7 @@ const {
 // @access  Private (Company Admin/Super Admin)
 const getVehicleStock = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, vehicle_type, status, dealership } = req.query;
+    const { page = 1, limit = 20, search, vehicle_type, status, dealership, deleted_only } = req.query;
 
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -24,6 +26,20 @@ const getVehicleStock = async (req, res) => {
 
     // Build filter with company_id first for index usage
     let filter = { company_id: req.user.company_id };
+
+    // Handle soft delete filter
+    if (deleted_only === 'true') {
+      filter.isActive = false;
+    } else {
+      // Show active vehicles (isActive: true OR isActive field doesn't exist)
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }
+        ]
+      });
+    }
 
     // Handle dealership-based access for non-primary company_super_admin
     if (
@@ -55,7 +71,7 @@ const getVehicleStock = async (req, res) => {
 
     if (search) {
       filter.$and = filter.$and || [];
-      
+
       // Build search conditions
       const searchConditions = [
         { make: { $regex: search, $options: "i" } },
@@ -64,13 +80,13 @@ const getVehicleStock = async (req, res) => {
         { plate_no: { $regex: search, $options: "i" } },
         { vin: { $regex: search, $options: "i" } },
       ];
-      
+
       // Only add vehicle_stock_id and year search if the search term is numeric
       if (!isNaN(search) && search.trim() !== '') {
         searchConditions.push({ vehicle_stock_id: parseInt(search) });
         searchConditions.push({ year: parseInt(search) });
       }
-      
+
       filter.$and.push({ $or: searchConditions });
     }
 
@@ -191,6 +207,7 @@ const getVehicleDetail = async (req, res) => {
       vehicle_stock_id: req.params.vehicleId,
       company_id: req.user.company_id,
       vehicle_type: req.params.vehicleType,
+      // Note: We don't filter by isActive here to allow viewing deleted vehicles
     });
 
     if (!vehicle) {
@@ -310,6 +327,7 @@ const createVehicleStock = async (req, res) => {
       body_style,
       status: status, // Use the status from frontend directly
       queue_status: "processed",
+      isActive: true, // Set as active by default
     };
 
     // Add odometer data
@@ -456,12 +474,11 @@ const bulkImportVehicles = async (req, res) => {
 const updateVehicle = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
-    
+
     // Find the vehicle first
-    const vehicle = await Vehicle.findOne({ 
-      _id: id, 
-      company_id: req.user.company_id 
+    const vehicle = await Vehicle.findOne({
+      _id: id,
+      company_id: req.user.company_id
     });
 
     if (!vehicle) {
@@ -471,15 +488,20 @@ const updateVehicle = async (req, res) => {
       });
     }
 
+    // Capture old state for logging
+    const oldVehicle = vehicle.toObject();
+
     // Handle inspection_result update
-    if (updateData.inspection_result) {
+    if (req.body.inspection_result) {
+      // Ensure inspection_result is an array
+      vehicle.inspection_result = vehicle.inspection_result || [];
       const updatedInspectionResult = [...vehicle.inspection_result];
-      
-      updateData.inspection_result.forEach(updatedCategory => {
+
+      req.body.inspection_result.forEach(updatedCategory => {
         const existingCategoryIndex = updatedInspectionResult.findIndex(
           cat => cat.category_id === updatedCategory.category_id
         );
-        
+
         if (existingCategoryIndex !== -1) {
           // Update existing category
           updatedInspectionResult[existingCategoryIndex] = updatedCategory;
@@ -488,19 +510,20 @@ const updateVehicle = async (req, res) => {
           updatedInspectionResult.push(updatedCategory);
         }
       });
-      
+
       vehicle.inspection_result = updatedInspectionResult;
     }
 
     // Handle trade_in_result update  
-    if (updateData.trade_in_result) {
+    if (req.body.trade_in_result) {
+      vehicle.trade_in_result = vehicle.trade_in_result || [];
       const updatedTradeInResult = [...vehicle.trade_in_result];
-      
-      updateData.trade_in_result.forEach(updatedCategory => {
+
+      req.body.trade_in_result.forEach(updatedCategory => {
         const existingCategoryIndex = updatedTradeInResult.findIndex(
           cat => cat.category_id === updatedCategory.category_id
         );
-        
+
         if (existingCategoryIndex !== -1) {
           // Update existing category
           updatedTradeInResult[existingCategoryIndex] = updatedCategory;
@@ -509,12 +532,31 @@ const updateVehicle = async (req, res) => {
           updatedTradeInResult.push(updatedCategory);
         }
       });
-      
+
       vehicle.trade_in_result = updatedTradeInResult;
     }
 
+    // Handle general vehicle field updates
+    const generalFields = ['make', 'model', 'model_no', 'variant', 'year', 'vin', 'plate_no', 'chassis_no', 'body_style', 'vehicle_category'];
+    generalFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        vehicle[field] = req.body[field];
+      }
+    });
+
     // Save the updated vehicle
     await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type || 'master'
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -555,6 +597,129 @@ const deleteVehicle = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error deleting vehicle",
+    });
+  }
+};
+
+// @desc    Soft delete vehicle
+// @route   PATCH /api/vehicle/:id/:vehicleType/soft-delete
+// @access  Private (Company Admin/Super Admin)
+const softDeleteVehicle = async (req, res) => {
+  try {
+    // First, let's check if the vehicle exists at all
+    const existingVehicle = await Vehicle.findOne({ _id: req.params.id });
+    const vehicle = await Vehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        // Remove vehicle_type check to be more flexible like master vehicle
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } } // Handle vehicles without isActive field
+        ]
+      },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found or already deleted",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "vehicle_soft_deleted",
+      event_description: `Vehicle soft deleted: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Vehicle deleted successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Soft delete vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting vehicle",
+    });
+  }
+};
+
+// @desc    Restore vehicle
+// @route   PATCH /api/vehicle/:id/:vehicleType/restore
+// @access  Private (Company Admin/Super Admin)
+const restoreVehicle = async (req, res) => {
+  try {
+    // First, let's check if the vehicle exists and is deleted
+    const existingVehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id
+    });
+
+    const vehicle = await Vehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        // Remove vehicle_type check to be more flexible like master vehicle
+        isActive: false,
+      },
+      { isActive: true },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found or already active",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "vehicle_restored",
+      event_description: `Vehicle restored: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Vehicle restored successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Restore vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error restoring vehicle",
     });
   }
 };
@@ -820,30 +985,64 @@ const processQueueManually = async (req, res) => {
 // @desc    Update vehicle overview section
 // @route   PUT /api/vehicle/:id/overview
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle overview section
+// @route   PUT /api/vehicle/:id/overview
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleOverview = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      {
-        make: req.body.make,
-        model: req.body.model,
-        variant: req.body.variant,
-        year: req.body.year,
-        vin: req.body.vin,
-        plate_no: req.body.plate_no,
-        chassis_no: req.body.chassis_no,
-        body_style: req.body.body_style,
-        vehicle_category: req.body.vehicle_category,
-      },
-      { new: true, runValidators: true }
-    );
+    const oldVehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
-    if (!vehicle) {
+    if (!oldVehicle) {
       return res.status(404).json({
         success: false,
         message: "Vehicle not found",
       });
     }
+
+    // Prepare update data - only include fields that are provided
+    const updateData = {};
+    const allowedFields = [
+      'make', 'model', 'variant', 'year', 'vin', 'plate_no', 'chassis_no',
+      'body_style', 'vehicle_category', 'vehicle_hero_image', 'color',
+      'fuel_type', 'transmission', 'drive_type', 'doors', 'seats',
+      'engine_size', 'engine_code', 'description', 'notes', 'name'
+    ];
+
+    // Handle simple fields
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Handle array fields that might be part of overview
+    const arrayFields = ['vehicle_attachments'];
+    arrayFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    const vehicle = await Vehicle.findOneAndUpdate(
+      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -861,20 +1060,41 @@ const updateVehicleOverview = async (req, res) => {
 // @desc    Update vehicle general info section
 // @route   PUT /api/vehicle/:id/general-info
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle general info section
+// @route   PUT /api/vehicle/:id/general-info
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleGeneralInfo = async (req, res) => {
   try {
+    const oldVehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
+
+    if (!oldVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found",
+      });
+    }
+
     const vehicle = await Vehicle.findOneAndUpdate(
       { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
       { vehicle_other_details: req.body.vehicle_other_details },
       { new: true, runValidators: true }
     );
 
-    if (!vehicle) {
-      return res.status(404).json({
-        success: false,
-        message: "Vehicle not found",
-      });
-    }
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
+
 
     res.status(200).json({
       success: true,
@@ -892,20 +1112,46 @@ const updateVehicleGeneralInfo = async (req, res) => {
 // @desc    Update vehicle source section
 // @route   PUT /api/vehicle/:id/source
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle source section
+// @route   PUT /api/vehicle/:id/source
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleSource = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_source: req.body.vehicle_source },
-      { new: true, runValidators: true }
-    );
+    const oldVehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
-    if (!vehicle) {
+    if (!oldVehicle) {
       return res.status(404).json({
         success: false,
         message: "Vehicle not found",
       });
     }
+
+    // Process vehicle_source data to handle dates properly
+    const processedVehicleSource = req.body.vehicle_source?.map(source => ({
+      ...source,
+      purchase_date: source.purchase_date ? new Date(source.purchase_date) : null
+    }));
+
+    const vehicle = await Vehicle.findOneAndUpdate(
+      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
+      { vehicle_source: processedVehicleSource },
+      { new: true, runValidators: true }
+    );
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -923,13 +1169,16 @@ const updateVehicleSource = async (req, res) => {
 // @desc    Update vehicle registration section
 // @route   PUT /api/vehicle/:id/registration
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle registration section
+// @route   PUT /api/vehicle/:id/registration
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleRegistration = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_registration: req.body.vehicle_registration },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -937,6 +1186,23 @@ const updateVehicleRegistration = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    const oldVehicle = vehicle.toObject();
+
+    // Apply updates
+    vehicle.set(req.body);
+    await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -954,13 +1220,16 @@ const updateVehicleRegistration = async (req, res) => {
 // @desc    Update vehicle import section
 // @route   PUT /api/vehicle/:id/import
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle import section
+// @route   PUT /api/vehicle/:id/import
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleImport = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_import_details: req.body.vehicle_import_details },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -968,6 +1237,23 @@ const updateVehicleImport = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    const oldVehicle = vehicle.toObject();
+
+    // Apply updates
+    vehicle.set(req.body);
+    await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -985,13 +1271,16 @@ const updateVehicleImport = async (req, res) => {
 // @desc    Update vehicle engine section
 // @route   PUT /api/vehicle/:id/engine
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle engine section
+// @route   PUT /api/vehicle/:id/engine
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleEngine = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_eng_transmission: req.body.vehicle_eng_transmission },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -999,6 +1288,23 @@ const updateVehicleEngine = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    const oldVehicle = vehicle.toObject();
+
+    // Apply updates
+    vehicle.set(req.body);
+    await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -1016,13 +1322,16 @@ const updateVehicleEngine = async (req, res) => {
 // @desc    Update vehicle specifications section
 // @route   PUT /api/vehicle/:id/specifications
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle specifications section
+// @route   PUT /api/vehicle/:id/specifications
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleSpecifications = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_specifications: req.body.vehicle_specifications },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -1030,6 +1339,23 @@ const updateVehicleSpecifications = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    const oldVehicle = vehicle.toObject();
+
+    // Apply updates
+    vehicle.set(req.body);
+    await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -1049,6 +1375,9 @@ const updateVehicleSpecifications = async (req, res) => {
 // @desc    Update vehicle odometer section
 // @route   PUT /api/vehicle/:id/odometer
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle odometer section
+// @route   PUT /api/vehicle/:id/odometer
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleOdometer = async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
@@ -1064,6 +1393,9 @@ const updateVehicleOdometer = async (req, res) => {
       });
     }
 
+    // Capture old state for logging
+    const oldVehicle = vehicle.toObject();
+
     // If vehicle_odometer array is provided, replace the entire array
     if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
       vehicle.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
@@ -1077,6 +1409,17 @@ const updateVehicleOdometer = async (req, res) => {
     }
 
     await vehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: vehicle.vehicle_type
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -1094,19 +1437,410 @@ const updateVehicleOdometer = async (req, res) => {
 // @desc    Update vehicle ownership section
 // @route   PUT /api/vehicle/:id/ownership
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update vehicle ownership section
+// @route   PUT /api/vehicle/:id/ownership
+// @access  Private (Company Admin/Super Admin)
 const updateVehicleOwnership = async (req, res) => {
   try {
-    const vehicle = await Vehicle.findOneAndUpdate(
-      { _id: req.params.id, company_id: req.user.company_id, vehicle_type: req.params.vehicleType, },
-      { vehicle_ownership: req.body.vehicle_ownership },
-      { new: true, runValidators: true }
-    );
+    const vehicle = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
 
     if (!vehicle) {
       return res.status(404).json({
         success: false,
         message: "Vehicle not found",
       });
+    }
+
+    const oldVehicle = vehicle.toObject();
+
+    // Get explicit section name from request body if provided BEFORE cleaning up
+    const formSectionName = req.body.module_section;
+
+    // Create a copy of req.body for processing changes
+    const requestDataForProcessing = { ...req.body };
+
+    // Apply updates
+    vehicle.set(req.body);
+    await vehicle.save();
+
+    // Log Activity - Dynamic field comparison approach (same as advertisement controller)
+    const groupLogs = {};
+
+    // Clean up request body for processing (but keep the copy)
+    delete requestDataForProcessing.module_section;
+
+    // Helper to determine group name based on field path structure
+    const getFieldGroup = (fieldPath) => {
+      // If an explicit section name is provided from the form, prioritize it
+      if (formSectionName) {
+        return formSectionName;
+      }
+
+      // Dynamic section mapping based on field path patterns
+      if (fieldPath.startsWith('vehicle_source') || fieldPath.includes('vehicle_source')) {
+        return 'Vehicle Source Info';
+      }
+      if (fieldPath.startsWith('vehicle_registration') || fieldPath.includes('vehicle_registration')) {
+        return 'Vehicle Registration';
+      }
+      if (fieldPath.startsWith('vehicle_eng_transmission') || fieldPath.includes('vehicle_eng_transmission')) {
+        return 'Vehicle Engine & Transmission';
+      }
+      if (fieldPath.startsWith('vehicle_specifications') || fieldPath.includes('vehicle_specifications')) {
+        return 'Vehicle Specifications';
+      }
+      if (fieldPath.startsWith('vehicle_odometer') || fieldPath.includes('vehicle_odometer')) {
+        return 'Vehicle Odometer';
+      }
+      if (fieldPath.startsWith('vehicle_import_details') || fieldPath.includes('vehicle_import_details')) {
+        return 'Vehicle Import Details';
+      }
+      if (fieldPath.startsWith('vehicle_ownership') || fieldPath.includes('vehicle_ownership')) {
+        return 'Vehicle Ownership';
+      }
+      if (fieldPath.startsWith('vehicle_attachments') || fieldPath.includes('vehicle_attachments')) {
+        return 'Vehicle Attachments';
+      }
+      if (fieldPath.startsWith('vehicle_other_details') || fieldPath.includes('vehicle_other_details')) {
+        return 'Vehicle Overview';
+      }
+      if (fieldPath.startsWith('inspection_result') || fieldPath.includes('inspection_result')) {
+        return 'Vehicle Inspection';
+      }
+      if (fieldPath.startsWith('trade_in_result') || fieldPath.includes('trade_in_result')) {
+        return 'Vehicle Trade-in';
+      }
+
+      // Basic vehicle info fields
+      const basicFields = ['make', 'model', 'year', 'variant', 'body_style', 'vin', 'plate_no', 'chassis_no', 'vehicle_hero_image', 'status', 'dealership_id'];
+      if (basicFields.includes(fieldPath)) {
+        return 'Vehicle Basic Info';
+      }
+
+      // Fallback for unmatched fields
+      return 'Vehicle Ownership Update';
+    };
+
+    // Helper to get nested value from object using dot notation
+    const getNestedValue = (obj, path) => {
+      return path.split('.').reduce((current, key) => {
+        // Handle singleton array logic: many fields in this schema are stored as single-item arrays
+        // If current is an array and key is not a numeric index, look inside the first element.
+        if (Array.isArray(current) && current.length > 0 && isNaN(key)) {
+          current = current[0];
+        }
+
+        if (current && typeof current === 'object') {
+          return current[key];
+        }
+        return undefined;
+      }, obj);
+    };
+
+    // Helper to format values for logging (matches calculateChanges format)
+    const formatValue = (val, fieldName = '') => {
+      if (val === null || val === undefined) return null;
+      if (val === '') return '';
+
+      // Handle boolean
+      if (typeof val === 'boolean') {
+        return val ? 'Yes' : 'No';
+      }
+
+      // Check if this is a date field or date value
+      const dateFields = ['_date', 'created_at', 'updated_at', 'timestamp', '_expiry', 'purchase_date', 'registration_date', 'license_expiry_date', 'wof_cof_expiry_date'];
+      const isDateField = dateFields.some(field => fieldName.toLowerCase().includes(field));
+
+      const isDate = (v) => {
+        if (v instanceof Date) return true;
+        if (typeof v === 'string') {
+          const datePatterns = [
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+            /^\d{4}-\d{2}-\d{2}$/,
+            /^\d{2}\/\d{2}\/\d{4}$/,
+            /^\d{2}-\d{2}-\d{4}$/,
+            /^\d{4}\/\d{2}\/\d{2}$/,
+          ];
+          return datePatterns.some(pattern => pattern.test(v)) && !isNaN(Date.parse(v));
+        }
+        return false;
+      };
+
+      if (isDate(val) || isDateField) {
+        try {
+          const dateObj = new Date(val);
+          if (!isNaN(dateObj.getTime())) {
+            return dateObj.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            });
+          }
+        } catch (e) {
+          // If date parsing fails, continue
+        }
+      }
+
+      // Handle arrays
+      if (Array.isArray(val)) {
+        return `[${val.length} item(s)]`;
+      }
+
+      // Handle objects
+      if (typeof val === 'object' && val !== null) {
+        return '[Object]';
+      }
+
+      // Handle numbers
+      if (typeof val === 'number') {
+        const currencyFields = ['price', 'cost', 'expense', 'amount', 'fee'];
+        if (currencyFields.some(field => fieldName.toLowerCase().includes(field))) {
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+          }).format(val);
+        }
+
+        if (val >= 1000) {
+          return new Intl.NumberFormat('en-US').format(val);
+        }
+
+        return val.toString();
+      }
+
+      return val.toString();
+    };
+
+    // Simple comparison - just check if values are different
+    const hasChanged = (oldVal, newVal) => {
+      // Handle null/undefined
+      if (oldVal === newVal) return false;
+      if (oldVal == null && newVal == null) return false;
+      if (oldVal == null || newVal == null) return true;
+
+      // Handle Date objects - compare only date part (ignore time)
+      if (oldVal instanceof Date && newVal instanceof Date) {
+        return oldVal.toDateString() !== newVal.toDateString();
+      }
+
+      // Handle Date strings - convert to date and compare date part only
+      if ((oldVal instanceof Date || typeof oldVal === 'string') &&
+        (newVal instanceof Date || typeof newVal === 'string')) {
+        try {
+          const dateA = new Date(oldVal);
+          const dateB = new Date(newVal);
+          if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+            return dateA.toDateString() !== dateB.toDateString();
+          }
+        } catch (e) {
+          // Continue with other comparisons
+        }
+      }
+
+      // For objects/arrays, use JSON comparison
+      if (typeof oldVal === 'object' && typeof newVal === 'object') {
+        try {
+          return JSON.stringify(oldVal) !== JSON.stringify(newVal);
+        } catch (e) {
+          return true; // If can't stringify, assume changed
+        }
+      }
+
+      // Simple inequality check
+      return oldVal != newVal;
+    };
+
+    // Compare each field in request body with old vehicle data
+    const processFieldChanges = (requestData, oldData, currentPath = '') => {
+      for (const [key, newValue] of Object.entries(requestData)) {
+        const fieldPath = currentPath ? `${currentPath}.${key}` : key;
+
+        // Special handling for vehicle_ownership when frontend sends object but DB stores array
+        if (key === 'vehicle_ownership' && typeof newValue === 'object' && !Array.isArray(newValue)) {
+          // Frontend sends object, but DB stores as array - handle this mismatch
+          const oldOwnership = oldData.vehicle_ownership && oldData.vehicle_ownership[0] ? oldData.vehicle_ownership[0] : {};
+
+          // Process each field in the ownership object
+          for (const [ownershipKey, ownershipValue] of Object.entries(newValue)) {
+            const ownershipFieldPath = `${fieldPath}.0.${ownershipKey}`;
+            const oldOwnershipValue = oldOwnership[ownershipKey];
+
+            if (hasChanged(oldOwnershipValue, ownershipValue)) {
+              const groupName = getFieldGroup(ownershipFieldPath);
+
+              if (!groupLogs[groupName]) {
+                groupLogs[groupName] = [];
+              }
+
+              groupLogs[groupName].push({
+                field: ownershipKey,
+                old_value: formatValue(oldOwnershipValue, ownershipFieldPath),
+                new_value: formatValue(ownershipValue, ownershipFieldPath),
+                raw_field: ownershipFieldPath
+              });
+            }
+          }
+          continue;
+        }
+
+        const oldValue = getNestedValue(oldData, fieldPath);
+
+        // Simple change detection
+        if (!hasChanged(oldValue, newValue)) {
+          continue;
+        }
+
+        // For nested objects (not arrays), recurse into them
+        if (newValue && typeof newValue === 'object' && !Array.isArray(newValue) && !(newValue instanceof Date)) {
+          processFieldChanges(newValue, oldData, fieldPath);
+          continue;
+        }
+
+        // Handle array/object comparison for single-item arrays (same as master vehicle controller)
+        // Normalize: extract the object from array if it's a single-item array
+        const normalizeValue = (val) => {
+          if (Array.isArray(val) && val.length === 1 && typeof val[0] === 'object') {
+            return val[0];
+          }
+          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            return val;
+          }
+          return val;
+        };
+
+        const normalizedOld = normalizeValue(oldValue);
+        const normalizedNew = normalizeValue(newValue);
+
+        // If both normalized to objects, compare field by field
+        if (typeof normalizedOld === 'object' && normalizedOld !== null &&
+          typeof normalizedNew === 'object' && normalizedNew !== null &&
+          !Array.isArray(normalizedOld) && !Array.isArray(normalizedNew)) {
+
+          // Get all keys from both objects (handles additions and deletions)
+          const allKeys = new Set([
+            ...Object.keys(normalizedOld || {}),
+            ...Object.keys(normalizedNew || {})
+          ]);
+
+          for (const objKey of allKeys) {
+            const objFullFieldPath = `${fieldPath}.0.${objKey}`;
+            const objNewValue = normalizedNew?.[objKey];
+            const objOldValue = normalizedOld?.[objKey];
+
+            if (hasChanged(objOldValue, objNewValue)) {
+              const groupName = getFieldGroup(objFullFieldPath);
+
+              if (!groupLogs[groupName]) {
+                groupLogs[groupName] = [];
+              }
+
+              groupLogs[groupName].push({
+                field: objKey,
+                old_value: formatValue(objOldValue, objFullFieldPath),
+                new_value: formatValue(objNewValue, objFullFieldPath),
+                raw_field: objFullFieldPath
+              });
+            }
+          }
+          continue;
+        }
+
+        // If one is undefined/null and other is object, treat undefined as empty object
+        if ((normalizedOld === undefined || normalizedOld === null) &&
+          typeof normalizedNew === 'object' && normalizedNew !== null) {
+
+          const allKeys = Object.keys(normalizedNew || {});
+
+          for (const objKey of allKeys) {
+            const objFullFieldPath = `${fieldPath}.0.${objKey}`;
+            const objNewValue = normalizedNew?.[objKey];
+
+            const groupName = getFieldGroup(objFullFieldPath);
+
+            if (!groupLogs[groupName]) {
+              groupLogs[groupName] = [];
+            }
+
+            groupLogs[groupName].push({
+              field: objKey,
+              old_value: null,
+              new_value: formatValue(objNewValue, objFullFieldPath),
+              raw_field: objFullFieldPath
+            });
+          }
+          continue;
+        }
+
+        // If old is object and new is undefined/null, log removals
+        if (typeof normalizedOld === 'object' && normalizedOld !== null &&
+          (normalizedNew === undefined || normalizedNew === null)) {
+
+          const allKeys = Object.keys(normalizedOld || {});
+
+          for (const objKey of allKeys) {
+            const objFullFieldPath = `${fieldPath}.0.${objKey}`;
+            const objOldValue = normalizedOld?.[objKey];
+
+            const groupName = getFieldGroup(objFullFieldPath);
+
+            if (!groupLogs[groupName]) {
+              groupLogs[groupName] = [];
+            }
+
+            groupLogs[groupName].push({
+              field: objKey,
+              old_value: formatValue(objOldValue, objFullFieldPath),
+              new_value: null,
+              raw_field: objFullFieldPath
+            });
+          }
+          continue;
+        }
+
+        // Log the change
+        const groupName = getFieldGroup(fieldPath);
+
+        if (!groupLogs[groupName]) {
+          groupLogs[groupName] = [];
+        }
+
+        // Create change object with formatted values
+        const change = {
+          field: key,
+          old_value: formatValue(oldValue, fieldPath),
+          new_value: formatValue(newValue, fieldPath),
+          raw_field: fieldPath
+        };
+
+        groupLogs[groupName].push(change);
+      }
+    };
+
+    // Process all changes from request body (use the copy that still has the data)
+    processFieldChanges(requestDataForProcessing, oldVehicle);
+
+    // Log activity for each group that has changes
+    for (const [moduleName, groupChanges] of Object.entries(groupLogs)) {
+      if (groupChanges.length > 0) {
+        await logActivity({
+          company_id: req.user.company_id,
+          vehicle_stock_id: vehicle.vehicle_stock_id,
+          vehicle_type: vehicle.vehicle_type,
+          module_name: moduleName,
+          action: 'update',
+          user_id: req.user.id,
+          changes: groupChanges,
+          metadata: {
+            vehicle_stock_id: vehicle.vehicle_stock_id
+          }
+        });
+      }
     }
 
     res.status(200).json({
@@ -1170,11 +1904,39 @@ const uploadVehicleAttachment = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    // Capture old state for logging
+    const oldVehicle = vehicle.toObject();
+
     // Add the new attachment
     vehicle.vehicle_attachments = vehicle.vehicle_attachments || [];
     vehicle.vehicle_attachments.push(req.body);
 
     await vehicle.save();
+
+    // Log Activity
+    const attachmentType = req.body.type || 'file';
+    const fileName = req.body.filename || req.body.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: vehicle.vehicle_type,
+      module_name: req.body.module_section || 'Vehicle Attachments',
+      action: 'create',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: null,
+        new_value: fileName,
+        action_type: 'add'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: req.body.size
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -1207,12 +1969,48 @@ const deleteVehicleAttachment = async (req, res) => {
       });
     }
 
+    // Find the attachment to be deleted for logging
+    const attachmentToDelete = vehicle.vehicle_attachments.find(
+      (attachment) => attachment._id.toString() === req.params.attachmentId
+    );
+
+    if (!attachmentToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: "Attachment not found",
+      });
+    }
+
     // Remove the attachment
     vehicle.vehicle_attachments = vehicle.vehicle_attachments.filter(
       (attachment) => attachment._id.toString() !== req.params.attachmentId
     );
 
     await vehicle.save();
+
+    // Log Activity
+    const attachmentType = attachmentToDelete.type || 'file';
+    const fileName = attachmentToDelete.filename || attachmentToDelete.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: vehicle.vehicle_type,
+      module_name: req.body.module_section || 'Vehicle Attachments',
+      action: 'delete',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: fileName,
+        new_value: null,
+        action_type: 'remove'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: attachmentToDelete.size
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -1246,6 +2044,9 @@ const updateVehicleWorkshopStatus = async (req, res) => {
         message: "Vehicle not found",
       });
     }
+
+    // Capture old state for logging
+    const oldVehicle = vehicle.toObject();
 
     // Handle both inspection and tradein vehicles with stages
     if (["inspection", "tradein"].includes(vehicle.vehicle_type) && stages && Array.isArray(stages)) {
@@ -1348,12 +2149,6 @@ const updateVehicleWorkshopStatus = async (req, res) => {
             return;
           }
 
-          // Get initial lengths for logging
-          const initialWorkshopLength = vehicle.is_workshop.length;
-          const initialProgressLength = vehicle.workshop_progress.length;
-          const initialPreparingLength = vehicle.workshop_report_preparing.length;
-          const initialReadyLength = vehicle.workshop_report_ready.length;
-
           // Remove from is_workshop array
           vehicle.is_workshop = vehicle.is_workshop.filter(
             item => item.stage_name !== stageName
@@ -1419,6 +2214,17 @@ const updateVehicleWorkshopStatus = async (req, res) => {
       },
     });
 
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: savedVehicle.toObject(),
+      req,
+      vehicle: savedVehicle,
+      options: {
+        vehicleType: savedVehicle.vehicle_type
+      }
+    });
+
     res.status(200).json({
       success: true,
       data: savedVehicle,
@@ -1440,6 +2246,8 @@ module.exports = {
   bulkImportVehicles,
   updateVehicle,
   deleteVehicle,
+  softDeleteVehicle,
+  restoreVehicle,
   receiveVehicleData,
   processQueueManually,
 

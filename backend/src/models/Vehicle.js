@@ -292,6 +292,12 @@ const VehicleSchema = new mongoose.Schema({
     default: "pending",
   },
 
+  // Soft Delete Status
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+
   // Queue Processing
   queue_status: {
     type: String,
@@ -333,6 +339,7 @@ VehicleSchema.index({ company_id: 1, plate_no: 1 });
 VehicleSchema.index({ company_id: 1, vin: 1 });
 VehicleSchema.index({ queue_status: 1 });
 VehicleSchema.index({ created_at: -1 });
+VehicleSchema.index({ company_id: 1, isActive: 1 }); // Index for soft delete queries
 
 // Text index for search functionality
 VehicleSchema.index(

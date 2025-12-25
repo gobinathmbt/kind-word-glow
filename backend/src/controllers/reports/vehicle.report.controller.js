@@ -70,7 +70,7 @@ const getVehicleOverviewByType = async (req, res) => {
       ...dealershipFilter,
       ...dateFilter
     };
-    console.log(baseMatch)
+    
     // 1. Type Distribution with Status Breakdown
     const typeDistributionRaw = await aggregateAcrossSchemas(baseMatch, [
       {
@@ -93,7 +93,7 @@ const getVehicleOverviewByType = async (req, res) => {
         }
       }
     ]);
-    console.log(typeDistributionRaw)
+    
     // Merge and group results by type
     const typeDistribution = Object.values(
       typeDistributionRaw.reduce((acc, item) => {

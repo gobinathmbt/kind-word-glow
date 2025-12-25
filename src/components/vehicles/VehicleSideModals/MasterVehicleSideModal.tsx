@@ -26,8 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, Wrench, ClipboardList, Calculator, FileText, RefreshCw } from "lucide-react";
-import { commonVehicleServices, vehicleServices } from "@/api/services";
+import { Car, Wrench, ClipboardList, Calculator, FileText, RefreshCw, Trash2 } from "lucide-react";
+import { commonVehicleServices, vehicleServices, masterVehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +44,7 @@ import VehicleImportSection from "@/components/vehicles/VehicleSections/MasterSe
 import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/MasterSections/VehicleOwnershipSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
+import ActivityStreamSection from "../VehicleSections/Common/ActivityStreamSection";
 
 interface MasterVehicleSideModalProps {
   vehicle: any;
@@ -73,7 +74,7 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
   // Confirmation dialog states
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: "tradein" | "inspection";
+    type: "tradein" | "inspection" | "soft_delete";
     action?: "push" | "remove";
     stages?: string[];
   } | null>(null);
@@ -100,8 +101,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       // Set currently selected stages based on workshop status
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
-            .filter((item: any) => item.in_workshop)
-            .map((item: any) => item.stage_name)
+          .filter((item: any) => item.in_workshop)
+          .map((item: any) => item.stage_name)
         : [];
       setSelectedStages(currentlyInWorkshop);
     }
@@ -152,14 +153,18 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       });
       setIsPricingReady(!isPricingReady);
       toast.success(
-        `Vehicle ${
-          !isPricingReady ? "marked as" : "removed from"
+        `Vehicle ${!isPricingReady ? "marked as" : "removed from"
         } pricing ready`
       );
       onUpdate();
     } catch (error) {
       toast.error("Failed to update pricing ready status");
     }
+  };
+
+  const handleSoftDelete = () => {
+    setPendingAction({ type: "soft_delete" });
+    setConfirmationOpen(true);
   };
 
   const handleConfirmAction = async () => {
@@ -198,10 +203,31 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
           onUpdate();
         }, 100);
       }
+
+      if (pendingAction.type === "soft_delete") {
+        console.log("Attempting to soft delete master vehicle:", vehicle._id);
+        await masterVehicleServices.softDeleteMasterVehicle(vehicle._id);
+        console.log("Soft delete successful");
+        toast.success("Vehicle deleted successfully");
+
+        // First refresh the list to remove the deleted vehicle
+        await onUpdate();
+
+        // Then close the modal after the list is updated
+        onClose();
+        setConfirmationOpen(false);
+        setPendingAction(null);
+        return;
+      }
     } catch (error) {
-      const actionText =
-        pendingAction.action === "push" ? "push to" : "remove from";
-      toast.error(`Failed to ${actionText} workshop`);
+      if (pendingAction.type === "soft_delete") {
+        console.error("Soft delete failed:", error);
+        toast.error(`Failed to delete vehicle: ${error.response?.data?.message || error.message}`);
+      } else {
+        const actionText =
+          pendingAction.action === "push" ? "push to" : "remove from";
+        toast.error(`Failed to ${actionText} workshop`);
+      }
     } finally {
       setConfirmationOpen(false);
       setPendingAction(null);
@@ -213,8 +239,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
     // Get currently in workshop stages
     const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
       ? vehicle.is_workshop
-          .filter((item: any) => item.in_workshop)
-          .map((item: any) => item.stage_name)
+        .filter((item: any) => item.in_workshop)
+        .map((item: any) => item.stage_name)
       : [];
 
     // Determine which stages to push and which to remove
@@ -297,6 +323,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       }
       return;
     }
+
+
   };
 
   // Function to get workshop status display for inspection
@@ -356,6 +384,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
     }
 
+    if (pendingAction.type === "soft_delete") {
+      return "Are you sure you want to delete this vehicle? This action will mark the vehicle as inactive but it can be restored later.";
+    }
+
     return "";
   };
 
@@ -364,6 +396,7 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           onCloseClick={onClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
         >
           <SheetHeader className="pb-6">
@@ -408,11 +441,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                           variant={isPricingReady ? "default" : "outline"}
                           size="icon"
                           onClick={handleTogglePricingReady}
-                          className={`h-9 w-9 ${
-                            isPricingReady
-                              ? "bg-green-500 hover:bg-green-600 text-white"
-                              : "bg-white hover:bg-white border-transparent hover:border-green-500"
-                          }`}
+                          className={`h-9 w-9 ${isPricingReady
+                            ? "bg-green-500 hover:bg-green-600 text-white"
+                            : "bg-white hover:bg-white border-transparent hover:border-green-500"
+                            }`}
                         >
                           <Calculator className="h-4 w-4 text-green-500" />
                         </Button>
@@ -444,6 +476,24 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSoftDelete}
+                          className="h-9 w-9 bg-white hover:bg-white border-transparent hover:border-red-500"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Vehicle</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
@@ -454,6 +504,7 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="attachments">Attachments</TabsTrigger>
+              <TabsTrigger value="activity">Activity Stream</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -476,10 +527,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Import Section */}
               <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Ownership Section */}
               <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
@@ -490,6 +541,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 onUpdate={onUpdate}
                 vehicleType={vehicleType}
               />
+            </TabsContent>
+
+            <TabsContent value="activity">
+              <ActivityStreamSection vehicleType="master" stockId={vehicle.vehicle_stock_id} />
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -528,10 +583,10 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
               ))}
             {(!vehicle.workshop_report_ready ||
               vehicle.workshop_report_ready.length === 0) && (
-              <p className="text-center text-muted-foreground py-4">
-                No inspection stage reports available yet
-              </p>
-            )}
+                <p className="text-center text-muted-foreground py-4">
+                  No inspection stage reports available yet
+                </p>
+              )}
           </div>
         </DialogContent>
       </Dialog>
@@ -580,9 +635,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                       className="rounded"
                     />
                     <span
-                      className={`font-medium ${
-                        !canEdit && inWorkshop ? "text-gray-500" : ""
-                      }`}
+                      className={`font-medium ${!canEdit && inWorkshop ? "text-gray-500" : ""
+                        }`}
                     >
                       {stageName}
                     </span>
@@ -603,8 +657,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                         progress === "completed"
                           ? "default"
                           : progress === "in_progress"
-                          ? "destructive"
-                          : "secondary"
+                            ? "destructive"
+                            : "secondary"
                       }
                       className="text-xs"
                     >
@@ -623,8 +677,8 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
                 // Reset to current workshop state
                 const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
                   ? vehicle.is_workshop
-                      .filter((item: any) => item.in_workshop)
-                      .map((item: any) => item.stage_name)
+                    .filter((item: any) => item.in_workshop)
+                    .map((item: any) => item.stage_name)
                   : [];
                 setSelectedStages(currentlyInWorkshop);
               }}

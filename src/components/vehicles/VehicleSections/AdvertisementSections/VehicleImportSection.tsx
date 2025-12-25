@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { adPublishingServices } from "@/api/services";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleImportSectionProps {
   vehicle: any;
@@ -21,7 +22,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const importData = vehicle.vehicle_import_details?.[0] || {};
-  
+
   const [formData, setFormData] = useState({
     delivery_port: importData.delivery_port || "",
     vessel_name: importData.vessel_name || "",
@@ -35,6 +36,7 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
   const handleSave = async () => {
     try {
       await adPublishingServices.updateAdVehicle(vehicle._id, {
+        module_section: "Vehicle Import Details",
         vehicle_import_details: [{
           delivery_port: formData.delivery_port,
           vessel_name: formData.vessel_name,
@@ -94,64 +96,116 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
               {isEditing ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="delivery_port">Delivery Port</Label>
+                    <FieldWithHistory
+                      fieldName="delivery_port"
+                      fieldDisplayName="Delivery Port"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="Delivery Port"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="delivery_port"
                         value={formData.delivery_port}
                         onChange={(e) => setFormData({ ...formData, delivery_port: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="vessel_name">Vessel Name</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="vessel_name"
+                      fieldDisplayName="Vessel Name"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="Vessel Name"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="vessel_name"
                         value={formData.vessel_name}
                         onChange={(e) => setFormData({ ...formData, vessel_name: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="voyage">Voyage</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="voyage"
+                      fieldDisplayName="Voyage"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="Voyage"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="voyage"
                         value={formData.voyage}
                         onChange={(e) => setFormData({ ...formData, voyage: e.target.value })}
                       />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={formData.imported_as_damaged}
-                        onCheckedChange={(checked) => setFormData({ ...formData, imported_as_damaged: checked })}
-                      />
-                      <Label>Imported as Damaged</Label>
-                    </div>
-                    <div>
-                      <Label htmlFor="etd">ETD</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="imported_as_damaged"
+                      fieldDisplayName="Imported as Damaged"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="Imported as Damaged"
+                      showHistoryIcon={!isEditing}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={formData.imported_as_damaged}
+                          onCheckedChange={(checked) => setFormData({ ...formData, imported_as_damaged: checked })}
+                        />
+                        <Label>Imported as Damaged</Label>
+                      </div>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="etd"
+                      fieldDisplayName="ETD"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="ETD"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="etd"
                         type="date"
                         value={formData.etd}
                         onChange={(e) => setFormData({ ...formData, etd: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="eta">ETA</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="eta"
+                      fieldDisplayName="ETA"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="ETA"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="eta"
                         type="date"
                         value={formData.eta}
                         onChange={(e) => setFormData({ ...formData, eta: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="date_on_yard">Date on Yard</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="date_on_yard"
+                      fieldDisplayName="Date on Yard"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Import Details"
+                      label="Date on Yard"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="date_on_yard"
                         type="date"
                         value={formData.date_on_yard}
                         onChange={(e) => setFormData({ ...formData, date_on_yard: e.target.value })}
                       />
-                    </div>
+                    </FieldWithHistory>
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleCancel}>
@@ -166,40 +220,82 @@ const VehicleImportSection: React.FC<VehicleImportSectionProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Delivery Port</Label>
+                  <FieldWithHistory
+                    fieldName="delivery_port"
+                    fieldDisplayName="Delivery Port"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="Delivery Port"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.delivery_port || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Vessel Name</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="vessel_name"
+                    fieldDisplayName="Vessel Name"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="Vessel Name"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.vessel_name || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Voyage</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="voyage"
+                    fieldDisplayName="Voyage"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="Voyage"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.voyage || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Imported as Damaged</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="imported_as_damaged"
+                    fieldDisplayName="Imported as Damaged"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="Imported as Damaged"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.imported_as_damaged ? 'Yes' : 'No'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">ETD</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="etd"
+                    fieldDisplayName="ETD"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="ETD"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.etd ? new Date(formData.etd).toLocaleDateString() : 'N/A'}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">ETA</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="eta"
+                    fieldDisplayName="ETA"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="ETA"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.eta ? new Date(formData.eta).toLocaleDateString() : 'N/A'}
                     </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Date on Yard</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="date_on_yard"
+                    fieldDisplayName="Date on Yard"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType={vehicle?.vehicle_type || "advertisement"}
+                    moduleName="Vehicle Import Details"
+                    label="Date on Yard"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.date_on_yard ? new Date(formData.date_on_yard).toLocaleDateString() : 'N/A'}
                     </p>
-                  </div>
+                  </FieldWithHistory>
                 </div>
               )}
             </CardContent>

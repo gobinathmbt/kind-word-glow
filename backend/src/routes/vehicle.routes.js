@@ -8,6 +8,8 @@ const {
   createVehicleStock,
   updateVehicle,
   deleteVehicle,
+  softDeleteVehicle,
+  restoreVehicle,
   receiveVehicleData,
   processQueueManually,
 
@@ -47,6 +49,10 @@ router.post('/bulk-import', bulkImportVehicles);
 router.post('/create-stock', createVehicleStock);
 router.put('/:id/:vehicleType', updateVehicle);
 router.delete('/:id', deleteVehicle);
+
+// Soft delete and restore routes
+router.patch('/:id/:vehicleType/soft-delete', softDeleteVehicle);
+router.patch('/:id/:vehicleType/restore', restoreVehicle);
 
 // Vehicle section update routes
 router.put('/:id/:vehicleType/overview', updateVehicleOverview);

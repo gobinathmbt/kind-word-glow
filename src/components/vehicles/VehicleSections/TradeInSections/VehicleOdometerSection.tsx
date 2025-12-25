@@ -74,18 +74,18 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         const response = await companyServices.getMasterdropdownvalues({
           dropdown_name: ["odometer_status"],
         });
-        
+
         // Response structure: { success: true, data: [{ dropdown_name, values: [...] }] }
         if (response.data?.success && response.data?.data && Array.isArray(response.data.data)) {
           // Find the odometer_status dropdown in the response
           const odometerDropdown = response.data.data.find(
             (item: any) => item.dropdown_name === "odometer_status"
           );
-          
+
           if (odometerDropdown && odometerDropdown.values && Array.isArray(odometerDropdown.values)) {
             return odometerDropdown.values;
           }
-          
+
         }
         return [];
       } catch (error) {
@@ -100,7 +100,7 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     if (!odometerStatusData || !Array.isArray(odometerStatusData)) {
       return [];
     }
-    
+
     if (odometerStatusData.length === 0) {
       return [];
     }
@@ -119,7 +119,7 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         value: item.option_value,
         label: item.display_value || item.option_value,
       }))
-      .filter((option) => option.value && option.value.trim() !== ""); 
+      .filter((option) => option.value && option.value.trim() !== "");
     return options;
   }, [odometerStatusData]);
 
@@ -154,12 +154,12 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         if (createdB !== createdA) return createdB - createdA;
       } else if (a.created_at && !b.created_at) return -1;
       else if (!a.created_at && b.created_at) return 1;
-      
+
       // Second priority: reading_date descending
       const dateA = new Date(a.reading_date).getTime();
       const dateB = new Date(b.reading_date).getTime();
       if (dateB !== dateA) return dateB - dateA;
-      
+
       // Third priority: reading descending
       return Number(b.reading) - Number(a.reading);
     });
@@ -178,12 +178,12 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         if (createdB !== createdA) return createdB - createdA;
       } else if (a.created_at && !b.created_at) return -1;
       else if (!a.created_at && b.created_at) return 1;
-      
+
       // Second priority: reading_date descending
       const dateA = new Date(a.reading_date).getTime();
       const dateB = new Date(b.reading_date).getTime();
       if (dateB !== dateA) return dateB - dateA;
-      
+
       // Third priority: reading descending
       return Number(b.reading) - Number(a.reading);
     });
@@ -198,7 +198,7 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     );
     return foundOption?.label || latestEntry.odometerStatus;
   }, [latestEntry, odometerStatusOptions]);
-  
+
   const summaryCertified = latestEntry?.odometerCertified ? "Yes" : "No";
 
   const handleOpenDialog = (index: number | null = null) => {
@@ -269,9 +269,11 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         updatedEntries = [...odometerEntries, newEntry];
       }
 
-      // Update backend
+      // Update backend - preserve _id if it exists for proper matching
       await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+        module_section: "Vehicle Odometer",
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,
@@ -302,7 +304,9 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
       const updatedEntries = odometerEntries.filter((_, i) => i !== deleteIndex);
 
       await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+        module_section: "Vehicle Odometer",
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,
@@ -335,21 +339,21 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
             <CardContent className="pt-6">
               {/* Summary Section - Display only, matching VehicleGeneralInfoSection style */}
               <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div>
+                <div>
                   <Label className="text-sm font-medium">Odometer Status</Label>
                   <p className="text-sm text-muted-foreground">
                     {summaryStatus}
                   </p>
                 </div>
-                  <div>
+                <div>
                   <Label className="text-sm font-medium">Odometer Certified</Label>
-                    <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {summaryCertified}
-                    </p>
-                  </div>
-                  <div>
+                  </p>
+                </div>
+                <div>
                   <Label className="text-sm font-medium">Latest Reading</Label>
-                    <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {latestReading > 0 ? `${latestReading.toLocaleString()} km` : "N/A"}
                   </p>
                 </div>
@@ -391,19 +395,19 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
                                 if (createdB !== createdA) return createdB - createdA;
                               } else if (a.created_at && !b.created_at) return -1;
                               else if (!a.created_at && b.created_at) return 1;
-                              
+
                               // Second priority: reading_date descending
                               const dateA = new Date(a.reading_date).getTime();
                               const dateB = new Date(b.reading_date).getTime();
                               if (dateB !== dateA) return dateB - dateA;
-                              
+
                               // Third priority: reading descending
                               return Number(b.reading) - Number(a.reading);
                             })
                             .map((entry, index) => {
                               const originalIndex = odometerEntries.findIndex(
-                                (e) => e._id === entry._id || 
-                                (e.reading_date === entry.reading_date && e.reading === entry.reading)
+                                (e) => e._id === entry._id ||
+                                  (e.reading_date === entry.reading_date && e.reading === entry.reading)
                               );
                               return (
                                 <TableRow key={entry._id || index} className="hover:bg-muted/50 border-0">
@@ -441,8 +445,8 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
                         </TableBody>
                       </Table>
                     </ScrollArea>
-                </div>
-              )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

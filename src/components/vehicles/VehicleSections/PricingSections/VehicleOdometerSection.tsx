@@ -35,8 +35,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, Edit, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices, companyServices } from "@/api/services";
+import { vehicleServices, companyServices, commonVehicleServices } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleOdometerSectionProps {
   vehicle: any;
@@ -269,15 +270,17 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         updatedEntries = [...odometerEntries, newEntry];
       }
 
-      // Update backend
-      await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+      // Update backend - preserve _id if it exists for proper matching
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,
           odometerStatus: entry.odometerStatus,
           created_at: entry.created_at,
         })),
+        module_section: "Pricing Odometer"
       });
 
       setOdometerEntries(updatedEntries);
@@ -301,14 +304,16 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
     try {
       const updatedEntries = odometerEntries.filter((_, i) => i !== deleteIndex);
 
-      await vehicleServices.updateVehicleOdometer(vehicle._id, vehicle.vehicle_type, {
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_odometer: updatedEntries.map((entry) => ({
+          ...(entry._id && { _id: entry._id }), // Preserve _id if it exists
           reading: entry.reading,
           reading_date: entry.reading_date,
           odometerCertified: entry.odometerCertified,
           odometerStatus: entry.odometerStatus,
           created_at: entry.created_at,
         })),
+        module_section: "Pricing Odometer",
       });
 
       setOdometerEntries(updatedEntries);
@@ -333,26 +338,44 @@ const VehicleOdometerSection: React.FC<VehicleOdometerSectionProps> = ({ vehicle
         <AccordionContent>
           <Card>
             <CardContent className="pt-6">
-              {/* Summary Section - Display only, matching VehicleGeneralInfoSection style */}
+              {/* Summary Section - Display only, with FieldWithHistory for activity tracking */}
               <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div>
-                  <Label className="text-sm font-medium">Odometer Status</Label>
+                <FieldWithHistory
+                  fieldName="odometerStatus"
+                  fieldDisplayName="Odometer Status"
+                  vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                  vehicleType={vehicle?.vehicle_type || "pricing"}
+                  moduleName="Pricing Odometer"
+                  label="Odometer Status"
+                >
                   <p className="text-sm text-muted-foreground">
                     {summaryStatus}
                   </p>
-                </div>
-                  <div>
-                  <Label className="text-sm font-medium">Odometer Certified</Label>
-                    <p className="text-sm text-muted-foreground">
+                </FieldWithHistory>
+                <FieldWithHistory
+                  fieldName="odometerCertified"
+                  fieldDisplayName="Odometer Certified"
+                  vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                  vehicleType={vehicle?.vehicle_type || "pricing"}
+                  moduleName="Pricing Odometer"
+                  label="Odometer Certified"
+                >
+                  <p className="text-sm text-muted-foreground">
                     {summaryCertified}
-                    </p>
-                  </div>
-                  <div>
-                  <Label className="text-sm font-medium">Latest Reading</Label>
-                    <p className="text-sm text-muted-foreground">
+                  </p>
+                </FieldWithHistory>
+                <FieldWithHistory
+                  fieldName="reading"
+                  fieldDisplayName="Latest Reading"
+                  vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                  vehicleType={vehicle?.vehicle_type || "pricing"}
+                  moduleName="Pricing Odometer"
+                  label="Latest Reading"
+                >
+                  <p className="text-sm text-muted-foreground">
                     {latestReading > 0 ? `${latestReading.toLocaleString()} km` : "N/A"}
                   </p>
-                </div>
+                </FieldWithHistory>
               </div>
 
               {/* Table Section */}

@@ -1,13 +1,15 @@
 
 const Vehicle = require('../models/Vehicle');
 const { logEvent } = require('./logs.controller');
+const { logBatchActivity, calculateChanges, logActivity } = require('./vehicleActivityLog.controller');
+const ActivityLoggingService = require('../services/activityLogging.service');
 
 // @desc    Get all trade-ins
 // @route   GET /api/tradein
 // @access  Private (Company Admin/Super Admin)
 const getTadeins = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, vehicle_type, status } = req.query;
+    const { page = 1, limit = 20, search, vehicle_type, status, deleted_only } = req.query;
 
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -15,6 +17,20 @@ const getTadeins = async (req, res) => {
 
     // Build filter with company_id first for index usage
     let filter = { company_id: req.user.company_id };
+
+    // Handle soft delete filter
+    if (deleted_only === 'true') {
+      filter.isActive = false;
+    } else {
+      // Show active vehicles (isActive: true OR isActive field doesn't exist)
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }
+        ]
+      });
+    }
 
     // Handle dealership-based access for non-primary company_super_admin
     if (
@@ -150,6 +166,19 @@ const getTadeins = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const startAppraisal = async (req, res) => {
   try {
+    const oldVehicle = await Vehicle.findOne({
+      vehicle_stock_id: req.params.vehicleId,
+      company_id: req.user.company_id,
+      vehicle_type: req.params.vehicleType,
+    });
+
+    if (!oldVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
     const vehicle = await Vehicle.findOneAndUpdate(
       {
         vehicle_stock_id: req.params.vehicleId,
@@ -164,12 +193,19 @@ const startAppraisal = async (req, res) => {
       { new: true }
     );
 
-    if (!vehicle) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vehicle not found'
-      });
-    }
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: 'tradein',
+        metadata: {
+          action_type: 'appraisal_started'
+        }
+      }
+    });
 
     await logEvent({
       event_type: 'tradein',
@@ -231,17 +267,16 @@ const getTradein = async (req, res) => {
 // @desc    Update trade-in
 // @route   PUT /api/tradein/:id
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update trade-in
+// @route   PUT /api/tradein/:id
+// @access  Private (Company Admin/Super Admin)
 const updateTradein = async (req, res) => {
   try {
-    const tradein = await Vehicle.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        company_id: req.user.company_id,
-        vehicle_type: 'tradein'
-      },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const tradein = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'tradein'
+    });
 
     if (!tradein) {
       return res.status(404).json({
@@ -249,6 +284,37 @@ const updateTradein = async (req, res) => {
         message: 'Trade-in not found'
       });
     }
+
+    const oldTradein = tradein.toObject();
+
+    // Special handling for vehicle_odometer to preserve _id
+    if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
+      tradein.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
+        ...entry, // Preserves _id if it exists
+        reading: Number(entry.reading),
+        reading_date: entry.reading_date ? new Date(entry.reading_date) : new Date(),
+        odometerCertified: entry.odometerCertified || false,
+        odometerStatus: entry.odometerStatus || "",
+        created_at: entry.created_at ? new Date(entry.created_at) : new Date(),
+      }));
+      // Remove from req.body so it doesn't get overwritten by set()
+      delete req.body.vehicle_odometer;
+    }
+
+    // Apply updates
+    tradein.set(req.body);
+    await tradein.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldTradein,
+      newData: tradein.toObject(),
+      req,
+      vehicle: tradein,
+      options: {
+        vehicleType: 'tradein'
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -281,6 +347,19 @@ const completeAppraisal = async (req, res) => {
 
     const offerValue = market_value * (conditionMultipliers[condition_rating] || 0.8);
 
+    const oldTradein = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'tradein'
+    });
+
+    if (!oldTradein) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trade-in not found'
+      });
+    }
+
     const tradein = await Vehicle.findOneAndUpdate(
       {
         _id: req.params.id,
@@ -299,12 +378,20 @@ const completeAppraisal = async (req, res) => {
       { new: true }
     );
 
-    if (!tradein) {
-      return res.status(404).json({
-        success: false,
-        message: 'Trade-in not found'
-      });
-    }
+    const changes = calculateChanges(oldTradein, tradein);
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: tradein.vehicle_stock_id,
+      vehicle_type: 'tradein',
+      module_name: 'Trade-In',
+      action: 'update',
+      user_id: req.user.id,
+      changes: changes,
+      metadata: {
+        vehicle_stock_id: tradein.vehicle_stock_id
+      }
+    });
 
     await logEvent({
       event_type: 'tradein',
@@ -342,6 +429,19 @@ const makeOffer = async (req, res) => {
   try {
     const { offer_value, offer_notes } = req.body;
 
+    const oldTradein = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'tradein'
+    });
+
+    if (!oldTradein) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trade-in not found'
+      });
+    }
+
     const tradein = await Vehicle.findOneAndUpdate(
       {
         _id: req.params.id,
@@ -358,12 +458,20 @@ const makeOffer = async (req, res) => {
       { new: true }
     );
 
-    if (!tradein) {
-      return res.status(404).json({
-        success: false,
-        message: 'Trade-in not found'
-      });
-    }
+    const changes = calculateChanges(oldTradein, tradein);
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: tradein.vehicle_stock_id,
+      vehicle_type: 'tradein',
+      module_name: 'Trade-In',
+      action: 'update',
+      user_id: req.user.id,
+      changes: changes,
+      metadata: {
+        vehicle_stock_id: tradein.vehicle_stock_id
+      }
+    });
 
     await logEvent({
       event_type: 'tradein',

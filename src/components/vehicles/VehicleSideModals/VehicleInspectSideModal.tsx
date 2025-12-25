@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, DollarSign, FileBarChart } from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, DollarSign, FileBarChart, Trash2 } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
 import VehicleOverviewSection from "@/components/vehicles/VehicleSections/InspectionSections/VehicleOverviewSection";
@@ -47,6 +47,7 @@ import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/Inspe
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
 import MasterInspection from "@/components/inspection/MasterInspection";
+import ActivityStreamSection from "../VehicleSections/Common/ActivityStreamSection";
 
 interface VehicleInspectSideModalProps {
   vehicle: any;
@@ -79,7 +80,7 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
 
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: "tradein" | "inspection";
+    type: "tradein" | "inspection" | "soft_delete";
     action?: "push" | "remove";
     stages?: string[];
   } | null>(null);
@@ -109,7 +110,7 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
       setIsPricingReady(!isPricingReady);
       toast.success(
         `Vehicle ${!isPricingReady ? "marked as" : "removed from"
-          
+
         } pricing ready`
       );
       onUpdate();
@@ -129,6 +130,11 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleSoftDelete = () => {
+    setPendingAction({ type: "soft_delete" });
+    setConfirmationOpen(true);
   };
 
   useEffect(() => {
@@ -287,6 +293,29 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
 
         // Trigger parent update to refresh vehicle data
         onUpdate();
+      }
+
+      if (pendingAction.type === "soft_delete") {
+        try {
+          console.log("Attempting to soft delete vehicle:", vehicle._id, vehicleType);
+          await vehicleServices.softDeleteVehicle(vehicle._id, vehicleType);
+          console.log("Soft delete successful");
+          toast.success("Vehicle deleted successfully");
+
+          // First refresh the list to remove the deleted vehicle
+          await onUpdate();
+
+          // Then close the modal after the list is updated
+          onClose();
+        } catch (error) {
+          console.error("Soft delete failed:", error);
+          toast.error(`Failed to delete vehicle: ${error.response?.data?.message || error.message}`);
+        } finally {
+          setConfirmationOpen(false);
+          setPendingAction(null);
+          setIsUpdatingWorkshop(false);
+        }
+        return;
       }
     } catch (error) {
       const actionText =
@@ -515,6 +544,10 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
       return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
     }
 
+    if (pendingAction.type === "soft_delete") {
+      return "Are you sure you want to delete this vehicle? This action will mark the vehicle as inactive but it can be restored later.";
+    }
+
     return "";
   };
 
@@ -523,6 +556,7 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           onCloseClick={onClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
         >
           <SheetHeader className="pb-6">
@@ -589,8 +623,8 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="icon"
                               className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
                             >
@@ -760,6 +794,24 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSoftDelete}
+                          className="bg-white hover:bg-white text-red-600 hover:text-red-700 border-gray-200 hover:border-red-400 hover:shadow-sm"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Vehicle</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
@@ -770,6 +822,7 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="attachments">Attachments</TabsTrigger>
+              <TabsTrigger value="activity">Activity Stream</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -792,15 +845,19 @@ const VehicleInspectSideModal: React.FC<VehicleInspectSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Import Section */}
               <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Ownership Section */}
               <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
 
-            <TabsContent value="attachments">
+            <TabsContent value="activity" className="space-y-6">
+              <ActivityStreamSection vehicleType="inspection" stockId={vehicle.vehicle_stock_id} />
+            </TabsContent>
+
+            <TabsContent value="attachments" className="space-y-6">
               <VehicleAttachmentsSection
                 vehicle={vehicle}
                 onUpdate={onUpdate}

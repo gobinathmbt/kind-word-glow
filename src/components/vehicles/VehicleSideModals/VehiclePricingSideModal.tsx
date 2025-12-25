@@ -9,21 +9,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, Calculator, RefreshCw } from "lucide-react";
-import { commonVehicleServices } from "@/api/services";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Car, Calculator, RefreshCw, Trash2 } from "lucide-react";
+import { commonVehicleServices, vehicleServices, masterVehicleServices, adPublishingServices } from "@/api/services";
 import { toast } from "sonner";
-import VehicleOverviewSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOverviewSection";
-import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleGeneralInfoSection";
-import VehicleSourceSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSourceSection";
-import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleRegistrationSection";
-import VehicleEngineSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleEngineSection";
-import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSpecificationsSection";
-import VehicleOdometerSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOdometerSection";
-import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleAttachmentsSection";
-import VehicleImportSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleImportSection";
-import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOwnershipSection";
+import VehicleOverviewSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOverviewSection";
+import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleGeneralInfoSection";
+import VehicleSourceSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSourceSection";
+import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleRegistrationSection";
+import VehicleEngineSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleEngineSection";
+import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSpecificationsSection";
+import VehicleOdometerSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOdometerSection";
+import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleAttachmentsSection";
+import VehicleImportSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleImportSection";
+import VehicleOwnershipSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOwnershipSection";
 import CostCalculationDialog from "@/components/cost-calculation/CostCalculationDialog";
 import { useAuth } from "@/auth/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Tooltip,
   TooltipContent,
@@ -48,8 +59,13 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
   const [costCalculationOpen, setCostCalculationOpen] = useState(false);
   const [selectedVehicleForCost, setSelectedVehicleForCost] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "soft_delete";
+  } | null>(null);
+
   const { completeUser } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (vehicle && isOpen) {
@@ -71,6 +87,11 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
     setSelectedVehicleForCost(null);
     // Refresh data when cost calculation is completed
     onUpdate();
+    
+    // Invalidate activity logs query to refresh the activity stream
+    queryClient.invalidateQueries({
+      queryKey: ['vehicle-activity', vehicle.vehicle_type, vehicle.vehicle_stock_id]
+    });
   };
 
   const handleRefresh = async () => {
@@ -78,12 +99,79 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
       setIsRefreshing(true);
       // Call onUpdate to refresh all APIs and reload the component
       await onUpdate();
+      
+      // Invalidate activity logs query to refresh the activity stream
+      queryClient.invalidateQueries({
+        queryKey: ['vehicle-activity', vehicle.vehicle_type, vehicle.vehicle_stock_id]
+      });
+      
       toast.success("Vehicle data refreshed successfully");
     } catch (error) {
       toast.error("Failed to refresh vehicle data");
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleSoftDelete = () => {
+    setPendingAction({ type: "soft_delete" });
+    setConfirmationOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    try {
+      if (!pendingAction) return;
+
+      if (pendingAction.type === "soft_delete") {
+        console.log("Attempting to soft delete vehicle:", vehicle._id, vehicle.vehicle_type);
+        console.log("Full vehicle object:", vehicle);
+
+        // Route to the correct service based on vehicle type
+        if (vehicle.vehicle_type === "master") {
+          console.log("Using master vehicle service");
+          await masterVehicleServices.softDeleteMasterVehicle(vehicle._id);
+        } else if (vehicle.vehicle_type === "advertisement") {
+          console.log("Using advertisement vehicle service");
+          await adPublishingServices.softDeleteAdVehicle(vehicle._id);
+        } else {
+          // For inspection, tradein, and other types, use the main vehicle service
+          console.log("Using main vehicle service for type:", vehicle.vehicle_type);
+          await vehicleServices.softDeleteVehicle(vehicle._id, vehicle.vehicle_type);
+        }
+
+        console.log("Soft delete successful");
+        toast.success("Vehicle deleted successfully");
+
+        // First refresh the list to remove the deleted vehicle
+        await onUpdate();
+
+        // Then close the modal after the list is updated
+        onClose();
+      }
+    } catch (error) {
+      console.error("Soft delete failed:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        vehicleId: vehicle._id,
+        vehicleType: vehicle.vehicle_type
+      });
+      toast.error(`Failed to delete vehicle: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setConfirmationOpen(false);
+      setPendingAction(null);
+    }
+  };
+
+  const getConfirmationMessage = () => {
+    if (!pendingAction) return "";
+
+    if (pendingAction.type === "soft_delete") {
+      return "Are you sure you want to delete this vehicle? This action will mark the vehicle as inactive but it can be restored later.";
+    }
+
+    return "";
   };
 
   if (!vehicle) return null;
@@ -93,6 +181,7 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           onCloseClick={onClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
         >
           <SheetHeader className="pb-6">
@@ -142,10 +231,10 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                         size="icon"
                         onClick={handleRefresh}
                         disabled={isRefreshing}
-                    className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
+                        className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
                       >
-                        <RefreshCw 
-                          className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                        <RefreshCw
+                          className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
                         />
                       </Button>
                     </TooltipTrigger>
@@ -154,18 +243,36 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleSoftDelete}
+                        className="bg-white hover:bg-white text-red-600 hover:text-red-700 border-gray-200 hover:border-red-400 hover:shadow-sm"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Vehicle</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
-              
+
               {/* Optional: Show pricing status badge */}
               {vehicle.pricing_status && (
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className={
-                    vehicle.pricing_status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
+                    vehicle.pricing_status === 'completed'
+                      ? 'bg-green-100 text-green-800'
                       : vehicle.pricing_status === 'processing'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
                   }
                 >
                   {vehicle.pricing_status}
@@ -201,10 +308,10 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Import Section */}
               <VehicleImportSection vehicle={vehicle} onUpdate={onUpdate} />
-              
+
               {/* Ownership Section */}
               <VehicleOwnershipSection vehicle={vehicle} onUpdate={onUpdate} />
             </TabsContent>
@@ -227,6 +334,31 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
         onClose={handleCostCalculationClose}
         vehicle={selectedVehicleForCost}
       />
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Action</AlertDialogTitle>
+            <AlertDialogDescription>
+              {getConfirmationMessage()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setConfirmationOpen(false);
+                setPendingAction(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

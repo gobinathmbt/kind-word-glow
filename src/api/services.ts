@@ -1,3 +1,5 @@
+
+
 import apiClient from "./axios";
 
 // Auth Services
@@ -10,9 +12,9 @@ export const authServices = {
 
   getMe: () => apiClient.get("/api/auth/me"),
 
-  getCurrentUserPermissions: (module_name?: string) => 
-    apiClient.get("/api/auth/me/permissions", { 
-      params: module_name ? { module_name } : {} 
+  getCurrentUserPermissions: (module_name?: string) =>
+    apiClient.get("/api/auth/me/permissions", {
+      params: module_name ? { module_name } : {}
     }),
 
   getCurrentUserModule: () => apiClient.get("/api/auth/me/module"),
@@ -40,7 +42,7 @@ export const subscriptionServices = {
   getCompanySubscriptionInfo: () =>
     apiClient.get("/api/subscription/company-info"),
 
-   // Fetch invoice from payment gateway
+  // Fetch invoice from payment gateway
   fetchInvoiceFromGateway: (subscriptionId: string) =>
     apiClient.get(`/api/subscription/${subscriptionId}/invoice-from-gateway`),
 
@@ -185,7 +187,6 @@ export const trademeMetadataServices = {
 
 // Vehicle Metadata Services
 export const vehicleMetadataServices = {
-  
   // Get list data for tables
   getMakes: (params = {}) =>
     apiClient.get("/api/master/vehicle-metadata/list/makes", { params }),
@@ -308,52 +309,52 @@ export const vehicleMetadataServices = {
 
 // Notification Configuration Services
 export const notificationConfigServices = {
-  getNotificationConfigurations: (params = {}) => 
+  getNotificationConfigurations: (params = {}) =>
     apiClient.get("/api/notification-config", { params }),
-    
-  getNotificationConfiguration: (id) => 
+
+  getNotificationConfiguration: (id) =>
     apiClient.get(`/api/notification-config/${id}`),
-    
-  createNotificationConfiguration: (data) => 
+
+  createNotificationConfiguration: (data) =>
     apiClient.post("/api/notification-config", data),
-    
-  updateNotificationConfiguration: (id, data) => 
+
+  updateNotificationConfiguration: (id, data) =>
     apiClient.put(`/api/notification-config/${id}`, data),
-    
-  deleteNotificationConfiguration: (id) => 
+
+  deleteNotificationConfiguration: (id) =>
     apiClient.delete(`/api/notification-config/${id}`),
-    
-  toggleNotificationConfigurationStatus: (id, data) => 
+
+  toggleNotificationConfigurationStatus: (id, data) =>
     apiClient.patch(`/api/notification-config/${id}/status`, data),
-    
-  getAvailableSchemas: () => 
+
+  getAvailableSchemas: () =>
     apiClient.get("/api/notification-config/schemas"),
-    
-  getCompanyUsers: () => 
+
+  getCompanyUsers: () =>
     apiClient.get("/api/notification-config/users"),
 };
 
 // Notification Services
 export const notificationServices = {
-  getNotifications: (params = {}) => 
+  getNotifications: (params = {}) =>
     apiClient.get("/api/notifications", { params }),
-    
-  getNotificationStats: () => 
+
+  getNotificationStats: () =>
     apiClient.get("/api/notifications/stats"),
-    
-  getUnreadCount: () => 
+
+  getUnreadCount: () =>
     apiClient.get("/api/notifications/unread-count"),
-    
-  markNotificationAsRead: (id) => 
+
+  markNotificationAsRead: (id) =>
     apiClient.patch(`/api/notifications/${id}/read`),
-    
-  markMultipleAsRead: (notificationIds) => 
+
+  markMultipleAsRead: (notificationIds) =>
     apiClient.patch("/api/notifications/mark-multiple-read", { notification_ids: notificationIds }),
-    
-  markAllAsRead: () => 
+
+  markAllAsRead: () =>
     apiClient.patch("/api/notifications/mark-all-read"),
-    
-  deleteNotification: (id) => 
+
+  deleteNotification: (id) =>
     apiClient.delete(`/api/notifications/${id}`),
 };
 
@@ -362,7 +363,7 @@ export const workflowServices = {
   getWorkflows: (params?: any) => apiClient.get("/api/workflows", { params }),
   getWorkflow: (id: string) => apiClient.get(`/api/workflows/${id}`),
   createWorkflow: (data: any) => apiClient.post("/api/workflows", data),
-  getWorkflowExecutionLogs: (workflowId: string, params?: any) => 
+  getWorkflowExecutionLogs: (workflowId: string, params?: any) =>
     apiClient.get(`/api/workflow-execute/logs/${workflowId}`, { params }),
 
   // Update workflow
@@ -383,13 +384,13 @@ export const workflowServices = {
   getVehicleSchemaFields: () => apiClient.get("/api/workflows/vehicle-schema"),
 
   // Get all available schemas
-  getAvailableSchemas: (workflowType?: string) => 
-    apiClient.get("/api/workflows/available-schemas", { 
-      params: workflowType ? { workflow_type: workflowType } : {} 
+  getAvailableSchemas: (workflowType?: string) =>
+    apiClient.get("/api/workflows/available-schemas", {
+      params: workflowType ? { workflow_type: workflowType } : {}
     }),
 
   // Get schema fields for target schema node
-  getSchemaFields: (schemaType: string) => 
+  getSchemaFields: (schemaType: string) =>
     apiClient.get(`/api/workflows/schema-fields/${schemaType}`),
 
   // Get common fields between multiple schemas
@@ -458,7 +459,7 @@ export const masterDropdownServices = {
 };
 
 // Company Services
-export const companyServices = { 
+export const companyServices = {
   getDashboardStats: (params?: any) =>
     apiClient.get("/api/company/dashboard/stats", { params }),
 
@@ -595,45 +596,45 @@ export const companyServices = {
   // Currency Services
   getCurrencies: (params?: any) =>
     apiClient.get("/api/company/currencies", { params }),
-  
+
   getCurrency: (id: string) =>
     apiClient.get(`/api/company/currencies/${id}`),
-  
+
   createCurrency: (data: any) =>
     apiClient.post("/api/company/currencies", data),
-  
+
   updateCurrency: (id: string, data: any) =>
     apiClient.put(`/api/company/currencies/${id}`, data),
-  
+
   deleteCurrency: (id: string) =>
     apiClient.delete(`/api/company/currencies/${id}`),
 
   // Cost Configuration Services
   getCostConfiguration: () =>
     apiClient.get("/api/company/cost-configuration"),
-  
+
   addCostType: (data: any) =>
     apiClient.post("/api/company/cost-configuration/cost-types", data),
-  
+
   updateCostType: (costTypeId: string, data: any) =>
     apiClient.put(`/api/company/cost-configuration/cost-types/${costTypeId}`, data),
 
   getCostConfigurationByVehicleType: (vehiclePurchaseType: string) =>
     apiClient.get(`/api/company/cost-configuration/vehicle-type/${vehiclePurchaseType}`),
-  
+
   deleteCostType: (costTypeId: string) =>
     apiClient.delete(`/api/company/cost-configuration/cost-types/${costTypeId}`),
-  
+
   reorderCostTypes: (data: any) =>
     apiClient.put("/api/company/cost-configuration/cost-types/reorder", data),
 
   // Cost Setter Services
   getCostSetter: () =>
     apiClient.get("/api/company/cost-setter"),
-  
+
   updateCostSetter: (data: any) =>
     apiClient.put("/api/company/cost-setter", data),
-  
+
   deleteCostSetter: (vehiclePurchaseType: string) =>
     apiClient.delete(`/api/company/cost-setter/${vehiclePurchaseType}`),
 };
@@ -866,7 +867,7 @@ export const configServices = {
     return response.data;
   },
 
-  
+
 
   // Inspection Calculation services
   addInspectionCalculation: async (
@@ -939,14 +940,14 @@ export const configServices = {
   },
 
   deleteTradeinCalculation: async (
-  configId: string,
-  categoryId: string,
-  calculationId: string
-) => {
-  return await apiClient.delete(
-    `/api/config/tradein/${configId}/categories/${categoryId}/calculations/${calculationId}`
-  );
-},
+    configId: string,
+    categoryId: string,
+    calculationId: string
+  ) => {
+    return await apiClient.delete(
+      `/api/config/tradein/${configId}/categories/${categoryId}/calculations/${calculationId}`
+    );
+  },
 
   toggleTradeinCalculationStatus: async (
     configId: string,
@@ -968,12 +969,36 @@ export const configServices = {
 export const vehicleServices = {
 
   getTadeins: (params?: any) => apiClient.get("/api/tradein", { params }),
-  
+
   getVehicleStock: (params?: any) =>
     apiClient.get("/api/vehicle/stock", { params }),
 
   getVehicleDetail: (vehicleId: string, vehicleType: string) =>
     apiClient.get(`/api/vehicle/detail/${vehicleId}/${vehicleType}`),
+
+  getActivityLogs: (
+    vehicleType: string,
+    stockId: string | number,
+    params?: {
+      page?: number;
+      limit?: number;
+      field?: string;
+      user_id?: string;
+      action?: string;
+      date_from?: string;
+      date_to?: string;
+      module_name?: string;
+      status?: string;
+    }
+  ) => apiClient.get(`/api/vehicle-activity/${vehicleType}/${stockId}`, { params }),
+
+  getFieldHistory: (params: {
+    vehicle_stock_id: string | number;
+    company_id: string;
+    vehicle_type: string;
+    module_name: string;
+    field: string;
+  }) => apiClient.get('/api/vehicle-activity/field-history', { params }),
 
   createVehicleStock: (data: any) =>
     apiClient.post("/api/vehicle/create-stock", data),
@@ -985,6 +1010,16 @@ export const vehicleServices = {
     apiClient.put(`/api/vehicle/${id}/${vehicleType}`, data),
 
   deleteVehicle: (id: string) => apiClient.delete(`/api/vehicle/${id}`),
+
+  // Soft delete vehicle (set isActive = false)
+  softDeleteVehicle: (id: string, vehicleType: string) => {
+    console.log("Making soft delete API call:", `/api/vehicle/${id}/${vehicleType}/soft-delete`);
+    return apiClient.patch(`/api/vehicle/${id}/${vehicleType}/soft-delete`);
+  },
+
+  // Restore vehicle (set isActive = true)
+  restoreVehicle: (id: string, vehicleType: string) =>
+    apiClient.patch(`/api/vehicle/${id}/${vehicleType}/restore`),
 
   // Vehicle Section Updates
   updateVehicleOverview: (vehicleId: string, vehicleType: string, data: any) =>
@@ -1052,10 +1087,12 @@ export const vehicleServices = {
   deleteVehicleAttachment: (
     vehicleId: string,
     vehicleType: string,
-    attachmentId: string
+    attachmentId: string,
+    data?: any
   ) =>
     apiClient.delete(
-      `/api/vehicle/${vehicleId}/${vehicleType}/attachments/${attachmentId}`
+      `/api/vehicle/${vehicleId}/${vehicleType}/attachments/${attachmentId}`,
+      { data }
     ),
 
   // Workshop Status
@@ -1158,9 +1195,9 @@ export const workshopServices = {
 
   // Manual completion services
   createManualQuote: (data: any) => apiClient.post("/api/workshop/manual-quote", data),
-  
+
   createManualBayQuote: (data: any) => apiClient.post("/api/workshop/manual-bay-quote", data),
-  
+
   completeManualQuote: (quoteId: string, data: any) =>
     apiClient.post(`/api/workshop/manual-quote/${quoteId}/complete`, data),
 
@@ -1193,80 +1230,80 @@ export const workshopServices = {
 
 // Service Bay Services
 export const serviceBayServices = {
-  getServiceBays: (params?: any) => 
+  getServiceBays: (params?: any) =>
     apiClient.get("/api/service-bay", { params }),
-  
-  getServiceBay: (id: string) => 
+
+  getServiceBay: (id: string) =>
     apiClient.get(`/api/service-bay/${id}`),
-  
-  createServiceBay: (data: any) => 
+
+  createServiceBay: (data: any) =>
     apiClient.post("/api/service-bay", data),
-  
-  updateServiceBay: (id: string, data: any) => 
+
+  updateServiceBay: (id: string, data: any) =>
     apiClient.put(`/api/service-bay/${id}`, data),
-  
-  deleteServiceBay: (id: string) => 
+
+  deleteServiceBay: (id: string) =>
     apiClient.delete(`/api/service-bay/${id}`),
-  
-  toggleServiceBayStatus: (id: string, data: any) => 
+
+  toggleServiceBayStatus: (id: string, data: any) =>
     apiClient.patch(`/api/service-bay/${id}/status`, data),
-  
-  addBayHoliday: (id: string, data: any) => 
+
+  addBayHoliday: (id: string, data: any) =>
     apiClient.post(`/api/service-bay/${id}/holiday`, data),
 
-  
-  getBayHolidays: (startDate: string, endDate: string, bayId?: string) => 
-    apiClient.get("/api/service-bay/bay-holiday", { 
-      params: { start_date: startDate, end_date: endDate, bay_id: bayId } 
+
+  getBayHolidays: (startDate: string, endDate: string, bayId?: string) =>
+    apiClient.get("/api/service-bay/bay-holiday", {
+      params: { start_date: startDate, end_date: endDate, bay_id: bayId }
     }),
-  
-  
-  removeBayHoliday: (id: string, holidayId: string) => 
+
+
+  removeBayHoliday: (id: string, holidayId: string) =>
     apiClient.delete(`/api/service-bay/${id}/holiday/${holidayId}`),
-  
-  getBaysDropdown: (dealershipId?: string) => 
-    apiClient.get("/api/service-bay/dropdown", { 
-      params: dealershipId ? { dealership_id: dealershipId } : {} 
+
+  getBaysDropdown: (dealershipId?: string) =>
+    apiClient.get("/api/service-bay/dropdown", {
+      params: dealershipId ? { dealership_id: dealershipId } : {}
     }),
 };
 
 // Bay Quote Services (using WorkshopQuote model)
 export const bayQuoteServices = {
-  createBayQuote: (data: any) => 
+  createBayQuote: (data: any) =>
     apiClient.post("/api/workshop/bay-quote", data),
 
-  updateBayQuote: (id: string, data: any) => 
+  updateBayQuote: (id: string, data: any) =>
     apiClient.put(`/api/workshop/bay-quote/${id}`, data),
-  
-  getBayCalendar: (startDate: string, endDate: string, bayId?: string) => 
-    apiClient.get("/api/workshop/bay-calendar", { 
-      params: { start_date: startDate, end_date: endDate, bay_id: bayId } 
+
+  getBayCalendar: (startDate: string, endDate: string, bayId?: string) =>
+    apiClient.get("/api/workshop/bay-calendar", {
+      params: { start_date: startDate, end_date: endDate, bay_id: bayId }
     }),
 
-  getBayQuoteForField: (vehicleType: string, vehicleStockId: string, fieldId: string) => 
+  getBayQuoteForField: (vehicleType: string, vehicleStockId: string, fieldId: string) =>
     apiClient.get(`/api/workshop/bay-quote/${vehicleType}/${vehicleStockId}/${fieldId}`),
-  
-  acceptBayQuote: (id: string) => 
+
+  acceptBayQuote: (id: string) =>
     apiClient.post(`/api/workshop/bay-quote/${id}/accept`),
-  
-  rejectBayQuote: (id: string, reason: string) => 
+
+  rejectBayQuote: (id: string, reason: string) =>
     apiClient.post(`/api/workshop/bay-quote/${id}/reject`, { reason }),
-  
-  startBayWork: (id: string) => 
+
+  startBayWork: (id: string) =>
     apiClient.post(`/api/workshop/bay-quote/${id}/start-work`),
-  
-  submitBayWork: (id: string, data: any) => 
+
+  submitBayWork: (id: string, data: any) =>
     apiClient.post(`/api/workshop/bay-quote/${id}/submit-work`, data),
-  
-  acceptWork: (id: string) => 
+
+  acceptWork: (id: string) =>
     apiClient.post(`/api/workshop/quote/${id}/accept-work`),
-  
-  requestRework: (id: string, reason: string) => 
+
+  requestRework: (id: string, reason: string) =>
     apiClient.post(`/api/workshop/quote/${id}/request-rework`, { reason }),
 
-// In your bayQuoteServices
-rebookBayQuote: (quoteId: string, data: any) =>
-  apiClient.put(`/api/workshop/bay-quote/${quoteId}/rebook`, data),
+  // In your bayQuoteServices
+  rebookBayQuote: (quoteId: string, data: any) =>
+    apiClient.put(`/api/workshop/bay-quote/${quoteId}/rebook`, data),
 
 
 };
@@ -1328,9 +1365,8 @@ export const masterInspectionServices = {
     if (configId) params.append("configId", configId);
 
     const queryString = params.toString();
-    const url = `/api/master-inspection/config/${companyId}/${vehicleType}${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/api/master-inspection/config/${companyId}/${vehicleType}${queryString ? `?${queryString}` : ""
+      }`;
 
     return apiClient.get(url);
   },
@@ -1419,6 +1455,28 @@ export const masterVehicleServices = {
 
   deleteMasterVehicle: (id: string) =>
     apiClient.delete(`/api/mastervehicle/${id}`),
+
+  // Soft delete master vehicle (set isActive = false)
+  softDeleteMasterVehicle: (id: string) => {
+    console.log("Making master vehicle soft delete API call:", `/api/mastervehicle/${id}/soft-delete`);
+    return apiClient.patch(`/api/mastervehicle/${id}/soft-delete`);
+  },
+
+  // Restore master vehicle (set isActive = true)
+  restoreMasterVehicle: (id: string) => {
+    console.log("Making master vehicle restore API call:", `/api/mastervehicle/${id}/restore`);
+    return apiClient.patch(`/api/mastervehicle/${id}/restore`);
+  },
+
+  // Master vehicle attachment methods
+  getVehicleAttachments: (vehicleId: string) =>
+    apiClient.get(`/api/mastervehicle/${vehicleId}/attachments`),
+
+  uploadVehicleAttachment: (vehicleId: string, data: any) =>
+    apiClient.post(`/api/mastervehicle/${vehicleId}/attachments`, data),
+
+  deleteVehicleAttachment: (vehicleId: string, attachmentId: string, data?: any) =>
+    apiClient.delete(`/api/mastervehicle/${vehicleId}/attachments/${attachmentId}`, { data }),
 };
 
 // Ad Publishing Services
@@ -1435,8 +1493,30 @@ export const adPublishingServices = {
 
   deleteAdVehicle: (id: string) => apiClient.delete(`/api/adpublishing/${id}`),
 
+  // Soft delete advertisement vehicle (set isActive = false)
+  softDeleteAdVehicle: (id: string) => {
+    console.log("Making advertisement vehicle soft delete API call:", `/api/adpublishing/${id}/soft-delete`);
+    return apiClient.patch(`/api/adpublishing/${id}/soft-delete`);
+  },
+
+  // Restore advertisement vehicle (set isActive = true)
+  restoreAdVehicle: (id: string) => {
+    console.log("Making advertisement vehicle restore API call:", `/api/adpublishing/${id}/restore`);
+    return apiClient.patch(`/api/adpublishing/${id}/restore`);
+  },
+
   publishAdVehicle: (id: string) =>
     apiClient.post(`/api/adpublishing/${id}/publish`),
+
+  // Advertisement vehicle attachment methods
+  getVehicleAttachments: (vehicleId: string) =>
+    apiClient.get(`/api/adpublishing/${vehicleId}/attachments`),
+
+  uploadVehicleAttachment: (vehicleId: string, data: any) =>
+    apiClient.post(`/api/adpublishing/${vehicleId}/attachments`, data),
+
+  deleteVehicleAttachment: (vehicleId: string, attachmentId: string, data?: any) =>
+    apiClient.delete(`/api/adpublishing/${vehicleId}/attachments/${attachmentId}`, { data }),
 };
 
 
@@ -1453,9 +1533,22 @@ export const commonVehicleServices = {
 
   togglePricingReady: (vehicleId: string, data: any) =>
     apiClient.patch(`/api/common-vehicle/pricing-ready/${vehicleId}`, data),
-    
+
   saveVehicleCostDetails: (vehicleId: string, vehicleType: string, data: any) =>
     apiClient.put(`/api/common-vehicle/${vehicleId}/${vehicleType}/cost-details`, data),
+
+  updateVehiclePricing: (vehicleId: string, vehicleType: string, data: any) =>
+    apiClient.put(`/api/common-vehicle/${vehicleId}/${vehicleType}/pricing`, data),
+
+  // Pricing attachment functions
+  getPricingVehicleAttachments: (vehicleId: string, vehicleType: string) =>
+    apiClient.get(`/api/common-vehicle/${vehicleId}/${vehicleType}/attachments`),
+
+  uploadPricingVehicleAttachment: (vehicleId: string, vehicleType: string, data: any) =>
+    apiClient.post(`/api/common-vehicle/${vehicleId}/${vehicleType}/attachments`, data),
+
+  deletePricingVehicleAttachment: (vehicleId: string, vehicleType: string, attachmentId: string, data?: any) =>
+    apiClient.delete(`/api/common-vehicle/${vehicleId}/${vehicleType}/attachments/${attachmentId}`, { data }),
 };
 
 // Integration Services
@@ -1526,247 +1619,247 @@ export const dashboardAnalyticsServices = {
   // Vehicle Reports (12 endpoints)
   getVehicleOverviewByType: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/overview-by-type", { params }),
-  
+
   getVehiclePricingAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/pricing-analysis", { params }),
-  
+
   getVehicleStatusDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/status-distribution", { params }),
-  
+
   getVehicleWorkshopIntegration: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/workshop-integration", { params }),
-  
+
   getVehicleAttachmentAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/attachment-analysis", { params }),
-  
+
   getVehicleRegistrationCompliance: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/registration-compliance", { params }),
-  
+
   getVehicleImportTimeline: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/import-timeline", { params }),
-  
+
   getVehicleEngineSpecifications: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/engine-specifications", { params }),
-  
+
   getVehicleOdometerTrends: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/odometer-trends", { params }),
-  
+
   getVehicleOwnershipHistory: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/ownership-history", { params }),
-  
+
   getVehicleQueueProcessing: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/queue-processing", { params }),
-  
+
   getVehicleCostDetails: (params?: any) =>
     apiClient.get("/api/company/reports/vehicle/cost-details", { params }),
 
   // WorkshopQuote Reports (12 endpoints)
   getQuoteOverviewByStatus: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/overview-by-status", { params }),
-  
+
   getQuoteLifecycleAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/lifecycle-analysis", { params }),
-  
+
   getQuoteSupplierPerformance: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/supplier-performance", { params }),
-  
+
   getQuoteCostAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/cost-analysis", { params }),
-  
+
   getQuoteApprovalRates: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/approval-rates", { params }),
-  
+
   getQuoteResponseTimeAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/response-time-analysis", { params }),
-  
+
   getQuoteTypeDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/type-distribution", { params }),
-  
+
   getQuoteBayBookingAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/bay-booking-analysis", { params }),
-  
+
   getQuoteWorkEntryAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/work-entry-analysis", { params }),
-  
+
   getQuoteInvoiceAccuracy: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/invoice-accuracy", { params }),
-  
+
   getQuoteReworkPatterns: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/rework-patterns", { params }),
-  
+
   getQuoteConversationMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-quote/conversation-metrics", { params }),
 
   // WorkshopReport Reports (8 endpoints)
   getWorkshopReportOverview: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/overview", { params }),
-  
+
   getWorkshopCostBreakdown: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/cost-breakdown", { params }),
-  
+
   getWorkshopQualityMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/quality-metrics", { params }),
-  
+
   getWorkshopTechnicianPerformance: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/technician-performance", { params }),
-  
+
   getWorkshopSupplierScorecard: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/supplier-scorecard", { params }),
-  
+
   getWorkshopWarrantyTracking: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/warranty-tracking", { params }),
-  
+
   getWorkshopCompletionTimeAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/completion-time-analysis", { params }),
-  
+
   getWorkshopRevenueAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/workshop-report/revenue-analysis", { params }),
 
   // Dealership Reports (6 endpoints)
   getDealershipOverview: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/overview", { params }),
-  
+
   getDealershipVehicleDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/vehicle-distribution", { params }),
-  
+
   getDealershipWorkshopPerformance: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/workshop-performance", { params }),
-  
+
   getDealershipUserActivity: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/user-activity", { params }),
-  
+
   getDealershipRevenueComparison: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/revenue-comparison", { params }),
-  
+
   getDealershipServiceBayUtilization: (params?: any) =>
     apiClient.get("/api/company/reports/dealership/service-bay-utilization", { params }),
 
   // User Reports (5 endpoints)
   getUserPerformanceMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/user/performance-metrics", { params }),
-  
+
   getUserLoginPatterns: (params?: any) =>
     apiClient.get("/api/company/reports/user/login-patterns", { params }),
-  
+
   getUserRoleDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/user/role-distribution", { params }),
-  
+
   getUserDealershipAssignment: (params?: any) =>
     apiClient.get("/api/company/reports/user/dealership-assignment", { params }),
-  
+
   getUserPermissionUtilization: (params?: any) =>
     apiClient.get("/api/company/reports/user/permission-utilization", { params }),
 
   // Supplier Reports (4 endpoints)
   getSupplierOverview: (params?: any) =>
     apiClient.get("/api/company/reports/supplier/overview", { params }),
-  
+
   getSupplierPerformanceRanking: (params?: any) =>
     apiClient.get("/api/company/reports/supplier/performance-ranking", { params }),
-  
+
   getSupplierTagAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/supplier/tag-analysis", { params }),
-  
+
   getSupplierRelationshipMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/supplier/relationship-metrics", { params }),
 
   // ServiceBay Reports (4 endpoints)
   getServiceBayUtilization: (params?: any) =>
     apiClient.get("/api/company/reports/service-bay/utilization", { params }),
-  
+
   getServiceBayBookingPatterns: (params?: any) =>
     apiClient.get("/api/company/reports/service-bay/booking-patterns", { params }),
-  
+
   getServiceBayUserAssignment: (params?: any) =>
     apiClient.get("/api/company/reports/service-bay/user-assignment", { params }),
-  
+
   getServiceBayHolidayImpact: (params?: any) =>
     apiClient.get("/api/company/reports/service-bay/holiday-impact", { params }),
 
   // Conversation Reports (3 endpoints)
   getConversationVolumeAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/conversation/volume-analysis", { params }),
-  
+
   getConversationResponseTimes: (params?: any) =>
     apiClient.get("/api/company/reports/conversation/response-times", { params }),
-  
+
   getConversationEngagementMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/conversation/engagement-metrics", { params }),
 
   // CostConfiguration Reports (3 endpoints)
   getCostTypeUtilization: (params?: any) =>
     apiClient.get("/api/company/reports/cost-configuration/type-utilization", { params }),
-  
+
   getCostSetterEffectiveness: (params?: any) =>
     apiClient.get("/api/company/reports/cost-configuration/setter-effectiveness", { params }),
-  
+
   getCostCurrencyDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/cost-configuration/currency-distribution", { params }),
 
   // DropdownMaster Reports (3 endpoints)
   getDropdownUsageAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/dropdown-master/usage-analysis", { params }),
-  
+
   getDropdownValueDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/dropdown-master/value-distribution", { params }),
-  
+
   getDropdownConfigurationHealth: (params?: any) =>
     apiClient.get("/api/company/reports/dropdown-master/configuration-health", { params }),
 
   // InspectionConfig Reports (3 endpoints)
   getInspectionConfigUsage: (params?: any) =>
     apiClient.get("/api/company/reports/inspection-config/usage", { params }),
-  
+
   getInspectionFieldAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/inspection-config/field-analysis", { params }),
-  
+
   getInspectionCategoryEffectiveness: (params?: any) =>
     apiClient.get("/api/company/reports/inspection-config/category-effectiveness", { params }),
 
   // TradeinConfig Reports (3 endpoints)
   getTradeinConfigUsage: (params?: any) =>
     apiClient.get("/api/company/reports/tradein-config/usage", { params }),
-  
+
   getTradeinFieldAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/tradein-config/field-analysis", { params }),
-  
+
   getTradeinCategoryEffectiveness: (params?: any) =>
     apiClient.get("/api/company/reports/tradein-config/category-effectiveness", { params }),
 
   // Integration Reports (3 endpoints)
   getIntegrationStatusOverview: (params?: any) =>
     apiClient.get("/api/company/reports/integration/status-overview", { params }),
-  
+
   getIntegrationEnvironmentUsage: (params?: any) =>
     apiClient.get("/api/company/reports/integration/environment-usage", { params }),
-  
+
   getIntegrationTypeDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/integration/type-distribution", { params }),
 
   // NotificationConfiguration Reports (3 endpoints)
   getNotificationEngagementMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/notification-config/engagement-metrics", { params }),
-  
+
   getNotificationTriggerAnalysis: (params?: any) =>
     apiClient.get("/api/company/reports/notification-config/trigger-analysis", { params }),
-  
+
   getNotificationChannelPerformance: (params?: any) =>
     apiClient.get("/api/company/reports/notification-config/channel-performance", { params }),
 
   // GroupPermission Reports (2 endpoints)
   getGroupPermissionUsage: (params?: any) =>
     apiClient.get("/api/company/reports/group-permission/usage", { params }),
-  
+
   getGroupPermissionEffectiveness: (params?: any) =>
     apiClient.get("/api/company/reports/group-permission/effectiveness", { params }),
 
   // Workflow Reports (3 endpoints)
   getWorkflowExecutionMetrics: (params?: any) =>
     apiClient.get("/api/company/reports/workflow/execution-metrics", { params }),
-  
+
   getWorkflowTypeDistribution: (params?: any) =>
     apiClient.get("/api/company/reports/workflow/type-distribution", { params }),
-  
+
   getWorkflowSuccessRates: (params?: any) =>
     apiClient.get("/api/company/reports/workflow/success-rates", { params }),
 

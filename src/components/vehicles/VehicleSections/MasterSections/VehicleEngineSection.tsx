@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { masterVehicleServices, companyServices } from "@/api/services";
 import ReactSelect from "react-select";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleEngineSectionProps {
   vehicle: any;
@@ -20,7 +21,7 @@ interface VehicleEngineSectionProps {
 const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const engineData = vehicle.vehicle_eng_transmission?.[0] || {};
-  
+
   const [formData, setFormData] = useState({
     engine_no: engineData.engine_no || "",
     engine_type: engineData.engine_type || "",
@@ -56,19 +57,19 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
     if (isLoadingDropdowns) {
       return [];
     }
-    
+
     if (dropdownError) {
       console.error(`Error loading dropdown ${dropdownName}:`, dropdownError);
       return [];
     }
-    
+
     if (!dropdownData?.success) {
       return [];
     }
-    
+
     const dropdown = dropdownData.data.find((item: any) => item.dropdown_name === dropdownName);
     const options = dropdown?.values || [];
-    
+
     // Ensure each option has the required fields
     return options.map((option: any) => ({
       ...option,
@@ -98,6 +99,7 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
   const handleSave = async () => {
     try {
       await masterVehicleServices.updateMasterVehicle(vehicle._id, {
+        module_section: "Engine & Transmission",
         vehicle_eng_transmission: [{
           engine_no: formData.engine_no,
           engine_type: formData.engine_type,
@@ -163,7 +165,7 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                   {(isLoadingDropdowns || dropdownError || !dropdownData?.success) && (
                     <div className="p-3 border rounded-md bg-blue-50">
                       <p className="text-sm">
-                        <strong>Debug Info:</strong> 
+                        <strong>Debug Info:</strong>
                         {isLoadingDropdowns && " Loading dropdowns..."}
                         {dropdownError && ` Error: ${dropdownError.message}`}
                         {!dropdownData?.success && dropdownData && " API returned unsuccessful response"}
@@ -172,16 +174,30 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="engine_no">Engine No</Label>
+                    <FieldWithHistory
+                      fieldName="engine_no"
+                      fieldDisplayName="Engine No"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Engine No"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="engine_no"
                         value={formData.engine_no}
                         onChange={(e) => setFormData({ ...formData, engine_no: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="engine_type">Engine Type</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="engine_type"
+                      fieldDisplayName="Engine Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Engine Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Select
                         value={formData.engine_type}
                         onValueChange={(value) => {
@@ -208,9 +224,16 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="transmission_type">Transmission Type</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="transmission_type"
+                      fieldDisplayName="Transmission Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Transmission Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Select
                         value={formData.transmission_type}
                         onValueChange={(value) => {
@@ -237,9 +260,16 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="primary_fuel_type">Primary Fuel Type</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="primary_fuel_type"
+                      fieldDisplayName="Primary Fuel Type"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Primary Fuel Type"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Select
                         value={formData.primary_fuel_type}
                         onValueChange={(value) => {
@@ -266,45 +296,80 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="no_of_cylinders">Number of Cylinders</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="no_of_cylinders"
+                      fieldDisplayName="Number of Cylinders"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Number of Cylinders"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="no_of_cylinders"
                         type="number"
                         value={formData.no_of_cylinders}
                         onChange={(e) => setFormData({ ...formData, no_of_cylinders: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="turbo">Turbo</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="turbo"
+                      fieldDisplayName="Turbo"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Turbo"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="turbo"
                         value={formData.turbo}
                         onChange={(e) => setFormData({ ...formData, turbo: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="engine_size">Engine Size</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="engine_size"
+                      fieldDisplayName="Engine Size"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Engine Size"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="engine_size"
                         type="number"
                         value={formData.engine_size}
                         onChange={(e) => setFormData({ ...formData, engine_size: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="engine_size_unit">Engine Size Unit</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="engine_size_unit"
+                      fieldDisplayName="Engine Size Unit"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Engine Size Unit"
+                      showHistoryIcon={!isEditing}
+                    >
                       <Input
                         id="engine_size_unit"
                         value={formData.engine_size_unit}
                         onChange={(e) => setFormData({ ...formData, engine_size_unit: e.target.value })}
                       />
-                    </div>
+                    </FieldWithHistory>
                   </div>
-                  
-                  <div>
-                    <Label>Engine Features</Label>
+
+                  <FieldWithHistory
+                    fieldName="engine_features"
+                    fieldDisplayName="Engine Features"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Engine Features"
+                    showHistoryIcon={!isEditing}
+                  >
                     <ReactSelect
                       isMulti
                       options={engineFeaturesOptions}
@@ -329,7 +394,7 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                         }),
                       }}
                     />
-                  </div>
+                  </FieldWithHistory>
 
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleCancel}>
@@ -344,47 +409,97 @@ const VehicleEngineSection: React.FC<VehicleEngineSectionProps> = ({ vehicle, on
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Engine No</Label>
+                  <FieldWithHistory
+                    fieldName="engine_no"
+                    fieldDisplayName="Engine No"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Engine No"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.engine_no || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Engine Type</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="engine_type"
+                    fieldDisplayName="Engine Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Engine Type"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.engine_type || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Transmission Type</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="transmission_type"
+                    fieldDisplayName="Transmission Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Transmission Type"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.transmission_type || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Primary Fuel Type</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="primary_fuel_type"
+                    fieldDisplayName="Primary Fuel Type"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Primary Fuel Type"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.primary_fuel_type || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Number of Cylinders</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="no_of_cylinders"
+                    fieldDisplayName="Number of Cylinders"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Number of Cylinders"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.no_of_cylinders || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Turbo</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="turbo"
+                    fieldDisplayName="Turbo"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Turbo"
+                  >
                     <p className="text-sm text-muted-foreground">{formData.turbo || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Engine Size</Label>
+                  </FieldWithHistory>
+                  <FieldWithHistory
+                    fieldName="engine_size"
+                    fieldDisplayName="Engine Size"
+                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                    vehicleType="master"
+                    moduleName="Engine & Transmission"
+                    label="Engine Size"
+                  >
                     <p className="text-sm text-muted-foreground">
                       {formData.engine_size ? `${formData.engine_size} ${formData.engine_size_unit}` : "N/A"}
                     </p>
-                  </div>
+                  </FieldWithHistory>
                   <div className="col-span-3">
-                    <Label className="text-sm font-medium">Engine Features</Label>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {formData.engine_features.length > 0 ? (
-                        formData.engine_features.map((feature, index) => (
-                          <span key={index} className="px-2 py-1 bg-muted rounded text-sm">{feature}</span>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No features listed</p>
-                      )}
-                    </div>
+                    <FieldWithHistory
+                      fieldName="engine_features"
+                      fieldDisplayName="Engine Features"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="master"
+                      moduleName="Engine & Transmission"
+                      label="Engine Features"
+                    >
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {formData.engine_features.length > 0 ? (
+                          formData.engine_features.map((feature, index) => (
+                            <span key={index} className="px-2 py-1 bg-muted rounded text-sm">{feature}</span>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No features listed</p>
+                        )}
+                      </div>
+                    </FieldWithHistory>
                   </div>
                 </div>
               )}

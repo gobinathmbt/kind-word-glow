@@ -13,6 +13,7 @@ import MediaViewer, { MediaItem } from "@/components/common/MediaViewer";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
 import { useAuth } from "@/auth/AuthContext";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleOverviewSectionProps {
   vehicle: any;
@@ -28,7 +29,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
     make: vehicle.make || "",
     model: vehicle.model || "",
     variant: vehicle.variant || "",
-    year: vehicle.year || "",
+    year: vehicle.year ? vehicle.year.toString() : "",
     vin: vehicle.vin || "",
     plate_no: vehicle.plate_no || "",
     chassis_no: vehicle.chassis_no || "",
@@ -49,6 +50,24 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
   // Media viewer state
   const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
   const [currentMediaId, setCurrentMediaId] = useState<string>("");
+
+  // Sync form data with vehicle prop whenever it changes
+  useEffect(() => {
+    if (vehicle) {
+      setFormData({
+        make: vehicle.make || "",
+        model: vehicle.model || "",
+        variant: vehicle.variant || "",
+        year: vehicle.year ? vehicle.year.toString() : "",
+        vin: vehicle.vin || "",
+        plate_no: vehicle.plate_no || "",
+        chassis_no: vehicle.chassis_no || "",
+        body_style: vehicle.body_style || "",
+        vehicle_category: vehicle.vehicle_category || "",
+      });
+      setHeroImagePreview(vehicle.vehicle_hero_image || "");
+    }
+  }, [vehicle]);
 
   // Load S3 configuration
   useEffect(() => {
@@ -109,7 +128,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
         toast.error("Please upload an image file");
         return;
       }
-      
+
       if (file.size > 10 * 1024 * 1024) {
         toast.error("Image size should be less than 10MB");
         return;
@@ -118,7 +137,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       // Local State Management
       setHeroImage(file);
       setHasImageChanged(true);
-      
+
       // Preview URL generated using URL.createObjectURL()
       const previewUrl = URL.createObjectURL(file);
       setHeroImagePreview(previewUrl);
@@ -158,9 +177,10 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
 
     try {
       setIsUploading(true);
-      
+
       // Prepare update data
       const updateData: any = {
+        module_section: "Vehicle Overview",
         ...formData,
         vehicle_type: vehicle.vehicle_type
       };
@@ -179,24 +199,24 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
 
       // Data Update - Update vehicle data in database
       const updateResponse = await adPublishingServices.updateAdVehicle(vehicle._id, updateData);
-      
+
       toast.success("Vehicle overview updated successfully");
-      
+
       // State Cleanup
       setIsEditing(false);
       setHasImageChanged(false);
       setHeroImage(null);
-      
+
       // Call onUpdate to refresh parent component data
       if (onUpdate) {
         onUpdate();
       }
-      
+
     } catch (error: any) {
       console.error("Error updating vehicle overview:", error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          "Failed to update vehicle overview";
+      const errorMessage = error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to update vehicle overview";
       toast.error(errorMessage);
     } finally {
       setIsUploading(false);
@@ -208,7 +228,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       make: vehicle.make || "",
       model: vehicle.model || "",
       variant: vehicle.variant || "",
-      year: vehicle.year || "",
+      year: vehicle.year ? vehicle.year.toString() : "",
       vin: vehicle.vin || "",
       plate_no: vehicle.plate_no || "",
       chassis_no: vehicle.chassis_no || "",
@@ -353,7 +373,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                             </>
                           )}
                         </div>
-                        
+
                         {/* Current image info */}
                         {vehicle.vehicle_hero_image && !hasImageChanged && (
                           <p className="text-sm text-muted-foreground">
@@ -390,38 +410,66 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="vin">VIN</Label>
+                      <FieldWithHistory
+                        fieldName="vin"
+                        fieldDisplayName="VIN"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "advertisement"}
+                        moduleName="Vehicle Overview"
+                        label="VIN"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="vin"
                           value={formData.vin}
                           onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="plate_no">Plate Number</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="plate_no"
+                        fieldDisplayName="Plate Number"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "advertisement"}
+                        moduleName="Vehicle Overview"
+                        label="Plate Number"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="plate_no"
                           value={formData.plate_no}
                           onChange={(e) => setFormData({ ...formData, plate_no: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="chassis_no">Chassis Number</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="chassis_no"
+                        fieldDisplayName="Chassis Number"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "advertisement"}
+                        moduleName="Vehicle Overview"
+                        label="Chassis Number"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="chassis_no"
                           value={formData.chassis_no}
                           onChange={(e) => setFormData({ ...formData, chassis_no: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_category">Category</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="vehicle_category"
+                        fieldDisplayName="Category"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "advertisement"}
+                        moduleName="Vehicle Overview"
+                        label="Category"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="vehicle_category"
                           value={formData.vehicle_category}
                           onChange={(e) => setFormData({ ...formData, vehicle_category: e.target.value })}
                         />
-                      </div>
+                      </FieldWithHistory>
                     </div>
                     <div className="flex justify-end space-x-2">
                       <Button variant="outline" onClick={handleCancel} disabled={isUploading}>
@@ -445,42 +493,96 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Make</Label>
+                    <FieldWithHistory
+                      fieldName="make"
+                      fieldDisplayName="Make"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Make"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.make}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Model</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="model"
+                      fieldDisplayName="Model"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Model"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.model}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Variant</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="variant"
+                      fieldDisplayName="Variant"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Variant"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.variant}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Year</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="year"
+                      fieldDisplayName="Year"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Year"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.year}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Body Style</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="body_style"
+                      fieldDisplayName="Body Style"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Body Style"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.body_style}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">VIN</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="vin"
+                      fieldDisplayName="VIN"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="VIN"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.vin}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Plate Number</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="plate_no"
+                      fieldDisplayName="Plate Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Plate Number"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.plate_no}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Chassis Number</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="chassis_no"
+                      fieldDisplayName="Chassis Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Chassis Number"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.chassis_no}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Category</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="vehicle_category"
+                      fieldDisplayName="Category"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "advertisement"}
+                      moduleName="Vehicle Overview"
+                      label="Category"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.vehicle_category}</p>
-                    </div>
+                    </FieldWithHistory>
                   </div>
                 )}
               </CardContent>

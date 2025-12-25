@@ -32,7 +32,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   masterVehicleServices,
   authServices,
@@ -62,9 +62,11 @@ interface StatChip {
 
 
 const MasterVehicleList = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dealershipFilter, setDealershipFilter] = useState("all");
+  const [deletedOnlyFilter, setDeletedOnlyFilter] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -120,6 +122,7 @@ const MasterVehicleList = () => {
         if (searchTerm) params.append("search", searchTerm);
         if (statusFilter !== "all") params.append("status", statusFilter);
         if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
+        if (deletedOnlyFilter) params.append("deleted_only", "true");
 
         const response = await masterVehicleServices.getMasterVehicles({
           ...Object.fromEntries(params),
@@ -149,8 +152,8 @@ const MasterVehicleList = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["master-vehicles", page, searchTerm, statusFilter, dealershipFilter, rowsPerPage]
-      : ["all-master-vehicles", searchTerm, statusFilter, dealershipFilter],
+      ? ["master-vehicles", page, searchTerm, statusFilter, dealershipFilter, deletedOnlyFilter, rowsPerPage]
+      : ["all-master-vehicles", searchTerm, statusFilter, dealershipFilter, deletedOnlyFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllVehicles();
@@ -164,6 +167,7 @@ const MasterVehicleList = () => {
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter !== "all") params.append("status", statusFilter);
       if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
+      if (deletedOnlyFilter) params.append("deleted_only", "true");
 
       const response = await masterVehicleServices.getMasterVehicles({
         ...Object.fromEntries(params),
@@ -220,6 +224,7 @@ const MasterVehicleList = () => {
     setSearchTerm("");
     setStatusFilter("all");
     setDealershipFilter("all");
+    setDeletedOnlyFilter(false);
     setPage(1);
     refetch();
   };
@@ -270,6 +275,10 @@ const MasterVehicleList = () => {
       setSelectedVehicle(response.data.data);
       // Also refresh the list in the background
       refetch();
+      // Invalidate activity logs query to refresh the activity stream
+      queryClient.invalidateQueries({
+        queryKey: ['vehicle-activity', 'master', selectedVehicle.vehicle_stock_id]
+      });
     } catch (error) {
       toast.error("Failed to refresh vehicle details");
       throw error;
@@ -312,6 +321,18 @@ const MasterVehicleList = () => {
   const handleRefresh = () => {
     refetch();
     toast.success("Data refreshed");
+  };
+
+  const handleRestoreVehicle = async (vehicleId: string) => {
+    try {
+      console.log("Attempting to restore master vehicle:", vehicleId);
+      await masterVehicleServices.restoreMasterVehicle(vehicleId);
+      console.log("Restore successful");
+      toast.success("Vehicle restored successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to restore vehicle");
+    }
   };
 
   const handleExport = () => {
@@ -562,7 +583,11 @@ const MasterVehicleList = () => {
           {getSortIcon("status")}
         </div>
       </TableHead>
-     
+      {deletedOnlyFilter && (
+        <TableHead className="bg-muted/50">
+          Actions
+        </TableHead>
+      )}
     </TableRow>
   );
 
@@ -659,7 +684,18 @@ const MasterVehicleList = () => {
               {vehicle.status?.replace("_", " ") || "Pending"}
             </Badge>
           </TableCell>
-         
+          {deletedOnlyFilter && (
+            <TableCell>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRestoreVehicle(vehicle._id)}
+                className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+              >
+                Restore
+              </Button>
+            </TableCell>
+          )}
         </TableRow>
       ))}
     </>
@@ -753,6 +789,18 @@ const MasterVehicleList = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="deleted-only-filter"
+                  checked={deletedOnlyFilter}
+                  onChange={(e) => setDeletedOnlyFilter(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="deleted-only-filter">Show Deleted Only</Label>
+              </div>
             </div>
           </div>
           <div className="flex justify-between">

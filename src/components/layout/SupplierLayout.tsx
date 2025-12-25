@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -50,9 +50,27 @@ const SupplierLayout: React.FC<SupplierLayoutProps> = ({
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const mainContentRef = useRef<HTMLElement>(null);
 
   // Get supplier info from session storage
   const supplierInfo = JSON.parse(sessionStorage.getItem('supplier_user') || '{}');
+
+  // Prevent auto-scroll to top on route changes when clicking sidebar menu
+  useEffect(() => {
+    // Disable automatic scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Prevent scroll to top when location changes
+  const prevPathnameRef = useRef<string>(location.pathname);
+  useEffect(() => {
+    // Only handle if pathname actually changed
+    if (prevPathnameRef.current !== location.pathname) {
+      prevPathnameRef.current = location.pathname;
+    }
+  }, [location.pathname]);
 
   const navigationItems: NavigationItem[] = [
     {
@@ -311,7 +329,7 @@ const SupplierLayout: React.FC<SupplierLayoutProps> = ({
           </header>
 
           {/* Page Content with Scroll */}
-          <main className="flex-1 overflow-y-auto">
+          <main ref={mainContentRef} className="flex-1 overflow-y-auto">
             <div className=" h-full">
               {children}
             </div>

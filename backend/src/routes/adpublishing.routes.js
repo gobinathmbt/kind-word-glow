@@ -6,7 +6,12 @@ const {
   createAdVehicle,
   updateAdVehicle,
   deleteAdVehicle,
-  publishAdVehicle
+  softDeleteAdVehicle,
+  restoreAdVehicle,
+  publishAdVehicle,
+  getAdVehicleAttachments,
+  uploadAdVehicleAttachment,
+  deleteAdVehicleAttachment
 } = require('../controllers/adpublishing.controller');
 
 const {
@@ -34,6 +39,15 @@ router.post('/', createAdVehicle);
 router.put('/:id', updateAdVehicle);
 router.delete('/:id', deleteAdVehicle);
 router.post('/:id/publish', publishAdVehicle);
+
+// Soft delete and restore routes
+router.patch('/:id/soft-delete', softDeleteAdVehicle);
+router.patch('/:id/restore', restoreAdVehicle);
+
+// Advertisement vehicle attachment routes
+router.get('/:id/attachments', getAdVehicleAttachments);
+router.post('/:id/attachments', uploadAdVehicleAttachment);
+router.delete('/:id/attachments/:attachmentId', deleteAdVehicleAttachment);
 
 // Advertisement platform routes (for external publishing)
 router.get('/:vehicleId/advertisements', getVehicleAdvertisements);

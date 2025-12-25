@@ -30,7 +30,7 @@ import {
   Play,
 } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices, companyServices } from "@/api/services";
+import { vehicleServices, companyServices, commonVehicleServices } from "@/api/services";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
 import {
   Select,
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import MediaViewer, { MediaItem } from "@/components/common/MediaViewer";
 import { useAuth } from "@/auth/AuthContext";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleAttachmentsSectionProps {
   vehicle: any;
@@ -321,10 +322,15 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
       }
 
       for (const attachmentData of uploadedAttachments) {
-        await vehicleServices.uploadVehicleAttachment(
+        const attachmentWithSection = {
+          ...attachmentData,
+          module_section: "Pricing Attachments"
+        };
+        
+        await commonVehicleServices.uploadPricingVehicleAttachment(
           vehicle._id,
           vehicleType,
-          attachmentData
+          attachmentWithSection
         );
       }
 
@@ -349,10 +355,11 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
         await s3Uploader.deleteFile(attachment.s3_key);
       }
 
-      await vehicleServices.deleteVehicleAttachment(
+      await commonVehicleServices.deletePricingVehicleAttachment(
         vehicle._id,
         vehicleType,
-        attachment._id
+        attachment._id,
+        { module_section: "Pricing Attachments" }
       );
 
       toast.success("Attachment deleted successfully");

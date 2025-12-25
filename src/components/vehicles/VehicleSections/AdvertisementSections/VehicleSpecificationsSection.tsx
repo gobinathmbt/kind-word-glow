@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { vehicleServices, companyServices, adPublishingServices } from "@/api/services";
 import ReactSelect from "react-select";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleSpecificationsSectionProps {
   vehicle: any;
@@ -21,7 +22,7 @@ interface VehicleSpecificationsSectionProps {
 const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> = ({ vehicle, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const specs = vehicle.vehicle_specifications?.[0] || {};
-  
+
   const [formData, setFormData] = useState({
     number_of_seats: specs.number_of_seats || "",
     number_of_doors: specs.number_of_doors || "",
@@ -70,19 +71,19 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
     if (isLoadingDropdowns) {
       return [];
     }
-    
+
     if (dropdownError) {
       console.error(`Error loading dropdown ${dropdownName}:`, dropdownError);
       return [];
     }
-    
+
     if (!dropdownData?.success) {
       return [];
     }
-    
+
     const dropdown = dropdownData.data.find((item: any) => item.dropdown_name === dropdownName);
     const options = dropdown?.values || [];
-    
+
     // Ensure each option has the required fields
     return options.map((option: any) => ({
       ...option,
@@ -142,6 +143,7 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
   const handleSave = async () => {
     try {
       await adPublishingServices.updateAdVehicle(vehicle._id, {
+        module_section: "Vehicle Specifications",
         vehicle_specifications: [{
           number_of_seats: formData.number_of_seats,
           number_of_doors: formData.number_of_doors,
@@ -219,17 +221,31 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                       <h3 className="text-base font-semibold text-foreground">Interior</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="number_of_seats">Seats</Label>
+                      <FieldWithHistory
+                        fieldName="number_of_seats"
+                        fieldDisplayName="Seats"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Seats"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="number_of_seats"
                           type="number"
                           value={formData.number_of_seats}
                           onChange={(e) => setFormData({ ...formData, number_of_seats: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="seat_material">Seat Material</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="seat_material"
+                        fieldDisplayName="Seat Material"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Seat Material"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.seat_material}
                           onValueChange={(value) => {
@@ -256,9 +272,16 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="interior_color">Interior Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="interior_color"
+                        fieldDisplayName="Interior Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Interior Color"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.interior_color}
                           onValueChange={(value) => {
@@ -285,17 +308,31 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="steering_type">Steering Type</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="steering_type"
+                        fieldDisplayName="Steering Type"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Steering Type"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="steering_type"
                           value={formData.steering_type}
                           onChange={(e) => setFormData({ ...formData, steering_type: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="interior_trim">Interior Trim</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="interior_trim"
+                        fieldDisplayName="Interior Trim"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Interior Trim"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.interior_trim}
                           onValueChange={(value) => {
@@ -322,11 +359,18 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
+                      </FieldWithHistory>
                     </div>
-                    
-                    <div>
-                      <Label>Safety Features</Label>
+
+                    <FieldWithHistory
+                      fieldName="safety_features"
+                      fieldDisplayName="Safety Features"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Safety Features"
+                      showHistoryIcon={!isEditing}
+                    >
                       <ReactSelect
                         isMulti
                         options={safetyFeaturesOptions}
@@ -351,10 +395,17 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                           }),
                         }}
                       />
-                    </div>
+                    </FieldWithHistory>
 
-                    <div>
-                      <Label>Interior Features</Label>
+                    <FieldWithHistory
+                      fieldName="interior_features"
+                      fieldDisplayName="Interior Features"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Interior Features"
+                      showHistoryIcon={!isEditing}
+                    >
                       <ReactSelect
                         isMulti
                         options={interiorFeaturesOptions}
@@ -379,7 +430,7 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                           }),
                         }}
                       />
-                    </div>
+                    </FieldWithHistory>
                   </div>
 
                   {/* Exterior Section */}
@@ -388,25 +439,46 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                       <h3 className="text-base font-semibold text-foreground">Exterior</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="number_of_doors">Doors</Label>
+                      <FieldWithHistory
+                        fieldName="number_of_doors"
+                        fieldDisplayName="Doors"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Doors"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="number_of_doors"
                           type="number"
                           value={formData.number_of_doors}
                           onChange={(e) => setFormData({ ...formData, number_of_doors: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="tyre_size">Tyre Size</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="tyre_size"
+                        fieldDisplayName="Tyre Size"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Tyre Size"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="tyre_size"
                           value={formData.tyre_size}
                           onChange={(e) => setFormData({ ...formData, tyre_size: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="exterior_primary_color">Exterior Primary Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="exterior_primary_color"
+                        fieldDisplayName="Exterior Primary Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Exterior Primary Color"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.exterior_primary_color}
                           onValueChange={(value) => {
@@ -433,9 +505,16 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="exterior_secondary_color">Exterior Secondary Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="exterior_secondary_color"
+                        fieldDisplayName="Exterior Secondary Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Exterior Secondary Color"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.exterior_secondary_color}
                           onValueChange={(value) => {
@@ -462,9 +541,16 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="wheels_composition">Wheels Composition</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="wheels_composition"
+                        fieldDisplayName="Wheels Composition"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Wheels Composition"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.wheels_composition}
                           onValueChange={(value) => {
@@ -491,9 +577,16 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="sunroof">Sunroof</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="sunroof"
+                        fieldDisplayName="Sunroof"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Sunroof"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Select
                           value={formData.sunroof}
                           onValueChange={(value) => {
@@ -521,11 +614,18 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
+                      </FieldWithHistory>
                     </div>
 
-                    <div>
-                      <Label>Other Feature</Label>
+                    <FieldWithHistory
+                      fieldName="other_feature"
+                      fieldDisplayName="Other Feature"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Other Feature"
+                      showHistoryIcon={!isEditing}
+                    >
                       <ReactSelect
                         isMulti
                         options={otherFeatureOptions}
@@ -550,7 +650,7 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                           }),
                         }}
                       />
-                    </div>
+                    </FieldWithHistory>
                   </div>
 
                   <div className="flex justify-end space-x-2">
@@ -572,29 +672,65 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                       <h3 className="text-base font-semibold text-foreground">Interior</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">Seats</Label>
+                      <FieldWithHistory
+                        fieldName="number_of_seats"
+                        fieldDisplayName="Seats"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Seats"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.number_of_seats || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Seat Material</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="seat_material"
+                        fieldDisplayName="Seat Material"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Seat Material"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.seat_material || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Interior Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="interior_color"
+                        fieldDisplayName="Interior Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Interior Color"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.interior_color || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Steering Type</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="steering_type"
+                        fieldDisplayName="Steering Type"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Steering Type"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.steering_type || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Interior Trim</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="interior_trim"
+                        fieldDisplayName="Interior Trim"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Interior Trim"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.interior_trim || "N/A"}</p>
-                      </div>
+                      </FieldWithHistory>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium">Safety Features</Label>
+                    <FieldWithHistory
+                      fieldName="safety_features"
+                      fieldDisplayName="Safety Features"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Safety Features"
+                    >
                       <div className="flex flex-wrap gap-2 mt-1">
                         {formData.safety_features.length > 0 ? (
                           formData.safety_features.map((feature, index) => (
@@ -604,9 +740,15 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                           <p className="text-sm text-muted-foreground">No safety features listed</p>
                         )}
                       </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Interior Features</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="interior_features"
+                      fieldDisplayName="Interior Features"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Interior Features"
+                    >
                       <div className="flex flex-wrap gap-2 mt-1">
                         {formData.interior_features.length > 0 ? (
                           formData.interior_features.map((feature, index) => (
@@ -616,7 +758,7 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                           <p className="text-sm text-muted-foreground">No Interior Features listed</p>
                         )}
                       </div>
-                    </div>
+                    </FieldWithHistory>
                   </div>
 
                   {/* Exterior Section */}
@@ -625,43 +767,85 @@ const VehicleSpecificationsSection: React.FC<VehicleSpecificationsSectionProps> 
                       <h3 className="text-base font-semibold text-foreground">Exterior</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">Doors</Label>
+                      <FieldWithHistory
+                        fieldName="number_of_doors"
+                        fieldDisplayName="Doors"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Doors"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.number_of_doors || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Tyre Size</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="tyre_size"
+                        fieldDisplayName="Tyre Size"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Tyre Size"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.tyre_size || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Exterior Primary Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="exterior_primary_color"
+                        fieldDisplayName="Exterior Primary Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Exterior Primary Color"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.exterior_primary_color || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Exterior Secondary Color</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="exterior_secondary_color"
+                        fieldDisplayName="Exterior Secondary Color"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Exterior Secondary Color"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.exterior_secondary_color || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Wheels Composition</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="wheels_composition"
+                        fieldDisplayName="Wheels Composition"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Wheels Composition"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.wheels_composition || "N/A"}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Sunroof</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="sunroof"
+                        fieldDisplayName="Sunroof"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType="advertisement"
+                        moduleName="Vehicle Specifications"
+                        label="Sunroof"
+                      >
                         <p className="text-sm text-muted-foreground">{formData.sunroof || "N/A"}</p>
-                      </div>
+                      </FieldWithHistory>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium">Other Feature</Label>
+                    <FieldWithHistory
+                      fieldName="other_feature"
+                      fieldDisplayName="Other Feature"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType="advertisement"
+                      moduleName="Vehicle Specifications"
+                      label="Other Feature"
+                    >
                       <div className="flex flex-wrap gap-2 mt-1">
                         {formData.other_feature.length > 0 ? (
                           formData.other_feature.map((feature, index) => (
                             <span key={index} className="px-2 py-1 bg-muted rounded text-sm">{feature}</span>
                           ))
                         ) : (
-                          <p className="text-sm text-muted-foreground">No Interior Features listed</p>
+                          <p className="text-sm text-muted-foreground">No Other Features listed</p>
                         )}
                       </div>
-                    </div>
+                    </FieldWithHistory>
                   </div>
                 </div>
               )}

@@ -23,12 +23,14 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   commonVehicleServices,
   dealershipServices,
   authServices,
   vehicleServices,
+  masterVehicleServices,
+  adPublishingServices,
 } from "@/api/services";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
@@ -59,6 +61,7 @@ const VehiclePricingList = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dealershipFilter, setDealershipFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [deletedOnlyFilter, setDeletedOnlyFilter] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -70,6 +73,7 @@ const VehiclePricingList = () => {
   const [showAllStatusChips, setShowAllStatusChips] = useState(false);
 
   const { completeUser } = useAuth();
+  const queryClient = useQueryClient();
   const canRefresh = hasPermission(completeUser, 'vehicle_pricing_refresh');
   const canSearch = hasPermission(completeUser, 'vehicle_pricing_search');
   const canFilter = hasPermission(completeUser, 'vehicle_pricing_filter');
@@ -110,6 +114,7 @@ const VehiclePricingList = () => {
         if (statusFilter !== "all") params.append("status", statusFilter);
         if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
         if (typeFilter !== "all") params.append("vehicle_type", typeFilter);
+        if (deletedOnlyFilter) params.append("deleted_only", "true");
 
         const response = await commonVehicleServices.getPricingReadyVehicles({
           ...Object.fromEntries(params),
@@ -139,8 +144,8 @@ const VehiclePricingList = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["pricing-ready-vehicles", page, searchTerm, statusFilter, dealershipFilter, typeFilter, rowsPerPage]
-      : ["all-pricing-ready-vehicles", searchTerm, statusFilter, dealershipFilter, typeFilter],
+      ? ["pricing-ready-vehicles", page, searchTerm, statusFilter, dealershipFilter, typeFilter, deletedOnlyFilter, rowsPerPage]
+      : ["all-pricing-ready-vehicles", searchTerm, statusFilter, dealershipFilter, typeFilter, deletedOnlyFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllVehicles();
@@ -155,6 +160,7 @@ const VehiclePricingList = () => {
       if (statusFilter !== "all") params.append("status", statusFilter);
       if (dealershipFilter !== "all") params.append("dealership", dealershipFilter);
       if (typeFilter !== "all") params.append("vehicle_type", typeFilter);
+      if (deletedOnlyFilter) params.append("deleted_only", "true");
 
       const response = await commonVehicleServices.getPricingReadyVehicles({
         ...Object.fromEntries(params),
@@ -266,6 +272,10 @@ const VehiclePricingList = () => {
       setSelectedVehicle(response.data.data);
       // Also refresh the list in the background
       refetch();
+      // Invalidate activity logs query to refresh the activity stream
+      queryClient.invalidateQueries({
+        queryKey: ['vehicle-activity', selectedVehicle.vehicle_type, selectedVehicle.vehicle_stock_id]
+      });
     } catch (error) {
       toast.error("Failed to refresh vehicle details");
       throw error;
@@ -298,6 +308,31 @@ const VehiclePricingList = () => {
     refetch();
     toast.success("Data refreshed");
   };
+
+  const handleRestoreVehicle = async (vehicleId: string, vehicleType: string) => {
+    try {
+      console.log("Attempting to restore vehicle:", vehicleId, vehicleType);
+      
+      // Route to the correct service based on vehicle type
+      if (vehicleType === "master") {
+        await masterVehicleServices.restoreMasterVehicle(vehicleId);
+      } else if (vehicleType === "advertisement") {
+        await adPublishingServices.restoreAdVehicle(vehicleId);
+      } else {
+        // For inspection, tradein, and other types, use the main vehicle service
+        await vehicleServices.restoreVehicle(vehicleId, vehicleType);
+      }
+      
+      console.log("Restore successful");
+      toast.success("Vehicle restored successfully");
+      refetch();
+    } catch (error) {
+      console.error("Restore failed:", error);
+      toast.error(`Failed to restore vehicle: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+
 
   
 
@@ -351,6 +386,7 @@ const VehiclePricingList = () => {
     setStatusFilter("all");
     setDealershipFilter("all");
     setTypeFilter("all");
+    setDeletedOnlyFilter(false);
     setPage(1);
     refetch();
   };
@@ -517,7 +553,11 @@ const VehiclePricingList = () => {
           {getSortIcon("vehicle_type")}
         </div>
       </TableHead>
-      {/* Remove Actions TableHead */}
+      {deletedOnlyFilter && (
+        <TableHead className="bg-muted/50">
+          Actions
+        </TableHead>
+      )}
     </TableRow>
   );
 
@@ -623,7 +663,21 @@ const VehiclePricingList = () => {
               {vehicle.vehicle_type}
             </Badge>
           </TableCell>
-          {/* Remove Actions TableCell */}
+          {deletedOnlyFilter && (
+            <TableCell>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRestoreVehicle(vehicle._id, vehicle.vehicle_type);
+                }}
+                className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+              >
+                Restore
+              </Button>
+            </TableCell>
+          )}
         </TableRow>
       ))}
     </>
@@ -710,6 +764,18 @@ const VehiclePricingList = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="deleted-only-filter"
+                  checked={deletedOnlyFilter}
+                  onChange={(e) => setDeletedOnlyFilter(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="deleted-only-filter">Show Deleted Only</Label>
+              </div>
             </div>
           </div>
           <div className="flex justify-between">

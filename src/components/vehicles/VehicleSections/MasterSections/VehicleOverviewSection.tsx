@@ -12,6 +12,7 @@ import MediaViewer, { MediaItem } from "@/components/common/MediaViewer";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
 import { useAuth } from "@/auth/AuthContext";
+import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleOverviewSectionProps {
   vehicle: any;
@@ -25,7 +26,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   // Use local state that syncs with the vehicle prop
   const [formData, setFormData] = useState({
     make: "",
@@ -59,7 +60,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
         make: vehicle.make || "",
         model: vehicle.model || "",
         variant: vehicle.variant || "",
-        year: vehicle.year || "",
+        year: vehicle.year ? vehicle.year.toString() : "",
         vin: vehicle.vin || "",
         plate_no: vehicle.plate_no || "",
         chassis_no: vehicle.chassis_no || "",
@@ -137,7 +138,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
 
       setHeroImage(file);
       setHasImageChanged(true);
-      
+
       // Create preview
       const previewUrl = URL.createObjectURL(file);
       setHeroImagePreview(previewUrl);
@@ -148,7 +149,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
   const removeHeroImage = () => {
     setHeroImage(null);
     setHasImageChanged(true);
-    
+
     // If there was a previous image, clear the preview
     if (vehicle.vehicle_hero_image) {
       setHeroImagePreview("");
@@ -205,8 +206,8 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       // Clean data before sending to API
       const cleanedData: any = {};
       Object.keys(updateData).forEach(key => {
-        if (updateData[key as keyof typeof updateData] !== undefined && 
-            updateData[key as keyof typeof updateData] !== null) {
+        if (updateData[key as keyof typeof updateData] !== undefined &&
+          updateData[key as keyof typeof updateData] !== null) {
           cleanedData[key] = updateData[key as keyof typeof updateData];
         }
       });
@@ -216,31 +217,34 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
         cleanedData.year = parseInt(cleanedData.year);
       }
 
+      // Add explicit section for grouping
+      cleanedData.module_section = "Vehicle Overview";
+
       // Update vehicle data in database
       await masterVehicleServices.updateMasterVehicle(vehicle._id, cleanedData);
-      
+
       toast.success("Vehicle overview updated successfully");
-      
+
       // Reset editing state
       setIsEditing(false);
       setHasImageChanged(false);
       setHeroImage(null);
-      
+
       // Force refresh parent data - this is crucial
       onUpdate();
-      
+
     } catch (error: any) {
       console.error("Update error:", error);
-      
+
       // Enhanced error logging
       if (error.response) {
         console.error("Error response data:", error.response.data);
         console.error("Error response status:", error.response.status);
       }
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          "Failed to update vehicle overview";
+
+      const errorMessage = error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to update vehicle overview";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -253,7 +257,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       make: vehicle.make || "",
       model: vehicle.model || "",
       variant: vehicle.variant || "",
-      year: vehicle.year || "",
+      year: vehicle.year ? vehicle.year.toString() : "",
       vin: vehicle.vin || "",
       plate_no: vehicle.plate_no || "",
       chassis_no: vehicle.chassis_no || "",
@@ -261,7 +265,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
       vehicle_category: vehicle.vehicle_category || "",
       vehicle_hero_image: vehicle.vehicle_hero_image || "",
     });
-    
+
     // Reset image state
     setHeroImage(null);
     setHeroImagePreview(vehicle.vehicle_hero_image || "");
@@ -405,7 +409,7 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                             </>
                           )}
                         </div>
-                        
+
                         {/* Current image info */}
                         {vehicle.vehicle_hero_image && !hasImageChanged && (
                           <p className="text-sm text-muted-foreground">
@@ -442,54 +446,82 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="vin">VIN</Label>
+                      <FieldWithHistory
+                        fieldName="vin"
+                        fieldDisplayName="VIN"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "master"}
+                        moduleName="Vehicle Overview"
+                        label="VIN"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="vin"
                           value={formData.vin}
                           onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
                           placeholder="Enter VIN"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="plate_no">Plate Number</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="plate_no"
+                        fieldDisplayName="Plate Number"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "master"}
+                        moduleName="Vehicle Overview"
+                        label="Plate Number"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="plate_no"
                           value={formData.plate_no}
                           onChange={(e) => setFormData({ ...formData, plate_no: e.target.value })}
                           placeholder="Enter plate number"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="chassis_no">Chassis Number</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="chassis_no"
+                        fieldDisplayName="Chassis Number"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "master"}
+                        moduleName="Vehicle Overview"
+                        label="Chassis Number"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="chassis_no"
                           value={formData.chassis_no}
                           onChange={(e) => setFormData({ ...formData, chassis_no: e.target.value })}
                           placeholder="Enter chassis number"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_category">Category</Label>
+                      </FieldWithHistory>
+                      <FieldWithHistory
+                        fieldName="vehicle_category"
+                        fieldDisplayName="Vehicle Category"
+                        vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                        vehicleType={vehicle?.vehicle_type || "master"}
+                        moduleName="Vehicle Overview"
+                        label="Category"
+                        showHistoryIcon={!isEditing}
+                      >
                         <Input
                           id="vehicle_category"
                           value={formData.vehicle_category}
                           onChange={(e) => setFormData({ ...formData, vehicle_category: e.target.value })}
                           placeholder="Enter category"
                         />
-                      </div>
+                      </FieldWithHistory>
                     </div>
-                    
+
                     <div className="flex justify-end space-x-2 pt-4">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={handleCancel}
                         disabled={isLoading || uploadingImage}
                       >
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleSave}
                         disabled={isLoading || uploadingImage}
                       >
@@ -510,42 +542,96 @@ const VehicleOverviewSection: React.FC<VehicleOverviewSectionProps> = ({
                 ) : (
                   // Display current vehicle data (always fresh from props)
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Make</Label>
+                    <FieldWithHistory
+                      fieldName="make"
+                      fieldDisplayName="Make"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Make"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.make || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Model</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="model"
+                      fieldDisplayName="Model"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Model"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.model || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Variant</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="variant"
+                      fieldDisplayName="Variant"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Variant"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.variant || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Year</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="year"
+                      fieldDisplayName="Year"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Year"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.year || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Body Style</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="body_style"
+                      fieldDisplayName="Body Style"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Body Style"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.body_style || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">VIN</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="vin"
+                      fieldDisplayName="VIN"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="VIN"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.vin || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Plate Number</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="plate_no"
+                      fieldDisplayName="Plate Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Plate Number"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.plate_no || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Chassis Number</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="chassis_no"
+                      fieldDisplayName="Chassis Number"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Chassis Number"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.chassis_no || "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Category</Label>
+                    </FieldWithHistory>
+                    <FieldWithHistory
+                      fieldName="vehicle_category"
+                      fieldDisplayName="Vehicle Category"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "master"}
+                      moduleName="Vehicle Overview"
+                      label="Category"
+                    >
                       <p className="text-sm text-muted-foreground">{vehicle.vehicle_category || "—"}</p>
-                    </div>
+                    </FieldWithHistory>
                   </div>
                 )}
               </CardContent>

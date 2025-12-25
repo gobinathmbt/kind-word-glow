@@ -1,6 +1,7 @@
 const AdVehicle = require('../models/AdvertiseVehicle');
 const AdvertiseData = require('../models/AdvertiseData');
 const { logEvent } = require('./logs.controller');
+const { logActivity, calculateChanges } = require('./vehicleActivityLog.controller');
 const axios = require('axios');
 
 // Helper: Find vehicle by ID and company
@@ -183,10 +184,12 @@ const createAdvertisement = async (req, res) => {
       provider: advertisementData.provider
     });
 
+    let oldAdSnapshot = null;
     let advertisement;
     let isNew = !existingAd;
 
     if (existingAd) {
+      oldAdSnapshot = existingAd.toObject();
       addToHistory(existingAd, req.user.id);
       existingAd.payload = advertisementData.payload;
       existingAd.updated_by = req.user.id;
@@ -212,6 +215,62 @@ const createAdvertisement = async (req, res) => {
       published_at: advertisement.published_at,
       external_listing_id: advertisement.external_listing_id,
       last_updated: new Date()
+    });
+
+    // Log Activity
+    const changes = isNew ? [] : calculateChanges(oldAdSnapshot, advertisement);
+    
+    // Determine the most appropriate module name based on what changed
+    let moduleName = 'Advertisement';
+    
+    if (!isNew && changes.length > 0) {
+      // Define field categories for better grouping
+      const payloadFields = ['payload'];
+      const statusFields = ['status', 'published_at', 'external_listing_id'];
+      const providerFields = ['provider'];
+      const metadataFields = ['final_payload', 'api_response'];
+      
+      // Check which category of fields changed
+      const hasPayloadChanges = changes.some(change => 
+        payloadFields.some(field => change.field.includes(field))
+      );
+      const hasStatusChanges = changes.some(change => 
+        statusFields.some(field => change.field.includes(field))
+      );
+      const hasProviderChanges = changes.some(change => 
+        providerFields.some(field => change.field.includes(field))
+      );
+      const hasMetadataChanges = changes.some(change => 
+        metadataFields.some(field => change.field.includes(field))
+      );
+
+      // Determine module name based on priority
+      if (hasPayloadChanges) {
+        moduleName = 'Advertisement Content';
+      } else if (hasStatusChanges) {
+        moduleName = 'Advertisement Status';
+      } else if (hasProviderChanges) {
+        moduleName = 'Advertisement Provider';
+      } else if (hasMetadataChanges) {
+        moduleName = 'Advertisement Response';
+      }
+    } else if (isNew) {
+      moduleName = 'Advertisement Creation';
+    }
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: 'advertisement',
+      module_name: moduleName,
+      action: isNew ? 'create' : 'update',
+      user_id: req.user.id,
+      changes: isNew ? calculateChanges({}, advertisement) : changes,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        provider: advertisementData.provider,
+        advertisement_id: advertisement._id
+      }
     });
 
     await logEvent({
@@ -337,10 +396,63 @@ const updateAdvertisement = async (req, res) => {
     }
 
     // Provider unchanged - update current advertisement
+    const oldAdSnapshot = currentAd.toObject();
     addToHistory(currentAd, req.user.id);
     currentAd.payload = updateData.payload;
     currentAd.updated_by = req.user.id;
     await currentAd.save();
+
+    const changes = calculateChanges(oldAdSnapshot, currentAd);
+
+    if (changes.length > 0) {
+      // Determine the most appropriate module name based on what changed
+      let moduleName = 'Advertisement Update';
+      
+      // Define field categories for better grouping
+      const payloadFields = ['payload'];
+      const statusFields = ['status', 'published_at', 'external_listing_id'];
+      const providerFields = ['provider'];
+      const metadataFields = ['final_payload', 'api_response'];
+      
+      // Check which category of fields changed
+      const hasPayloadChanges = changes.some(change => 
+        payloadFields.some(field => change.field.includes(field))
+      );
+      const hasStatusChanges = changes.some(change => 
+        statusFields.some(field => change.field.includes(field))
+      );
+      const hasProviderChanges = changes.some(change => 
+        providerFields.some(field => change.field.includes(field))
+      );
+      const hasMetadataChanges = changes.some(change => 
+        metadataFields.some(field => change.field.includes(field))
+      );
+
+      // Determine module name based on priority
+      if (hasPayloadChanges) {
+        moduleName = 'Advertisement Content';
+      } else if (hasStatusChanges) {
+        moduleName = 'Advertisement Status';
+      } else if (hasProviderChanges) {
+        moduleName = 'Advertisement Provider';
+      } else if (hasMetadataChanges) {
+        moduleName = 'Advertisement Response';
+      }
+      
+      await logActivity({
+        company_id: req.user.company_id,
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        vehicle_type: 'advertisement',
+        module_name: moduleName,
+        action: 'update',
+        user_id: req.user.id,
+        changes: changes,
+        metadata: {
+          vehicle_stock_id: vehicle.vehicle_stock_id,
+          provider: currentAd.provider
+        }
+      });
+    }
 
     await logEvent({
       event_type: 'ad_publishing',

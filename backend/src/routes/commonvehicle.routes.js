@@ -6,6 +6,10 @@ const {
   getPricingReadyVehicles,
   togglePricingReady,
   saveVehicleCostDetails,
+  updateVehiclePricing,
+  getPricingVehicleAttachments,
+  uploadPricingVehicleAttachment,
+  deletePricingVehicleAttachment,
 } = require('../controllers/commonvehicle.controller');
 
 const router = express.Router();
@@ -23,5 +27,11 @@ router.get('/bulk-operations', getVehiclesForBulkOperations);
 router.get('/pricing-ready', getPricingReadyVehicles);
 router.patch('/pricing-ready/:vehicleId', togglePricingReady);
 router.put('/:vehicleId/:vehicleType/cost-details', saveVehicleCostDetails);
+router.put('/:vehicleId/:vehicleType/pricing', updateVehiclePricing);
+
+// Pricing attachment routes
+router.get('/:vehicleId/:vehicleType/attachments', getPricingVehicleAttachments);
+router.post('/:vehicleId/:vehicleType/attachments', uploadPricingVehicleAttachment);
+router.delete('/:vehicleId/:vehicleType/attachments/:attachmentId', deletePricingVehicleAttachment);
 
 module.exports = router;

@@ -115,6 +115,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
   const [clickedMenu, setClickedMenu] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [currentModule, setCurrentModule] = useState<string | null>(null);
 
@@ -145,6 +146,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       }
     }
   }, [user?.email, sidebarCookieKey, expandedMenusCookieKey, isMobileMenuOpen]);
+
+  // Prevent auto-scroll to top on route changes when clicking sidebar menu
+  useEffect(() => {
+    // Disable automatic scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Prevent scroll to top when location changes
+  const prevPathnameRef = useRef<string>(location.pathname);
+  useEffect(() => {
+    // Only handle if pathname actually changed
+    if (prevPathnameRef.current !== location.pathname) {
+      // React Router v6 by default scrolls to top on navigation
+      // We prevent this by not scrolling at all
+      // The scrollRestoration = 'manual' should handle most cases,
+      // but we add an extra safeguard for the main content area
+      
+      prevPathnameRef.current = location.pathname;
+    }
+  }, [location.pathname]);
 
   const handleSidebarToggle = (state?: boolean, isMobile: boolean = false) => {
     // If mobile menu, always force false
@@ -1068,7 +1091,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-1">
+        <main ref={mainContentRef} className="flex-1 overflow-y-auto p-1">
           {hasNoModuleAccess ? <NoAccessContent /> : children}
         </main>
       </div>

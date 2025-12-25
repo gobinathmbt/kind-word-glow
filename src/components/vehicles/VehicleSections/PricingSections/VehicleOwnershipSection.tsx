@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Save, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { adPublishingServices } from "@/api/services";
+import { vehicleServices, commonVehicleServices } from "@/api/services";
 import FieldWithHistory from "@/components/common/FieldWithHistory";
 
 interface VehicleOwnershipSectionProps {
@@ -19,7 +19,7 @@ interface VehicleOwnershipSectionProps {
 
 const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehicle, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
-  // Fix: vehicle_ownership is stored as an array in the database, access the first element safely
+  // Fix: vehicle_ownership is stored as an array in the database, access the first element
   const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
     ? vehicle.vehicle_ownership[0] 
     : {};
@@ -30,29 +30,16 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
     comments: ownership.comments || "",
   });
 
-  // Update form data when vehicle data changes (after save/refresh)
-  useEffect(() => {
-    const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
-      ? vehicle.vehicle_ownership[0] 
-      : {};
-    setFormData({
-      origin: ownership.origin || "",
-      no_of_previous_owners: ownership.no_of_previous_owners || "",
-      security_interest_on_ppsr: ownership.security_interest_on_ppsr || false,
-      comments: ownership.comments || "",
-    });
-  }, [vehicle.vehicle_ownership]);
-
   const handleSave = async () => {
     try {
-      await adPublishingServices.updateAdVehicle(vehicle._id, {
-        module_section: "Vehicle Ownership",
+      await commonVehicleServices.updateVehiclePricing(vehicle._id, vehicle.vehicle_type, {
         vehicle_ownership: {
           origin: formData.origin,
           no_of_previous_owners: formData.no_of_previous_owners,
           security_interest_on_ppsr: formData.security_interest_on_ppsr,
           comments: formData.comments,
-        }
+        },
+        module_section: "Pricing Ownership" // Add section name for activity logging
       });
 
       toast.success("Ownership information updated successfully");
@@ -65,10 +52,6 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
   };
 
   const handleCancel = () => {
-    // Fix: vehicle_ownership is stored as an array in the database, access the first element
-    const ownership = (vehicle.vehicle_ownership && Array.isArray(vehicle.vehicle_ownership) && vehicle.vehicle_ownership.length > 0) 
-      ? vehicle.vehicle_ownership[0] 
-      : {};
     setFormData({
       origin: ownership.origin || "",
       no_of_previous_owners: ownership.no_of_previous_owners || "",
@@ -108,8 +91,8 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                       fieldName="origin"
                       fieldDisplayName="Origin"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType={vehicle?.vehicle_type || "advertisement"}
-                      moduleName="Vehicle Ownership"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Ownership"
                       label="Origin"
                       showHistoryIcon={!isEditing}
                     >
@@ -123,8 +106,8 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                       fieldName="no_of_previous_owners"
                       fieldDisplayName="Previous Owners"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType={vehicle?.vehicle_type || "advertisement"}
-                      moduleName="Vehicle Ownership"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Ownership"
                       label="Previous Owners"
                       showHistoryIcon={!isEditing}
                     >
@@ -139,8 +122,8 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                       fieldName="security_interest_on_ppsr"
                       fieldDisplayName="Security Interest on PPSR"
                       vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                      vehicleType={vehicle?.vehicle_type || "advertisement"}
-                      moduleName="Vehicle Ownership"
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Ownership"
                       label="Security Interest on PPSR"
                       showHistoryIcon={!isEditing}
                     >
@@ -153,21 +136,23 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                       </div>
                     </FieldWithHistory>
                   </div>
-                  <FieldWithHistory
-                    fieldName="comments"
-                    fieldDisplayName="Comments"
-                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType={vehicle?.vehicle_type || "advertisement"}
-                    moduleName="Vehicle Ownership"
-                    label="Comments"
-                    showHistoryIcon={!isEditing}
-                  >
-                    <Textarea
-                      id="comments"
-                      value={formData.comments}
-                      onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-                    />
-                  </FieldWithHistory>
+                  <div>
+                    <FieldWithHistory
+                      fieldName="comments"
+                      fieldDisplayName="Comments"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Ownership"
+                      label="Comments"
+                      showHistoryIcon={!isEditing}
+                    >
+                      <Textarea
+                        id="comments"
+                        value={formData.comments}
+                        onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                      />
+                    </FieldWithHistory>
+                  </div>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleCancel}>
                       <X className="h-4 w-4 mr-2" />
@@ -185,8 +170,8 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                     fieldName="origin"
                     fieldDisplayName="Origin"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType={vehicle?.vehicle_type || "advertisement"}
-                    moduleName="Vehicle Ownership"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Ownership"
                     label="Origin"
                   >
                     <p className="text-sm text-muted-foreground">{formData.origin || "N/A"}</p>
@@ -195,8 +180,8 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                     fieldName="no_of_previous_owners"
                     fieldDisplayName="Previous Owners"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType={vehicle?.vehicle_type || "advertisement"}
-                    moduleName="Vehicle Ownership"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Ownership"
                     label="Previous Owners"
                   >
                     <p className="text-sm text-muted-foreground">{formData.no_of_previous_owners || "N/A"}</p>
@@ -205,23 +190,24 @@ const VehicleOwnershipSection: React.FC<VehicleOwnershipSectionProps> = ({ vehic
                     fieldName="security_interest_on_ppsr"
                     fieldDisplayName="Security Interest on PPSR"
                     vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType={vehicle?.vehicle_type || "advertisement"}
-                    moduleName="Vehicle Ownership"
+                    vehicleType={vehicle?.vehicle_type || "pricing"}
+                    moduleName="Pricing Ownership"
                     label="Security Interest on PPSR"
                   >
                     <p className="text-sm text-muted-foreground">{formData.security_interest_on_ppsr ? 'Yes' : 'No'}</p>
                   </FieldWithHistory>
-                  <FieldWithHistory
-                    fieldName="comments"
-                    fieldDisplayName="Comments"
-                    vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
-                    vehicleType={vehicle?.vehicle_type || "advertisement"}
-                    moduleName="Vehicle Ownership"
-                    label="Comments"
-                    className="col-span-2"
-                  >
-                    <p className="text-sm text-muted-foreground">{formData.comments || "N/A"}</p>
-                  </FieldWithHistory>
+                  <div className="col-span-2">
+                    <FieldWithHistory
+                      fieldName="comments"
+                      fieldDisplayName="Comments"
+                      vehicleStockId={vehicle?.vehicle_stock_id || vehicle?._id}
+                      vehicleType={vehicle?.vehicle_type || "pricing"}
+                      moduleName="Pricing Ownership"
+                      label="Comments"
+                    >
+                      <p className="text-sm text-muted-foreground">{formData.comments || "N/A"}</p>
+                    </FieldWithHistory>
+                  </div>
                 </div>
               )}
             </CardContent>

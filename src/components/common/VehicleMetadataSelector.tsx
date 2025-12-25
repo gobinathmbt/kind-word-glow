@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { companyServices } from "@/api/services";
 import Select from "react-select";
 import { Label } from "@/components/ui/label";
@@ -174,6 +174,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
   yearProps = {},
   bodyProps = {},
 }) => {
+  const queryClient = useQueryClient();
   const [apiError, setApiError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState({
     make: "",
@@ -326,13 +327,19 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: yearsError,
     refetch: refetchYears,
   } = useQuery({
-    queryKey: ["dropdown-years-global", selectedIds.model, selectedIds.variant],
-    queryFn: () =>
-      companyServices.getCompanyMetaData("years", {
+    queryKey: ["dropdown-years-global", selectedIds.model, selectedIds.variant, isEdit ? "edit" : "view"],
+    queryFn: () => {
+      // In edit mode with selectedYear but no model/variant, fetch all years
+      if (isEdit && selectedYear && !selectedIds.model && !selectedIds.variant) {
+        return companyServices.getCompanyMetaData("years", {});
+      }
+      // Otherwise, fetch years based on model/variant
+      return companyServices.getCompanyMetaData("years", {
         modelId: selectedIds.model || undefined,
         variantId: selectedIds.variant || undefined,
-      }),
-    enabled: isEdit ? true : !!(selectedIds.model || selectedIds.variant),
+      });
+    },
+    enabled: isEdit || !!(selectedIds.model || selectedIds.variant) || !!selectedYear,
     ...queryOptions,
   });
 
@@ -449,22 +456,42 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
       switch (type) {
         case "make":
           response = await companyServices.createMake(data);
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-makes-global"] 
+          });
           await refetchMakes();
           break;
         case "model":
           response = await companyServices.createModel(data);
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-models-global"] 
+          });
           await refetchModels();
           break;
         case "variant":
           response = await companyServices.createVariant(data);
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-variants-global"] 
+          });
           await refetchVariants();
           break;
         case "body":
           response = await companyServices.createBodyType(data);
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-bodies-global"] 
+          });
           await refetchBodies();
           break;
         case "year":
           response = await companyServices.createYear(data);
+          // Invalidate all year-related queries to ensure fresh data
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-years-global"] 
+          });
+          // Also invalidate the specific query for current model/variant combination
+          await queryClient.invalidateQueries({ 
+            queryKey: ["dropdown-years-global", selectedIds.model, selectedIds.variant] 
+          });
           await refetchYears();
           break;
         default:

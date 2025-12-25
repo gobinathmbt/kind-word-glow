@@ -1,18 +1,34 @@
 const MasterVehicle = require("../models/MasterVehicle");
 const { logEvent } = require("./logs.controller");
+const { logActivity } = require("./vehicleActivityLog.controller");
+const ActivityLoggingService = require("../services/activityLogging.service");
 
 // @desc    Get all master vehicles
 // @route   GET /api/mastervehicle
 // @access  Private (Company Admin/Super Admin)
 const getMasterVehicles = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, search, dealership } = req.query;
+    const { page = 1, limit = 20, status, search, dealership, deleted_only } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
     const numericPage = parseInt(page);
 
     // Build filter with company_id first for index usage
     let filter = { company_id: req.user.company_id, vehicle_type: 'master' };
+
+    // Handle soft delete filter
+    if (deleted_only === 'true') {
+      filter.isActive = false;
+    } else {
+      // Show active vehicles (isActive: true OR isActive field doesn't exist)
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }
+        ]
+      });
+    }
 
     // Handle dealership-based access for non-primary company_super_admin
     if (!req.user.is_primary_admin &&
@@ -36,7 +52,7 @@ const getMasterVehicles = async (req, res) => {
 
     if (search) {
       filter.$and = filter.$and || [];
-      
+
       // Build search conditions
       const searchConditions = [
         { make: { $regex: search, $options: "i" } },
@@ -45,13 +61,13 @@ const getMasterVehicles = async (req, res) => {
         { plate_no: { $regex: search, $options: "i" } },
         { vin: { $regex: search, $options: "i" } },
       ];
-      
+
       // Only add vehicle_stock_id and year search if the search term is numeric
       if (!isNaN(search) && search.trim() !== '') {
         searchConditions.push({ vehicle_stock_id: parseInt(search) });
         searchConditions.push({ year: parseInt(search) });
       }
-      
+
       filter.$and.push({ $or: searchConditions });
     }
 
@@ -279,6 +295,7 @@ const createMasterVehicle = async (req, res) => {
       body_style,
       status: "pending",
       queue_status: "processed",
+      isActive: true, // Set as active by default
     };
 
     // Add vehicle source information
@@ -330,6 +347,23 @@ const createMasterVehicle = async (req, res) => {
       },
     });
 
+    // Activity Stream Log
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: nextStockId,
+      vehicle_type: 'master',
+      module_name: 'Master Vehicle',
+      action: 'create',
+      user_id: req.user.id,
+      changes: calculateChanges({}, vehicleData),
+      metadata: {
+        vehicle_stock_id: nextStockId,
+        make,
+        model,
+        year
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: "MasterVehicle stock created successfully",
@@ -347,16 +381,15 @@ const createMasterVehicle = async (req, res) => {
 // @desc    Update master vehicle
 // @route   PUT /api/mastervehicle/:id
 // @access  Private (Company Admin/Super Admin)
+// @desc    Update master vehicle
+// @route   PUT /api/mastervehicle/:id
+// @access  Private (Company Admin/Super Admin)
 const updateMasterVehicle = async (req, res) => {
   try {
-    const masterVehicle = await MasterVehicle.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        company_id: req.user.company_id,
-      },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const masterVehicle = await MasterVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
 
     if (!masterVehicle) {
       return res.status(404).json({
@@ -364,6 +397,37 @@ const updateMasterVehicle = async (req, res) => {
         message: "Master vehicle not found",
       });
     }
+
+    const oldVehicle = masterVehicle.toObject();
+
+    // Special handling for vehicle_odometer to preserve _id
+    if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
+      masterVehicle.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
+        ...entry, // Preserves _id if it exists
+        reading: Number(entry.reading),
+        reading_date: entry.reading_date ? new Date(entry.reading_date) : new Date(),
+        odometerCertified: entry.odometerCertified || false,
+        odometerStatus: entry.odometerStatus || "",
+        created_at: entry.created_at ? new Date(entry.created_at) : new Date(),
+      }));
+      // Remove from req.body so it doesn't get overwritten by set()
+      delete req.body.vehicle_odometer;
+    }
+
+    // Apply updates
+    masterVehicle.set(req.body);
+    await masterVehicle.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle,
+      newData: masterVehicle.toObject(),
+      req,
+      vehicle: masterVehicle,
+      options: {
+        vehicleType: 'master'
+      }
+    });
 
     await logEvent({
       event_type: "master_vehicle",
@@ -429,10 +493,298 @@ const deleteMasterVehicle = async (req, res) => {
   }
 };
 
+// @desc    Get master vehicle attachments
+// @route   GET /api/mastervehicle/:id/attachments
+// @access  Private (Company Admin/Super Admin)
+const getMasterVehicleAttachments = async (req, res) => {
+  try {
+    const vehicle = await MasterVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Master vehicle not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments || [],
+    });
+  } catch (error) {
+    console.error("Get master vehicle attachments error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving master vehicle attachments",
+    });
+  }
+};
+
+// @desc    Upload master vehicle attachment
+// @route   POST /api/mastervehicle/:id/attachments
+// @access  Private (Company Admin/Super Admin)
+const uploadMasterVehicleAttachment = async (req, res) => {
+  try {
+    const vehicle = await MasterVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Master vehicle not found",
+      });
+    }
+
+    // Add the new attachment
+    vehicle.vehicle_attachments = vehicle.vehicle_attachments || [];
+    vehicle.vehicle_attachments.push(req.body);
+
+    await vehicle.save();
+
+    // Log Activity
+    const attachmentType = req.body.type || 'file';
+    const fileName = req.body.filename || req.body.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: 'master',
+      module_name: 'Vehicle Attachments',
+      action: 'create',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: null,
+        new_value: fileName,
+        action_type: 'add'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: req.body.size
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments,
+    });
+  } catch (error) {
+    console.error("Upload master vehicle attachment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error uploading master vehicle attachment",
+    });
+  }
+};
+
+// @desc    Delete master vehicle attachment
+// @route   DELETE /api/mastervehicle/:id/attachments/:attachmentId
+// @access  Private (Company Admin/Super Admin)
+const deleteMasterVehicleAttachment = async (req, res) => {
+  try {
+    const vehicle = await MasterVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Master vehicle not found",
+      });
+    }
+
+    // Find the attachment to be deleted for logging
+    const attachmentToDelete = vehicle.vehicle_attachments.find(
+      (attachment) => attachment._id.toString() === req.params.attachmentId
+    );
+
+    if (!attachmentToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: "Attachment not found",
+      });
+    }
+
+    // Remove the attachment
+    vehicle.vehicle_attachments = vehicle.vehicle_attachments.filter(
+      (attachment) => attachment._id.toString() !== req.params.attachmentId
+    );
+
+    await vehicle.save();
+
+    // Log Activity
+    const attachmentType = attachmentToDelete.type || 'file';
+    const fileName = attachmentToDelete.filename || attachmentToDelete.original_filename || 'Unknown file';
+
+    await logActivity({
+      company_id: req.user.company_id,
+      vehicle_stock_id: vehicle.vehicle_stock_id,
+      vehicle_type: 'master',
+      module_name: 'Vehicle Attachments',
+      action: 'delete',
+      user_id: req.user.id,
+      changes: [{
+        field: `${attachmentType}_attachment`,
+        old_value: fileName,
+        new_value: null,
+        action_type: 'remove'
+      }],
+      metadata: {
+        attachment_type: attachmentType,
+        file_name: fileName,
+        file_size: attachmentToDelete.size
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: vehicle.vehicle_attachments,
+    });
+  } catch (error) {
+    console.error("Delete master vehicle attachment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting master vehicle attachment",
+    });
+  }
+};
+
+// @desc    Soft delete master vehicle
+// @route   PATCH /api/mastervehicle/:id/soft-delete
+// @access  Private (Company Admin/Super Admin)
+const softDeleteMasterVehicle = async (req, res) => {
+  try {
+    // First, let's check if the vehicle exists at all
+    const existingVehicle = await MasterVehicle.findOne({ _id: req.params.id });
+    const vehicle = await MasterVehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } } // Handle vehicles without isActive field
+        ]
+      },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Master vehicle not found or already deleted",
+      });
+    }
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "master_vehicle_soft_deleted",
+      event_description: `Master vehicle soft deleted: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Master vehicle deleted successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Soft delete master vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting master vehicle",
+    });
+  }
+};
+
+// @desc    Restore master vehicle
+// @route   PATCH /api/mastervehicle/:id/restore
+// @access  Private (Company Admin/Super Admin)
+const restoreMasterVehicle = async (req, res) => {
+  try {
+    // First, let's check if the vehicle exists and is deleted
+    const existingVehicle = await MasterVehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id
+    });
+
+    const vehicle = await MasterVehicle.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        company_id: req.user.company_id,
+        isActive: false,
+      },
+      { isActive: true },
+      { new: true }
+    );
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: "Master vehicle not found or already active",
+      });
+    }
+
+    // Log the event
+    await logEvent({
+      event_type: "vehicle_operation",
+      event_action: "master_vehicle_restored",
+      event_description: `Master vehicle restored: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+      user_id: req.user.id,
+      company_id: req.user.company_id,
+      user_role: req.user.role,
+      metadata: {
+        vehicle_stock_id: vehicle.vehicle_stock_id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        plate_no: vehicle.plate_no,
+        vehicle_type: vehicle.vehicle_type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Master vehicle restored successfully",
+      data: vehicle,
+    });
+  } catch (error) {
+    console.error("Restore master vehicle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error restoring master vehicle",
+    });
+  }
+};
+
 module.exports = {
   getMasterVehicles,
   getMasterVehicle,
   createMasterVehicle,
   updateMasterVehicle,
   deleteMasterVehicle,
+  softDeleteMasterVehicle,
+  restoreMasterVehicle,
+  getMasterVehicleAttachments,
+  uploadMasterVehicleAttachment,
+  deleteMasterVehicleAttachment,
 };

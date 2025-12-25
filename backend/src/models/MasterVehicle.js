@@ -269,6 +269,12 @@ const MasterVehicleSchema = new mongoose.Schema({
     default: "pending",
   },
 
+  // Soft Delete Status
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+
   // Queue Processing
   queue_status: {
     type: String,
@@ -308,6 +314,7 @@ MasterVehicleSchema.index({ queue_status: 1 });
 MasterVehicleSchema.index({ created_at: -1 });
 MasterVehicleSchema.index({ vin: 1 });
 MasterVehicleSchema.index({ plate_no: 1 });
+MasterVehicleSchema.index({ company_id: 1, isActive: 1 }); // Index for soft delete queries
 
 // Auto-generate name if not provided
 MasterVehicleSchema.pre("save", function (next) {

@@ -905,14 +905,16 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                       <TabsContent key={provider} value={provider} className="mt-0 space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
                           <h3 className="text-base sm:text-lg font-semibold">{provider} Advertisements</h3>
-                          <Button
-                            onClick={() => handleCreateNew(provider)}
-                            disabled={loading}
-                            className="w-full sm:w-auto"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create New
-                          </Button>
+                          {!hasAnyAd && (
+                            <Button
+                              onClick={() => handleCreateNew(provider)}
+                              disabled={loading}
+                              className="w-full sm:w-auto"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create New
+                            </Button>
+                          )}
                         </div>
 
                         {providerAds.length === 0 ? (
@@ -992,8 +994,8 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                                       )}
                                       <TableCell className="text-right py-3">
                                         <div className="flex items-center justify-end gap-2 flex-wrap">
-                                          {/* Edit button - available for draft, withdrawn, and failed (NOT published or sold) */}
-                                          {(ad.status === "draft" || ad.status === "withdrawn" || ad.status === "failed") && (
+                                          {/* Edit button - available for draft and failed (NOT published, withdrawn, or sold) */}
+                                          {(ad.status === "draft" || ad.status === "failed") && (
                                             <Button
                                               variant="outline"
                                               size="sm"
@@ -1006,8 +1008,8 @@ const AdvertisementSection: React.FC<AdvertisementSectionProps> = ({
                                             </Button>
                                           )}
                                           
-                                          {/* Publish button - for draft, failed, and withdrawn (NOT for sold) */}
-                                          {(ad.status === "draft" || ad.status === "failed" || ad.status === "withdrawn") && (
+                                          {/* Publish button - for draft and failed (NOT for withdrawn or sold) */}
+                                          {(ad.status === "draft" || ad.status === "failed") && (
                                             <Button
                                               size="sm"
                                               onClick={() => handlePublish(ad._id)}

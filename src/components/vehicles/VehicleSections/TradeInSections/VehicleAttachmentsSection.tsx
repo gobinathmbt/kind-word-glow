@@ -276,9 +276,9 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
- const handleFilesSelected = (files: File[]) => {
-  setSelectedFiles((prev) => [...prev, ...files]);
-};
+  const handleFilesSelected = (files: File[]) => {
+    setSelectedFiles((prev) => [...prev, ...files]);
+  };
 
   const handleRemoveFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
@@ -324,7 +324,10 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
         await vehicleServices.uploadVehicleAttachment(
           vehicle._id,
           vehicleType,
-          attachmentData
+          {
+            ...attachmentData,
+            module_section: "Vehicle Attachments",
+          }
         );
       }
 
@@ -352,7 +355,8 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
       await vehicleServices.deleteVehicleAttachment(
         vehicle._id,
         vehicleType,
-        attachment._id
+        attachment._id,
+        { module_section: "Vehicle Attachments" }
       );
 
       toast.success("Attachment deleted successfully");

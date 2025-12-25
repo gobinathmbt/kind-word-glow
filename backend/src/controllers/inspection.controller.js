@@ -1,6 +1,8 @@
 
 const Vehicle = require('../models/Vehicle');
 const { logEvent } = require('./logs.controller');
+const { calculateChanges } = require('./vehicleActivityLog.controller');
+const ActivityLoggingService = require('../services/activityLogging.service');
 
 // @desc    Get all inspections
 // @route   GET /api/inspection
@@ -10,7 +12,7 @@ const getInspections = async (req, res) => {
     const { page = 1, limit = 20, status } = req.query;
     const skip = (page - 1) * limit;
 
-    let filter = { 
+    let filter = {
       company_id: req.user.company_id,
       vehicle_type: 'inspection'
     };
@@ -51,12 +53,24 @@ const getInspections = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const startInspection = async (req, res) => {
   try {
+    const oldVehicle = await Vehicle.findOne({
+      vehicle_stock_id: req.params.vehicleId,
+      company_id: req.user.company_id
+    });
+
+    if (!oldVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
     const vehicle = await Vehicle.findOneAndUpdate(
-      { 
+      {
         vehicle_stock_id: req.params.vehicleId,
-        company_id: req.user.company_id 
+        company_id: req.user.company_id
       },
-      { 
+      {
         inspection_status: 'in_progress',
         inspection_started_at: new Date(),
         inspection_started_by: req.user.id
@@ -64,12 +78,19 @@ const startInspection = async (req, res) => {
       { new: true }
     );
 
-    if (!vehicle) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vehicle not found'
-      });
-    }
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldVehicle.toObject(),
+      newData: vehicle.toObject(),
+      req,
+      vehicle,
+      options: {
+        vehicleType: 'inspection',
+        metadata: {
+          action_type: 'inspection_started'
+        }
+      }
+    });
 
     await logEvent({
       event_type: 'inspection',
@@ -133,15 +154,11 @@ const getInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateInspection = async (req, res) => {
   try {
-    const inspection = await Vehicle.findOneAndUpdate(
-      { 
-        _id: req.params.id,
-        company_id: req.user.company_id,
-        vehicle_type: 'inspection'
-      },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const inspection = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'inspection'
+    });
 
     if (!inspection) {
       return res.status(404).json({
@@ -149,6 +166,37 @@ const updateInspection = async (req, res) => {
         message: 'Inspection not found'
       });
     }
+
+    const oldInspection = inspection.toObject();
+
+    // Special handling for vehicle_odometer to preserve _id
+    if (req.body.vehicle_odometer && Array.isArray(req.body.vehicle_odometer)) {
+      inspection.vehicle_odometer = req.body.vehicle_odometer.map((entry) => ({
+        ...entry, // Preserves _id if it exists
+        reading: Number(entry.reading),
+        reading_date: entry.reading_date ? new Date(entry.reading_date) : new Date(),
+        odometerCertified: entry.odometerCertified || false,
+        odometerStatus: entry.odometerStatus || "",
+        created_at: entry.created_at ? new Date(entry.created_at) : new Date(),
+      }));
+      // Remove from req.body so it doesn't get overwritten by set()
+      delete req.body.vehicle_odometer;
+    }
+
+    // Apply updates
+    inspection.set(req.body);
+    await inspection.save();
+
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldInspection,
+      newData: inspection.toObject(),
+      req,
+      vehicle: inspection,
+      options: {
+        vehicleType: 'inspection'
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -169,13 +217,26 @@ const updateInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const completeInspection = async (req, res) => {
   try {
+    const oldInspection = await Vehicle.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id,
+      vehicle_type: 'inspection'
+    });
+
+    if (!oldInspection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inspection not found'
+      });
+    }
+
     const inspection = await Vehicle.findOneAndUpdate(
-      { 
+      {
         _id: req.params.id,
         company_id: req.user.company_id,
         vehicle_type: 'inspection'
       },
-      { 
+      {
         inspection_status: 'completed',
         inspection_completed_at: new Date(),
         inspection_completed_by: req.user.id,
@@ -184,12 +245,19 @@ const completeInspection = async (req, res) => {
       { new: true }
     );
 
-    if (!inspection) {
-      return res.status(404).json({
-        success: false,
-        message: 'Inspection not found'
-      });
-    }
+    // Log activity using centralized service
+    await ActivityLoggingService.logVehicleUpdate({
+      oldData: oldInspection.toObject(),
+      newData: inspection.toObject(),
+      req,
+      vehicle: inspection,
+      options: {
+        vehicleType: 'inspection',
+        metadata: {
+          action_type: 'inspection_completed'
+        }
+      }
+    });
 
     await logEvent({
       event_type: 'inspection',

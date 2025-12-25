@@ -17,7 +17,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   adPublishingServices,
   authServices,
@@ -61,9 +61,11 @@ interface StatChip {
 
 
 const AdPublishingList = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dealershipFilter, setDealershipFilter] = useState("all");
+  const [deletedOnlyFilter, setDeletedOnlyFilter] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -115,6 +117,7 @@ const AdPublishingList = () => {
           search: searchTerm,
           status: statusFilter,
           dealership: dealershipFilter,
+          deleted_only: deletedOnlyFilter,
         });
 
         allData = [...allData, ...response.data.data];
@@ -141,8 +144,8 @@ const AdPublishingList = () => {
     refetch,
   } = useQuery({
     queryKey: paginationEnabled
-      ? ["ad-vehicles", page, searchTerm, statusFilter, dealershipFilter, rowsPerPage]
-      : ["all-ad-vehicles", searchTerm, statusFilter, dealershipFilter],
+      ? ["ad-vehicles", page, searchTerm, statusFilter, dealershipFilter, deletedOnlyFilter, rowsPerPage]
+      : ["all-ad-vehicles", searchTerm, statusFilter, dealershipFilter, deletedOnlyFilter],
     queryFn: async () => {
       if (!paginationEnabled) {
         return await fetchAllVehicles();
@@ -154,6 +157,7 @@ const AdPublishingList = () => {
         search: searchTerm,
         status: statusFilter,
         dealership: dealershipFilter,
+        deleted_only: deletedOnlyFilter,
       });
       return response.data;
     },
@@ -207,6 +211,7 @@ const AdPublishingList = () => {
     setSearchTerm("");
     setStatusFilter("all");
     setDealershipFilter("all");
+    setDeletedOnlyFilter(false);
     setPage(1);
     refetch();
   };
@@ -283,6 +288,10 @@ const AdPublishingList = () => {
       setSelectedVehicle(response.data.data);
       // Also refresh the list in the background
       refetch();
+      // Invalidate activity logs query to refresh the activity stream
+      queryClient.invalidateQueries({
+        queryKey: ['vehicle-activity', 'advertisement', selectedVehicle.vehicle_stock_id]
+      });
     } catch (error) {
       toast.error("Failed to refresh vehicle details");
       throw error;
@@ -310,6 +319,19 @@ const AdPublishingList = () => {
   const handleRefresh = () => {
     refetch();
     toast.success("Data refreshed");
+  };
+
+  const handleRestoreVehicle = async (vehicleId: string) => {
+    try {
+      console.log("Attempting to restore advertisement vehicle:", vehicleId);
+      await adPublishingServices.restoreAdVehicle(vehicleId);
+      console.log("Restore successful");
+      toast.success("Vehicle restored successfully");
+      refetch();
+    } catch (error) {
+      console.error("Restore failed:", error);
+      toast.error(`Failed to restore vehicle: ${error.response?.data?.message || error.message}`);
+    }
   };
 
  
@@ -569,7 +591,11 @@ const AdPublishingList = () => {
           {getSortIcon("status")}
         </div>
       </TableHead>
-    
+      {deletedOnlyFilter && (
+        <TableHead className="bg-muted/50">
+          Actions
+        </TableHead>
+      )}
     </TableRow>
   );
 
@@ -665,7 +691,18 @@ const AdPublishingList = () => {
               {vehicle.status?.replace("_", " ") || "Pending"}
             </Badge>
           </TableCell>
-        
+          {deletedOnlyFilter && (
+            <TableCell>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRestoreVehicle(vehicle._id)}
+                className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+              >
+                Restore
+              </Button>
+            </TableCell>
+          )}
         </TableRow>
       ))}
     </>
@@ -759,6 +796,18 @@ const AdPublishingList = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="deleted-only-filter"
+                  checked={deletedOnlyFilter}
+                  onChange={(e) => setDeletedOnlyFilter(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="deleted-only-filter">Show Deleted Only</Label>
+              </div>
             </div>
           </div>
           <div className="flex justify-between">

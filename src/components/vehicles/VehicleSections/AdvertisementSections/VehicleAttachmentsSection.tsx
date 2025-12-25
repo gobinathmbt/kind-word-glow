@@ -30,7 +30,7 @@ import {
   Play,
 } from "lucide-react";
 import { toast } from "sonner";
-import { vehicleServices, companyServices } from "@/api/services";
+import { vehicleServices, companyServices, adPublishingServices } from "@/api/services";
 import { S3Uploader, S3Config } from "@/lib/s3-client";
 import {
   Select,
@@ -321,10 +321,12 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
       }
 
       for (const attachmentData of uploadedAttachments) {
-        await vehicleServices.uploadVehicleAttachment(
+        await adPublishingServices.uploadVehicleAttachment(
           vehicle._id,
-          vehicleType,
-          attachmentData
+          {
+            ...attachmentData,
+            module_section: "Vehicle Attachments",
+          }
         );
       }
 
@@ -349,10 +351,10 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
         await s3Uploader.deleteFile(attachment.s3_key);
       }
 
-      await vehicleServices.deleteVehicleAttachment(
+      await adPublishingServices.deleteVehicleAttachment(
         vehicle._id,
-        vehicleType,
-        attachment._id
+        attachment._id,
+        { module_section: "Vehicle Attachments" }
       );
 
       toast.success("Attachment deleted successfully");
@@ -539,125 +541,124 @@ const VehicleAttachmentsSection: React.FC<VehicleAttachmentsSectionProps> = ({
                 Upload
               </Button>
             </DialogTrigger>
-           <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-  <DialogHeader>
-    <DialogTitle>Upload Attachments</DialogTitle>
-  </DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Upload Attachments</DialogTitle>
+              </DialogHeader>
 
-  <div className="flex-1 overflow-hidden">
-    <Tabs
-      value={uploadType}
-      onValueChange={(value) => setUploadType(value as "images" | "files")}
-    >
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="images">Images</TabsTrigger>
-        <TabsTrigger value="files">Documents</TabsTrigger>
-      </TabsList>
-
-      {/* ===== Images Tab ===== */}
-      <TabsContent value="images" className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Image Category</label>
-          <Select value={uploadCategory} onValueChange={setUploadCategory}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select an image category" />
-            </SelectTrigger>
-            <SelectContent>
-              {imageCategoryOptions.map((option) => (
-                <SelectItem
-                  key={option.option_value}
-                  value={option.option_value}
+              <div className="flex-1 overflow-hidden">
+                <Tabs
+                  value={uploadType}
+                  onValueChange={(value) => setUploadType(value as "images" | "files")}
                 >
-                  {option.display_value}
-                </SelectItem>
-              ))}
-              <SelectItem value="other_images">Other Images</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="images">Images</TabsTrigger>
+                    <TabsTrigger value="files">Documents</TabsTrigger>
+                  </TabsList>
 
-        <FileUpload
-          onFilesSelected={handleFilesSelected}
-          accept="images"
-          multiple={true}
-          maxSize={10 * 1024 * 1024} // 10MB
-        />
-      </TabsContent>
+                  {/* ===== Images Tab ===== */}
+                  <TabsContent value="images" className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Image Category</label>
+                      <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select an image category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {imageCategoryOptions.map((option) => (
+                            <SelectItem
+                              key={option.option_value}
+                              value={option.option_value}
+                            >
+                              {option.display_value}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="other_images">Other Images</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-      {/* ===== Files Tab ===== */}
-      <TabsContent value="files" className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">File Category</label>
-          <Select value={uploadCategory} onValueChange={setUploadCategory}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a file category" />
-            </SelectTrigger>
-            <SelectContent>
-              {fileCategoryOptions.map((option) => (
-                <SelectItem
-                  key={option.option_value}
-                  value={option.option_value}
+                    <FileUpload
+                      onFilesSelected={handleFilesSelected}
+                      accept="images"
+                      multiple={true}
+                      maxSize={10 * 1024 * 1024} // 10MB
+                    />
+                  </TabsContent>
+
+                  {/* ===== Files Tab ===== */}
+                  <TabsContent value="files" className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">File Category</label>
+                      <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a file category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fileCategoryOptions.map((option) => (
+                            <SelectItem
+                              key={option.option_value}
+                              value={option.option_value}
+                            >
+                              {option.display_value}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="other_files">Other Files</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <FileUpload
+                      onFilesSelected={handleFilesSelected}
+                      accept="files"
+                      multiple={true}
+                      maxSize={25 * 1024 * 1024} // 25MB
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              {/* ===== Selected Files Section ===== */}
+              {selectedFiles.length > 0 && (
+                <div
+                  className={`space-y-4 border-t pt-4 ${selectedFiles.length > 3
+                      ? "flex-1 overflow-hidden flex flex-col"
+                      : ""
+                    }`}
                 >
-                  {option.display_value}
-                </SelectItem>
-              ))}
-              <SelectItem value="other_files">Other Files</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">
+                      Selected Files ({selectedFiles.length})
+                    </h4>
+                    <Button onClick={uploadToS3AndSave} disabled={uploading} size="sm">
+                      {uploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload All
+                        </>
+                      )}
+                    </Button>
+                  </div>
 
-        <FileUpload
-          onFilesSelected={handleFilesSelected}
-          accept="files"
-          multiple={true}
-          maxSize={25 * 1024 * 1024} // 25MB
-        />
-      </TabsContent>
-    </Tabs>
-  </div>
-
-  {/* ===== Selected Files Section ===== */}
-  {selectedFiles.length > 0 && (
-    <div
-      className={`space-y-4 border-t pt-4 ${
-        selectedFiles.length > 3
-          ? "flex-1 overflow-hidden flex flex-col"
-          : ""
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium">
-          Selected Files ({selectedFiles.length})
-        </h4>
-        <Button onClick={uploadToS3AndSave} disabled={uploading} size="sm">
-          {uploading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload All
-            </>
-          )}
-        </Button>
-      </div>
-
-      <div
-        className={
-          selectedFiles.length > 3 ? "flex-1 overflow-y-auto" : ""
-        }
-      >
-        <FilePreview
-          files={selectedFiles}
-          onRemove={handleRemoveFile}
-          progress={uploadProgress}
-        />
-      </div>
-    </div>
-  )}
-</DialogContent>
+                  <div
+                    className={
+                      selectedFiles.length > 3 ? "flex-1 overflow-y-auto" : ""
+                    }
+                  >
+                    <FilePreview
+                      files={selectedFiles}
+                      onRemove={handleRemoveFile}
+                      progress={uploadProgress}
+                    />
+                  </div>
+                </div>
+              )}
+            </DialogContent>
 
           </Dialog>
         )}

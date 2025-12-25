@@ -31,20 +31,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, Users, DollarSign, FileBarChart, Repeat } from "lucide-react";
+import { Car, Wrench, ClipboardList, Calculator, FileText, Building, RefreshCw, Users, DollarSign, FileBarChart, Repeat, Trash2 } from "lucide-react";
 import { commonVehicleServices, vehicleServices } from "@/api/services";
 import { toast } from "sonner";
-import VehicleOverviewSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOverviewSection";
-import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleGeneralInfoSection";
-import VehicleSourceSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSourceSection";
-import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleRegistrationSection";
-import VehicleEngineSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleEngineSection";
-import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleSpecificationsSection";
-import VehicleOdometerSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleOdometerSection";
-import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/PricingSections/VehicleAttachmentsSection";
+import VehicleOverviewSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOverviewSection";
+import VehicleGeneralInfoSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleGeneralInfoSection";
+import VehicleSourceSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSourceSection";
+import VehicleRegistrationSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleRegistrationSection";
+import VehicleEngineSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleEngineSection";
+import VehicleSpecificationsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleSpecificationsSection";
+import VehicleOdometerSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleOdometerSection";
+import VehicleAttachmentsSection from "@/components/vehicles/VehicleSections/TradeInSections/VehicleAttachmentsSection";
 import WorkshopReportModal from "@/components/workshop/WorkshopReportModal";
 import { DealershipManagerButton } from "@/components/common/DealershipManager";
 import MasterInspection from "@/components/inspection/MasterInspection";
+import ActivityStreamSection from "../VehicleSections/Common/ActivityStreamSection";
 
 interface VehicleTradeSideModalProps {
   vehicle: any;
@@ -77,7 +78,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
 
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: "tradein" | "inspection";
+    type: "tradein" | "inspection" | "soft_delete";
     action?: "push" | "remove";
     stages?: string[];
   } | null>(null);
@@ -106,8 +107,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       });
       setIsPricingReady(!isPricingReady);
       toast.success(
-        `Vehicle ${
-          !isPricingReady ? "marked as" : "removed from"
+        `Vehicle ${!isPricingReady ? "marked as" : "removed from"
         } pricing ready`
       );
       onUpdate();
@@ -129,12 +129,17 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
     }
   };
 
+  const handleSoftDelete = () => {
+    setPendingAction({ type: "soft_delete" });
+    setConfirmationOpen(true);
+  };
+
   useEffect(() => {
     if (vehicle && vehicle.vehicle_type === "tradein") {
       const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
         ? vehicle.is_workshop
-            .filter((item: any) => item.in_workshop)
-            .map((item: any) => item.stage_name)
+          .filter((item: any) => item.in_workshop)
+          .map((item: any) => item.stage_name)
         : [];
       setSelectedStages(currentlyInWorkshop);
     }
@@ -223,7 +228,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             const existingStageIndex = updatedWorkshopStages.findIndex(
               (item: any) => item.stage_name === stage
             );
-            
+
             if (existingStageIndex >= 0) {
               // Update existing stage
               updatedWorkshopStages[existingStageIndex] = {
@@ -246,7 +251,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             const existingProgressIndex = updatedWorkshopProgress.findIndex(
               (item: any) => item.stage_name === stage
             );
-            
+
             if (existingProgressIndex >= 0) {
               // Update existing progress
               updatedWorkshopProgress[existingProgressIndex] = {
@@ -262,7 +267,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             }
           });
           vehicle.workshop_progress = updatedWorkshopProgress;
-          
+
           // Also update selectedStages state
           setSelectedStages((prev) => [...prev, ...pendingAction.stages!]);
         } else {
@@ -277,7 +282,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             return item;
           });
           vehicle.is_workshop = updatedWorkshopStages;
-          
+
           // Also update selectedStages state
           setSelectedStages((prev) =>
             prev.filter((stage) => !pendingAction.stages!.includes(stage))
@@ -286,6 +291,29 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
 
         // Trigger parent update to refresh vehicle data
         onUpdate();
+      }
+
+      if (pendingAction.type === "soft_delete") {
+        try {
+          console.log("Attempting to soft delete vehicle:", vehicle._id, vehicleType);
+          await vehicleServices.softDeleteVehicle(vehicle._id, vehicleType);
+          console.log("Soft delete successful");
+          toast.success("Vehicle deleted successfully");
+
+          // First refresh the list to remove the deleted vehicle
+          await onUpdate();
+
+          // Then close the modal after the list is updated
+          onClose();
+        } catch (error) {
+          console.error("Soft delete failed:", error);
+          toast.error(`Failed to delete vehicle: ${error.response?.data?.message || error.message}`);
+        } finally {
+          setConfirmationOpen(false);
+          setPendingAction(null);
+          setIsUpdatingWorkshop(false);
+        }
+        return;
       }
     } catch (error) {
       const actionText =
@@ -302,8 +330,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
   const handleStageUpdate = async () => {
     const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
       ? vehicle.is_workshop
-          .filter((item: any) => item.in_workshop)
-          .map((item: any) => item.stage_name)
+        .filter((item: any) => item.in_workshop)
+        .map((item: any) => item.stage_name)
       : [];
 
     const stagesToPush = selectedStages.filter(
@@ -346,14 +374,14 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
               workshop_action: "push",
             }
           );
-          
+
           // Update local state immediately for pushed stages
           const updatedWorkshopStages = [...(vehicle.is_workshop || [])];
           stagesToPush.forEach(stage => {
             const existingStageIndex = updatedWorkshopStages.findIndex(
               (item: any) => item.stage_name === stage
             );
-            
+
             if (existingStageIndex >= 0) {
               updatedWorkshopStages[existingStageIndex] = {
                 ...updatedWorkshopStages[existingStageIndex],
@@ -374,7 +402,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
             const existingProgressIndex = updatedWorkshopProgress.findIndex(
               (item: any) => item.stage_name === stage
             );
-            
+
             if (existingProgressIndex >= 0) {
               updatedWorkshopProgress[existingProgressIndex] = {
                 ...updatedWorkshopProgress[existingProgressIndex],
@@ -400,7 +428,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
               workshop_action: "remove",
             }
           );
-          
+
           // Update local state immediately for removed stages
           const updatedWorkshopStages = (vehicle.is_workshop || []).map((item: any) => {
             if (stagesToRemove.includes(item.stage_name)) {
@@ -514,6 +542,10 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       return `Are you sure you want to ${actionText} workshop the following stages: ${stagesText}?`;
     }
 
+    if (pendingAction.type === "soft_delete") {
+      return "Are you sure you want to delete this vehicle? This action will mark the vehicle as inactive but it can be restored later.";
+    }
+
     return "";
   };
 
@@ -522,6 +554,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           onCloseClick={onClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-full sm:w-[600px] md:w-[800px] lg:w-[1000px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] overflow-y-auto"
         >
           <SheetHeader className="pb-6">
@@ -562,9 +595,9 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                             (
                               vehicle.vehicle_type === "tradein"
                                 ? Array.isArray(vehicle.is_workshop) &&
-                                  vehicle.is_workshop.some(
-                                    (item: any) => item.in_workshop
-                                  )
+                                vehicle.is_workshop.some(
+                                  (item: any) => item.in_workshop
+                                )
                                 : vehicle.is_workshop
                             )
                               ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
@@ -588,8 +621,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="icon"
                               className="bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
                             >
@@ -755,13 +788,31 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                               : "bg-white hover:bg-white text-blue-600 hover:text-blue-700 border-gray-200 hover:border-blue-400 hover:shadow-sm"
                           }
                         >
-                          <RefreshCw 
-                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          <RefreshCw
+                            className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
                           />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Refresh Data</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSoftDelete}
+                          className="bg-white hover:bg-white text-red-600 hover:text-red-700 border-gray-200 hover:border-red-400 hover:shadow-sm"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Vehicle</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -775,6 +826,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="attachments">Attachments</TabsTrigger>
+              <TabsTrigger value="activity">Activity Stream</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -797,6 +849,10 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                 onUpdate={onUpdate}
               />
               <VehicleOdometerSection vehicle={vehicle} onUpdate={onUpdate} />
+            </TabsContent>
+
+            <TabsContent value="activity" className="space-y-6">
+              <ActivityStreamSection vehicleType="tradein" stockId={vehicle.vehicle_stock_id} />
             </TabsContent>
 
             <TabsContent value="attachments">
@@ -842,10 +898,10 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
               ))}
             {(!vehicle.workshop_report_ready ||
               vehicle.workshop_report_ready.length === 0) && (
-              <p className="text-center text-muted-foreground py-4">
-                No trade-in stage reports available yet
-              </p>
-            )}
+                <p className="text-center text-muted-foreground py-4">
+                  No trade-in stage reports available yet
+                </p>
+              )}
           </div>
         </DialogContent>
       </Dialog>
@@ -892,9 +948,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                       className="rounded"
                     />
                     <span
-                      className={`font-medium ${
-                        !canEdit && inWorkshop ? "text-gray-500" : ""
-                      }`}
+                      className={`font-medium ${!canEdit && inWorkshop ? "text-gray-500" : ""
+                        }`}
                     >
                       {stageName}
                     </span>
@@ -915,8 +970,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                         progress === "completed"
                           ? "default"
                           : progress === "in_progress"
-                          ? "destructive"
-                          : "secondary"
+                            ? "destructive"
+                            : "secondary"
                       }
                       className="text-xs"
                     >
@@ -934,8 +989,8 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
                 setStageSelectionOpen(false);
                 const currentlyInWorkshop = Array.isArray(vehicle.is_workshop)
                   ? vehicle.is_workshop
-                      .filter((item: any) => item.in_workshop)
-                      .map((item: any) => item.stage_name)
+                    .filter((item: any) => item.in_workshop)
+                    .map((item: any) => item.stage_name)
                   : [];
                 setSelectedStages(currentlyInWorkshop);
               }}
