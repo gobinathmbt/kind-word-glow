@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require('./modelRegistry');
 
 const AdvertiseDataSchema = new mongoose.Schema({
   vehicle_stock_id: {
@@ -99,4 +100,6 @@ AdvertiseDataSchema.pre("save", function (next) {
   next();
 });
 
+
+ModelRegistry.registerModel('AdvertiseData', AdvertiseDataSchema, 'company');
 module.exports = mongoose.model("AdvertiseData", AdvertiseDataSchema);

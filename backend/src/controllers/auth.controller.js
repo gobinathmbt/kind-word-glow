@@ -11,13 +11,22 @@ const { type } = require("os");
 
 // Generate JWT Token
 const generateToken = (user) => {
+  const tokenPayload = {
+    id: user._id,
+    email: user.email,
+    role: user.role,
+    company_id: user.company_id,
+  };
+
+  // Add company_db_name for company users (non-master_admin)
+  if (user.role !== 'master_admin' && user.company_id) {
+    // Extract company_id - handle both ObjectId and populated object
+    const companyId = user.company_id._id || user.company_id;
+    tokenPayload.company_db_name = `company_${companyId}`;
+  }
+
   return jwt.sign(
-    {
-      id: user._id,
-      email: user.email,
-      role: user.role,
-      company_id: user.company_id,
-    },
+    tokenPayload,
     Env_Configuration.JWT_SECRET,
     { expiresIn: Env_Configuration.JWT_EXPIRE }
   );
@@ -30,7 +39,7 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-
+    console.log("Login attempt:", { email, password: "HIDDEN" });
 
     // Find user in both MasterAdmin and User collections
     let user = await MasterAdmin.findOne({ email }).select("+password");
@@ -131,8 +140,9 @@ const login = async (req, res) => {
     }
 
     // Check password - use the comparePassword method from the model
+    console.log("Comparing passwords...");
     const isPasswordValid = await user.comparePassword(password);
-
+    console.log("Password comparison result:", isPasswordValid);
 
     if (!isPasswordValid) {
       if (userType === "user") {
@@ -222,7 +232,7 @@ const login = async (req, res) => {
       user_agent: req.get("User-Agent"),
     });
 
-
+    console.log("Login successful, sending response...");
 
     res.status(200).json({
       success: true,

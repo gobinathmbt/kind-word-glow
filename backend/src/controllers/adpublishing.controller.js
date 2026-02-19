@@ -8,6 +8,7 @@ const ActivityLoggingService = require('../services/activityLogging.service');
 // @access  Private (Company Admin/Super Admin)
 const getAdVehicles = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const { page = 1, limit = 20, status, search, dealership, deleted_only } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);

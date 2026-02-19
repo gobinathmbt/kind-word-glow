@@ -1,0 +1,128 @@
+/**
+ * Tenant Context Middleware
+ * 
+ * Attaches database connections and model helper to request object based on user context.
+ * Executes after authentication middleware to provide transparent database switching.
+ * 
+ * Key Features:
+ * - Attaches main database connection (req.mainDb) for all requests
+ * - Attaches company database connection (req.companyDb) for company users
+ * - Provides req.getModel(modelName) helper for automatic model routing
+ * - Handles errors: connection failures (500), missing context (400), invalid model (500)
+ * 
+ * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 7.2, 7.3, 7.4
+ */
+
+const connectionManager = require('../config/dbConnectionManager');
+const ModelRegistry = require('../models/modelRegistry');
+const { getModel } = require('../utils/modelFactory');
+
+/**
+ * Tenant Context Middleware
+ * 
+ * Attaches database connections and model helper to request object.
+ * Skips processing for routes that don't have router.use(protect) middleware.
+ * 
+ * Routes WITHOUT router.use(protect) - Authentication is NOT required:
+ * - auth.routes.js (login, registration)
+ * - supplierAuth.routes.js (supplier login with custom protectSupplier)
+ * - googlemaps.routes.js (public map API)
+ * - paymentSettings.routes.js (getGoogleMapsApiKey endpoint)
+ * - socketRoutes.js (socket health checks)
+ * - supplierDashboard.routes.js (uses custom protectSupplier)
+ * - workflowExecution.routes.js (public workflow execution)
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+async function tenantContext(req, res, next) {
+  try {
+    // Skip tenant context for unauthenticated requests
+    // These routes don't have router.use(protect) middleware
+    if (!req.user) {
+      return next();
+    }
+
+    // Always attach main database connection
+    try {
+      req.mainDb = connectionManager.getMainConnection();
+    } catch (error) {
+      console.error('Failed to get main database connection:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error'
+      });
+    }
+
+    // Attach company database connection for company users
+    req.companyDb = null;
+    
+    if (req.user.company_db_name && req.user.role !== 'master_admin') {
+      try {
+        req.companyDb = await connectionManager.getCompanyConnection(req.user.company_id);
+        console.log(`✅ Company database attached for company: ${req.user.company_id}`);
+      } catch (error) {
+        console.error(`Failed to get company database connection for company ${req.user.company_id}:`, error);
+        return res.status(500).json({
+          success: false,
+          message: 'Database connection error'
+        });
+      }
+    }
+
+    // Attach req.getModel helper function
+    req.getModel = (modelName) => {
+      // Validate model name
+      if (!modelName || typeof modelName !== 'string') {
+        throw new Error('Model name must be a non-empty string');
+      }
+
+      // Check if model exists in registry
+      if (!ModelRegistry.isRegistered(modelName)) {
+        const error = new Error(`Model not found: ${modelName}`);
+        error.statusCode = 500;
+        throw error;
+      }
+
+      // Route to correct database based on model type
+      if (ModelRegistry.isMainDbModel(modelName)) {
+        // Main DB model - always use main database
+        return getModel(modelName, req.mainDb);
+      } else if (ModelRegistry.isCompanyDbModel(modelName)) {
+        // Company DB model - requires company context
+        if (!req.companyDb) {
+          const error = new Error('Company context required for this operation');
+          error.statusCode = 400;
+          throw error;
+        }
+        return getModel(modelName, req.companyDb);
+      } else {
+        // Model not categorized (shouldn't happen if registry is correct)
+        const error = new Error(`Model not found: ${modelName}`);
+        error.statusCode = 500;
+        throw error;
+      }
+    };
+
+    next();
+  } catch (error) {
+    console.error('Tenant context middleware error:', error);
+    
+    // Handle specific error types
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    // Generic error
+    return res.status(500).json({
+      success: false,
+      message: 'Database connection error'
+    });
+  }
+}
+
+module.exports = tenantContext;

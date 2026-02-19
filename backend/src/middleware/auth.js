@@ -55,6 +55,17 @@ const protect = async (req, res, next) => {
       dealership_ids: user.dealership_ids
     };
 
+    // Extract company_db_name from token or construct from company_id
+    if (decoded.company_db_name) {
+      req.user.company_db_name = decoded.company_db_name;
+    } else if (req.user.company_id && decoded.role !== 'master_admin') {
+      // Fallback: construct company_db_name from company_id for backward compatibility
+      req.user.company_db_name = `company_${req.user.company_id}`;
+    } else {
+      // Master admin or no company context
+      req.user.company_db_name = null;
+    }
+
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

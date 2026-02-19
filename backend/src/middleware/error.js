@@ -48,6 +48,18 @@ const errorHandler = (err, req, res, next) => {
     error = { message, statusCode: 400 };
   }
 
+  // MongoDB connection errors
+  if (err.name === 'MongoNetworkError' || err.name === 'MongoServerError' || err.name === 'MongooseServerSelectionError') {
+    const message = 'Database connection error';
+    error = { message, statusCode: 500 };
+  }
+
+  // Database connection timeout
+  if (err.message && err.message.includes('serverSelectionTimeoutMS')) {
+    const message = 'Database connection timeout';
+    error = { message, statusCode: 503 };
+  }
+
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     const message = 'Invalid token';
