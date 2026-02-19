@@ -4,7 +4,6 @@ import { supplierAuthServices } from "@/api/services";
 import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -17,32 +16,60 @@ import {
   Lock,
   Building2,
   Truck,
-  Wrench,
-  Settings,
-  ArrowRight,
+  CheckCircle2,
+  Sparkles,
+  Shield,
+  Zap,
+  Phone,
+  MapPin,
+  User,
 } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SubscriptionModal from "@/components/subscription/SubscriptionModal";
+import axios from "axios";
+import { BASE_URL } from "@/lib/config";
 
 type LoginMode = "company" | "supplier";
+type ViewMode = "login" | "register";
 
-const Login = () => {
-
-  // Redirect to dashboard after automatic reload
-const redirect = sessionStorage.getItem("redirect_after_refresh");
-if (redirect) {
-  sessionStorage.removeItem("redirect_after_refresh");
-  window.location.href = redirect;
+interface RegisterFormData {
+  company_name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  password: string;
+  confirm_password: string;
 }
 
+const Login = () => {
+  const redirect = sessionStorage.getItem("redirect_after_refresh");
+  if (redirect) {
+    sessionStorage.removeItem("redirect_after_refresh");
+    window.location.href = redirect;
+  }
+
   const [mode, setMode] = useState<LoginMode>("company");
+  const [viewMode, setViewMode] = useState<ViewMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [forceSubscription, setForceSubscription] = useState(false);
-  const [isNewRegistration, setIsNewRegistration] = useState(false);
+
+  const [registerData, setRegisterData] = useState<RegisterFormData>({
+    company_name: "",
+    contact_person: "",
+    email: "",
+    phone: "",
+    address: "",
+    password: "",
+    confirm_password: "",
+  });
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -50,7 +77,6 @@ if (redirect) {
 
   const from = location.state?.from?.pathname || null;
 
-  // Company login mutation
   const companyLoginMutation = useMutation({
     mutationFn: async () => {
       await login(email, password);
@@ -58,13 +84,9 @@ if (redirect) {
     onSuccess: () => {
       const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
 
-      // Check if subscription is required
       if (userData.subscription_modal_force) {
         setForceSubscription(true);
-        setIsNewRegistration(userData.is_new_registration || false);
         setShowSubscriptionModal(true);
-        
-        // Only show success toast for non-new registrations
         if (!userData.is_new_registration) {
           toast.success("Login successful");
         }
@@ -81,7 +103,6 @@ if (redirect) {
     },
   });
 
-  // Supplier login mutation
   const supplierLoginMutation = useMutation({
     mutationFn: async () => {
       const response = await supplierAuthServices.login(email, password);
@@ -89,11 +110,7 @@ if (redirect) {
     },
     onSuccess: (data) => {
       sessionStorage.setItem("supplier_token", data.data.token);
-      sessionStorage.setItem(
-        "supplier_user",
-        JSON.stringify(data.data.supplier)
-      );
-
+      sessionStorage.setItem("supplier_user", JSON.stringify(data.data.supplier));
       toast.success("Login successful");
       navigate("/supplier/dashboard");
     },
@@ -122,32 +139,21 @@ if (redirect) {
   };
 
   const handleSubscriptionComplete = async () => {
-  setShowSubscriptionModal(false);
-
-  try {
-    // Login again to get updated subscription data
-    await login(email, password);
-
-    const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-
-    // Decide where to go after reload
-    let dashboardRoute = "/company/dashboard";
-    if (userData.role === "master_admin") {
-      dashboardRoute = "/master/dashboard";
+    setShowSubscriptionModal(false);
+    try {
+      await login(email, password);
+      const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
+      let dashboardRoute = "/company/dashboard";
+      if (userData.role === "master_admin") {
+        dashboardRoute = "/master/dashboard";
+      }
+      sessionStorage.setItem("redirect_after_refresh", dashboardRoute);
+      window.location.reload();
+    } catch (error) {
+      console.error("Post-payment login error =>", error);
+      toast.error("Something went wrong. Please login again.");
     }
-
-    // Save next route temporarily
-    sessionStorage.setItem("redirect_after_refresh", dashboardRoute);
-
-    // Auto refresh the screen
-    window.location.reload();
-
-  } catch (error) {
-    console.error("Post-payment login error =>", error);
-    toast.error("Something went wrong. Please login again.");
-  }
-};
-
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,246 +172,488 @@ if (redirect) {
     }
   };
 
-  const isLoading =
-    companyLoginMutation.isPending || supplierLoginMutation.isPending;
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  const vehicleIcons = [
-    { icon: Car, position: "top-10 left-10", delay: "0s" },
-    { icon: Truck, position: "top-20 right-20", delay: "2s" },
-    { icon: Settings, position: "bottom-20 left-16", delay: "4s" },
-    { icon: Wrench, position: "bottom-16 right-12", delay: "1s" },
-  ];
+    if (registerData.password !== registerData.confirm_password) {
+      setError("Passwords do not match");
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (registerData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    setIsRegistering(true);
+
+    try {
+      const response = await axios.post(`${BASE_URL}/api/auth/register-company`, {
+        company_name: registerData.company_name,
+        contact_person: registerData.contact_person,
+        email: registerData.email,
+        phone: registerData.phone,
+        address: registerData.address,
+        city: "N/A",
+        state: "N/A",
+        country: "N/A",
+        pincode: "000000",
+        timezone: "UTC",
+        currency: "USD",
+        password: registerData.password,
+      });
+
+      if (response.data.success) {
+        toast.success("Company registered successfully! Please login.");
+        setViewMode("login");
+        setEmail(registerData.email);
+        setPassword(registerData.password);
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || "Registration failed";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const isLoading = companyLoginMutation.isPending || supplierLoginMutation.isPending;
 
   return (
     <>
-      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0">
-          {vehicleIcons.map((item, index) => (
-            <div
-              key={index}
-              className={`absolute ${item.position} text-white/10 animate-pulse`}
-              style={{ animationDelay: item.delay }}
-            >
-              <item.icon size={48} />
-            </div>
-          ))}
-        </div>
-
-        {/* Floating Particles */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${3 + Math.random() * 4}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center space-x-3 mb-6">
-                <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl">
-                    <Car className="h-8 w-8 text-white" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                    <Wrench className="h-3 w-3 text-white" />
-                  </div>
-                </div>
-                <div className="text-left">
-                  <h1 className="text-3xl font-bold text-white">Auto ERP</h1>
-                  <p className="text-blue-200 text-sm">
-                    Vehicle Management System
-                  </p>
-                </div>
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-slate-50 flex">
+        {/* Left Side - 70% */}
+        <div className="hidden lg:flex lg:w-[70%] bg-gradient-to-br from-emerald-600 via-emerald-700 to-slate-900 p-8 xl:p-12 flex-col justify-between relative overflow-hidden">
+          {/* Decorative Elements */}
+          <div className="absolute top-20 right-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-96 h-96 bg-emerald-400/10 rounded-full blur-3xl"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-2xl">
+                <Car className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Auto ERP</h1>
+                <p className="text-emerald-100 text-xs">Vehicle Management System</p>
               </div>
             </div>
 
-            <Card className="backdrop-blur-lg bg-white/10 border-white/20 shadow-2xl">
-              <CardContent className="p-8">
-                {/* Login Mode Toggle */}
-                <div className="flex rounded-xl bg-white/10 p-1 mb-8 backdrop-blur-sm">
+            <div className="space-y-6 max-w-full">
+              <div>
+                <h2 className="text-4xl font-bold text-white mb-3 leading-tight">
+                  Complete Vehicle Management Solution
+                </h2>
+                <p className="text-lg text-emerald-100">
+                  Streamline your automotive business with our comprehensive platform
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <Sparkles className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Custom Modules</h3>
+                  <p className="text-emerald-100 text-xs">Flexible configurations for your business</p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <Shield className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Secure & Reliable</h3>
+                  <p className="text-emerald-100 text-xs">Enterprise-grade security & encryption</p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <Zap className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Real-time Updates</h3>
+                  <p className="text-emerald-100 text-xs">Instant notifications & live tracking</p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Easy Integration</h3>
+                  <p className="text-emerald-100 text-xs">Connect with Trade Me & more</p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <Car className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Fleet Management</h3>
+                  <p className="text-emerald-100 text-xs">Track inventory & vehicle lifecycle</p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/15 transition-all">
+                  <Truck className="h-7 w-7 text-emerald-300 mb-2" />
+                  <h3 className="text-white font-semibold text-base mb-1">Workshop Tools</h3>
+                  <p className="text-emerald-100 text-xs">Service scheduling & supplier quotes</p>
+                </div>
+              </div>
+
+              {/* Additional Features - Compact */}
+              <div className="space-y-2.5">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="h-3 w-3 text-slate-900" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Vehicle Inspection & Trade-in Management</p>
+                </div>
+
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="h-3 w-3 text-slate-900" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Workshop & Service Bay Scheduling</p>
+                </div>
+
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="h-3 w-3 text-slate-900" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Multi-Dealership Support & Centralized Control</p>
+                </div>
+
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="h-3 w-3 text-slate-900" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Advanced Analytics & Reporting Dashboards</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 text-emerald-100 text-xs">
+            © {new Date().getFullYear()} Auto ERP. All rights reserved.
+          </div>
+        </div>
+
+        {/* Right Side - 30% */}
+        <div className="w-full lg:w-[30%] overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-slate-50 lg:bg-white">
+          <div className="min-h-full flex items-center justify-center p-6 lg:p-8">
+            <div className="w-full max-w-md py-4 bg-white lg:bg-transparent rounded-2xl lg:rounded-none shadow-xl lg:shadow-none p-6 lg:p-0 border lg:border-0 border-slate-200">
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex items-center justify-center space-x-2 mb-8">
+              <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center">
+                <Car className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Auto ERP</h1>
+              </div>
+            </div>
+
+            {/* Login/Register Toggle */}
+            <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
+              <button
+                type="button"
+                onClick={() => setViewMode("login")}
+                className={`flex-1 px-4 py-2.5 rounded-lg transition-all duration-300 font-medium text-sm ${
+                  viewMode === "login"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("register")}
+                className={`flex-1 px-4 py-2.5 rounded-lg transition-all duration-300 font-medium text-sm ${
+                  viewMode === "register"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
+            {viewMode === "login" ? (
+              <>
+                {/* Mode Toggle */}
+                <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
                   <button
                     type="button"
                     onClick={() => setMode("company")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 font-medium ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-300 font-medium text-sm ${
                       mode === "company"
-                        ? "bg-white text-slate-900 shadow-lg"
-                        : "text-white/70 hover:text-white hover:bg-white/10"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     <Building2 className="h-4 w-4" />
-                    Company Login
+                    Company
                   </button>
                   <button
                     type="button"
                     onClick={() => setMode("supplier")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 font-medium ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-300 font-medium text-sm ${
                       mode === "supplier"
-                        ? "bg-white text-slate-900 shadow-lg"
-                        : "text-white/70 hover:text-white hover:bg-white/10"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     <Truck className="h-4 w-4" />
-                    Supplier Login
+                    Supplier
                   </button>
                 </div>
 
-                {/* Welcome Message */}
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Welcome Back
-                  </h2>
-                  <p className="text-blue-200">
-                    {mode === "company"
-                      ? "Sign in to access your company dashboard"
-                      : "Sign in to manage your supplier account"}
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome Back</h2>
+                  <p className="text-slate-600 text-sm">
+                    {mode === "company" ? "Sign in to your company account" : "Sign in as supplier"}
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {error && (
-                    <Alert
-                      variant="destructive"
-                      className="bg-red-500/20 border-red-500/30 text-red-100"
-                    >
-                      <AlertDescription>{error}</AlertDescription>
+                    <Alert variant="destructive" className="py-2">
+                      <AlertDescription className="text-sm">{error}</AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-white font-medium">
-                      Email Address
-                    </Label>
+                    <Label htmlFor="email" className="text-slate-700 text-sm">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
                         id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
-                        className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/40 backdrop-blur-sm"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="password"
-                      className="text-white font-medium"
-                    >
-                      Password
-                    </Label>
+                    <Label htmlFor="password" className="text-slate-700 text-sm">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="pl-12 pr-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/40 backdrop-blur-sm"
+                        className="pl-10 pr-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {mode === "supplier" && (
-                      <p className="text-xs text-blue-200/80 mt-1">
-                        Default password: Welcome@123
-                      </p>
+                      <p className="text-xs text-slate-500">Default password: Welcome@123</p>
                     )}
                   </div>
 
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+                    className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Signing in...
                       </>
                     ) : (
-                      <>
-                        Sign In
-                        <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      </>
+                      "Sign In"
                     )}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      window.open(
-                        "https://docs.google.com/forms/d/e/1FAIpQLSc_LwilruMvE8HoSrmQVaz37IJSQZ9qXf_3pFwVoK1i3rLk8g/viewform?usp=sharing&ouid=117961613046205263423",
-                        "_blank"
-                      )
-                    }
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
-                  >
-                    Delete Account
                   </Button>
                 </form>
 
-                {/* Footer */}
-                {/* <div className="mt-8 text-center">
-                  {mode === 'company' ? (
-                    <p className="text-sm text-blue-200">
-                      Don't have a company account?{' '}
-                      <Link to="/register-company" className="text-white hover:text-blue-100 font-medium underline underline-offset-4 transition-colors">
-                        Register your company
-                      </Link>
-                    </p>
-                  ) : (
-                    <p className="text-sm text-blue-200">
-                      Need help? Contact your workshop administrator
-                    </p>
-                  )}
-                </div> */}
-              </CardContent>
-            </Card>
+                <div className="mt-6 text-center text-sm text-slate-600">
+                  New to Auto ERP?{" "}
+                  <button
+                    onClick={() => setViewMode("register")}
+                    className="text-emerald-600 hover:text-emerald-700 font-medium"
+                  >
+                    Create an account
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-1">Create Account</h2>
+                  <p className="text-slate-600 text-sm">Register your company to get started</p>
+                </div>
 
-            {/* Back to Home
-            <div className="text-center mt-8">
-              <Link to="/" className="inline-flex items-center text-white/80 hover:text-white text-sm font-medium transition-colors group">
-                <ArrowRight className="mr-2 h-4 w-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
-                Back to home
-              </Link>
-            </div> */}
+                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertDescription className="text-sm">{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="company_name" className="text-slate-700 text-sm">Company Name</Label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="company_name"
+                        value={registerData.company_name}
+                        onChange={(e) => setRegisterData({ ...registerData, company_name: e.target.value })}
+                        placeholder="Your company name"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_person" className="text-slate-700 text-sm">Contact Person</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="contact_person"
+                        value={registerData.contact_person}
+                        onChange={(e) => setRegisterData({ ...registerData, contact_person: e.target.value })}
+                        placeholder="Full name"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reg_email" className="text-slate-700 text-sm">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="reg_email"
+                        type="email"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        placeholder="company@example.com"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-slate-700 text-sm">Phone</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="phone"
+                        value={registerData.phone}
+                        onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                        placeholder="Phone number"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address" className="text-slate-700 text-sm">Address</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="address"
+                        value={registerData.address}
+                        onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                        placeholder="Company address"
+                        className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reg_password" className="text-slate-700 text-sm">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="reg_password"
+                        type={showRegisterPassword ? "text" : "password"}
+                        value={registerData.password}
+                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                        placeholder="Min 6 characters"
+                        className="pl-10 pr-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm_password" className="text-slate-700 text-sm">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={registerData.confirm_password}
+                        onChange={(e) => setRegisterData({ ...registerData, confirm_password: e.target.value })}
+                        placeholder="Confirm password"
+                        className="pl-10 pr-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isRegistering}
+                    className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  >
+                    {isRegistering ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 text-center text-sm text-slate-600">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setViewMode("login")}
+                    className="text-emerald-600 hover:text-emerald-700 font-medium"
+                  >
+                    Sign in here
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Subscription Modal */}
       {showSubscriptionModal && (
         <SubscriptionModal
           isOpen={showSubscriptionModal}
-          onClose={
-            forceSubscription
-              ? undefined
-              : () => setShowSubscriptionModal(false)
-          }
+          onClose={forceSubscription ? undefined : () => setShowSubscriptionModal(false)}
           mode="new"
           canClose={!forceSubscription}
           refetchSubscription={handleSubscriptionComplete}

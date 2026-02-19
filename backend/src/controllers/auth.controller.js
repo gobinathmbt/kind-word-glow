@@ -9,6 +9,7 @@ const Env_Configuration = require("../config/env");
 const { type } = require("os");
 const connectionManager = require("../config/dbConnectionManager");
 const { getModel } = require("../utils/modelFactory");
+const ModelRegistry = require("../models/modelRegistry");
 // Company DB models accessed dynamically:
 // - Subscriptions (accessed via getModel in login/getMe functions)
 
@@ -324,6 +325,22 @@ const registerCompany = async (req, res) => {
     });
 
     await company.save();
+
+    // Initialize company database with all models
+    try {
+      console.log(`🔧 Setting up database for company: ${company_name}`);
+      const companyConnection = await connectionManager.getCompanyConnection(company._id.toString());
+      await ModelRegistry.initializeCompanyModels(companyConnection);
+      console.log(`✅ Company database initialized successfully`);
+    } catch (dbError) {
+      console.error('❌ Failed to initialize company database:', dbError);
+      // Rollback: delete the company if database initialization fails
+      await Company.findByIdAndDelete(company._id);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to initialize company database",
+      });
+    }
 
     // Create company super admin user with provided password
     const now = new Date();

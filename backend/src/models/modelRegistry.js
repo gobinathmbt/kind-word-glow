@@ -166,6 +166,56 @@ class ModelRegistry {
       return connection.model(modelName, schema);
     }
   }
+
+  /**
+   * Initialize all company models for a new company database
+   * Creates all company-specific models on the connection to ensure collections exist
+   * 
+   * @param {mongoose.Connection} connection - Company database connection
+   * @returns {Promise<Object>} Object containing all initialized models
+   */
+  async initializeCompanyModels(connection) {
+    if (!connection || typeof connection !== 'object') {
+      throw new Error('Valid database connection is required');
+    }
+
+    const initializedModels = {};
+    const companyModels = Array.from(this.companyDbModels);
+
+    console.log(`🔧 Initializing ${companyModels.length} company models...`);
+
+    for (const modelName of companyModels) {
+      try {
+        // Get schema from registry
+        const schema = this.getSchema(modelName);
+        
+        // Create model on connection
+        let model;
+        try {
+          model = connection.model(modelName, schema);
+        } catch (error) {
+          // Model might already exist
+          if (error.name === 'OverwriteModelError') {
+            model = connection.model(modelName);
+          } else {
+            throw error;
+          }
+        }
+
+        // Ensure collection exists by creating indexes
+        await model.createIndexes();
+        
+        initializedModels[modelName] = model;
+        console.log(`  ✓ ${modelName} initialized`);
+      } catch (error) {
+        console.error(`  ✗ Failed to initialize ${modelName}:`, error.message);
+        throw new Error(`Failed to initialize model ${modelName}: ${error.message}`);
+      }
+    }
+
+    console.log(`✅ All company models initialized successfully`);
+    return initializedModels;
+  }
 }
 
 // Export singleton instance
