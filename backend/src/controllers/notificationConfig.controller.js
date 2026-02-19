@@ -2,6 +2,71 @@ const Company = require('../models/Company');
 const User = require('../models/User');
 const mongoose = require("mongoose");
 
+/**
+ * Manually populate User fields from main DB for NotificationConfiguration documents
+ * @param {Array|Object} items - NotificationConfiguration document(s) to populate
+ * @returns {Array|Object} Populated items
+ */
+async function populateNotificationUsers(items) {
+  const isArray = Array.isArray(items);
+  const itemsArray = isArray ? items : [items];
+  
+  if (itemsArray.length === 0) return items;
+
+  // Collect all unique user IDs
+  const userIds = new Set();
+  itemsArray.forEach(item => {
+    if (item.created_by) userIds.add(item.created_by.toString());
+    if (item.updated_by) userIds.add(item.updated_by.toString());
+    
+    // Collect user_ids from target_users array
+    if (item.target_users && Array.isArray(item.target_users)) {
+      item.target_users.forEach(target => {
+        if (target.user_ids && Array.isArray(target.user_ids)) {
+          target.user_ids.forEach(id => userIds.add(id.toString()));
+        }
+      });
+    }
+  });
+
+  if (userIds.size === 0) return items;
+
+  // Fetch all users at once
+  const users = await User.find(
+    { _id: { $in: Array.from(userIds) } },
+    'first_name last_name email role dealership_ids'
+  ).lean();
+
+  // Create user lookup map
+  const userMap = {};
+  users.forEach(user => {
+    userMap[user._id.toString()] = user;
+  });
+
+  // Populate items
+  itemsArray.forEach(item => {
+    if (item.created_by) {
+      item.created_by = userMap[item.created_by.toString()] || item.created_by;
+    }
+    if (item.updated_by) {
+      item.updated_by = userMap[item.updated_by.toString()] || item.updated_by;
+    }
+    
+    // Populate target_users.user_ids
+    if (item.target_users && Array.isArray(item.target_users)) {
+      item.target_users.forEach(target => {
+        if (target.user_ids && Array.isArray(target.user_ids)) {
+          target.user_ids = target.user_ids.map(id => 
+            userMap[id.toString()] || id
+          );
+        }
+      });
+    }
+  });
+
+  return isArray ? itemsArray : itemsArray[0];
+}
+
 // Get all notification configurations for a company
 const getNotificationConfigurations = async (req, res) => {
 
@@ -36,12 +101,13 @@ const getNotificationConfigurations = async (req, res) => {
 
     // Execute query with pagination
     const configurations = await NotificationConfiguration.find(query)
-      .populate('created_by', 'first_name last_name email')
-      .populate('updated_by', 'first_name last_name email')
-      .populate('target_users.user_ids', 'first_name last_name email')
       .sort({ created_at: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .lean();
+
+    // Manually populate User fields from main DB
+    await populateNotificationUsers(configurations);
 
     const total = await NotificationConfiguration.countDocuments(query);
 
@@ -78,10 +144,7 @@ const getNotificationConfiguration = async (req, res) => {
     const configuration = await NotificationConfiguration.findOne({
       _id: id,
       company_id: companyId
-    })
-      .populate('created_by', 'first_name last_name email')
-      .populate('updated_by', 'first_name last_name email')
-      .populate('target_users.user_ids', 'first_name last_name email');
+    }).lean();
 
     if (!configuration) {
       return res.status(404).json({
@@ -89,6 +152,9 @@ const getNotificationConfiguration = async (req, res) => {
         message: 'Notification configuration not found'
       });
     }
+
+    // Manually populate User fields from main DB
+    await populateNotificationUsers(configuration);
 
     res.json({
       success: true,
@@ -158,15 +224,13 @@ const createNotificationConfiguration = async (req, res) => {
       { $push: { notification_configurations: configuration._id } }
     );
 
-    // Populate and return
-    await configuration.populate([
-      { path: 'created_by', select: 'first_name last_name email' },
-      { path: 'target_users.user_ids', select: 'first_name last_name email' }
-    ]);
+    // Convert to plain object and manually populate
+    const configurationObj = configuration.toObject();
+    await populateNotificationUsers(configurationObj);
 
     res.status(201).json({
       success: true,
-      data: configuration,
+      data: configurationObj,
       message: 'Notification configuration created successfully'
     });
   } catch (error) {
@@ -229,10 +293,7 @@ const updateNotificationConfiguration = async (req, res) => {
       { _id: id, company_id: companyId },
       updateData,
       { new: true }
-    )
-      .populate('created_by', 'first_name last_name email')
-      .populate('updated_by', 'first_name last_name email')
-      .populate('target_users.user_ids', 'first_name last_name email');
+    ).lean();
 
     if (!configuration) {
       return res.status(404).json({
@@ -240,6 +301,9 @@ const updateNotificationConfiguration = async (req, res) => {
         message: 'Notification configuration not found'
       });
     }
+
+    // Manually populate User fields from main DB
+    await populateNotificationUsers(configuration);
 
     res.json({
       success: true,
@@ -513,14 +577,53 @@ const getAvailableSchemas = async (req, res) => {
 const getCompanyUsers = async (req, res) => {
   try {
     const companyId = req.user.company_id;
+    const Dealership = req.getModel('Dealership');
     
     const users = await User.find({
       company_id: companyId,
       is_active: true
     })
       .select('first_name last_name email role dealership_ids')
-      .populate('dealership_ids', 'name location')
-      .sort({ first_name: 1 });
+      .sort({ first_name: 1 })
+      .lean();
+
+    // Manually populate dealership_ids from company DB
+    if (users.length > 0) {
+      // Collect all dealership IDs
+      const dealershipIds = new Set();
+      users.forEach(user => {
+        if (user.dealership_ids && Array.isArray(user.dealership_ids)) {
+          user.dealership_ids.forEach(id => dealershipIds.add(id.toString()));
+        }
+      });
+
+      if (dealershipIds.size > 0) {
+        // Fetch dealerships from company DB
+        const dealerships = await Dealership.find(
+          { _id: { $in: Array.from(dealershipIds) } },
+          'dealership_name dealership_address'
+        ).lean();
+
+        // Create dealership lookup map
+        const dealershipMap = {};
+        dealerships.forEach(d => {
+          dealershipMap[d._id.toString()] = {
+            _id: d._id,
+            name: d.dealership_name,
+            location: d.dealership_address
+          };
+        });
+
+        // Populate users with dealership data
+        users.forEach(user => {
+          if (user.dealership_ids && Array.isArray(user.dealership_ids)) {
+            user.dealership_ids = user.dealership_ids.map(id => 
+              dealershipMap[id.toString()] || id
+            );
+          }
+        });
+      }
+    }
 
     res.json({
       success: true,
