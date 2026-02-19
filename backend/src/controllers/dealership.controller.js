@@ -1,4 +1,48 @@
+const User = require('../models/User');
 const { logEvent } = require('./logs.controller');
+
+/**
+ * Manually populate User fields from main DB for Dealership documents
+ * @param {Array|Object} items - Dealership document(s) to populate
+ * @returns {Array|Object} Populated items
+ */
+async function populateDealershipUsers(items) {
+  const isArray = Array.isArray(items);
+  const itemsArray = isArray ? items : [items];
+  
+  if (itemsArray.length === 0) return items;
+
+  // Collect all unique user IDs from created_by field
+  const userIds = new Set();
+  itemsArray.forEach(item => {
+    if (item.created_by) {
+      userIds.add(item.created_by.toString());
+    }
+  });
+
+  if (userIds.size === 0) return items;
+
+  // Fetch all users at once
+  const users = await User.find(
+    { _id: { $in: Array.from(userIds) } },
+    'first_name last_name email'
+  ).lean();
+
+  // Create user lookup map
+  const userMap = {};
+  users.forEach(user => {
+    userMap[user._id.toString()] = user;
+  });
+
+  // Populate items
+  itemsArray.forEach(item => {
+    if (item.created_by) {
+      item.created_by = userMap[item.created_by.toString()] || item.created_by;
+    }
+  });
+
+  return isArray ? itemsArray : itemsArray[0];
+}
 
 // @desc    Get dealerships with pagination and search
 // @route   GET /api/dealership
@@ -28,10 +72,13 @@ const getDealerships = async (req, res) => {
     }
 
     const dealerships = await Dealership.find(filter)
-      .populate('created_by', 'first_name last_name email')
       .sort({ created_at: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // Manually populate User fields from main DB
+    await populateDealershipUsers(dealerships);
 
     const total = await Dealership.countDocuments(filter);
 
@@ -82,7 +129,7 @@ const getDealership = async (req, res) => {
     const dealership = await Dealership.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
-    }).populate('created_by', 'first_name last_name email');
+    }).lean();
 
     if (!dealership) {
       return res.status(404).json({
@@ -90,6 +137,9 @@ const getDealership = async (req, res) => {
         message: 'Dealership not found'
       });
     }
+
+    // Manually populate User fields from main DB
+    await populateDealershipUsers(dealership);
 
     res.status(200).json({
       success: true,
@@ -159,8 +209,9 @@ const createDealership = async (req, res) => {
 
     await dealership.save();
 
-    // Populate created_by for response
-    await dealership.populate('created_by', 'first_name last_name email');
+    // Convert to plain object and manually populate created_by
+    const dealershipObj = dealership.toObject();
+    await populateDealershipUsers(dealershipObj);
 
     // Log the event
     await logEvent({
@@ -179,7 +230,7 @@ const createDealership = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Dealership created successfully',
-      data: dealership
+      data: dealershipObj
     });
 
   } catch (error) {
@@ -241,7 +292,7 @@ const updateDealership = async (req, res) => {
         updated_at: new Date()
       },
       { new: true, runValidators: true }
-    ).populate('created_by', 'first_name last_name email');
+    ).lean();
 
     if (!dealership) {
       return res.status(404).json({
@@ -249,6 +300,9 @@ const updateDealership = async (req, res) => {
         message: 'Dealership not found'
       });
     }
+
+    // Manually populate User fields from main DB
+    await populateDealershipUsers(dealership);
 
     // Log the event
     await logEvent({

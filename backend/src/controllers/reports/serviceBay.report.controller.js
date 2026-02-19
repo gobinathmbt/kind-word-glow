@@ -14,6 +14,69 @@ const {
 } = require('../../utils/reportHelpers');
 
 /**
+ * Manually populate User fields from main DB for ServiceBay documents
+ * @param {Array|Object} items - ServiceBay document(s) to populate
+ * @returns {Array|Object} Populated items
+ */
+async function populateServiceBayUsers(items) {
+  const isArray = Array.isArray(items);
+  const itemsArray = isArray ? items : [items];
+  
+  if (itemsArray.length === 0) return items;
+
+  // Collect all unique user IDs
+  const userIds = new Set();
+  itemsArray.forEach(item => {
+    if (item.bay_users && Array.isArray(item.bay_users)) {
+      item.bay_users.forEach(id => userIds.add(id.toString()));
+    }
+    if (item.primary_admin) {
+      userIds.add(item.primary_admin.toString());
+    }
+    if (item.bay_holidays && Array.isArray(item.bay_holidays)) {
+      item.bay_holidays.forEach(holiday => {
+        if (holiday.marked_by) {
+          userIds.add(holiday.marked_by.toString());
+        }
+      });
+    }
+  });
+
+  if (userIds.size === 0) return items;
+
+  // Fetch all users at once
+  const users = await User.find(
+    { _id: { $in: Array.from(userIds) } },
+    'name email role first_name last_name'
+  ).lean();
+
+  // Create user lookup map
+  const userMap = {};
+  users.forEach(user => {
+    userMap[user._id.toString()] = user;
+  });
+
+  // Populate items
+  itemsArray.forEach(item => {
+    if (item.bay_users && Array.isArray(item.bay_users)) {
+      item.bay_users = item.bay_users.map(id => userMap[id.toString()] || id);
+    }
+    if (item.primary_admin) {
+      item.primary_admin = userMap[item.primary_admin.toString()] || item.primary_admin;
+    }
+    if (item.bay_holidays && Array.isArray(item.bay_holidays)) {
+      item.bay_holidays.forEach(holiday => {
+        if (holiday.marked_by) {
+          holiday.marked_by = userMap[holiday.marked_by.toString()] || holiday.marked_by;
+        }
+      });
+    }
+  });
+
+  return isArray ? itemsArray : itemsArray[0];
+}
+
+/**
  * Get Service Bay Utilization
  * Provides comprehensive bay usage and capacity analysis
  * Includes booking rates, capacity metrics, and utilization trends
@@ -28,6 +91,7 @@ const getServiceBayUtilization = async (req, res) => {
     const dateFilter = getDateFilter(req.query);
 
     const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership'); // Ensure Dealership model is created
     const WorkshopQuote = req.getModel('WorkshopQuote');
 
     // 1. Get all service bays for the company
@@ -36,9 +100,10 @@ const getServiceBayUtilization = async (req, res) => {
       ...dealershipFilter 
     })
       .populate('dealership_id', 'dealership_name')
-      .populate('bay_users', 'name email')
-      .populate('primary_admin', 'name email')
       .lean();
+
+    // Manually populate User fields from main DB
+    await populateServiceBayUsers(serviceBays);
 
     const bayIds = serviceBays.map(b => b._id);
 
@@ -507,6 +572,7 @@ const getServiceBayUserAssignment = async (req, res) => {
     const dateFilter = getDateFilter(req.query);
 
     const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership'); // Ensure Dealership model is created
     const WorkshopQuote = req.getModel('WorkshopQuote');
 
     // 1. Get all service bays with user assignments
@@ -514,10 +580,11 @@ const getServiceBayUserAssignment = async (req, res) => {
       company_id,
       ...dealershipFilter 
     })
-      .populate('bay_users', 'name email role')
-      .populate('primary_admin', 'name email role')
       .populate('dealership_id', 'dealership_name')
       .lean();
+
+    // Manually populate User fields from main DB
+    await populateServiceBayUsers(serviceBays);
 
     const bayIds = serviceBays.map(b => b._id);
 
@@ -736,6 +803,7 @@ const getServiceBayHolidayImpact = async (req, res) => {
     const dateFilter = getDateFilter(req.query);
 
     const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership'); // Ensure Dealership model is created
 
     // 1. Get all service bays with holiday data
     const serviceBays = await ServiceBay.find({ 
@@ -743,8 +811,10 @@ const getServiceBayHolidayImpact = async (req, res) => {
       ...dealershipFilter 
     })
       .populate('dealership_id', 'dealership_name')
-      .populate('bay_holidays.marked_by', 'name email')
       .lean();
+
+    // Manually populate User fields from main DB (including bay_holidays.marked_by)
+    await populateServiceBayUsers(serviceBays);
 
     const bayIds = serviceBays.map(b => b._id);
 

@@ -6,6 +6,7 @@ const {
   getMe,
 } = require("../controllers/auth.controller");
 const { protect } = require("../middleware/auth");
+const tenantContext = require("../middleware/tenantContext");
 const User = require("../models/User");
 const Company = require("../models/Company");
 
@@ -82,7 +83,7 @@ router.post(
 );
 
 // @route   GET /api/auth/me
-router.get("/me", protect, getMe);
+router.get("/me", protect, tenantContext, getMe);
 
 // @route   GET /api/auth/me/permissions?module_name=vehicle_inspection
 router.get("/me/permissions", protect, async (req, res) => {

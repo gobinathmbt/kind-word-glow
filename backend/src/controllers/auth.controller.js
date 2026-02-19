@@ -389,7 +389,8 @@ const getMe = async (req, res) => {
     if (req.user.role === "master_admin") {
       user = await MasterAdmin.findById(req.user.id);
     } else {
-      user = await User.findById(req.user.id).populate("company_id").populate("dealership_ids");
+      // Only populate company_id (Main DB)
+      user = await User.findById(req.user.id).populate("company_id");
       userType = "user";
     }
 
@@ -399,7 +400,20 @@ const getMe = async (req, res) => {
         message: "User not found",
       });
     }
-   
+
+    // Manual cross-database populate for dealership_ids
+    let populatedDealerships = [];
+    if (user.dealership_ids && user.dealership_ids.length > 0 && user.company_id && req.getModel) {
+      try {
+        const Dealership = req.getModel('Dealership');
+        populatedDealerships = await Dealership.find({
+          _id: { $in: user.dealership_ids }
+        }).lean();
+      } catch (error) {
+        console.error('Error populating dealership_ids in getMe:', error);
+        populatedDealerships = [];
+      }
+    }
 
     // Base userData
     let userData = {
@@ -408,7 +422,7 @@ const getMe = async (req, res) => {
       role: user.role,
       type: "company",
       company_id: user.company_id,
-      dealership_ids: user.dealership_ids,
+      dealership_ids: populatedDealerships, // Now populated with full dealership objects
       is_first_login: user.is_first_login || false,
       is_primary_admin: user.is_primary_admin,
     };

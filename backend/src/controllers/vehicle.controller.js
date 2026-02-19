@@ -21,6 +21,7 @@ const {
 const getVehicleStock = async (req, res) => {
   try {
     const Vehicle = req.getModel('Vehicle');
+    const Dealership = req.getModel('Dealership'); // Ensure Dealership model is created on connection
     
     const { page = 1, limit = 20, search, vehicle_type, status, dealership, deleted_only } = req.query;
 

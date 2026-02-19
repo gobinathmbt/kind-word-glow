@@ -1,6 +1,80 @@
 const User = require('../models/User');
 const { logEvent } = require('./logs.controller');
 
+/**
+ * Manually populate User fields from main DB
+ * @param {Array|Object} items - ServiceBay document(s) to populate
+ * @param {Array} userFields - Fields to populate (bay_users, primary_admin, created_by)
+ * @returns {Array|Object} Populated items
+ */
+async function populateUsers(items, userFields = ['bay_users', 'primary_admin', 'created_by']) {
+  const isArray = Array.isArray(items);
+  const itemsArray = isArray ? items : [items];
+  
+  if (itemsArray.length === 0) return items;
+
+  // Collect all unique user IDs
+  const userIds = new Set();
+  itemsArray.forEach(item => {
+    userFields.forEach(field => {
+      if (item[field]) {
+        if (Array.isArray(item[field])) {
+          item[field].forEach(id => userIds.add(id.toString()));
+        } else {
+          userIds.add(item[field].toString());
+        }
+      }
+    });
+    
+    // Also check bay_holidays.marked_by
+    if (item.bay_holidays && Array.isArray(item.bay_holidays)) {
+      item.bay_holidays.forEach(holiday => {
+        if (holiday.marked_by) {
+          userIds.add(holiday.marked_by.toString());
+        }
+      });
+    }
+  });
+
+  if (userIds.size === 0) return items;
+
+  // Fetch all users at once
+  const users = await User.find(
+    { _id: { $in: Array.from(userIds) } },
+    'first_name last_name email username'
+  ).lean();
+
+  // Create user lookup map
+  const userMap = {};
+  users.forEach(user => {
+    userMap[user._id.toString()] = user;
+  });
+
+  // Populate items
+  itemsArray.forEach(item => {
+    userFields.forEach(field => {
+      if (item[field]) {
+        if (Array.isArray(item[field])) {
+          item[field] = item[field].map(id => userMap[id.toString()] || id);
+        } else {
+          item[field] = userMap[item[field].toString()] || item[field];
+        }
+      }
+    });
+    
+    // Populate bay_holidays.marked_by
+    if (item.bay_holidays && Array.isArray(item.bay_holidays)) {
+      item.bay_holidays.forEach(holiday => {
+        if (holiday.marked_by) {
+          holiday.marked_by = userMap[holiday.marked_by.toString()] || holiday.marked_by;
+        }
+      });
+    }
+  });
+
+  return isArray ? itemsArray : itemsArray[0];
+}
+
 // @desc    Get all service bays
 // @route   GET /api/service-bay
 // @access  Private (Company Super Admin)
@@ -41,15 +115,15 @@ const getServiceBays = async (req, res) => {
     const [bays, total] = await Promise.all([
       ServiceBay.find(filter)
         .populate('dealership_id', 'dealership_name')
-        .populate('bay_users', 'first_name last_name email username')
-        .populate('primary_admin', 'first_name last_name email username')
-        .populate('created_by', 'first_name last_name')
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(numericLimit)
         .lean(),
       ServiceBay.countDocuments(filter)
     ]);
+
+    // Manually populate User fields from main DB
+    await populateUsers(bays, ['bay_users', 'primary_admin', 'created_by']);
 
     const stats = {
       totalBays: total,
@@ -89,9 +163,7 @@ const getServiceBay = async (req, res) => {
       company_id: req.user.company_id
     })
       .populate('dealership_id', 'dealership_name dealership_address')
-      .populate('bay_users', 'first_name last_name email username')
-      .populate('primary_admin', 'first_name last_name email username')
-      .populate('created_by', 'first_name last_name');
+      .lean();
 
     if (!bay) {
       return res.status(404).json({
@@ -99,6 +171,9 @@ const getServiceBay = async (req, res) => {
         message: 'Service bay not found'
       });
     }
+
+    // Manually populate User fields from main DB
+    await populateUsers(bay, ['bay_users', 'primary_admin', 'created_by']);
 
     res.status(200).json({
       success: true,
@@ -662,9 +737,10 @@ const getBaysDropdown = async (req, res) => {
     const bays = await ServiceBay.find(filter)
       .select('bay_name dealership_id bay_timings bay_users primary_admin bay_description')
       .populate('dealership_id', 'dealership_name')
-      .populate('primary_admin', 'email first_name last_name')
-      .populate('bay_users', 'email first_name last_name')
       .lean();
+
+    // Manually populate User fields from main DB
+    await populateUsers(bays, ['bay_users', 'primary_admin']);
 
     const transformedBays = bays.map(bay => ({
       ...bay,

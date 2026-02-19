@@ -5,6 +5,7 @@ const axios = require('axios');
 // Helper: Find vehicle by ID and company
 const findVehicle = async (vehicleId, companyId, req) => {
   const AdVehicle = req.getModel('AdvertiseVehicle');
+  const Dealership = req.getModel('Dealership'); // Ensure Dealership model is created
   return await AdVehicle.findOne({
     _id: vehicleId,
     company_id: companyId,

@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const MasterAdmin = require('../models/MasterAdmin');
 const User = require('../models/User');
 const Env_Configuration = require('../config/env');
+const dbConnectionManager = require('../config/dbConnectionManager');
+const ModelRegistry = require('../models/modelRegistry');
 
 // Protect routes - authenticate user
 const protect = async (req, res, next) => {
@@ -29,7 +31,7 @@ const protect = async (req, res, next) => {
     if (decoded.role === 'master_admin') {
       user = await MasterAdmin.findById(decoded.id);
     } else {
-      user = await User.findById(decoded.id).populate('company_id').populate('dealership_ids');
+      user = await User.findById(decoded.id).populate('company_id');
     }
 
     if (!user) {
@@ -45,14 +47,36 @@ const protect = async (req, res, next) => {
         message: 'Account is deactivated'
       });
     }
+
+    // Manual cross-database populate for dealership_ids
+    let populatedDealerships = [];
+    if (user.dealership_ids && user.dealership_ids.length > 0 && user.company_id) {
+      try {
+        const companyId = user.company_id._id || user.company_id;
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId.toString());
+        const Dealership = ModelRegistry.getModel('Dealership', companyConnection);
+        
+        populatedDealerships = await Dealership.find({
+          _id: { $in: user.dealership_ids }
+        }).lean();
+        
+        // Decrement active requests after fetching
+        dbConnectionManager.decrementActiveRequests(companyId.toString());
+      } catch (error) {
+        console.error('Error populating dealership_ids:', error);
+        // Continue with empty array if populate fails
+        populatedDealerships = [];
+      }
+    }
+
     // Add user to request
     req.user = {
       id: user._id,
       email: user.email,
       role: user.role,
-      is_primary_admin:user.is_primary_admin,
+      is_primary_admin: user.is_primary_admin,
       company_id: user.company_id?._id || user.company_id,
-      dealership_ids: user.dealership_ids
+      dealership_ids: populatedDealerships // Now populated with full dealership objects
     };
 
     // Extract company_db_name from token or construct from company_id

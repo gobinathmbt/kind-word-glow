@@ -54,14 +54,21 @@ class DatabaseConnectionManager {
       throw new Error('Company ID is required');
     }
 
+    // Normalize companyId to string for consistent Map key
+    const companyIdKey = companyId.toString();
+
     this.connectionStats.totalRequests++;
 
     // Check if connection exists in cache
-    if (this.companyConnections.has(companyId)) {
-      const connectionInfo = this.companyConnections.get(companyId);
+    if (this.companyConnections.has(companyIdKey)) {
+      const connectionInfo = this.companyConnections.get(companyIdKey);
       connectionInfo.lastAccessed = new Date();
       connectionInfo.activeRequests++;
       this.connectionStats.cacheHits++;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`♻️ Reusing cached connection for company: ${companyIdKey} (cache hits: ${this.connectionStats.cacheHits})`);
+      }
       
       return connectionInfo.connection;
     }
@@ -75,11 +82,11 @@ class DatabaseConnectionManager {
     }
 
     // Create new connection
-    const dbName = this._getCompanyDbName(companyId);
+    const dbName = this._getCompanyDbName(companyIdKey);
     const connection = await this._createConnection(dbName, this.COMPANY_DB_POOL_SIZE);
 
-    // Cache the connection
-    this.companyConnections.set(companyId, {
+    // Cache the connection with normalized key
+    this.companyConnections.set(companyIdKey, {
       connection,
       lastAccessed: new Date(),
       activeRequests: 1
@@ -88,7 +95,7 @@ class DatabaseConnectionManager {
     this.connectionStats.totalCompanyConnections++;
     this.connectionStats.activeConnections = this.companyConnections.size;
 
-    console.log(`✅ Company database connection created: ${dbName}`);
+    console.log(`✅ Company database connection created: ${dbName} (total connections: ${this.companyConnections.size})`);
 
     return connection;
   }
@@ -98,13 +105,16 @@ class DatabaseConnectionManager {
    * @param {string} companyId - Company ID
    */
   async closeCompanyConnection(companyId) {
-    if (this.companyConnections.has(companyId)) {
-      const connectionInfo = this.companyConnections.get(companyId);
+    // Normalize companyId to string for consistent Map key
+    const companyIdKey = companyId.toString();
+    
+    if (this.companyConnections.has(companyIdKey)) {
+      const connectionInfo = this.companyConnections.get(companyIdKey);
       await connectionInfo.connection.close();
-      this.companyConnections.delete(companyId);
+      this.companyConnections.delete(companyIdKey);
       this.connectionStats.activeConnections = this.companyConnections.size;
       
-      console.log(`🔒 Company database connection closed: company_${companyId}`);
+      console.log(`🔒 Company database connection closed: company_${companyIdKey}`);
     }
   }
 
@@ -117,14 +127,17 @@ class DatabaseConnectionManager {
       return;
     }
 
-    if (this.companyConnections.has(companyId)) {
-      const connectionInfo = this.companyConnections.get(companyId);
+    // Normalize companyId to string for consistent Map key
+    const companyIdKey = companyId.toString();
+
+    if (this.companyConnections.has(companyIdKey)) {
+      const connectionInfo = this.companyConnections.get(companyIdKey);
       // Safe decrement - never go below 0
       connectionInfo.activeRequests = Math.max(0, connectionInfo.activeRequests - 1);
       
       // Log in development only
       if (process.env.NODE_ENV === 'development') {
-        console.log(`📉 Active requests decremented for company_${companyId}: ${connectionInfo.activeRequests}`);
+        console.log(`📉 Active requests decremented for company_${companyIdKey}: ${connectionInfo.activeRequests}`);
       }
     }
   }

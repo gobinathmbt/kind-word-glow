@@ -141,6 +141,31 @@ class ModelRegistry {
   getRegisteredModels() {
     return Array.from(this.schemas.keys());
   }
+
+  /**
+   * Get or create a model for a specific connection
+   * @param {string} modelName - Name of the model
+   * @param {mongoose.Connection} connection - Mongoose connection
+   * @returns {mongoose.Model} The model instance for the connection
+   * @throws {Error} If model not registered or schema not found
+   */
+  getModel(modelName, connection) {
+    // Check if model is registered
+    if (!this.isRegistered(modelName)) {
+      throw new Error(`Model not registered: ${modelName}`);
+    }
+
+    // Get schema
+    const schema = this.getSchema(modelName);
+
+    // Check if model already exists on this connection
+    try {
+      return connection.model(modelName);
+    } catch (error) {
+      // Model doesn't exist on this connection, create it
+      return connection.model(modelName, schema);
+    }
+  }
 }
 
 // Export singleton instance

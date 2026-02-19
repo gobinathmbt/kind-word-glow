@@ -62,6 +62,10 @@ const outboundWorkflowMiddleware = require("./middleware/outboundWorkflowMiddlew
 const emailTriggerMiddleware = require("./middleware/emailTriggerMiddleware");
 const { logRequest } = require("./controllers/logs.controller");
 
+// Load all models to register them with ModelRegistry
+// This must happen before routes are loaded so req.getModel() works
+require("./models");
+
 // Connect to database
 connectDB();
 
