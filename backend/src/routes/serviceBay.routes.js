@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getServiceBays,
   getServiceBay,
@@ -15,15 +16,17 @@ const {
 
 const router = express.Router();
 
-// Apply auth middleware
+// Apply auth middleware in correct order
 router.use(protect);
+router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Routes accessible by both super admin and admin (for dropdown and holidays)
-router.get('/dropdown', authorize('company_super_admin', 'company_admin'), getBaysDropdown);
-router.post('/:id/holiday', authorize('company_super_admin', 'company_admin'), addBayHoliday);
-router.get('/bay-holiday', authorize('company_super_admin', 'company_admin'), getHolidays);
-router.delete('/:id/holiday/:holidayId', authorize('company_super_admin', 'company_admin'), removeBayHoliday);
+router.get('/dropdown', getBaysDropdown);
+router.post('/:id/holiday', addBayHoliday);
+router.get('/bay-holiday', getHolidays);
+router.delete('/:id/holiday/:holidayId', removeBayHoliday);
 
 // Routes accessible only by super admin
 router.use(authorize('company_super_admin'));

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getNotificationConfigurations,
   getNotificationConfiguration,
@@ -17,6 +18,7 @@ const {
 router.use(protect);
 router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Get available schemas and users for configuration
 router.get('/schemas', getAvailableSchemas);

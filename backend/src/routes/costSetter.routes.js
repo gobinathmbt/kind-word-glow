@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getCostSetter,
   updateCostSetter,
@@ -12,6 +13,7 @@ const router = express.Router();
 router.use(protect);
 router.use(authorize('company_super_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 router.get('/', getCostSetter);
 router.put('/', updateCostSetter);

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getInvoices,
   getInvoice,
@@ -10,15 +11,18 @@ const {
 
 // All routes require authentication
 router.use(protect);
+router.use(authorize('company_super_admin', 'company_admin'));
+router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Get invoices for company with pagination and filtering
-router.get('/', authorize('company_super_admin', 'company_admin'), getInvoices);
+router.get('/', getInvoices);
 
 // Get invoice statistics
-router.get('/stats', authorize('company_super_admin', 'company_admin'), getInvoiceStats);
+router.get('/stats', getInvoiceStats);
 
 // Get specific invoice
-router.get('/:invoiceId', authorize('company_super_admin', 'company_admin'), getInvoice);
+router.get('/:invoiceId', getInvoice);
 
 // Update invoice payment status (usually handled by payment webhooks)
 router.patch('/:invoiceId/payment-status', authorize('company_super_admin'), updateInvoicePaymentStatus);

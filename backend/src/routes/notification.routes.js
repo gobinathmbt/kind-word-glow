@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getNotifications,
   markNotificationAsRead,
@@ -15,6 +16,7 @@ const {
 router.use(protect);
 router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Notification operations
 router.get('/', getNotifications);

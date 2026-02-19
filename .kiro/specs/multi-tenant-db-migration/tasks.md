@@ -76,58 +76,98 @@
 ## Phase 3: Update All Routes
 
 ### Task 3.1: Identify Routes Needing tenantContext
-- [ ] 3.1.1 Scan all route files for company DB model usage
-- [ ] 3.1.2 Create list of routes requiring tenantContext
-- [ ] 3.1.3 Create list of routes NOT requiring tenantContext (main DB only or public)
+- [x] 3.1 Scan all route files and categorize by DB usage
+  - [x] 3.1.1 List all route files in backend/src/routes directory
+  - [x] 3.1.2 For each route file, identify which models are used in controllers
+  - [x] 3.1.3 Categorize routes: Company DB (needs tenantContext), Main DB only, Public (no auth)
+  - [x] 3.1.4 Document findings in a route classification list
 
-### Task 3.2: Update Company DB Routes (Add tenantContext)
-- [ ] 3.2.1 adpublishing.routes.js - Already done ✅
-- [ ] 3.2.2 vehicle.routes.js - Add tenantContext
-- [ ] 3.2.3 tradein.routes.js - Add tenantContext
-- [ ] 3.2.4 inspection.routes.js - Add tenantContext
-- [ ] 3.2.5 mastervehicle.routes.js - Add tenantContext
-- [ ] 3.2.6 workshop.routes.js - Add tenantContext
-- [ ] 3.2.7 workshopReport.routes.js - Add tenantContext
-- [ ] 3.2.8 dealership.routes.js - Add tenantContext
-- [ ] 3.2.9 supplier.routes.js - Add tenantContext
-- [ ] 3.2.10 supplierDashboard.routes.js - Add tenantContext
-- [ ] 3.2.11 workflow.routes.js - Add tenantContext
-- [ ] 3.2.12 workflowExecution.routes.js - Add tenantContext (if needed)
-- [ ] 3.2.13 notification.routes.js - Add tenantContext
-- [ ] 3.2.14 notificationConfig.routes.js - Add tenantContext
-- [ ] 3.2.15 integration.routes.js - Add tenantContext
-- [ ] 3.2.16 serviceBay.routes.js - Add tenantContext
-- [ ] 3.2.17 currency.routes.js - Add tenantContext
-- [ ] 3.2.18 costConfiguration.routes.js - Add tenantContext
-- [ ] 3.2.19 costSetter.routes.js - Add tenantContext
-- [ ] 3.2.20 dropdown.routes.js - Add tenantContext
-- [ ] 3.2.21 config.routes.js - Add tenantContext
-- [ ] 3.2.22 invoice.routes.js - Add tenantContext
-- [ ] 3.2.23 subscription.routes.js - Add tenantContext (if needed)
-- [ ] 3.2.24 commonvehicle.routes.js - Add tenantContext
-- [ ] 3.2.25 vehicleActivityLog.routes.js - Add tenantContext
-- [ ] 3.2.26 dashboardReport.routes.js - Add tenantContext
+### Task 3.2: Update Vehicle-Related Routes
+- [x] 3.2 Add tenantContext middleware to vehicle routes
+  - [x] 3.2.1 Update vehicle.routes.js - Add tenantContext after auth middleware
+  - [x] 3.2.2 Update mastervehicle.routes.js - Add tenantContext after auth middleware
+  - [x] 3.2.3 Update commonvehicle.routes.js - Add tenantContext after auth middleware
+  - [x] 3.2.4 Update vehicleActivityLog.routes.js - Add tenantContext after auth middleware
+  - [x] 3.2.5 Test vehicle routes to ensure req.getModel is available
 
-### Task 3.3: Verify Routes NOT Needing tenantContext
-- [ ] 3.3.1 auth.routes.js - Public routes, no tenantContext
-- [ ] 3.3.2 supplierAuth.routes.js - Public routes, no tenantContext
-- [ ] 3.3.3 master.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.4 company.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.5 masterInspection.routes.js - Check if needed
-- [ ] 3.3.6 vehicleMetadata.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.7 trademeMetadata.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.8 customModule.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.9 googlemaps.routes.js - Public, no tenantContext
-- [ ] 3.3.10 paymentSettings.routes.js - Main DB only, no tenantContext
-- [ ] 3.3.11 socketRoutes.js - Public, no tenantContext
-- [ ] 3.3.12 docs.routes.js - Check if needed
-- [ ] 3.3.13 logs.routes.js - Main DB only, no tenantContext
+### Task 3.3: Update Trade-In and Inspection Routes
+- [x] 3.3 Add tenantContext middleware to trade-in and inspection routes
+  - [x] 3.3.1 Update tradein.routes.js - Add tenantContext after auth middleware
+  - [x] 3.3.2 Update inspection.routes.js - Add tenantContext after auth middleware
+  - [x] 3.3.3 Test trade-in and inspection routes
 
-### Task 3.4: Test All Routes
-- [ ] 3.4.1 Test each updated route manually
-- [ ] 3.4.2 Verify req.getModel() is available in controllers
-- [ ] 3.4.3 Verify middleware order is correct
-- [ ] 3.4.4 Check for any broken routes
+### Task 3.4: Update Workshop Routes
+- [x] 3.4 Add tenantContext middleware to workshop routes
+  - [x] 3.4.1 Update workshop.routes.js - Add tenantContext after auth middleware
+  - [x] 3.4.2 Update workshopReport.routes.js - Add tenantContext after auth middleware
+  - [x] 3.4.3 Test workshop routes
+
+### Task 3.5: Update Dealership and Supplier Routes
+- [x] 3.5 Add tenantContext middleware to dealership and supplier routes
+  - [x] 3.5.1 Update dealership.routes.js - Add tenantContext after auth middleware
+  - [x] 3.5.2 Update supplier.routes.js - Add tenantContext after auth middleware
+  - [x] 3.5.3 Update supplierDashboard.routes.js - Add tenantContext after auth middleware
+  - [x] 3.5.4 Test dealership and supplier routes
+
+### Task 3.6: Update Workflow and Notification Routes
+- [x] 3.6 Add tenantContext middleware to workflow and notification routes
+  - [x] 3.6.1 Update workflow.routes.js - Add tenantContext after auth middleware
+  - [x] 3.6.2 Update notification.routes.js - Add tenantContext after auth middleware
+  - [x] 3.6.3 Update notificationConfig.routes.js - Add tenantContext after auth middleware
+  - [x] 3.6.4 Test workflow and notification routes
+
+### Task 3.7: Update Integration and Service Bay Routes
+- [x] 3.7 Add tenantContext middleware to integration and service bay routes
+  - [x] 3.7.1 Update integration.routes.js - Add tenantContext after auth middleware
+  - [x] 3.7.2 Update serviceBay.routes.js - Add tenantContext after auth middleware
+  - [x] 3.7.3 Test integration and service bay routes
+
+### Task 3.8: Update Configuration Routes
+- [x] 3.8 Add tenantContext middleware to configuration routes
+  - [x] 3.8.1 Update currency.routes.js - Add tenantContext after auth middleware
+  - [x] 3.8.2 Update costConfiguration.routes.js - Add tenantContext after auth middleware
+  - [x] 3.8.3 Update costSetter.routes.js - Add tenantContext after auth middleware
+  - [x] 3.8.4 Update config.routes.js - Add tenantContext after auth middleware
+  - [x] 3.8.5 Test configuration routes
+
+### Task 3.9: Update Dropdown, Invoice, and Subscription Routes
+- [x] 3.9 Add tenantContext middleware to dropdown, invoice, and subscription routes
+  - [x] 3.9.1 Update dropdown.routes.js - Add tenantContext after auth middleware
+  - [x] 3.9.2 Update invoice.routes.js - Add tenantContext after auth middleware
+  - [x] 3.9.3 Update subscription.routes.js - Add tenantContext after auth middleware
+  - [x] 3.9.4 Test dropdown, invoice, and subscription routes
+
+### Task 3.10: Update Dashboard Report Routes
+- [x] 3.10 Add tenantContext middleware to dashboard report routes
+  - [x] 3.10.1 Update dashboardReport.routes.js - Add tenantContext after auth middleware
+  - [x] 3.10.2 Test dashboard report routes
+
+### Task 3.11: Verify Public Routes (No tenantContext Needed)
+- [x] 3.11 Verify public routes do not have tenantContext
+  - [x] 3.11.1 Verify auth.routes.js - Public routes, confirm no tenantContext
+  - [x] 3.11.2 Verify supplierAuth.routes.js - Public routes, confirm no tenantContext
+  - [x] 3.11.3 Verify docs.routes.js - Check if public or needs tenantContext
+  - [x] 3.11.4 Document public routes that should remain without tenantContext
+
+### Task 3.12: Verify Main DB Only Routes (No tenantContext Needed)
+- [x] 3.12 Verify Main DB only routes do not have tenantContext
+  - [x] 3.12.1 Verify master.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.2 Verify company.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.3 Verify vehicleMetadata.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.4 Verify trademeMetadata.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.5 Verify customModule.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.6 Verify paymentSettings.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.7 Verify logs.routes.js - Main DB only, confirm no tenantContext
+  - [x] 3.12.8 Document Main DB only routes
+
+### Task 3.13: Final Route Validation
+- [x] 3.13 Validate all route updates
+  - [x] 3.13.1 Run diagnostics on all updated route files
+  - [x] 3.13.2 Verify middleware order: protect → authorize → companyScopeCheck → tenantContext
+  - [x] 3.13.3 Create test script to verify req.getModel is available in all company DB routes
+  - [x] 3.13.4 Document any routes that need special handling
+
+
 
 ## Phase 4: Update All Controllers
 

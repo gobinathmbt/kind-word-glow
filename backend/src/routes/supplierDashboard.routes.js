@@ -1,4 +1,5 @@
 const express = require('express');
+const tenantContext = require('../middleware/tenantContext');
 const { 
   getSupplierStats,
   getQuotesByStatus,
@@ -27,6 +28,14 @@ const protectSupplier = async (req, res, next) => {
     const supplier = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
     req.supplier = supplier;
     
+    // Set req.user for tenantContext middleware compatibility
+    // tenantContext expects req.user.company_id to establish company DB connection
+    req.user = {
+      company_id: supplier.company_id,
+      id: supplier.supplier_id,
+      role: 'supplier'
+    };
+    
     next();
   } catch (error) {
     res.status(401).json({
@@ -38,6 +47,7 @@ const protectSupplier = async (req, res, next) => {
 
 // Apply supplier auth middleware to all routes
 router.use(protectSupplier);
+router.use(tenantContext);
 
 // Dashboard routes
 router.get('/stats', getSupplierStats);

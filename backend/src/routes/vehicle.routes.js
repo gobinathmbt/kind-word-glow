@@ -1,6 +1,7 @@
 
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getVehicleStock,
   getVehicleDetail,
@@ -41,6 +42,7 @@ router.post('/process-queue', protect, authorize('master_admin', 'company_super_
 router.use(protect);
 router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Vehicle management routes
 router.get('/stock', getVehicleStock);

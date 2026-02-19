@@ -1,7 +1,8 @@
 const express = require("express");
 const { body } = require("express-validator");
 const workflowController = require("../controllers/workflow.controller");
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize, companyScopeCheck } = require("../middleware/auth");
+const tenantContext = require("../middleware/tenantContext");
 
 const router = express.Router();
 
@@ -34,6 +35,8 @@ const validateWorkflowUpdate = [
 
 router.use(protect);
 router.use(authorize('company_super_admin', 'company_admin'));
+router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // GET /api/workflows - Get all workflows
 router.get("/", workflowController.getWorkflows);

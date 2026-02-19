@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect, authorize, companyScopeCheck } = require('../middleware/auth');
+const tenantContext = require('../middleware/tenantContext');
 const {
   getMasterVehicles,
   getMasterVehicle,
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(protect);
 router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
+router.use(tenantContext);
 
 // Master vehicle routes
 router.get('/', getMasterVehicles);
