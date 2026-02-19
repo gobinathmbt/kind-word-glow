@@ -1,5 +1,7 @@
-const Vehicle = require("../models/Vehicle");
-const Dealership = require("../models/Dealership");
+// Company DB models - accessed via req.getModel()
+// const Vehicle = require("../models/Vehicle"); // Now using req.getModel('Vehicle')
+// const Dealership = require("../models/Dealership"); // Now using req.getModel('Dealership')
+
 const { logEvent } = require("./logs.controller");
 const { calculateChanges, logActivity } = require("./vehicleActivityLog.controller");
 const ActivityLoggingService = require("../services/activityLogging.service");
@@ -18,6 +20,8 @@ const {
 // @access  Private (Company Admin/Super Admin)
 const getVehicleStock = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const { page = 1, limit = 20, search, vehicle_type, status, dealership, deleted_only } = req.query;
 
     const skip = (page - 1) * limit;
@@ -203,6 +207,8 @@ const getVehicleStock = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getVehicleDetail = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       vehicle_stock_id: req.params.vehicleId,
       company_id: req.user.company_id,
@@ -235,6 +241,8 @@ const getVehicleDetail = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createVehicleStock = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const {
       dealership,
       status,
@@ -473,6 +481,8 @@ const bulkImportVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicle = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const { id } = req.params;
 
     // Find the vehicle first
@@ -576,6 +586,8 @@ const updateVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteVehicle = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOneAndDelete({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -606,6 +618,8 @@ const deleteVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const softDeleteVehicle = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     // First, let's check if the vehicle exists at all
     const existingVehicle = await Vehicle.findOne({ _id: req.params.id });
     const vehicle = await Vehicle.findOneAndUpdate(
@@ -667,6 +681,8 @@ const softDeleteVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const restoreVehicle = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     // First, let's check if the vehicle exists and is deleted
     const existingVehicle = await Vehicle.findOne({
       _id: req.params.id,
@@ -812,9 +828,11 @@ const receiveVehicleData = async (req, res) => {
       }
 
       // Handle dealership_id logic
+      const Dealership = req.getModel('Dealership');
       const dealershipResult = await handleDealershipId(
         requestData,
-        requestData.company_id
+        requestData.company_id,
+        Dealership
       );
       if (!dealershipResult.success) {
         return res.status(400).json({
@@ -879,7 +897,7 @@ const receiveVehicleData = async (req, res) => {
 };
 
 // Helper function to handle dealership_id logic
-const handleDealershipId = async (vehicleData, companyId) => {
+const handleDealershipId = async (vehicleData, companyId, Dealership) => {
   try {
     // If dealership_id is already provided, return success
     if (vehicleData.dealership_id) {
@@ -990,6 +1008,8 @@ const processQueueManually = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleOverview = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const oldVehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1065,6 +1085,8 @@ const updateVehicleOverview = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleGeneralInfo = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const oldVehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1117,6 +1139,8 @@ const updateVehicleGeneralInfo = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleSource = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const oldVehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1174,6 +1198,8 @@ const updateVehicleSource = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleRegistration = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1225,6 +1251,8 @@ const updateVehicleRegistration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleImport = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1276,6 +1304,8 @@ const updateVehicleImport = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleEngine = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1327,6 +1357,8 @@ const updateVehicleEngine = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleSpecifications = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1380,6 +1412,8 @@ const updateVehicleSpecifications = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleOdometer = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1442,6 +1476,8 @@ const updateVehicleOdometer = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleOwnership = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1861,6 +1897,8 @@ const updateVehicleOwnership = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getVehicleAttachments = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1892,6 +1930,8 @@ const getVehicleAttachments = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const uploadVehicleAttachment = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1956,6 +1996,8 @@ const uploadVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteVehicleAttachment = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const vehicle = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -2030,6 +2072,8 @@ const deleteVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateVehicleWorkshopStatus = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const { stages, workshop_action } = req.body;
 
     const vehicle = await Vehicle.findOne({

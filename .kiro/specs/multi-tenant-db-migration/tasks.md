@@ -172,124 +172,126 @@
 ## Phase 4: Update All Controllers
 
 ### Task 4.1: Update Advertisement Controllers
-- [ ] 4.1.1 adpublishing.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.1.2 advertisement.controller.js - Remove unused imports, use req.getModel
+- [x] 4.1.1 adpublishing.controller.js - Remove unused imports, use req.getModel
+- [x] 4.1.2 advertisement.controller.js - Remove unused imports, use req.getModel
 
 ### Task 4.2: Update Vehicle Controllers
-- [ ] 4.2.1 vehicle.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.2.2 mastervehicle.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.2.3 commonvehicle.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.2.4 vehicleActivityLog.controller.js - Update pattern
-- [ ] 4.2.5 vehicleMetadata.controller.js - Main DB only, verify pattern
+- [x] 4.2.1 vehicle.controller.js - Remove unused imports, use req.getModel
+- [x] 4.2.2 mastervehicle.controller.js - Remove unused imports, use req.getModel
+- [x] 4.2.3 commonvehicle.controller.js - Remove unused imports, use req.getModel
+- [x] 4.2.4 vehicleActivityLog.controller.js - Update pattern
+- [x] 4.2.5 vehicleMetadata.controller.js - Main DB only, verify pattern
 
 ### Task 4.3: Update Workshop Controllers
-- [ ] 4.3.1 workshop.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.3.2 workshopReport.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.3.3 workshopReportSqs.controller.js - Update pattern
+- [x] 4.3.1 workshop.controller.js - Remove unused imports, use req.getModel
+- [x] 4.3.2 workshopReport.controller.js - Remove unused imports, use req.getModel
+- [x] 4.3.3 workshopReportSqs.controller.js - Update pattern
 
 ### Task 4.4: Update Configuration Controllers
-- [ ] 4.4.1 config.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.4.2 inspection.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.4.3 tradein.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.4.4 costConfiguration.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.4.5 costSetter.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.4.6 notificationConfig.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.1 config.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.2 inspection.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.3 tradein.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.4 costConfiguration.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.5 costSetter.controller.js - Remove unused imports, use req.getModel
+- [x] 4.4.6 notificationConfig.controller.js - Remove unused imports, use req.getModel
 
 ### Task 4.5: Update Master/Admin Controllers
-- [ ] 4.5.1 master.controller.js - Main DB only, verify pattern
-- [ ] 4.5.2 company.controller.js - Mixed, update pattern
-- [ ] 4.5.3 auth.controller.js - Main DB only, verify pattern
-- [ ] 4.5.4 masterInspection.controller.js - Update pattern
-- [ ] 4.5.5 customModule.controller.js - Main DB only, verify pattern
+- [x] 4.5.1 master.controller.js - Main DB only, verify pattern
+- [x] 4.5.2 company.controller.js - Mixed, update pattern
+- [x] 4.5.3 auth.controller.js - Main DB only, verify pattern
+- [x] 4.5.4 masterInspection.controller.js - Update pattern
+- [x] 4.5.5 customModule.controller.js - Main DB only, verify pattern
 
 ### Task 4.6: Update Supplier Controllers
-- [ ] 4.6.1 supplier.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.6.2 supplierAuth.controller.js - Update pattern
-- [ ] 4.6.3 supplierDashboard.controller.js - Remove unused imports, use req.getModel
+- [x] 4.6.1 supplier.controller.js - Remove unused imports, use req.getModel
+- [x] 4.6.2 supplierAuth.controller.js - Update pattern
+- [x] 4.6.3 supplierDashboard.controller.js - Remove unused imports, use req.getModel
 
 ### Task 4.7: Update Other Controllers
-- [ ] 4.7.1 dealership.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.2 dropdown.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.3 masterDropdown.controller.js - Main DB only, verify pattern
-- [ ] 4.7.4 workflow.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.5 notification.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.6 integration.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.7 serviceBay.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.8 currency.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.9 invoice.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.10 subscription.controller.js - Update pattern
-- [ ] 4.7.11 logs.controller.js - Main DB only, verify pattern
-- [ ] 4.7.12 docs.controller.js - Update pattern
-- [ ] 4.7.13 sqs.controller.js - Update pattern
-- [ ] 4.7.14 socket.controller.js - Update pattern
-- [ ] 4.7.15 groupPermission.controller.js - Remove unused imports, use req.getModel
-- [ ] 4.7.16 userPermission.controller.js - Update pattern
-- [ ] 4.7.17 permission.controller.js - Main DB only, verify pattern
-- [ ] 4.7.18 paymentSettings.controller.js - Main DB only, verify pattern
-- [ ] 4.7.19 trademeMetadata.controller.js - Main DB only, verify pattern
-- [ ] 4.7.20 dashboardReport.controller.js - Update pattern
+- [x] 4.7.1 dealership.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.2 dropdown.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.3 masterDropdown.controller.js - Main DB only, verify pattern
+- [x] 4.7.4 workflow.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.5 notification.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.6 integration.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.7 serviceBay.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.8 currency.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.9 invoice.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.10 subscription.controller.js - Update pattern
+- [x] 4.7.11 logs.controller.js - Main DB only, verify pattern
+- [x] 4.7.12 docs.controller.js - Update pattern
+- [x] 4.7.13 sqs.controller.js - Update pattern
+- [x] 4.7.14 socket.controller.js - Update pattern
+- [x] 4.7.15 groupPermission.controller.js - Remove unused imports, use req.getModel
+- [x] 4.7.16 userPermission.controller.js - Update pattern
+- [x] 4.7.17 permission.controller.js - Main DB only, verify pattern
+- [x] 4.7.18 paymentSettings.controller.js - Main DB only, verify pattern
+- [x] 4.7.19 trademeMetadata.controller.js - Main DB only, verify pattern
+- [x] 4.7.20 dashboardReport.controller.js - Update pattern
 
 ### Task 4.8: Update Report Controllers
-- [ ] 4.8.1 reports/conversation.report.controller.js - Update pattern
-- [ ] 4.8.2 reports/costConfiguration.report.controller.js - Update pattern
-- [ ] 4.8.3 reports/dealership.report.controller.js - Update pattern
-- [ ] 4.8.4 reports/dropdownMaster.report.controller.js - Update pattern
-- [ ] 4.8.5 reports/groupPermission.report.controller.js - Update pattern
-- [ ] 4.8.6 reports/inspectionConfig.report.controller.js - Update pattern
-- [ ] 4.8.7 reports/integration.report.controller.js - Update pattern
-- [ ] 4.8.8 reports/notificationConfig.report.controller.js - Update pattern
-- [ ] 4.8.9 reports/serviceBay.report.controller.js - Update pattern
-- [ ] 4.8.10 reports/supplier.report.controller.js - Update pattern
-- [ ] 4.8.11 reports/tradeinConfig.report.controller.js - Update pattern
-- [ ] 4.8.12 reports/user.report.controller.js - Update pattern
-- [ ] 4.8.13 reports/vehicle.report.controller.js - Update pattern
-- [ ] 4.8.14 reports/workflow.report.controller.js - Update pattern
-- [ ] 4.8.15 reports/workshopQuote.report.controller.js - Update pattern
-- [ ] 4.8.16 reports/workshopReport.report.controller.js - Update pattern
+- [x] 4.8.1 reports/conversation.report.controller.js - Update pattern
+- [x] 4.8.2 reports/costConfiguration.report.controller.js - Update pattern
+- [x] 4.8.3 reports/dealership.report.controller.js - Update pattern
+- [x] 4.8.4 reports/dropdownMaster.report.controller.js - Update pattern
+- [x] 4.8.5 reports/groupPermission.report.controller.js - Update pattern
+- [x] 4.8.6 reports/inspectionConfig.report.controller.js - Update pattern
+- [x] 4.8.7 reports/integration.report.controller.js - Update pattern
+- [x] 4.8.8 reports/notificationConfig.report.controller.js - Update pattern
+- [x] 4.8.9 reports/serviceBay.report.controller.js - Update pattern
+- [x] 4.8.10 reports/supplier.report.controller.js - Update pattern
+- [x] 4.8.11 reports/tradeinConfig.report.controller.js - Update pattern
+- [x] 4.8.12 reports/user.report.controller.js - Update pattern
+- [x] 4.8.13 reports/vehicle.report.controller.js - Update pattern
+- [x] 4.8.14 reports/workflow.report.controller.js - Update pattern
+- [x] 4.8.15 reports/workshopQuote.report.controller.js - Update pattern
+- [x] 4.8.16 reports/workshopReport.report.controller.js - Update pattern
 
 ## Phase 5: Update Middlewares
 
 ### Task 5.1: Update Auth Middleware
-- [ ] 5.1.1 auth.js - Verify Main DB pattern (User, MasterAdmin)
-- [ ] 5.1.2 Test authentication flow
-- [ ] 5.1.3 Verify no breaking changes
+- [x] 5.1.1 auth.js - Verify Main DB pattern (User, MasterAdmin)
+- [x] 5.1.2 Test authentication flow by running getDiagnostics
+- [x] 5.1.3 Verify no breaking changes
 
 ### Task 5.2: Update Workflow Middlewares
-- [ ] 5.2.1 outboundWorkflowMiddleware.js - Update to use req.getModel for company DB
-- [ ] 5.2.2 emailTriggerMiddleware.js - Update to use req.getModel for company DB
-- [ ] 5.2.3 Test workflow execution
-- [ ] 5.2.4 Handle cases where req.getModel not available
+- [x] 5.2.1 outboundWorkflowMiddleware.js - Update to use req.getModel for company DB
+- [x] 5.2.2 emailTriggerMiddleware.js - Update to use req.getModel for company DB
+- [x] 5.2.3 Test workflow execution
+- [x] 5.2.4 Handle cases where req.getModel not available
 
 ### Task 5.3: Update Notification Middleware
-- [ ] 5.3.1 notificationMiddleware.js - Update to use req.getModel for company DB
-- [ ] 5.3.2 Handle cases where req.getModel not available
-- [ ] 5.3.3 Test notification creation
+- [x] 5.3.1 notificationMiddleware.js - Update to use req.getModel for company DB
+- [x] 5.3.2 Handle cases where req.getModel not available
+- [x] 5.3.3 Test notification creation
 
 ### Task 5.4: Update Module Access Middleware
-- [ ] 5.4.1 moduleAccess.js - Verify Main DB pattern
-- [ ] 5.4.2 Test module access checks
+- [x] 5.4.1 moduleAccess.js - Verify Main DB pattern
+- [x] 5.4.2 Test module access checks
 
 ### Task 5.5: Update Tenant Context Middleware
-- [ ] 5.5.1 tenantContext.js - Already updated in Phase 1
-- [ ] 5.5.2 Verify all changes working correctly
+- [x] 5.5.1 tenantContext.js - Already updated in Phase 1
+- [x] 5.5.2 Verify all changes working correctly
 
 ## Phase 6: Update Utilities & Services
 
 ### Task 6.1: Update Utilities
-- [ ] 6.1.1 email.utils.js - Verify Main DB pattern (User)
-- [ ] 6.1.2 Test email sending functionality
+- [x] 6.1.1 email.utils.js - Verify Main DB pattern (User)
+- [x] 6.1.2 Test email sending functionality with getDiagnostics
 
 ### Task 6.2: Update Services
-- [ ] 6.2.1 trademeMapping.service.js - Verify Main DB pattern (TrademeMetadata)
-- [ ] 6.2.2 activityLogging.service.js - Check if needs update
-- [ ] 6.2.3 Test service functionality
+- [x] 6.2.1 trademeMapping.service.js - Verify Main DB pattern (TrademeMetadata)
+- [x] 6.2.2 activityLogging.service.js - Check if needs update
+- [x] 6.2.3 Test service functionality
 
 ### Task 6.3: Update Cron Jobs
-- [ ] 6.3.1 globalLogsCron.js - Verify Main DB pattern (GlobalLog)
-- [ ] 6.3.2 notificationCleanupCron.js - Update to use proper connection
-- [ ] 6.3.3 subscriptionCron.js - Verify Main DB pattern (Company)
-- [ ] 6.3.4 workflowExecutionCleanupCron.js - Update to use proper connection
-- [ ] 6.3.5 Test each cron job manually
+- [x] 6.3.1 globalLogsCron.js - Verify Main DB pattern (GlobalLog)
+- [x] 6.3.2 notificationCleanupCron.js - Update to use proper connection
+- [x] 6.3.3 subscriptionCron.js - Verify Main DB pattern (Company)
+- [x] 6.3.4 workflowExecutionCleanupCron.js - Update to use proper connection
+- [x] 6.3.5 Test each cron job with getDiagnostics
+- [x] 6.3.4 workflowExecutionCleanupCron.js - Update to use proper connection
+- [x] 6.3.5 Test each cron job manually
 
 ## Phase 7: Validation & Testing
 

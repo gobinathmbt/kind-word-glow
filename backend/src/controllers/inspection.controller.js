@@ -1,5 +1,4 @@
 
-const Vehicle = require('../models/Vehicle');
 const { logEvent } = require('./logs.controller');
 const { calculateChanges } = require('./vehicleActivityLog.controller');
 const ActivityLoggingService = require('../services/activityLogging.service');
@@ -9,6 +8,7 @@ const ActivityLoggingService = require('../services/activityLogging.service');
 // @access  Private (Company Admin/Super Admin)
 const getInspections = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const { page = 1, limit = 20, status } = req.query;
     const skip = (page - 1) * limit;
 
@@ -53,6 +53,7 @@ const getInspections = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const startInspection = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const oldVehicle = await Vehicle.findOne({
       vehicle_stock_id: req.params.vehicleId,
       company_id: req.user.company_id
@@ -122,6 +123,7 @@ const startInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getInspection = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const inspection = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -154,6 +156,7 @@ const getInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateInspection = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const inspection = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -217,6 +220,7 @@ const updateInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const completeInspection = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const oldInspection = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -292,6 +296,7 @@ const completeInspection = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getInspectionReport = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const inspection = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,

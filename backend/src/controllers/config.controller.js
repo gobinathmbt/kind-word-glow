@@ -1,13 +1,10 @@
-
-const InspectionConfig = require("../models/InspectionConfig");
-const TradeinConfig = require("../models/TradeinConfig");
-const DropdownMaster = require("../models/DropdownMaster");
 const { logEvent } = require("./logs.controller");
 
 // ... keep existing code (getInspectionConfigs, getInspectionConfigDetails, createInspectionConfig, updateInspectionConfig, deleteInspectionConfig, addInspectionSection, addInspectionField, updateInspectionField, deleteInspectionField, deleteInspectionSection, updateSectionsOrder, updateFieldsOrder functions)
 
 const getInspectionConfigs = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { page = 1, limit = 6, search = "", status = "" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -65,6 +62,7 @@ const getInspectionConfigs = async (req, res) => {
 
 const getInspectionConfigDetails = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const config = await InspectionConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -92,6 +90,7 @@ const getInspectionConfigDetails = async (req, res) => {
 
 const createInspectionConfig = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     // Check if config name already exists for this company
     const existingConfig = await InspectionConfig.findOne({
       config_name: req.body.config_name,
@@ -145,6 +144,7 @@ const createInspectionConfig = async (req, res) => {
 
 const addInspectionCategory = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id } = req.params;
     const { category_name, category_id, description } = req.body;
     const companyId = req.user.company_id;
@@ -212,6 +212,7 @@ const addInspectionCategory = async (req, res) => {
 
 const updateInspectionConfig = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     // Check if new config name already exists for this company (excluding current config)
     if (req.body.config_name) {
       const existingConfig = await InspectionConfig.findOne({
@@ -268,6 +269,7 @@ const updateInspectionConfig = async (req, res) => {
 
 const deleteInspectionConfig = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const config = await InspectionConfig.findOneAndDelete({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -295,6 +297,7 @@ const deleteInspectionConfig = async (req, res) => {
 
 const addInspectionSection = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const config = await InspectionConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -356,6 +359,8 @@ const addInspectionSection = async (req, res) => {
 
 const addInspectionField = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
+    const DropdownMaster = req.getModel('DropdownMaster');
     const config = await InspectionConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -454,6 +459,8 @@ const addInspectionField = async (req, res) => {
 
 const updateInspectionField = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
+    const DropdownMaster = req.getModel('DropdownMaster');
     const config = await InspectionConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -567,6 +574,7 @@ const updateInspectionField = async (req, res) => {
 
 const deleteInspectionField = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const config = await InspectionConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -620,6 +628,7 @@ const deleteInspectionField = async (req, res) => {
 
 const deleteInspectionSection = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, sectionId } = req.params;
     const { company_id } = req.user;
 
@@ -672,6 +681,7 @@ const deleteInspectionSection = async (req, res) => {
 // Update sections order
 const updateSectionsOrder = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId } = req.params;
     const { sections } = req.body;
     const { company_id } = req.user;
@@ -729,6 +739,7 @@ const updateSectionsOrder = async (req, res) => {
 // Update fields order
 const updateFieldsOrder = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, sectionId } = req.params;
     const { fields } = req.body;
     const { company_id } = req.user;
@@ -792,6 +803,7 @@ const updateFieldsOrder = async (req, res) => {
 // Trade-in Configuration Controllers
 const getTradeinConfigs = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { page = 1, limit = 6, search = "", status = "" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -849,6 +861,7 @@ const getTradeinConfigs = async (req, res) => {
 
 const getTradeinConfigDetails = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const config = await TradeinConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -876,6 +889,7 @@ const getTradeinConfigDetails = async (req, res) => {
 
 const createTradeinConfig = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     // Check if config name already exists for this company
     const existingConfig = await TradeinConfig.findOne({
       config_name: req.body.config_name,
@@ -921,6 +935,7 @@ const createTradeinConfig = async (req, res) => {
 
 const updateTradeinConfig = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     // Check if new config name already exists for this company (excluding current config)
     if (req.body.config_name) {
       const existingConfig = await TradeinConfig.findOne({
@@ -977,6 +992,7 @@ const updateTradeinConfig = async (req, res) => {
 
 const deleteTradeinConfig = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const config = await TradeinConfig.findOneAndDelete({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1004,6 +1020,7 @@ const deleteTradeinConfig = async (req, res) => {
 
 const addTradeinCategory = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id } = req.params;
     const { category_name, category_id, description } = req.body;
     const companyId = req.user.company_id;
@@ -1072,6 +1089,7 @@ const addTradeinCategory = async (req, res) => {
 
 const updateTradeinCategory = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId } = req.params;
     const { category_name, description } = req.body;
 
@@ -1119,6 +1137,7 @@ const updateTradeinCategory = async (req, res) => {
 
 const toggleTradeinCategoryStatus = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId } = req.params;
     const { is_active } = req.body;
 
@@ -1159,6 +1178,7 @@ const toggleTradeinCategoryStatus = async (req, res) => {
 
 const addTradeinSection = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const config = await TradeinConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1220,6 +1240,8 @@ const addTradeinSection = async (req, res) => {
 
 const addTradeinField = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
+    const DropdownMaster = req.getModel('DropdownMaster');
     const config = await TradeinConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1353,6 +1375,8 @@ const addTradeinField = async (req, res) => {
 
 const updateTradeinField = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
+    const DropdownMaster = req.getModel('DropdownMaster');
     const { id: configId, fieldId } = req.params;
     const updateData = { ...req.body };
 
@@ -1484,6 +1508,7 @@ const updateTradeinField = async (req, res) => {
 
 const deleteTradeinField = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const config = await TradeinConfig.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -1556,6 +1581,7 @@ const deleteTradeinField = async (req, res) => {
 
 const deleteTradeinSection = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, sectionId } = req.params;
     const { company_id } = req.user;
 
@@ -1608,6 +1634,7 @@ const deleteTradeinSection = async (req, res) => {
 // Update sections order for tradein
 const updateTradeinSectionsOrder = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId } = req.params;
     const { sections } = req.body;
     const { company_id } = req.user;
@@ -1665,6 +1692,7 @@ const updateTradeinSectionsOrder = async (req, res) => {
 // Update fields order for tradein
 const updateTradeinFieldsOrder = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, sectionId } = req.params;
     const { fields } = req.body;
     const { company_id } = req.user;
@@ -1721,6 +1749,7 @@ const updateTradeinFieldsOrder = async (req, res) => {
 
 const updateInspectionCategory = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId } = req.params;
     const { category_name, description } = req.body;
 
@@ -1768,6 +1797,7 @@ const updateInspectionCategory = async (req, res) => {
 
 const toggleInspectionCategoryStatus = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId } = req.params;
     const { is_active } = req.body;
 
@@ -1809,6 +1839,7 @@ const toggleInspectionCategoryStatus = async (req, res) => {
 // Calculation management for inspection configs
 const addInspectionCalculation = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId } = req.params;
     const { display_name, internal_name } = req.body;
 
@@ -1870,6 +1901,7 @@ const addInspectionCalculation = async (req, res) => {
 
 const updateInspectionCalculationFormula = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId, calculationId } = req.params;
     const { formula } = req.body;
 
@@ -1915,6 +1947,7 @@ const updateInspectionCalculationFormula = async (req, res) => {
 
 const deleteInspectionCalculation = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId, calculationId } = req.params;
 
     const config = await InspectionConfig.findById(configId);
@@ -1966,6 +1999,7 @@ const deleteInspectionCalculation = async (req, res) => {
 
 const toggleInspectionCalculationStatus = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
     const { id: configId, categoryId, calculationId } = req.params;
     const { is_active } = req.body;
 
@@ -2012,6 +2046,7 @@ const toggleInspectionCalculationStatus = async (req, res) => {
 // Calculation management for tradein configs
 const addTradeinCalculation = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId } = req.params;
     const { display_name, internal_name } = req.body;
 
@@ -2073,6 +2108,7 @@ const addTradeinCalculation = async (req, res) => {
 
 const updateTradeinCalculationFormula = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId, calculationId } = req.params;
     const { formula } = req.body;
 
@@ -2119,6 +2155,7 @@ const updateTradeinCalculationFormula = async (req, res) => {
 
 const deleteTradeinCalculation = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId, calculationId } = req.params;
 
     const config = await TradeinConfig.findById(configId);
@@ -2171,6 +2208,7 @@ const deleteTradeinCalculation = async (req, res) => {
 
 const toggleTradeinCalculationStatus = async (req, res) => {
   try {
+    const TradeinConfig = req.getModel('TradeinConfig');
     const { id: configId, categoryId, calculationId } = req.params;
     const { is_active } = req.body;
 

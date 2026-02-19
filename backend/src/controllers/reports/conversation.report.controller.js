@@ -4,9 +4,6 @@
  * Provides comprehensive message volume, response times, and engagement metrics
  */
 
-const Conversation = require('../../models/Conversation');
-const WorkshopQuote = require('../../models/WorkshopQuote');
-const Supplier = require('../../models/Supplier');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -25,6 +22,9 @@ const {
  */
 const getConversationVolumeAnalysis = async (req, res) => {
   try {
+    const Conversation = req.getModel('Conversation');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -379,6 +379,10 @@ const getConversationVolumeAnalysis = async (req, res) => {
  */
 const getConversationResponseTimes = async (req, res) => {
   try {
+    const Conversation = req.getModel('Conversation');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const Supplier = req.getModel('Supplier');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -651,6 +655,10 @@ const getConversationResponseTimes = async (req, res) => {
  */
 const getConversationEngagementMetrics = async (req, res) => {
   try {
+    const Conversation = req.getModel('Conversation');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const Supplier = req.getModel('Supplier');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

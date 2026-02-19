@@ -4,8 +4,6 @@
  * Provides comprehensive workflow execution metrics, type distribution, and success rate analysis
  */
 
-const Workflow = require('../../models/Workflow');
-const WorkflowExecution = require('../../models/WorkflowExecution');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -25,6 +23,9 @@ const getWorkflowExecutionMetrics = async (req, res) => {
   try {
     const { company_id } = req.user;
     const dateFilter = getDateFilter(req.query);
+
+    const Workflow = req.getModel('Workflow');
+    const WorkflowExecution = req.getModel('WorkflowExecution');
 
     // 1. Get all workflows for the company
     const workflows = await Workflow.find({ company_id })
@@ -332,6 +333,9 @@ const getWorkflowTypeDistribution = async (req, res) => {
     const { company_id } = req.user;
     const dateFilter = getDateFilter(req.query);
 
+    const Workflow = req.getModel('Workflow');
+    const WorkflowExecution = req.getModel('WorkflowExecution');
+
     // 1. Get all workflows for the company
     const workflows = await Workflow.find({ company_id })
       .populate('created_by', 'first_name last_name email')
@@ -551,6 +555,9 @@ const getWorkflowSuccessRates = async (req, res) => {
   try {
     const { company_id } = req.user;
     const dateFilter = getDateFilter(req.query);
+
+    const Workflow = req.getModel('Workflow');
+    const WorkflowExecution = req.getModel('WorkflowExecution');
 
     // 1. Get all workflows for the company
     const workflows = await Workflow.find({ company_id })

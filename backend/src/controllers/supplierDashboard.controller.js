@@ -1,7 +1,4 @@
-const WorkshopQuote = require("../models/WorkshopQuote");
 const Company = require("../models/Company");
-const Supplier = require("../models/Supplier");
-const Vehicle = require("../models/Vehicle");
 const { logEvent } = require("./logs.controller");
 
 // @desc    Get supplier dashboard statistics
@@ -9,6 +6,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Supplier)
 const getSupplierStats = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const supplierId = req.supplier.supplier_id;
 
     // Get counts for each status
@@ -74,6 +72,8 @@ const getSupplierStats = async (req, res) => {
 // @access  Private (Supplier)
 const getQuotesByStatus = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const Vehicle = req.getModel('Vehicle');
     const { status } = req.params;
     const { page = 1, limit = 20, search } = req.query;
     const skip = (page - 1) * limit;
@@ -188,6 +188,7 @@ const getQuotesByStatus = async (req, res) => {
 // @access  Private (Supplier)
 const startWork = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { quoteId } = req.params;
     const supplierId = req.supplier.supplier_id;
 
@@ -246,6 +247,7 @@ const startWork = async (req, res) => {
 // @access  Private (Supplier)
 const submitWork = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { quoteId } = req.params;
     const supplierId = req.supplier.supplier_id;
     const {
@@ -365,6 +367,7 @@ const submitWork = async (req, res) => {
 // @access  Private (Supplier)
 const updateProfile = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const supplierId = req.supplier.supplier_id;
     const {
       name,

@@ -1,21 +1,23 @@
-const Vehicle = require("../models/Vehicle");
-const AdvertiseVehicle = require("../models/AdvertiseVehicle");
-const MasterVehicle = require("../models/MasterVehicle");
+// Company DB models - accessed via req.getModel()
+// const Vehicle = require("../models/Vehicle"); // Now using req.getModel('Vehicle')
+// const AdvertiseVehicle = require("../models/AdvertiseVehicle"); // Now using req.getModel('AdvertiseVehicle')
+// const MasterVehicle = require("../models/MasterVehicle"); // Now using req.getModel('MasterVehicle')
+
 const { logEvent } = require("./logs.controller");
 const { logActivity } = require("./vehicleActivityLog.controller");
 const ActivityLoggingService = require("../services/activityLogging.service");
 
 // Helper function to get the correct model based on vehicle type
-const getVehicleModel = (vehicleType) => {
+const getVehicleModel = (vehicleType, req) => {
   switch (vehicleType) {
     case "advertisement":
-      return AdvertiseVehicle;
+      return req.getModel('AdvertiseVehicle');
     case "master":
-      return MasterVehicle;
+      return req.getModel('MasterVehicle');
     case "inspection":
     case "tradein":
     default:
-      return Vehicle;
+      return req.getModel('Vehicle');
   }
 };
 
@@ -48,7 +50,7 @@ const updateVehicleDealership = async (req, res) => {
     }
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     // Update dealership for all vehicles
     const result = await VehicleModel.updateMany(
@@ -128,7 +130,7 @@ const getVehiclesForBulkOperations = async (req, res) => {
     }
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicle_type);
+    const VehicleModel = getVehicleModel(vehicle_type, req);
 
     // Build filter with company_id first for index usage
     let filter = {
@@ -327,6 +329,9 @@ const getPricingReadyVehicles = async (req, res) => {
     };
 
     // Fetch from both Vehicle and MasterVehicle collections
+    const Vehicle = req.getModel('Vehicle');
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const [vehicleResults, masterVehicleResults, vehicleCount, masterVehicleCount] = await Promise.all([
       Vehicle.find(filter, projection)
         .sort({ created_at: -1 })
@@ -436,7 +441,7 @@ const togglePricingReady = async (req, res) => {
     }
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicle_type);
+    const VehicleModel = getVehicleModel(vehicle_type, req);
 
     // First get the current vehicle data for activity logging
     const currentVehicle = await VehicleModel.findOne({
@@ -529,7 +534,7 @@ const saveVehicleCostDetails = async (req, res) => {
     }
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     // First get the current vehicle data for activity logging
     const currentVehicle = await VehicleModel.findOne({
@@ -621,7 +626,7 @@ const updateVehiclePricing = async (req, res) => {
     }
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     // First get the current vehicle data for activity logging
     const currentVehicle = await VehicleModel.findOne({
@@ -711,7 +716,7 @@ const getPricingVehicleAttachments = async (req, res) => {
     const { vehicleId, vehicleType } = req.params;
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     const vehicle = await VehicleModel.findOne({
       _id: vehicleId,
@@ -746,7 +751,7 @@ const uploadPricingVehicleAttachment = async (req, res) => {
     const { vehicleId, vehicleType } = req.params;
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     const vehicle = await VehicleModel.findOne({
       _id: vehicleId,
@@ -812,7 +817,7 @@ const deletePricingVehicleAttachment = async (req, res) => {
     const { vehicleId, vehicleType, attachmentId } = req.params;
 
     // Get the correct model based on vehicle type
-    const VehicleModel = getVehicleModel(vehicleType);
+    const VehicleModel = getVehicleModel(vehicleType, req);
 
     const vehicle = await VehicleModel.findOne({
       _id: vehicleId,

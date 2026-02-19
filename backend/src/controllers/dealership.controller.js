@@ -1,4 +1,3 @@
-const Dealership = require('../models/Dealership');
 const { logEvent } = require('./logs.controller');
 
 // @desc    Get dealerships with pagination and search
@@ -6,6 +5,7 @@ const { logEvent } = require('./logs.controller');
 // @access  Private (Company Admin/Super Admin)
 const getDealerships = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const { page = 1, limit = 10, search, status } = req.query;
     const skip = (page - 1) * limit;
 
@@ -78,6 +78,7 @@ const getDealerships = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getDealership = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const dealership = await Dealership.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -109,6 +110,7 @@ const getDealership = async (req, res) => {
 // @access  Private (Company Super Admin)
 const createDealership = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const { dealership_name, dealership_address, dealership_email } = req.body;
 
     // Validate required fields
@@ -194,6 +196,7 @@ const createDealership = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateDealership = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const { dealership_name, dealership_address, dealership_email, is_active } = req.body;
 
     // Check if dealership name exists for another dealership in this company
@@ -281,6 +284,7 @@ const updateDealership = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteDealership = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const dealership = await Dealership.findOneAndUpdate(
       { _id: req.params.id, company_id: req.user.company_id },
       { is_active: false, updated_at: new Date() },
@@ -327,6 +331,7 @@ const deleteDealership = async (req, res) => {
 // @access  Private (Company Super Admin)
 const toggleDealershipStatus = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const { is_active } = req.body;
 
     const dealership = await Dealership.findOneAndUpdate(
@@ -377,6 +382,7 @@ const toggleDealershipStatus = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getDealershipsDropdown = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const dealerships = await Dealership.find({
       company_id: req.user.company_id,
       is_active: true

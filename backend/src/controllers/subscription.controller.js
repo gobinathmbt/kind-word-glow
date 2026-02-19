@@ -134,6 +134,7 @@ const calculatePrice = async (req, res) => {
 // Create subscription
 const createSubscription = async (req, res) => {
   try {
+    const Subscription = req.getModel('Subscriptions');
     const {
       number_of_days,
       number_of_users,
@@ -331,6 +332,7 @@ const createSubscription = async (req, res) => {
 // Update payment status
 const updatePaymentStatus = async (req, res) => {
   try {
+    const Subscription = req.getModel('Subscriptions');
     const { subscriptionId } = req.params;
     const { 
       payment_status, 
@@ -490,6 +492,7 @@ const updatePaymentStatus = async (req, res) => {
 // Get company subscription
 const getCompanySubscription = async (req, res) => {
   try {
+    const Subscription = req.getModel('Subscriptions');
     const companyId = req.user.company_id;
 
     const subscription = await Subscription.findOne({
@@ -523,6 +526,7 @@ const getCompanySubscription = async (req, res) => {
 
 const getSubscriptionStatus = async (req, res) => {
   try {
+    const Subscription = req.getModel('Subscriptions');
     const companyId = req.user.company_id;
     
     // Get company with subscription status
@@ -563,6 +567,7 @@ const getSubscriptionStatus = async (req, res) => {
 // Get subscription history
 const getSubscriptionHistory = async (req, res) => {
   try {
+    const Subscription = req.getModel('Subscriptions');
     const companyId = req.user.company_id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -656,6 +661,7 @@ const checkExpiredSubscriptions = async () => {
 // Clean up abandoned pending subscriptions (can be called by cron job)
 const cleanupPendingSubscriptions = async () => {
   try {
+    const Subscription = require('../models/Subscriptions');
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     
     const result = await Subscription.deleteMany({

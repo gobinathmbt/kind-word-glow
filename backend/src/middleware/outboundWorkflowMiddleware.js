@@ -1,4 +1,3 @@
-const Workflow = require("../models/Workflow");
 const mongoose = require("mongoose");
 
 // Helper function to detect schema type from entity data and request path
@@ -274,11 +273,17 @@ const processOutboundWorkflowTriggers = async (req, res, responseData) => {
       return;
     }
 
+    // Check if req.getModel is available
+    if (!req.getModel) {
+      console.warn('req.getModel not available in outboundWorkflowMiddleware - skipping workflow processing');
+      return;
+    }
+
     // Convert to plain object if it's a Mongoose document
     const dataObject = entityData.toObject ? entityData.toObject() : entityData;
 
     // Trigger the outbound workflow check for any schema
-    await checkAndTriggerOutboundWorkflows(dataObject, req.user.company_id, req.path);
+    await checkAndTriggerOutboundWorkflows(dataObject, req.user.company_id, req.path, req);
     
   } catch (error) {
     console.error('Error in processOutboundWorkflowTriggers:', error);
@@ -286,8 +291,11 @@ const processOutboundWorkflowTriggers = async (req, res, responseData) => {
 };
 
 // Main function to check and trigger outbound workflows
-const checkAndTriggerOutboundWorkflows = async (entityData, companyId, requestPath) => {
+const checkAndTriggerOutboundWorkflows = async (entityData, companyId, requestPath, req) => {
   try {
+    // Get Workflow model using req.getModel
+    const Workflow = req.getModel('Workflow');
+    
     // Find all active "Vehicle Outbound" workflows for this company
     const outboundWorkflows = await Workflow.find({
       company_id: companyId,
@@ -300,7 +308,7 @@ const checkAndTriggerOutboundWorkflows = async (entityData, companyId, requestPa
     }
 
     for (const workflow of outboundWorkflows) {
-      await evaluateAndTriggerWorkflow(workflow, entityData, companyId, requestPath);
+      await evaluateAndTriggerWorkflow(workflow, entityData, companyId, requestPath, req);
     }
   } catch (error) {
     console.error('Error checking outbound workflow triggers:', error);
@@ -308,7 +316,7 @@ const checkAndTriggerOutboundWorkflows = async (entityData, companyId, requestPa
 };
 
 // Evaluate and trigger a specific workflow
-const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, requestPath) => {
+const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, requestPath, req) => {
   try {
     // Find the target schema node in the workflow
     const targetSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'targetSchemaNode');
@@ -380,7 +388,8 @@ const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, reque
           entityData,
           referenceField,
           companyId,
-          workflow.name
+          workflow.name,
+          req
         );
       } else {
         // Schema type doesn't match current entity - skip this trigger
@@ -414,7 +423,7 @@ const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, reque
 
     // Only process when trigger is activated
     if (triggerActivated) {
-      await executeOutboundWorkflow(workflow, entityData, activatedTriggers, companyId);
+      await executeOutboundWorkflow(workflow, entityData, activatedTriggers, companyId, req);
     }
   } catch (error) {
     console.error(`Error evaluating workflow ${workflow.name}:`, error);
@@ -422,7 +431,7 @@ const evaluateAndTriggerWorkflow = async (workflow, entityData, companyId, reque
 };
 
 // Evaluate cross-schema condition
-const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField, companyId, workflowName) => {
+const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField, companyId, workflowName, req) => {
   try {
     // Get the reference value from entity data
     const referenceValue = getNestedFieldValue(entityData, referenceField);
@@ -464,9 +473,10 @@ const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField,
         .join('');
     }
 
+    // Get model using req.getModel
     let SchemaModel;
     try {
-      SchemaModel = require(`../models/${modelName}`);
+      SchemaModel = req.getModel(modelName);
     } catch (error) {
       return false;
     }
@@ -496,7 +506,7 @@ const evaluateCrossSchemaCondition = async (trigger, entityData, referenceField,
 };
 
 // Execute the outbound workflow
-const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, companyId) => {
+const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, companyId, req) => {
   try {
     // Triggers were activated
     // Log relevant fields based on what's available in the entity
@@ -645,9 +655,9 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
       const isSchemaBasedFormat = typeof selectedFieldsConfig === 'object' && !Array.isArray(selectedFieldsConfig);
 
       if (isSchemaBasedFormat && Object.keys(selectedFieldsConfig).length > 0) {
-        await processSchemaBasedExport(workflow, entityData, selectedFieldsConfig, companyId);
+        await processSchemaBasedExport(workflow, entityData, selectedFieldsConfig, companyId, req);
       } else if (Array.isArray(selectedFieldsConfig) && selectedFieldsConfig.length > 0) {
-        await processLegacyExport(workflow, entityData, selectedFieldsConfig);
+        await processLegacyExport(workflow, entityData, selectedFieldsConfig, req);
       }
     }
   } catch (error) {
@@ -656,7 +666,7 @@ const executeOutboundWorkflow = async (workflow, entityData, activatedTriggers, 
 };
 
 // Process schema-based export (new format)
-const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConfig, companyId) => {
+const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConfig, companyId, req) => {
 
   // Get destination schema node to access reference field
   const destinationSchemaNode = workflow.flow_data?.nodes?.find(node => node.type === 'destinationSchemaNode');
@@ -681,7 +691,7 @@ const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConf
       schemaData = entityData;
     } else {
       // Fetch related schema data using reference field
-      schemaData = await fetchRelatedSchemaData(schemaType, entityData, referenceField, companyId);
+      schemaData = await fetchRelatedSchemaData(schemaType, entityData, referenceField, companyId, req);
       if (!schemaData) continue;
     }
 
@@ -704,11 +714,11 @@ const processSchemaBasedExport = async (workflow, entityData, selectedFieldsConf
   const finalMappedData = applyDataMapping(workflow, allMappedData);
 
   // Make the outbound API call
-  await makeOutboundAPICall(workflow, finalMappedData, entityData);
+  await makeOutboundAPICall(workflow, finalMappedData, entityData, req);
 };
 
 // Process legacy export (old format)
-const processLegacyExport = async (workflow, entityData, selectedFields) => {
+const processLegacyExport = async (workflow, entityData, selectedFields, req) => {
   // Filter entity data to only include selected fields
   const filteredEntityData = {};
   selectedFields.forEach(fieldName => {
@@ -724,11 +734,11 @@ const processLegacyExport = async (workflow, entityData, selectedFields) => {
   const mappedEntityData = applyDataMapping(workflow, filteredEntityData);
 
   // Make the outbound API call
-  await makeOutboundAPICall(workflow, mappedEntityData, entityData);
+  await makeOutboundAPICall(workflow, mappedEntityData, entityData, req);
 };
 
 // Fetch related schema data
-const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, companyId) => {
+const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, companyId, req) => {
   try {
     // Convert schema_type to model name with special handling
     let modelName;
@@ -763,9 +773,10 @@ const fetchRelatedSchemaData = async (schemaType, entityData, referenceField, co
         .join('');
     }
 
+    // Get model using req.getModel
     let SchemaModel;
     try {
-      SchemaModel = require(`../models/${modelName}`);
+      SchemaModel = req.getModel(modelName);
     } catch (error) {
       return null;
     }
@@ -817,7 +828,7 @@ const applyDataMapping = (workflow, sourceData) => {
 };
 
 // Make outbound API call
-const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
+const makeOutboundAPICall = async (workflow, mappedData, entityData, req) => {
   const axios = require('axios');
   const executionStartTime = Date.now();
 
@@ -848,8 +859,10 @@ const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
       }
     }
 
+    // Get WorkflowExecution model using req.getModel
+    const WorkflowExecution = req.getModel('WorkflowExecution');
+    
     // Create execution log for Vehicle Outbound workflow
-    const WorkflowExecution = require('../models/WorkflowExecution');
     const entityIdentifier = entityData.vehicle_stock_id || entityData._id || 'unknown';
     const workflowExecutionLog = new WorkflowExecution({
       workflow_id: workflow._id,
@@ -919,8 +932,10 @@ const makeOutboundAPICall = async (workflow, mappedData, entityData) => {
   } catch (error) {
     console.error('API call failed:', error.message);
 
+    // Get WorkflowExecution model using req.getModel
+    const WorkflowExecution = req.getModel('WorkflowExecution');
+    
     // Update execution log with failure details
-    const WorkflowExecution = require('../models/WorkflowExecution');
     const entityIdentifier = entityData.vehicle_stock_id || entityData._id || 'unknown';
     const workflowExecutionLog = new WorkflowExecution({
       workflow_id: workflow._id,

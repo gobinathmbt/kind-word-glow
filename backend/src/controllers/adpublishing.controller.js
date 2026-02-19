@@ -1,4 +1,3 @@
-const AdVehicle = require('../models/AdvertiseVehicle');
 const { logEvent } = require('./logs.controller');
 const { calculateChanges, logActivity } = require('./vehicleActivityLog.controller');
 const ActivityLoggingService = require('../services/activityLogging.service');
@@ -183,6 +182,7 @@ const getAdVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const adVehicle = await AdVehicle.findOne({
       vehicle_stock_id: req.params.id,
       company_id: req.user.company_id,
@@ -215,6 +215,7 @@ const getAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const {
       dealership,
       status,
@@ -389,6 +390,7 @@ const createAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const adVehicle = await AdVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -463,6 +465,7 @@ const updateAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const adVehicle = await AdVehicle.findOneAndDelete({
       vehicle_stock_id: req.params.id,
       company_id: req.user.company_id,
@@ -525,6 +528,7 @@ const deleteAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const publishAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const adVehicle = await AdVehicle.findOneAndUpdate(
       {
         vehicle_stock_id: req.params.id,
@@ -599,6 +603,7 @@ const publishAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getAdVehicleAttachments = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const vehicle = await AdVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -629,6 +634,7 @@ const getAdVehicleAttachments = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const uploadAdVehicleAttachment = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const vehicle = await AdVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -689,6 +695,7 @@ const uploadAdVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteAdVehicleAttachment = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     const vehicle = await AdVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -762,6 +769,7 @@ const deleteAdVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const softDeleteAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
     // First, let's check if the vehicle exists at all
     const existingVehicle = await AdVehicle.findOne({ _id: req.params.id });
     const vehicle = await AdVehicle.findOneAndUpdate(
@@ -823,6 +831,7 @@ const softDeleteAdVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const restoreAdVehicle = async (req, res) => {
   try {
+    const AdVehicle = req.getModel('AdvertiseVehicle');
    // First, let's check if the vehicle exists and is deleted
     const existingVehicle = await AdVehicle.findOne({
       _id: req.params.id,

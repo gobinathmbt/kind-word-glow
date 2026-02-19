@@ -1,4 +1,3 @@
-const Supplier = require("../models/Supplier");
 const { logEvent } = require("./logs.controller");
 
 // @desc    Get suppliers with pagination and search
@@ -6,6 +5,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getSuppliers = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const { page = 1, limit = 20, search, tags, status } = req.query;
     const skip = (page - 1) * limit;
 
@@ -64,6 +64,7 @@ const getSuppliers = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getSupplier = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const supplier = await Supplier.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -94,6 +95,7 @@ const getSupplier = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createSupplier = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const {
       name,
       email,
@@ -174,6 +176,7 @@ const createSupplier = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateSupplier = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const {
       name,
       email,
@@ -262,6 +265,7 @@ const updateSupplier = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteSupplier = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const supplier = await Supplier.findOneAndUpdate(
       { _id: req.params.id, company_id: req.user.company_id },
       { is_active: false },
@@ -308,6 +312,7 @@ const deleteSupplier = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const searchSuppliersByTags = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const { tags = [], search = "" } = req.body;
     let filter = { 
       company_id: req.user.company_id,

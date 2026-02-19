@@ -4,7 +4,6 @@
  * Provides comprehensive group permission usage and effectiveness metrics
  */
 
-const GroupPermission = require('../../models/GroupPermission');
 const User = require('../../models/User');
 const { 
   getDealershipFilter, 
@@ -23,6 +22,8 @@ const {
  */
 const getGroupPermissionUsage = async (req, res) => {
   try {
+    const GroupPermission = req.getModel('GroupPermission');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -259,6 +260,8 @@ const getGroupPermissionUsage = async (req, res) => {
  */
 const getGroupPermissionEffectiveness = async (req, res) => {
   try {
+    const GroupPermission = req.getModel('GroupPermission');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

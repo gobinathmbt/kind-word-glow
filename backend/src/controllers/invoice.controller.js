@@ -1,11 +1,11 @@
-const Invoice = require('../models/Invoice');
-const Subscription = require('../models/Subscriptions');
 const Company = require('../models/Company');
 const { logEvent } = require('./logs.controller');
 
 // Generate invoice for subscription
 const generateInvoice = async (subscriptionId, billingInfo = {}) => {
   try {
+    const Subscription = require('../models/Subscriptions');
+    const Invoice = require('../models/Invoice');
     const subscription = await Subscription.findById(subscriptionId).populate('company_id');
     if (!subscription) {
       throw new Error('Subscription not found');
@@ -68,6 +68,7 @@ const generateInvoice = async (subscriptionId, billingInfo = {}) => {
 // Get invoices for company
 const getInvoices = async (req, res) => {
   try {
+    const Invoice = req.getModel('Invoice');
     const companyId = req.user.company_id;
     const { page = 1, limit = 10, status, search } = req.query;
     const skip = (page - 1) * limit;
@@ -119,6 +120,7 @@ const getInvoices = async (req, res) => {
 // Get invoice by ID
 const getInvoice = async (req, res) => {
   try {
+    const Invoice = req.getModel('Invoice');
     const { invoiceId } = req.params;
     const companyId = req.user.company_id;
 
@@ -153,6 +155,7 @@ const getInvoice = async (req, res) => {
 // Update invoice payment status
 const updateInvoicePaymentStatus = async (req, res) => {
   try {
+    const Invoice = req.getModel('Invoice');
     const { invoiceId } = req.params;
     const { payment_status, payment_transaction_id, payment_date } = req.body;
     const companyId = req.user.company_id;
@@ -210,6 +213,7 @@ const updateInvoicePaymentStatus = async (req, res) => {
 // Get invoice statistics
 const getInvoiceStats = async (req, res) => {
   try {
+    const Invoice = req.getModel('Invoice');
     const companyId = req.user.company_id;
 
     const [totalInvoices, paidInvoices, pendingInvoices, overdueInvoices] = await Promise.all([

@@ -4,10 +4,6 @@
  * Provides comprehensive cost type utilization, cost setter effectiveness, and currency distribution analysis
  */
 
-const CostConfiguration = require('../../models/CostConfiguration');
-const Currency = require('../../models/Currency');
-const Vehicle = require('../../models/Vehicle');
-const MasterVehicle = require('../../models/MasterVehicle');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -26,6 +22,8 @@ const {
  */
 const getCostTypeUtilization = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -203,6 +201,8 @@ const getCostTypeUtilization = async (req, res) => {
  */
 const getCostSetterEffectiveness = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -378,6 +378,8 @@ const getCostSetterEffectiveness = async (req, res) => {
  */
 const getCostCurrencyDistribution = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -517,6 +519,7 @@ const getCostCurrencyDistribution = async (req, res) => {
     }));
 
     // 7. Get all available currencies in the system
+    const Currency = req.getModel('Currency');
     const allCurrencies = await Currency.find({ company_id }).lean();
     const configuredCurrencyIds = new Set(
       costTypes.map(ct => ct.currency_id?._id?.toString()).filter(Boolean)

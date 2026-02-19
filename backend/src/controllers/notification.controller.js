@@ -1,10 +1,10 @@
-const Notification = require('../models/Notification');
 // Update the notification controller to use new notification socket
 const { getNotificationSocketIO } = require('../controllers/socket.controller');
 
 // Get notifications for a user
 const getNotifications = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const { page = 1, limit = 20, is_read = 'all', type = 'all' } = req.query;
     const userId = req.user.id;
     const companyId = req.user.company_id;
@@ -60,6 +60,7 @@ const getNotifications = async (req, res) => {
 // Mark notification as read
 const markNotificationAsRead = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -106,6 +107,7 @@ const markNotificationAsRead = async (req, res) => {
 // Mark multiple notifications as read
 const markMultipleAsRead = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const { notification_ids } = req.body;
     const userId = req.user.id;
 
@@ -147,6 +149,7 @@ const markMultipleAsRead = async (req, res) => {
 // Mark all notifications as read
 const markAllAsRead = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const userId = req.user.id;
     const companyId = req.user.company_id;
 
@@ -194,6 +197,7 @@ const markAllAsRead = async (req, res) => {
 // Get notification statistics
 const getNotificationStats = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const userId = req.user.id;
     const companyId = req.user.company_id;
 
@@ -253,6 +257,7 @@ const getNotificationStats = async (req, res) => {
 // Delete notification
 const deleteNotification = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -294,6 +299,7 @@ const deleteNotification = async (req, res) => {
 // Get unread count
 const getUnreadCount = async (req, res) => {
   try {
+    const Notification = req.getModel('Notification');
     const userId = req.user.id;
     const companyId = req.user.company_id;
 

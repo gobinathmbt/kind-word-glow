@@ -1,6 +1,4 @@
-const Workflow = require("../models/Workflow");
 const Company = require("../models/Company");
-const Vehicle = require("../models/Vehicle");
 const { validationResult } = require("express-validator");
 const mongoose = require("mongoose");
 
@@ -202,6 +200,7 @@ const validateVehicleOutboundConfig = (workflow, testPayload) => {
 // Get all workflows for a company
 const getWorkflows = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { page = 1, limit = 20, status, type, search } = req.query;
     const companyId = req.user.company_id;
 
@@ -257,6 +256,7 @@ const getWorkflows = async (req, res) => {
 // Get workflow by ID
 const getWorkflow = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { id } = req.params;
     const companyId = req.user.company_id;
 
@@ -291,6 +291,7 @@ const getWorkflow = async (req, res) => {
 // Create workflow
 const createWorkflow = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -332,6 +333,7 @@ const createWorkflow = async (req, res) => {
 // Update workflow
 const updateWorkflow = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { id } = req.params;
     const companyId = req.user.company_id;
     const userId = req.user.id;
@@ -380,6 +382,7 @@ const updateWorkflow = async (req, res) => {
 // Delete workflow
 const deleteWorkflow = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { id } = req.params;
     const companyId = req.user.company_id;
 
@@ -412,6 +415,7 @@ const deleteWorkflow = async (req, res) => {
 // Toggle workflow status
 const toggleWorkflowStatus = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { id } = req.params;
     const { status } = req.body;
     const companyId = req.user.company_id;
@@ -466,6 +470,7 @@ const toggleWorkflowStatus = async (req, res) => {
 // Get workflow statistics
 const getWorkflowStats = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const companyId = req.user.company_id;
 
     const stats = await Workflow.aggregate([
@@ -530,6 +535,7 @@ const getWorkflowStats = async (req, res) => {
 // Get vehicle schema fields for mapping
 const getVehicleSchemaFields = async (req, res) => {
   try {
+    const Vehicle = req.getModel("Vehicle");
     // Get Vehicle schema fields dynamically
     const vehicleSchema = Vehicle.schema;
     const fields = [];
@@ -921,6 +927,7 @@ const executeWorkflow = async (req, res) => {
   let workflowExecutionLog = null;
 
   try {
+    const Workflow = require('../models/Workflow');
     const { endpoint } = req.params;
     let payload = req.body;
 
@@ -1055,7 +1062,6 @@ const executeWorkflow = async (req, res) => {
     const Vehicle = require('../models/Vehicle');
     const AdvertiseVehicle = require('../models/AdvertiseVehicle');
     const MasterVehicle = require('../models/MasterVehicle');
-    const Company = require('../models/Company');
 
     const getVehicleModel = (vehicleType) => {
       switch (vehicleType) {
@@ -1378,6 +1384,7 @@ const executeWorkflow = async (req, res) => {
 // Test workflow configuration
 const testWorkflow = async (req, res) => {
   try {
+    const Workflow = req.getModel("Workflow");
     const { id } = req.params;
     const { test_payload } = req.body;
     const companyId = req.user.company_id;
@@ -1499,6 +1506,7 @@ const testWorkflow = async (req, res) => {
 // Helper function to update workflow execution stats
 const updateWorkflowExecutionStats = async (workflowId, isSuccess, errorMessage = null) => {
   try {
+    const Workflow = require('../models/Workflow');
     const workflow = await Workflow.findById(workflowId);
 
     if (!workflow) {
@@ -2182,13 +2190,12 @@ const sendOutboundWorkflowEmail = async (workflow, vehicleData, mappedData, apiR
 // @route   GET /api/workflow-execute/logs/:workflowId
 const getWorkflowExecutionLogs = async (req, res) => {
   try {
+    const WorkflowExecution = req.getModel('WorkflowExecution');
     const { workflowId } = req.params;
     const { page = 1, limit = 20, status } = req.query;
 
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
-
-    const WorkflowExecution = require('../models/WorkflowExecution');
 
     const filter = { workflow_id: workflowId };
     if (status && status !== 'all') {

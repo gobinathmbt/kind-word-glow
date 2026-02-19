@@ -4,8 +4,6 @@
  * Provides comprehensive bay utilization, booking patterns, user assignment, and holiday impact metrics
  */
 
-const ServiceBay = require('../../models/ServiceBay');
-const WorkshopQuote = require('../../models/WorkshopQuote');
 const User = require('../../models/User');
 const { 
   getDealershipFilter, 
@@ -28,6 +26,9 @@ const getServiceBayUtilization = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const ServiceBay = req.getModel('ServiceBay');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
 
     // 1. Get all service bays for the company
     const serviceBays = await ServiceBay.find({ 
@@ -219,6 +220,9 @@ const getServiceBayBookingPatterns = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const ServiceBay = req.getModel('ServiceBay');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
 
     // 1. Get all service bays
     const serviceBays = await ServiceBay.find({ 
@@ -502,6 +506,9 @@ const getServiceBayUserAssignment = async (req, res) => {
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
 
+    const ServiceBay = req.getModel('ServiceBay');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+
     // 1. Get all service bays with user assignments
     const serviceBays = await ServiceBay.find({ 
       company_id,
@@ -727,6 +734,8 @@ const getServiceBayHolidayImpact = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const ServiceBay = req.getModel('ServiceBay');
 
     // 1. Get all service bays with holiday data
     const serviceBays = await ServiceBay.find({ 

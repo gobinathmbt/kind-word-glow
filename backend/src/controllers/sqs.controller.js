@@ -1,5 +1,4 @@
 const { SQS } = require("@aws-sdk/client-sqs");
-const Vehicle = require('../models/Vehicle');
 const Company = require('../models/Company');
 const MasterAdmin = require('../models/MasterAdmin');
 const { logEvent } = require('./logs.controller');
@@ -247,7 +246,7 @@ const validateCompany = async (companyId) => {
 };
 
 // Enhanced basic validation function with payload structure validation
-const performBasicValidation = async (vehicleData) => {
+const performBasicValidation = async (vehicleData, req) => {
   // First validate payload structure
   const payloadValidation = validatePayloadStructure(vehicleData);
   if (!payloadValidation.isValid) {
@@ -271,7 +270,8 @@ const performBasicValidation = async (vehicleData) => {
   const vehicleValidation = await validateVehicleStockId(
     vehicleData.vehicle_stock_id,
     vehicleData.company_id,
-    vehicleData.vehicle_type
+    vehicleData.vehicle_type,
+    req
   );
   
   if (!vehicleValidation.valid) {
@@ -291,7 +291,7 @@ const performBasicValidation = async (vehicleData) => {
 };
 
 // Validate vehicle_stock_id and vehicle_type combination
-const validateVehicleStockId = async (vehicleStockId, companyId, vehicleType) => {
+const validateVehicleStockId = async (vehicleStockId, companyId, vehicleType, req) => {
   try {
     if (!vehicleStockId) {
       return { valid: false, error: 'Vehicle stock ID is required' };
@@ -306,6 +306,7 @@ const validateVehicleStockId = async (vehicleStockId, companyId, vehicleType) =>
     }
 
     // Check if this exact combination already exists
+    const Vehicle = req.getModel('Vehicle');
     const existingVehicle = await Vehicle.findOne({
       vehicle_stock_id: vehicleStockId,
       company_id: companyId,
@@ -323,10 +324,10 @@ const validateVehicleStockId = async (vehicleStockId, companyId, vehicleType) =>
 };
 
 // Enhanced send to queue function with payload validation
-const sendToQueue = async (vehicleData, messageGroupId = null) => {
+const sendToQueue = async (vehicleData, messageGroupId = null, req) => {
   try {
     // Validate payload before sending to queue
-    const validation = await performBasicValidation(vehicleData);
+    const validation = await performBasicValidation(vehicleData, req);
     if (!validation.valid) {
       return {
         success: false,
@@ -370,12 +371,12 @@ const sendToQueue = async (vehicleData, messageGroupId = null) => {
 };
 
 // Process single vehicle data with enhanced validation
-const processSingleVehicle = async (vehicleData) => {
+const processSingleVehicle = async (vehicleData, req) => {
   try {
     console.log(`Processing single vehicle: ${vehicleData.vehicle_stock_id} - ${vehicleData.vehicle_type}`);
 
     // Enhanced payload and business validation
-    const validation = await performBasicValidation(vehicleData);
+    const validation = await performBasicValidation(vehicleData, req);
     if (!validation.valid) {
       console.log(`Validation failed for vehicle ${vehicleData.vehicle_stock_id}: ${validation.error}`);
       return {
@@ -386,7 +387,7 @@ const processSingleVehicle = async (vehicleData) => {
     }
 
     // Send to queue with validated payload
-    const queueResult = await sendToQueue(vehicleData);
+    const queueResult = await sendToQueue(vehicleData, null, req);
     
     if (!queueResult.success) {
       console.log(`Queue error for vehicle ${vehicleData.vehicle_stock_id}: ${queueResult.error}`);
@@ -424,7 +425,9 @@ const processSingleVehicle = async (vehicleData) => {
 };
 
 // Enhanced process vehicle from queue with proper field separation
-const processVehicleFromQueue = async (messageBody) => {
+// Note: This function is called from queue processor without req context
+// It needs to be updated to work with connection manager directly
+const processVehicleFromQueue = async (messageBody, req) => {
   try {
     const vehicleData = JSON.parse(messageBody);
     console.log(`Processing vehicle from queue: ${vehicleData.vehicle_stock_id} - ${vehicleData.vehicle_type}`);
@@ -432,6 +435,9 @@ const processVehicleFromQueue = async (messageBody) => {
     // The data should already be validated and separated when sent to queue
     // But we'll ensure proper structure anyway
     const { schemaFields } = separateSchemaAndCustomFields(vehicleData);
+    
+    // Get Vehicle model using req.getModel
+    const Vehicle = req.getModel('Vehicle');
     
     // Check if vehicle already exists with same stock_id, company_id, and vehicle_type
     const existingVehicle = await Vehicle.findOne({
@@ -527,7 +533,7 @@ const processVehicleFromQueue = async (messageBody) => {
 };
 
 // Process bulk vehicle data with enhanced validation
-const processBulkVehicles = async (vehiclesArray, companyId) => {
+const processBulkVehicles = async (vehiclesArray, companyId, req) => {
   console.log(`Processing ${vehiclesArray.length} vehicles for company ${companyId}`);
   
   const results = {
@@ -557,7 +563,7 @@ const processBulkVehicles = async (vehiclesArray, companyId) => {
     // Ensure company_id is set
     vehicleData.company_id = companyId;
     
-    const result = await processSingleVehicle(vehicleData);
+    const result = await processSingleVehicle(vehicleData, req);
     
     if (result.success) {
       const successRecord = {

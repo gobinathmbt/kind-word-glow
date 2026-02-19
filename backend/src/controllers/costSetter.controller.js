@@ -1,9 +1,8 @@
-const CostConfiguration = require('../models/CostConfiguration');
-const Currency = require('../models/Currency');
 const { logEvent } = require('./logs.controller');
 
 // Helper function to populate currency data
-const populateCurrencyData = async (costConfig, companyId) => {
+const populateCurrencyData = async (costConfig, companyId, req) => {
+  const Currency = req.getModel('Currency');
   const currencyDoc = await Currency.findOne({ company_id: companyId });
   
   if (currencyDoc && costConfig.cost_types) {
@@ -29,6 +28,8 @@ const populateCurrencyData = async (costConfig, companyId) => {
 // @access  Private (Company Super Admin)
 const getCostSetter = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    const Currency = req.getModel('Currency');
     let costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
     }).lean();
@@ -44,7 +45,7 @@ const getCostSetter = async (req, res) => {
     }
     
     // Populate currency data
-    costConfig = await populateCurrencyData(costConfig, req.user.company_id);
+    costConfig = await populateCurrencyData(costConfig, req.user.company_id, req);
     
     res.status(200).json({
       success: true,
@@ -67,6 +68,7 @@ const getCostSetter = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateCostSetter = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { vehicle_purchase_type, enabled_cost_types } = req.body;
     
     if (!vehicle_purchase_type) {
@@ -111,7 +113,7 @@ const updateCostSetter = async (req, res) => {
     await costConfig.save();
     
     // Populate currency data
-    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id, req);
     
     await logEvent(
       req.user.company_id,
@@ -142,6 +144,7 @@ const updateCostSetter = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteCostSetter = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { vehiclePurchaseType } = req.params;
     
     const costConfig = await CostConfiguration.findOne({

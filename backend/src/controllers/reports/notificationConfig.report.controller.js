@@ -4,8 +4,6 @@
  * Provides comprehensive engagement metrics, trigger analysis, and channel performance
  */
 
-const NotificationConfiguration = require('../../models/NotificationConfiguration');
-const Notification = require('../../models/Notification');
 const {
   getDealershipFilter,
   getDateFilter,
@@ -24,6 +22,9 @@ const {
  */
 const getNotificationEngagementMetrics = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
+    const Notification = req.getModel('Notification');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -445,6 +446,9 @@ const getNotificationEngagementMetrics = async (req, res) => {
  */
 const getNotificationTriggerAnalysis = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
+    const Notification = req.getModel('Notification');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -768,6 +772,9 @@ const getNotificationTriggerAnalysis = async (req, res) => {
  */
 const getNotificationChannelPerformance = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
+    const Notification = req.getModel('Notification');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

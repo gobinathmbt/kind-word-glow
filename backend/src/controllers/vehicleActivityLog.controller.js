@@ -1,4 +1,7 @@
-const VehicleActivityLog = require('../models/VehicleActivityLog');
+// Company DB models - accessed via req.getModel()
+// const VehicleActivityLog = require('../models/VehicleActivityLog'); // Now using req.getModel('VehicleActivityLog')
+
+// Main DB models - keep as direct imports
 const User = require('../models/User');
 
 /**
@@ -13,9 +16,20 @@ const User = require('../models/User');
  * @param {Array} data.changes Array of changes {field, old_value, new_value}
  * @param {Array} [data.attachments] Array of attachments
  * @param {Object} [data.metadata] metadata
+ * @param {Object} [data.req] Request object (required for req.getModel)
  */
 const logActivity = async (data) => {
     try {
+        // Get VehicleActivityLog model from request context if available
+        // For backward compatibility, try to require it if req is not provided
+        let VehicleActivityLog;
+        if (data.req && data.req.getModel) {
+            VehicleActivityLog = data.req.getModel('VehicleActivityLog');
+        } else {
+            // Fallback for cases where req is not passed (legacy code)
+            VehicleActivityLog = require('../models/VehicleActivityLog');
+        }
+        
         // Fetch user name if not provided
         let userName = data.user_name;
         if (!userName && data.user_id) {
@@ -52,6 +66,8 @@ const logActivity = async (data) => {
 // @access  Private
 const getVehicleLogs = async (req, res) => {
     try {
+        const VehicleActivityLog = req.getModel('VehicleActivityLog');
+        
         const { vehicleType, stockId } = req.params;
         const { company_id } = req.user;
 
@@ -558,6 +574,8 @@ const executeWithLogging = async (logData, operation, successMessage, failureMes
 // @access  Private
 const getFieldHistory = async (req, res) => {
     try {
+        const VehicleActivityLog = req.getModel('VehicleActivityLog');
+        
         const { vehicle_stock_id, company_id, vehicle_type, module_name, field } = req.query;
 
         // Validate required parameters (module_name is optional - we search across all sections)
@@ -669,17 +687,28 @@ const getFieldHistory = async (req, res) => {
  * @param {boolean} options.groupByTime Group activities within time window (default: true)
  * @param {number} options.timeWindowMs Time window in milliseconds for grouping (default: 5000)
  * @param {boolean} options.combineChanges Combine all changes into single entry (default: false)
+ * @param {Object} options.req Request object (required for req.getModel)
  */
 const logBatchActivity = async (activities, options = {}) => {
     try {
         const {
             groupByTime = true,
             timeWindowMs = 5000,
-            combineChanges = false
+            combineChanges = false,
+            req
         } = options;
 
         if (!activities || activities.length === 0) {
             return [];
+        }
+
+        // Get VehicleActivityLog model
+        let VehicleActivityLog;
+        if (req && req.getModel) {
+            VehicleActivityLog = req.getModel('VehicleActivityLog');
+        } else {
+            // Fallback for cases where req is not passed (legacy code)
+            VehicleActivityLog = require('../models/VehicleActivityLog');
         }
 
         // If combining changes, merge all into single log entry
@@ -693,6 +722,7 @@ const logBatchActivity = async (activities, options = {}) => {
             
             return await logActivity({
                 ...firstActivity,
+                req, // Pass req for getModel
                 module_name: moduleNames.length === 1 ? moduleNames[0] : 'Vehicle General Info',
                 changes: allChanges,
                 metadata: {

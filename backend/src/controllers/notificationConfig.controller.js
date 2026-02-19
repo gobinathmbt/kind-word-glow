@@ -1,6 +1,4 @@
-const NotificationConfiguration = require('../models/NotificationConfiguration');
 const Company = require('../models/Company');
-const Dealership = require('../models/Dealership');
 const User = require('../models/User');
 const mongoose = require("mongoose");
 
@@ -8,6 +6,7 @@ const mongoose = require("mongoose");
 const getNotificationConfigurations = async (req, res) => {
 
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const { page = 1, limit = 10, search = '', status = 'all', priority = 'all' } = req.query;
     const companyId = req.user.company_id;
 
@@ -72,6 +71,7 @@ const getNotificationConfigurations = async (req, res) => {
 // Get single notification configuration
 const getNotificationConfiguration = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const { id } = req.params;
     const companyId = req.user.company_id;
 
@@ -107,6 +107,7 @@ const getNotificationConfiguration = async (req, res) => {
 // Create notification configuration
 const createNotificationConfiguration = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const companyId = req.user.company_id;
     const userId = req.user.id;
 
@@ -181,6 +182,7 @@ const createNotificationConfiguration = async (req, res) => {
 // Update notification configuration
 const updateNotificationConfiguration = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const { id } = req.params;
     const companyId = req.user.company_id;
     const userId = req.user.id;
@@ -257,6 +259,7 @@ const updateNotificationConfiguration = async (req, res) => {
 // Delete notification configuration
 const deleteNotificationConfiguration = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const { id } = req.params;
     const companyId = req.user.company_id;
 
@@ -303,6 +306,7 @@ const deleteNotificationConfiguration = async (req, res) => {
 // Toggle notification configuration status
 const toggleNotificationConfigurationStatus = async (req, res) => {
   try {
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
     const { id } = req.params;
     const { is_active } = req.body;
     const companyId = req.user.company_id;
@@ -535,6 +539,7 @@ const getCompanyUsers = async (req, res) => {
 // Get dealerships for target selection
 const getCompanyDealerships = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
     const companyId = req.user.company_id;
     
     const dealerships = await Dealership.find({

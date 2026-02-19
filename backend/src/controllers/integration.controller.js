@@ -1,4 +1,3 @@
-const Integration = require("../models/Integration");
 const { logEvent } = require("./logs.controller");
 
 // @desc    Get all integrations for a company
@@ -6,6 +5,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getIntegrations = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { page = 1, limit = 20, integration_type, is_active, search, status } = req.query;
 
     const skip = (page - 1) * limit;
@@ -77,6 +77,7 @@ const getIntegrations = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getIntegration = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { id } = req.params;
 
     const integration = await Integration.findOne({
@@ -112,6 +113,7 @@ const getIntegration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createIntegration = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { integration_type, display_name, environments, active_environment } = req.body;
 
     // Validate required fields
@@ -178,6 +180,7 @@ const createIntegration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateIntegration = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { id } = req.params;
     const { display_name, is_active, environments, active_environment } = req.body;
 
@@ -235,6 +238,7 @@ const updateIntegration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteIntegration = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { id } = req.params;
 
     const integration = await Integration.findOneAndDelete({
@@ -281,6 +285,7 @@ const deleteIntegration = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const toggleIntegrationStatus = async (req, res) => {
   try {
+    const Integration = req.getModel("Integration");
     const { id } = req.params;
     const { is_active } = req.body;
 

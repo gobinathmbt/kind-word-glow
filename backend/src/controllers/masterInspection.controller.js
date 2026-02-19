@@ -1,8 +1,11 @@
-const InspectionConfig = require("../models/InspectionConfig");
-const TradeinConfig = require("../models/TradeinConfig");
-const Vehicle = require("../models/Vehicle");
 const Company = require("../models/Company");
-const DropdownMaster = require("../models/DropdownMaster");
+const connectionManager = require("../config/dbConnectionManager");
+const { getModel } = require("../utils/modelFactory");
+// Company DB models accessed dynamically:
+// - InspectionConfig (via getModel)
+// - TradeinConfig (via getModel)
+// - Vehicle (via getModel)
+// - DropdownMaster (via getModel)
 
 // @desc    Get master configuration for inspection/tradein (Public - No auth required)
 // @route   GET /api/master-inspection/config/:company_id/:vehicle_type
@@ -20,6 +23,13 @@ const getMasterConfiguration = async (req, res) => {
         message: "Company not found",
       });
     }
+
+    // Get company database connection for Company DB models
+    const companyDb = await connectionManager.getCompanyConnection(company_id);
+    const InspectionConfig = getModel('InspectionConfig', companyDb);
+    const TradeinConfig = getModel('TradeinConfig', companyDb);
+    const Vehicle = getModel('Vehicle', companyDb);
+    const DropdownMaster = getModel('DropdownMaster', companyDb);
 
     let config;
     let query = {
@@ -288,6 +298,9 @@ const saveInspectionData = async (req, res) => {
     const { company_id, vehicle_stock_id, vehicle_type } = req.params;
     const { inspection_result, inspection_report_pdf, tradein_report_pdf, config_id, current_category } = req.body;
 
+    // Use req.getModel since this route has protect middleware
+    const Vehicle = req.getModel('Vehicle');
+
     const vehicle = await Vehicle.findOne({
       company_id,
       vehicle_stock_id: parseInt(vehicle_stock_id),
@@ -406,6 +419,10 @@ const getVehicleInspectionData = async (req, res) => {
   try {
     const { company_id, vehicle_stock_id, vehicle_type } = req.params;
 
+    // Get company database connection for Vehicle model
+    const companyDb = await connectionManager.getCompanyConnection(company_id);
+    const Vehicle = getModel('Vehicle', companyDb);
+
     const vehicle = await Vehicle.findOne({
       company_id,
       vehicle_stock_id: parseInt(vehicle_stock_id),
@@ -466,6 +483,11 @@ const getActiveConfigurations = async (req, res) => {
         message: "Company not found",
       });
     }
+
+    // Get company database connection for config models
+    const companyDb = await connectionManager.getCompanyConnection(company_id);
+    const InspectionConfig = getModel('InspectionConfig', companyDb);
+    const TradeinConfig = getModel('TradeinConfig', companyDb);
 
     let configs;
     if (vehicle_type === "inspection") {

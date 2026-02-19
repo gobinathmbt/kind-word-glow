@@ -4,7 +4,6 @@
  * Provides comprehensive integration health, environment usage, and type distribution metrics
  */
 
-const Integration = require('../../models/Integration');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -23,6 +22,8 @@ const {
  */
 const getIntegrationStatusOverview = async (req, res) => {
   try {
+    const Integration = req.getModel('Integration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -260,6 +261,8 @@ const getIntegrationStatusOverview = async (req, res) => {
  */
 const getIntegrationEnvironmentUsage = async (req, res) => {
   try {
+    const Integration = req.getModel('Integration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -525,6 +528,8 @@ const getIntegrationEnvironmentUsage = async (req, res) => {
  */
 const getIntegrationTypeDistribution = async (req, res) => {
   try {
+    const Integration = req.getModel('Integration');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

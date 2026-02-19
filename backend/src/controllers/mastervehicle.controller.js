@@ -1,4 +1,6 @@
-const MasterVehicle = require("../models/MasterVehicle");
+// Company DB models - accessed via req.getModel()
+// const MasterVehicle = require("../models/MasterVehicle"); // Now using req.getModel('MasterVehicle')
+
 const { logEvent } = require("./logs.controller");
 const { logActivity } = require("./vehicleActivityLog.controller");
 const ActivityLoggingService = require("../services/activityLogging.service");
@@ -8,6 +10,8 @@ const ActivityLoggingService = require("../services/activityLogging.service");
 // @access  Private (Company Admin/Super Admin)
 const getMasterVehicles = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const { page = 1, limit = 20, status, search, dealership, deleted_only } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -176,6 +180,8 @@ const getMasterVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getMasterVehicle = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const masterVehicle = await MasterVehicle.findOne({
       vehicle_stock_id: req.params.id,
       company_id: req.user.company_id,
@@ -207,6 +213,8 @@ const getMasterVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createMasterVehicle = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const {
       dealership,
       status,
@@ -386,6 +394,8 @@ const createMasterVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateMasterVehicle = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const masterVehicle = await MasterVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -498,6 +508,8 @@ const deleteMasterVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getMasterVehicleAttachments = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const vehicle = await MasterVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -528,6 +540,8 @@ const getMasterVehicleAttachments = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const uploadMasterVehicleAttachment = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const vehicle = await MasterVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -588,6 +602,8 @@ const uploadMasterVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const deleteMasterVehicleAttachment = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     const vehicle = await MasterVehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -661,6 +677,8 @@ const deleteMasterVehicleAttachment = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const softDeleteMasterVehicle = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     // First, let's check if the vehicle exists at all
     const existingVehicle = await MasterVehicle.findOne({ _id: req.params.id });
     const vehicle = await MasterVehicle.findOneAndUpdate(
@@ -720,6 +738,8 @@ const softDeleteMasterVehicle = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const restoreMasterVehicle = async (req, res) => {
   try {
+    const MasterVehicle = req.getModel('MasterVehicle');
+    
     // First, let's check if the vehicle exists and is deleted
     const existingVehicle = await MasterVehicle.findOne({
       _id: req.params.id,

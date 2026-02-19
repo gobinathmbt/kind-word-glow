@@ -1,6 +1,4 @@
-const ServiceBay = require('../models/ServiceBay');
 const User = require('../models/User');
-const Dealership = require('../models/Dealership');
 const { logEvent } = require('./logs.controller');
 
 // @desc    Get all service bays
@@ -8,6 +6,8 @@ const { logEvent } = require('./logs.controller');
 // @access  Private (Company Super Admin)
 const getServiceBays = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership');
     const { page = 1, limit = 20, search, dealership_id, is_active } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -83,6 +83,7 @@ const getServiceBays = async (req, res) => {
 // @access  Private (Company Super Admin)
 const getServiceBay = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const bay = await ServiceBay.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -117,6 +118,8 @@ const getServiceBay = async (req, res) => {
 // @access  Private (Company Super Admin)
 const createServiceBay = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership');
     const {
       bay_name,
       bay_description,
@@ -238,6 +241,8 @@ const createServiceBay = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateServiceBay = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
+    const Dealership = req.getModel('Dealership');
     const bay = await ServiceBay.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -353,6 +358,7 @@ const updateServiceBay = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteServiceBay = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const bay = await ServiceBay.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -398,6 +404,7 @@ const deleteServiceBay = async (req, res) => {
 // @access  Private (Company Super Admin)
 const toggleServiceBayStatus = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const bay = await ServiceBay.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -446,6 +453,7 @@ const toggleServiceBayStatus = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const addBayHoliday = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const { date, start_time, end_time, reason } = req.body;
 
     if (!date || !start_time || !end_time) {
@@ -527,6 +535,7 @@ const addBayHoliday = async (req, res) => {
 
 const getHolidays = async (req, res) => {
   try {
+    const ServiceBay = req.getModel("ServiceBay");
     const { start_date, end_date, bay_id } = req.query;
 
     if (!start_date || !end_date) {
@@ -535,8 +544,6 @@ const getHolidays = async (req, res) => {
         message: "Start date and end date are required",
       });
     }
-
-    const ServiceBay = require("../models/ServiceBay");
 
     // Build bay filter (same logic as getBayCalendar)
     let bayFilter = {
@@ -600,6 +607,7 @@ const getHolidays = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const removeBayHoliday = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const bay = await ServiceBay.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -638,6 +646,7 @@ const removeBayHoliday = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getBaysDropdown = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
     const { is_primary_admin, company_id, dealership_ids } = req.user;
 
     let filter = {

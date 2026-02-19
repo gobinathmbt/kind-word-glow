@@ -4,10 +4,6 @@
  * Provides comprehensive supplier performance, inventory, and relationship metrics
  */
 
-const Supplier = require('../../models/Supplier');
-const WorkshopQuote = require('../../models/WorkshopQuote');
-const WorkshopReport = require('../../models/WorkshopReport');
-const Conversation = require('../../models/Conversation');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -29,6 +25,11 @@ const getSupplierOverview = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const Supplier = req.getModel('Supplier');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const WorkshopReport = req.getModel('WorkshopReport');
+    const Conversation = req.getModel('Conversation');
 
     // 1. Get all suppliers for the company
     const suppliers = await Supplier.find({ company_id })
@@ -226,6 +227,11 @@ const getSupplierPerformanceRanking = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const Supplier = req.getModel('Supplier');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const WorkshopReport = req.getModel('WorkshopReport');
+    const Conversation = req.getModel('Conversation');
 
     // 1. Get all suppliers
     const suppliers = await Supplier.find({ company_id, is_active: true })
@@ -608,6 +614,8 @@ const getSupplierTagAnalysis = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const Supplier = req.getModel('Supplier');
 
     // 1. Get all suppliers with their tags
     const suppliers = await Supplier.find({ company_id })

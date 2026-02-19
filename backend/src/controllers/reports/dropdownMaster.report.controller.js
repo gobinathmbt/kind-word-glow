@@ -4,7 +4,6 @@
  * Provides comprehensive dropdown usage analysis, value distribution, and configuration health metrics
  */
 
-const DropdownMaster = require('../../models/DropdownMaster');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -23,6 +22,8 @@ const {
  */
 const getDropdownUsageAnalysis = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -219,6 +220,8 @@ const getDropdownUsageAnalysis = async (req, res) => {
  */
 const getDropdownValueDistribution = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -444,6 +447,8 @@ const getDropdownValueDistribution = async (req, res) => {
  */
 const getDropdownConfigurationHealth = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

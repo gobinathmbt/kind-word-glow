@@ -1,6 +1,3 @@
-const Supplier = require("../models/Supplier");
-const WorkshopQuote = require("../models/WorkshopQuote");
-const Vehicle = require("../models/Vehicle");
 const { logEvent } = require("./logs.controller");
 const jwt = require("jsonwebtoken");
 const Env_Configuration = require("../config/env");
@@ -11,6 +8,7 @@ const { type } = require("os");
 // @access  Public
 const supplierLogin = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -81,6 +79,8 @@ const supplierLogin = async (req, res) => {
 // @access  Private (Supplier)
 const getSupplierVehicles = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const Vehicle = req.getModel('Vehicle');
     const supplierId = req.supplier.supplier_id;
 
     // Find all quotes where this supplier is selected
@@ -133,6 +133,8 @@ const getSupplierVehicles = async (req, res) => {
 // @access  Private (Supplier)
 const getSupplierVehicleDetails = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { vehicleStockId, vehicleType } = req.params;
     const supplierId = req.supplier.supplier_id;
 
@@ -181,6 +183,7 @@ const getSupplierVehicleDetails = async (req, res) => {
 // @access  Private (Supplier)
 const submitSupplierResponse = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { quoteId } = req.params;
     const {
       estimated_cost,
@@ -255,6 +258,7 @@ const submitSupplierResponse = async (req, res) => {
 // @access  Private (Supplier)
 const getSupplierProfile = async (req, res) => {
   try {
+    const Supplier = req.getModel('Supplier');
     const supplier = await Supplier.findById(req.supplier.supplier_id).select(
       "-password"
     );

@@ -3,9 +3,6 @@
  * Handles all vehicle-related analytics and reporting endpoints
  */
 
-const Vehicle = require('../../models/Vehicle');
-const MasterVehicle = require('../../models/MasterVehicle');
-const AdvertiseVehicle = require('../../models/AdvertiseVehicle');
 const {
   getDealershipFilter,
   getDateFilter,
@@ -18,9 +15,14 @@ const {
  * Helper function to aggregate data across all three vehicle schemas
  * @param {Object} baseMatch - Base match criteria
  * @param {Array} pipeline - Aggregation pipeline stages
+ * @param {Function} req.getModel - Function to get models
  * @returns {Promise<Array>} Combined results from all schemas
  */
-const aggregateAcrossSchemas = async (baseMatch, pipeline) => {
+const aggregateAcrossSchemas = async (baseMatch, pipeline, getModel) => {
+  const Vehicle = getModel('Vehicle');
+  const MasterVehicle = getModel('MasterVehicle');
+  const AdvertiseVehicle = getModel('AdvertiseVehicle');
+  
   const results = [];
 
   // Query Vehicle schema for inspection and tradein
@@ -92,7 +94,7 @@ const getVehicleOverviewByType = async (req, res) => {
           }
         }
       }
-    ]);
+    ], req.getModel);
     
     // Merge and group results by type
     const typeDistribution = Object.values(
@@ -137,7 +139,7 @@ const getVehicleOverviewByType = async (req, res) => {
       {
         $sort: { '_id.year': 1, '_id.month': 1 }
       }
-    ]);
+    ], req.getModel);
 
     // Group trends by type
     const monthlyTrends = Object.values(
@@ -166,7 +168,7 @@ const getVehicleOverviewByType = async (req, res) => {
           count: { $sum: 1 }
         }
       }
-    ]);
+    ], req.getModel);
 
     // Group by dealership
     const dealershipComparison = Object.values(
@@ -200,7 +202,7 @@ const getVehicleOverviewByType = async (req, res) => {
           count: { $sum: 1 }
         }
       }
-    ]);
+    ], req.getModel);
 
     // Group by type
     const heatMapData = Object.values(
@@ -245,7 +247,7 @@ const getVehicleOverviewByType = async (req, res) => {
           }
         }
       }
-    ])).sort((a, b) => b.count - a.count).slice(0, 50);
+    ], req.getModel)).sort((a, b) => b.count - a.count).slice(0, 50);
 
     // 6. Overall Summary Statistics
     const summaryRaw = await aggregateAcrossSchemas(baseMatch, [
@@ -260,7 +262,7 @@ const getVehicleOverviewByType = async (req, res) => {
           maxYear: { $max: '$year' }
         }
       }
-    ]);
+    ], req.getModel);
 
     // Merge summary results
     const summary = summaryRaw.length > 0 ? [{
@@ -391,7 +393,7 @@ const getVehicleImportTimeline = async (req, res) => {
           }
         }
       }
-    ]);
+    ], req.getModel);
 
     // 2. Port Distribution
     const portDistribution = await aggregateAcrossSchemas(baseMatch, [
@@ -420,7 +422,7 @@ const getVehicleImportTimeline = async (req, res) => {
         }
       },
       { $sort: { count: -1 } }
-    ]);
+    ], req.getModel);
 
     // 3. ETD/ETA Analysis
     const etdEtaAnalysis = await aggregateAcrossSchemas(baseMatch, [
@@ -465,7 +467,7 @@ const getVehicleImportTimeline = async (req, res) => {
           maxTransitDays: { $round: ['$maxTransitDays', 1] }
         }
       }
-    ]);
+    ], req.getModel);
 
     // 4. Vessel Analysis
     const vesselAnalysis = await aggregateAcrossSchemas(baseMatch, [
@@ -482,7 +484,7 @@ const getVehicleImportTimeline = async (req, res) => {
       },
       { $sort: { count: -1 } },
       { $limit: 20 }
-    ]);
+    ], req.getModel);
 
     // 5. Import Timeline Trends
     const importTimeline = await aggregateAcrossSchemas(baseMatch, [
@@ -506,7 +508,7 @@ const getVehicleImportTimeline = async (req, res) => {
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
+    ], req.getModel);
 
     const responseData = {
       importOverview,

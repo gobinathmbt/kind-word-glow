@@ -1,6 +1,3 @@
-const Vehicle = require("../models/Vehicle");
-const WorkshopQuote = require("../models/WorkshopQuote");
-const Supplier = require("../models/Supplier");
 const { logEvent } = require("./logs.controller");
 
 // @desc    Get vehicles with inspection results for workshop
@@ -8,6 +5,7 @@ const { logEvent } = require("./logs.controller");
 // @access  Private (Company Admin/Super Admin)
 const getWorkshopVehicles = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const { page = 1, limit = 20, search, vehicle_type, dealership } = req.query;
     const skip = (page - 1) * limit;
     const numericLimit = parseInt(limit);
@@ -158,6 +156,9 @@ const getWorkshopVehicles = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getWorkshopVehicleDetails = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const vehicle = await Vehicle.findOne({
       vehicle_stock_id: req.params.vehicleId,
       vehicle_type: req.params.vehicleType,
@@ -243,6 +244,9 @@ const getWorkshopVehicleDetails = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const Supplier = req.getModel('Supplier');
+    
     const {
       vehicle_type,
       vehicle_stock_id,
@@ -422,6 +426,7 @@ const createQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getQuotesForField = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { vehicle_type, vehicle_stock_id, field_id } = req.params;
     const quote = await WorkshopQuote.findOne({
       vehicle_type,
@@ -454,6 +459,7 @@ const getQuotesForField = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const approveSupplierQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { quoteId, supplierId } = req.params;
 
     const quote = await WorkshopQuote.findOne({
@@ -535,6 +541,9 @@ const approveSupplierQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const {
       vehicle_type,
       vehicle_stock_id,
@@ -577,7 +586,6 @@ const createBayQuote = async (req, res) => {
     });
 
     // Verify bay exists and get primary admin
-    const ServiceBay = require("../models/ServiceBay");
     const bay = await ServiceBay.findOne({
       _id: bay_id,
       company_id: req.user.company_id,
@@ -715,6 +723,8 @@ const createBayQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const rebookBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const {
       quote_amount,
       quote_description,
@@ -809,6 +819,8 @@ const rebookBayQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const quote = await WorkshopQuote.findOne({
       _id: req.params.quoteId,
       quote_type: "bay",
@@ -887,6 +899,7 @@ const updateBayQuote = async (req, res) => {
 // @access  Private (Company Admin)
 const getBayQuoteForField = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
     const { vehicle_type, vehicle_stock_id, field_id } = req.params;
     const quote = await WorkshopQuote.findOne({
       quote_type: "bay",
@@ -917,6 +930,9 @@ const getBayQuoteForField = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const getBayCalendar = async (req, res) => {
   try {
+    const ServiceBay = req.getModel('ServiceBay');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const { start_date, end_date, bay_id } = req.query;
 
     if (!start_date || !end_date) {
@@ -927,7 +943,6 @@ const getBayCalendar = async (req, res) => {
     }
 
     // Get bays user has access to
-    const ServiceBay = require("../models/ServiceBay");
     let bayFilter = {
       company_id: req.user.company_id,
       is_active: true,
@@ -990,6 +1005,9 @@ quote_type: ["bay", "manual"],
 // @access  Private (Company Admin - Bay User)
 const acceptBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const quote = await WorkshopQuote.findById(req.params.quoteId);
 
     if (!quote || quote.quote_type !== "bay") {
@@ -1000,7 +1018,6 @@ const acceptBayQuote = async (req, res) => {
     }
 
     // Verify user is bay primary admin or in bay users
-    const ServiceBay = require("../models/ServiceBay");
     const bay = await ServiceBay.findOne({
       _id: quote.bay_id,
       company_id: req.user.company_id,
@@ -1059,6 +1076,9 @@ const acceptBayQuote = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const rejectBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const { reason } = req.body;
     const quote = await WorkshopQuote.findById(req.params.quoteId);
 
@@ -1070,7 +1090,6 @@ const rejectBayQuote = async (req, res) => {
     }
 
     // Verify user is bay primary admin
-    const ServiceBay = require("../models/ServiceBay");
     const bay = await ServiceBay.findOne({
       _id: quote.bay_id,
       company_id: req.user.company_id,
@@ -1115,6 +1134,9 @@ const rejectBayQuote = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const startBayWork = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const quote = await WorkshopQuote.findById(req.params.quoteId);
 
     if (!quote || quote.quote_type !== "bay") {
@@ -1124,7 +1146,6 @@ const startBayWork = async (req, res) => {
       });
     }
 
-    const ServiceBay = require("../models/ServiceBay");
     const bay = await ServiceBay.findOne({
       _id: quote.bay_id,
       company_id: req.user.company_id,
@@ -1169,6 +1190,9 @@ const startBayWork = async (req, res) => {
 // @access  Private (Company Admin - Bay User)
 const submitBayWork = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const { quoteId } = req.params;
     const userId = req.user.id;
     const {
@@ -1212,7 +1236,6 @@ const submitBayWork = async (req, res) => {
     }
 
     // Verify bay authorization
-    const ServiceBay = require("../models/ServiceBay");
     const bay = await ServiceBay.findOne({
       _id: quote.bay_id,
       company_id: req.user.company_id,
@@ -1303,6 +1326,8 @@ const submitBayWork = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createManualQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const {
       vehicle_type,
       vehicle_stock_id,
@@ -1388,6 +1413,8 @@ const createManualQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const createManualBayQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const {
       vehicle_type,
       vehicle_stock_id,
@@ -1495,6 +1522,8 @@ const createManualBayQuote = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const completeManualQuote = async (req, res) => {
   try {
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const { quoteId } = req.params;
     const {
       work_entries,

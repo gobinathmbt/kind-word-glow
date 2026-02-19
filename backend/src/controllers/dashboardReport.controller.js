@@ -1,6 +1,3 @@
-const Vehicle = require("../models/Vehicle");
-const WorkshopQuote = require("../models/WorkshopQuote");
-const WorkshopReport = require("../models/WorkshopReport");
 const { logEvent } = require("./logs.controller");
 
 // @desc    Get vehicles by status summary
@@ -9,6 +6,8 @@ const { logEvent } = require("./logs.controller");
 const getVehiclesByStatus = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
+
+    const Vehicle = req.getModel('Vehicle');
 
     const filter = {
       company_id: req.user.company_id,
@@ -69,6 +68,8 @@ const getWorkshopQuotesByStatus = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+
     const filter = {
       company_id: req.user.company_id,
     };
@@ -115,6 +116,8 @@ const getWorkshopQuotesByStatus = async (req, res) => {
 const getLicenseExpiryTracking = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
+
+    const Vehicle = req.getModel('Vehicle');
 
     const filter = {
       company_id: req.user.company_id,
@@ -213,6 +216,8 @@ const getReportCompletion = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const Vehicle = req.getModel('Vehicle');
+
     const filter = {
       company_id: req.user.company_id,
     };
@@ -310,6 +315,8 @@ const getWorkshopProgress = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const Vehicle = req.getModel('Vehicle');
+
     const filter = {
       company_id: req.user.company_id,
     };
@@ -383,6 +390,8 @@ const getCostAnalysis = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+
     const filter = {
       company_id: req.user.company_id,
       status: { $in: ["completed_jobs", "work_review"] },
@@ -447,6 +456,8 @@ const getCostAnalysis = async (req, res) => {
 const getSupplierPerformance = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
+
+    const WorkshopQuote = req.getModel('WorkshopQuote');
 
     const filter = {
       company_id: req.user.company_id,
@@ -517,6 +528,8 @@ const getSupplierPerformance = async (req, res) => {
 const getTimelineAnalysis = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
+
+    const WorkshopQuote = req.getModel('WorkshopQuote');
 
     const filter = {
       company_id: req.user.company_id,
@@ -599,6 +612,8 @@ const getQualityMetrics = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+
     const filter = {
       company_id: req.user.company_id,
       status: { $in: ["completed_jobs", "work_review", "rework"] },
@@ -655,6 +670,8 @@ const getWorkloadDistribution = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+
     const filter = {
       company_id: req.user.company_id,
     };
@@ -704,6 +721,8 @@ const getWorkloadDistribution = async (req, res) => {
 const getCompletionRateAnalysis = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
+
+    const WorkshopQuote = req.getModel('WorkshopQuote');
 
     const filter = {
       company_id: req.user.company_id,
@@ -769,6 +788,8 @@ const getWorkshopReportsSummary = async (req, res) => {
   try {
     const { vehicle_type, start_date, end_date } = req.query;
 
+    const WorkshopReport = req.getModel('WorkshopReport');
+
     const filter = {
       company_id: req.user.company_id,
     };
@@ -824,6 +845,8 @@ const getVehicleRecords = async (req, res) => {
       page = 1,
       limit = 20,
     } = req.body;
+
+    const Vehicle = req.getModel('Vehicle');
 
     const skip = (page - 1) * limit;
 

@@ -1,4 +1,3 @@
-const DropdownMaster = require('../models/DropdownMaster');
 const { logEvent } = require('./logs.controller');
 
 // @desc    Get all dropdowns for company with pagination and search
@@ -6,6 +5,7 @@ const { logEvent } = require('./logs.controller');
 // @access  Private (Company Admin/Super Admin)
 const getDropdowns = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const { page = 1, limit = 10, search = '', status = 'all', dealership_id } = req.query;
     const skip = (page - 1) * limit;
 
@@ -71,6 +71,7 @@ const getDropdowns = async (req, res) => {
 // @access  Private (Company Super Admin)
 const createDropdown = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     // Build search query for duplicates
     let duplicateQuery = {
       company_id: req.user.company_id,
@@ -141,6 +142,7 @@ const createDropdown = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateDropdown = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     // Check for duplicate dropdown_name or display_name within company (excluding current dropdown)
     if (req.body.dropdown_name || req.body.display_name) {
       const existingDropdown = await DropdownMaster.findOne({
@@ -192,6 +194,7 @@ const updateDropdown = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteDropdown = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const dropdown = await DropdownMaster.findOneAndDelete({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -223,6 +226,7 @@ const deleteDropdown = async (req, res) => {
 // @access  Private (Company Super Admin)
 const addValue = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const dropdown = await DropdownMaster.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -283,6 +287,7 @@ const addValue = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateValue = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const dropdown = await DropdownMaster.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -352,6 +357,7 @@ const updateValue = async (req, res) => {
 // @access  Private (Company Super Admin)
 const reorderValues = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const { valueIds } = req.body;
     const dropdown = await DropdownMaster.findOne({
       _id: req.params.id,
@@ -400,6 +406,7 @@ const reorderValues = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteValue = async (req, res) => {
   try {
+    const DropdownMaster = req.getModel('DropdownMaster');
     const dropdown = await DropdownMaster.findOne({
       _id: req.params.id,
       company_id: req.user.company_id

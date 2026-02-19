@@ -1,4 +1,3 @@
-const GroupPermission = require('../models/GroupPermission');
 const User = require('../models/User');
 const Permission = require('../models/Permission');
 const { logEvent } = require('./logs.controller');
@@ -10,6 +9,8 @@ const getGroupPermissions = async (req, res) => {
   try {
     const { page = 1, limit = 10, search } = req.query;
     const skip = (page - 1) * limit;
+
+    const GroupPermission = req.getModel('GroupPermission');
 
     let filter = { 
       company_id: req.user.company_id,
@@ -70,6 +71,8 @@ const getGroupPermissions = async (req, res) => {
 // @access  Private (Company Super Admin)
 const getGroupPermission = async (req, res) => {
   try {
+    const GroupPermission = req.getModel('GroupPermission');
+
     const groupPermission = await GroupPermission.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -102,6 +105,8 @@ const getGroupPermission = async (req, res) => {
 const createGroupPermission = async (req, res) => {
   try {
     const { name, description, permissions } = req.body;
+
+    const GroupPermission = req.getModel('GroupPermission');
 
     // Validate required fields
     if (!name || !description) {
@@ -177,6 +182,8 @@ const createGroupPermission = async (req, res) => {
 const updateGroupPermission = async (req, res) => {
   try {
     const { name, description, permissions } = req.body;
+
+    const GroupPermission = req.getModel('GroupPermission');
 
     const groupPermission = await GroupPermission.findOne({
       _id: req.params.id,
@@ -256,6 +263,8 @@ const updateGroupPermission = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteGroupPermission = async (req, res) => {
   try {
+    const GroupPermission = req.getModel('GroupPermission');
+
     const groupPermission = await GroupPermission.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
@@ -314,6 +323,8 @@ const assignGroupPermissionToUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { group_permission_id } = req.body;
+
+    const GroupPermission = req.getModel('GroupPermission');
 
     const user = await User.findOne({
       _id: userId,

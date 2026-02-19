@@ -1,5 +1,7 @@
 const cron = require('node-cron');
-const Notification = require('../models/Notification');
+const dbConnectionManager = require('../config/dbConnectionManager');
+const ModelRegistry = require('../models/modelRegistry');
+const Company = require('../models/Company');
 
 let isCleanupJobRunning = false;
 
@@ -19,42 +21,53 @@ const startNotificationCleanupCron = () => {
     try {
       console.log('🧹 Starting notification cleanup...');
       
-      // Clean up read notifications older than 2 days
-      const result = await Notification.cleanupOldNotifications(2);
+      // Get all active companies
+      const companies = await Company.find({ subscription_status: 'active' });
+      console.log(`📋 Processing ${companies.length} companies for notification cleanup`);
       
-      if (result.deletedCount > 0) {
-        console.log(`✅ Cleaned up ${result.deletedCount} old read notifications`);
-      } else {
-        console.log('ℹ️ No old notifications to clean up');
+      let totalDeleted = 0;
+      let totalOldUnreadDeleted = 0;
+      let totalFailedDeleted = 0;
+      
+      // Process each company
+      for (const company of companies) {
+        try {
+          // Get company-specific connection
+          const companyConnection = await dbConnectionManager.getCompanyConnection(company._id.toString());
+          const Notification = ModelRegistry.getModel('Notification', companyConnection);
+          
+          // Clean up read notifications older than 2 days
+          const result = await Notification.cleanupOldNotifications(2);
+          totalDeleted += result.deletedCount;
+          
+          // Clean up very old unread notifications (older than 30 days)
+          const oldUnreadCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const oldUnreadResult = await Notification.deleteMany({
+            is_read: false,
+            created_at: { $lt: oldUnreadCutoff }
+          });
+          totalOldUnreadDeleted += oldUnreadResult.deletedCount;
+          
+          // Clean up failed notifications older than 7 days
+          const failedCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const failedResult = await Notification.deleteMany({
+            status: 'failed',
+            created_at: { $lt: failedCutoff }
+          });
+          totalFailedDeleted += failedResult.deletedCount;
+          
+          // Decrement active requests
+          dbConnectionManager.decrementActiveRequests(company._id.toString());
+          
+        } catch (error) {
+          console.error(`❌ Error cleaning notifications for company ${company._id}:`, error);
+        }
       }
       
-      // Also clean up very old unread notifications (older than 30 days)
-      const oldUnreadCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const oldUnreadResult = await Notification.deleteMany({
-        is_read: false,
-        created_at: { $lt: oldUnreadCutoff }
-      });
-      
-      if (oldUnreadResult.deletedCount > 0) {
-        console.log(`✅ Cleaned up ${oldUnreadResult.deletedCount} very old unread notifications`);
-      }
-      
-      // Clean up failed notifications older than 7 days
-      const failedCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const failedResult = await Notification.deleteMany({
-        status: 'failed',
-        created_at: { $lt: failedCutoff }
-      });
-      
-      if (failedResult.deletedCount > 0) {
-        console.log(`✅ Cleaned up ${failedResult.deletedCount} old failed notifications`);
-      }
-      
-      // Log statistics
-      const totalNotifications = await Notification.countDocuments();
-      const unreadNotifications = await Notification.countDocuments({ is_read: false });
-      
-      console.log(`📊 Notification cleanup completed. Total notifications: ${totalNotifications}, Unread: ${unreadNotifications}`);
+      console.log(`✅ Notification cleanup completed across ${companies.length} companies`);
+      console.log(`   - Read notifications deleted: ${totalDeleted}`);
+      console.log(`   - Old unread notifications deleted: ${totalOldUnreadDeleted}`);
+      console.log(`   - Failed notifications deleted: ${totalFailedDeleted}`);
       
     } catch (error) {
       console.error('❌ Error in notification cleanup cron job:', error);
@@ -79,13 +92,30 @@ const runManualCleanup = async (daysOld = 2) => {
   try {
     console.log(`🧹 Running manual notification cleanup for notifications older than ${daysOld} days...`);
     
-    const result = await Notification.cleanupOldNotifications(daysOld);
+    // Get all active companies
+    const companies = await Company.find({ subscription_status: 'active' });
+    let totalDeleted = 0;
     
-    console.log(`✅ Manual cleanup completed. Deleted ${result.deletedCount} old notifications`);
+    for (const company of companies) {
+      try {
+        const companyConnection = await dbConnectionManager.getCompanyConnection(company._id.toString());
+        const Notification = ModelRegistry.getModel('Notification', companyConnection);
+        
+        const result = await Notification.cleanupOldNotifications(daysOld);
+        totalDeleted += result.deletedCount;
+        
+        dbConnectionManager.decrementActiveRequests(company._id.toString());
+      } catch (error) {
+        console.error(`❌ Error in manual cleanup for company ${company._id}:`, error);
+      }
+    }
+    
+    console.log(`✅ Manual cleanup completed. Deleted ${totalDeleted} old notifications across ${companies.length} companies`);
     
     return {
       success: true,
-      deletedCount: result.deletedCount
+      deletedCount: totalDeleted,
+      companiesProcessed: companies.length
     };
   } catch (error) {
     console.error('❌ Error in manual notification cleanup:', error);

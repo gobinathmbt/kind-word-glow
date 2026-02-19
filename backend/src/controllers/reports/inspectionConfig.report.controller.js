@@ -4,7 +4,6 @@
  * Provides comprehensive configuration usage patterns, field analysis, and category effectiveness metrics
  */
 
-const InspectionConfig = require('../../models/InspectionConfig');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -23,6 +22,8 @@ const {
  */
 const getInspectionConfigUsage = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -277,6 +278,8 @@ const getInspectionConfigUsage = async (req, res) => {
  */
 const getInspectionFieldAnalysis = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -552,6 +555,8 @@ const getInspectionFieldAnalysis = async (req, res) => {
  */
 const getInspectionCategoryEffectiveness = async (req, res) => {
   try {
+    const InspectionConfig = req.getModel('InspectionConfig');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);

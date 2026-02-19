@@ -1,4 +1,3 @@
-const Workflow = require("../models/Workflow");
 const mongoose = require("mongoose");
 
 // Helper function to detect schema type from entity data and request path
@@ -218,11 +217,17 @@ const processEmailTriggerWorkflows = async (req, res, responseData) => {
       return;
     }
 
+    // Check if req.getModel is available
+    if (!req.getModel) {
+      console.warn('req.getModel not available in emailTriggerMiddleware - skipping workflow processing');
+      return;
+    }
+
     // Convert to plain object if it's a Mongoose document
     const dataObject = entityData.toObject ? entityData.toObject() : entityData;
 
     // Trigger the email trigger workflow check
-    await checkAndTriggerEmailWorkflows(dataObject, req.user.company_id, req.path, triggerType);
+    await checkAndTriggerEmailWorkflows(dataObject, req.user.company_id, req.path, triggerType, req);
     
   } catch (error) {
     console.error('Error in processEmailTriggerWorkflows:', error);
@@ -230,8 +235,11 @@ const processEmailTriggerWorkflows = async (req, res, responseData) => {
 };
 
 // Main function to check and trigger email workflows
-const checkAndTriggerEmailWorkflows = async (entityData, companyId, requestPath, triggerType) => {
+const checkAndTriggerEmailWorkflows = async (entityData, companyId, requestPath, triggerType, req) => {
   try {
+    // Get Workflow model using req.getModel
+    const Workflow = req.getModel('Workflow');
+    
     // Find all active "Email Trigger" workflows for this company
     const emailWorkflows = await Workflow.find({
       company_id: companyId,
@@ -244,7 +252,7 @@ const checkAndTriggerEmailWorkflows = async (entityData, companyId, requestPath,
     }
 
     for (const workflow of emailWorkflows) {
-      await evaluateAndTriggerEmailWorkflow(workflow, entityData, companyId, requestPath, triggerType);
+      await evaluateAndTriggerEmailWorkflow(workflow, entityData, companyId, requestPath, triggerType, req);
     }
   } catch (error) {
     console.error('Error checking email trigger workflows:', error);
@@ -252,7 +260,7 @@ const checkAndTriggerEmailWorkflows = async (entityData, companyId, requestPath,
 };
 
 // Evaluate and trigger a specific email workflow
-const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, requestPath, triggerType) => {
+const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, requestPath, triggerType, req) => {
   try {
     // Create a unique key for this workflow execution to prevent duplicates
     const executionKey = `${workflow._id}_${entityData._id}_${triggerType}_${Date.now()}`;
@@ -316,7 +324,7 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
         triggerType,
         targetSchema,
         evaluatedConditions: []
-      });
+      }, req);
       return;
     }
 
@@ -331,7 +339,7 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
         triggerType,
         targetSchema,
         evaluatedConditions: []
-      });
+      }, req);
       return;
     }
 
@@ -389,7 +397,7 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
         triggerType,
         targetSchema,
         evaluatedConditions
-      });
+      }, req);
     }
   } catch (error) {
     console.error(`Error evaluating email workflow ${workflow.name}:`, error);
@@ -398,8 +406,8 @@ const evaluateAndTriggerEmailWorkflow = async (workflow, entityData, companyId, 
 
 // Helper function to send email notifications for email trigger workflows
 // Uses the same template and process as Vehicle Outbound for consistency
-const sendEmailTriggerWorkflowEmail = async (workflow, entityData, triggerResult) => {
-  const WorkflowExecution = require('../models/WorkflowExecution');
+const sendEmailTriggerWorkflowEmail = async (workflow, entityData, triggerResult, req) => {
+  const WorkflowExecution = req.getModel('WorkflowExecution');
   const executionStartTime = Date.now();
   
   try {

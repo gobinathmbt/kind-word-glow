@@ -1,8 +1,3 @@
-const Vehicle = require("../models/Vehicle");
-const WorkshopQuote = require("../models/WorkshopQuote");
-const WorkshopReport = require("../models/WorkshopReport");
-const Supplier = require("../models/Supplier");
-const Conversation = require("../models/Conversation");
 const Company = require("../models/Company");
 const User = require("../models/User");
 const { logEvent } = require("./logs.controller");
@@ -10,6 +5,9 @@ const { logEvent } = require("./logs.controller");
 // Check if workshop can be completed (all fields have completed_jobs status)
 const checkWorkshopCompletion = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const { vehicleId, vehicleType } = req.params;
 
     // Get vehicle and all its quotes
@@ -90,6 +88,8 @@ const checkWorkshopCompletion = async (req, res) => {
 // Trigger workshop report generation
 const completeWorkshop = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
+    
     const { vehicleId, vehicleType } = req.params;
     const { confirmation, stageName } = req.body; // stageName for inspection
 
@@ -286,6 +286,15 @@ const generateWorkshopReport = async (messageData) => {
       completed_by,
     } = messageData;
 
+    // Get connection for this company
+    const { getCompanyConnection } = require('../config/tenantDb');
+    const companyConnection = await getCompanyConnection(company_id);
+    
+    // Get models from company connection
+    const Vehicle = companyConnection.model('Vehicle');
+    const WorkshopQuote = companyConnection.model('WorkshopQuote');
+    const WorkshopReport = companyConnection.model('WorkshopReport');
+    const Conversation = companyConnection.model('Conversation');
 
     // Get all required data
     const vehicle = await Vehicle.findById(vehicle_id);
@@ -311,7 +320,8 @@ const generateWorkshopReport = async (messageData) => {
         company,
         quotes,
         conversations,
-        completed_by
+        completed_by,
+        companyConnection
       );
     } else if(vehicle_type === "tradein")  {
       await generateTradeinReport(
@@ -319,7 +329,8 @@ const generateWorkshopReport = async (messageData) => {
         company,
         quotes,
         conversations,
-        completed_by
+        completed_by,
+        companyConnection
       );
     }
 
@@ -333,6 +344,9 @@ const generateWorkshopReport = async (messageData) => {
 // Get workshop reports for vehicle
 const getWorkshopReports = async (req, res) => {
   try {
+    const WorkshopReport = req.getModel('WorkshopReport');
+    const Vehicle = req.getModel('Vehicle');
+    
     const { vehicleId, vehicleType } = req.params;
 
     const vehicle = await Vehicle.findById(vehicleId);
@@ -379,6 +393,7 @@ const getWorkshopReports = async (req, res) => {
 // Get specific workshop report
 const getWorkshopReport = async (req, res) => {
   try {
+    const WorkshopReport = req.getModel('WorkshopReport');
     const { reportId } = req.params;
 
     const report = await WorkshopReport.findById(reportId);
@@ -803,8 +818,10 @@ const generateInspectionReport = async (
   company,
   quotes,
   conversations,
-  completed_by
+  completed_by,
+  companyConnection
 ) => {
+  const WorkshopReport = companyConnection.model('WorkshopReport');
   const resultData = vehicle.inspection_result || [];
 
   const stagesToGenerate = [];
@@ -1044,8 +1061,10 @@ const generateTradeinReport = async (
   company,
   quotes,
   conversations,
-  completed_by
+  completed_by,
+  companyConnection
 ) => {
+  const WorkshopReport = companyConnection.model('WorkshopReport');
   const resultData = vehicle.trade_in_result || [];
 
   const stagesToGenerate = [];

@@ -1,5 +1,4 @@
 
-const Vehicle = require('../models/Vehicle');
 const { logEvent } = require('./logs.controller');
 const { logBatchActivity, calculateChanges, logActivity } = require('./vehicleActivityLog.controller');
 const ActivityLoggingService = require('../services/activityLogging.service');
@@ -9,6 +8,7 @@ const ActivityLoggingService = require('../services/activityLogging.service');
 // @access  Private (Company Admin/Super Admin)
 const getTadeins = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const { page = 1, limit = 20, search, vehicle_type, status, deleted_only } = req.query;
 
     const skip = (page - 1) * limit;
@@ -166,6 +166,7 @@ const getTadeins = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const startAppraisal = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const oldVehicle = await Vehicle.findOne({
       vehicle_stock_id: req.params.vehicleId,
       company_id: req.user.company_id,
@@ -237,6 +238,7 @@ const startAppraisal = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getTradein = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const tradein = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -272,6 +274,7 @@ const getTradein = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const updateTradein = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const tradein = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,
@@ -335,6 +338,7 @@ const updateTradein = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const completeAppraisal = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const { appraisal_data, market_value, condition_rating } = req.body;
 
     // Calculate offer value based on market value and condition
@@ -427,6 +431,7 @@ const completeAppraisal = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const makeOffer = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const { offer_value, offer_notes } = req.body;
 
     const oldTradein = await Vehicle.findOne({
@@ -506,6 +511,7 @@ const makeOffer = async (req, res) => {
 // @access  Private (Company Admin/Super Admin)
 const getTradeinReport = async (req, res) => {
   try {
+    const Vehicle = req.getModel('Vehicle');
     const tradein = await Vehicle.findOne({
       _id: req.params.id,
       company_id: req.user.company_id,

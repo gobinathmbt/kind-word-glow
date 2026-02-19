@@ -1,4 +1,3 @@
-const Currency = require('../models/Currency');
 const { logEvent } = require('./logs.controller');
 
 // @desc    Get all currencies for a company
@@ -6,6 +5,7 @@ const { logEvent } = require('./logs.controller');
 // @access  Private (Company Super Admin)
 const getCurrencies = async (req, res) => {
   try {
+    const Currency = req.getModel('Currency');
     const { search } = req.query;
     
     let currencyDoc = await Currency.findOne({ 
@@ -61,6 +61,7 @@ const getCurrencies = async (req, res) => {
 // @access  Private (Company Super Admin)
 const getCurrency = async (req, res) => {
   try {
+    const Currency = req.getModel('Currency');
     const currencyDoc = await Currency.findOne({
       company_id: req.user.company_id
     });
@@ -99,6 +100,7 @@ const getCurrency = async (req, res) => {
 // @access  Private (Company Super Admin)
 const createCurrency = async (req, res) => {
   try {
+    const Currency = req.getModel('Currency');
     const { currency_name, currency_code, symbol, country, exchange_rate, symbol_position } = req.body;
     
     let currencyDoc = await Currency.findOne({
@@ -169,6 +171,7 @@ const createCurrency = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateCurrency = async (req, res) => {
   try {
+    const Currency = req.getModel('Currency');
     const { currency_name, currency_code, symbol, country, exchange_rate, symbol_position, is_active } = req.body;
     
     const currencyDoc = await Currency.findOne({
@@ -248,6 +251,7 @@ const updateCurrency = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteCurrency = async (req, res) => {
   try {
+    const Currency = req.getModel('Currency');
     const currencyDoc = await Currency.findOne({
       company_id: req.user.company_id
     });

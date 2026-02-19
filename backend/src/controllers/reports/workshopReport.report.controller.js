@@ -4,7 +4,6 @@
  * Covers workshop performance, cost breakdown, quality metrics, and operational insights
  */
 
-const WorkshopReport = require('../../models/WorkshopReport');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -26,6 +25,8 @@ const getWorkshopReportOverview = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const WorkshopReport = req.getModel('WorkshopReport');
 
     // Build base match criteria
     const baseMatch = {
@@ -250,6 +251,8 @@ const getWorkshopCostBreakdown = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const WorkshopReport = req.getModel('WorkshopReport');
 
     const baseMatch = {
       company_id,
@@ -535,6 +538,8 @@ const getWorkshopQualityMetrics = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const WorkshopReport = req.getModel('WorkshopReport');
 
     const baseMatch = {
       company_id,

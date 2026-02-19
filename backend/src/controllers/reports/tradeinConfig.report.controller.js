@@ -4,7 +4,6 @@
  * Provides comprehensive configuration usage patterns, field analysis, and category effectiveness metrics
  */
 
-const TradeinConfig = require('../../models/TradeinConfig');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -26,6 +25,8 @@ const getTradeinConfigUsage = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const TradeinConfig = req.getModel('TradeinConfig');
 
     // Build base match filter
     const matchFilter = {
@@ -298,6 +299,8 @@ const getTradeinFieldAnalysis = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const TradeinConfig = req.getModel('TradeinConfig');
 
     // Build base match filter
     const matchFilter = {
@@ -584,6 +587,8 @@ const getTradeinCategoryEffectiveness = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const TradeinConfig = req.getModel('TradeinConfig');
 
     // Build base match filter
     const matchFilter = {

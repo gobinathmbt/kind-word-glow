@@ -1,7 +1,9 @@
-const NotificationConfiguration = require('../models/NotificationConfiguration');
-const Notification = require('../models/Notification');
+// Main DB models - direct require
 const User = require('../models/User');
 const { getNotificationSocketIO } = require('../controllers/socket.controller');
+
+// Company DB models - accessed via req.getModel
+// NotificationConfiguration and Notification are company-specific
 
 // Cache to track recent notifications and prevent duplicates
 // Key format: "configId:userId:entityId"
@@ -41,6 +43,12 @@ const notificationMiddleware = async (req, res, next) => {
 // Process notification triggers based on request
 const processNotificationTriggers = async (req, res, responseData) => {
   try {
+    // Check if req.getModel is available
+    if (!req.getModel) {
+      console.warn('req.getModel not available in notificationMiddleware - skipping notification processing');
+      return;
+    }
+
     const method = req.method.toLowerCase();
     const path = req.baseUrl;
     
@@ -62,6 +70,14 @@ const processNotificationTriggers = async (req, res, responseData) => {
     if (!triggerType || !targetSchema || !req.user?.company_id) {
       return;
     }
+
+    // Get NotificationConfiguration model from company DB
+    const NotificationConfiguration = req.getModel('NotificationConfiguration');
+    if (!NotificationConfiguration) {
+      console.error('NotificationConfiguration model not available');
+      return;
+    }
+
     // Get active notification configurations for this trigger
     const configurations = await NotificationConfiguration.find({
       company_id: req.user.company_id,
@@ -288,6 +304,19 @@ const getTargetUsers = async (config, companyId) => {
 // Create notification for a specific user
 const createNotificationForUser = async (config, user, req, responseData) => {
   try {
+    // Check if req.getModel is available
+    if (!req.getModel) {
+      console.error('req.getModel not available - cannot create notification');
+      return;
+    }
+
+    // Get Notification model from company DB
+    const Notification = req.getModel('Notification');
+    if (!Notification) {
+      console.error('Notification model not available');
+      return;
+    }
+
     const entityId = responseData.data._id || responseData.data.id;
     
     // Create a unique cache key for this notification
@@ -339,7 +368,7 @@ const createNotificationForUser = async (config, user, req, responseData) => {
     });
     
     // Send real-time notification via socket
-    await sendRealTimeNotification(notification, user._id);
+    await sendRealTimeNotification(notification, user._id, req);
 
     
   } catch (error) {
@@ -413,8 +442,21 @@ const replaceMessageVariables = (template, data, user, req) => {
 };
 
 // Send real-time notification via socket
-const sendRealTimeNotification = async (notification, userId) => {
+const sendRealTimeNotification = async (notification, userId, req) => {
   try {
+    // Check if req.getModel is available
+    if (!req.getModel) {
+      console.warn('req.getModel not available - skipping unread count');
+      return;
+    }
+
+    // Get Notification model from company DB
+    const Notification = req.getModel('Notification');
+    if (!Notification) {
+      console.error('Notification model not available for unread count');
+      return;
+    }
+
     const notificationIO = getNotificationSocketIO();
     if (notificationIO) {
       // Send to specific user

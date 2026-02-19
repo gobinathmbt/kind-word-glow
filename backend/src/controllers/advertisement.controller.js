@@ -1,11 +1,10 @@
-const AdVehicle = require('../models/AdvertiseVehicle');
-const AdvertiseData = require('../models/AdvertiseData');
 const { logEvent } = require('./logs.controller');
 const { logActivity, calculateChanges } = require('./vehicleActivityLog.controller');
 const axios = require('axios');
 
 // Helper: Find vehicle by ID and company
-const findVehicle = async (vehicleId, companyId) => {
+const findVehicle = async (vehicleId, companyId, req) => {
+  const AdVehicle = req.getModel('AdvertiseVehicle');
   return await AdVehicle.findOne({
     _id: vehicleId,
     company_id: companyId,
@@ -14,7 +13,8 @@ const findVehicle = async (vehicleId, companyId) => {
 };
 
 // Helper: Find advertisement by ID
-const findAdvertisement = async (advertisementId, vehicleStockId, companyId) => {
+const findAdvertisement = async (advertisementId, vehicleStockId, companyId, req) => {
+  const AdvertiseData = req.getModel('AdvertiseData');
   return await AdvertiseData.findOne({
     _id: advertisementId,
     vehicle_stock_id: vehicleStockId,
@@ -80,12 +80,13 @@ const errorResponse = (res, statusCode, message) => {
 const getVehicleAdvertisements = async (req, res) => {
   try {
     const { vehicleId } = req.params;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
+    const AdvertiseData = req.getModel('AdvertiseData');
     const advertisements = await AdvertiseData.find({
       vehicle_stock_id: vehicle.vehicle_stock_id,
       company_id: req.user.company_id,
@@ -164,7 +165,7 @@ const createAdvertisement = async (req, res) => {
   try {
     const { vehicleId } = req.params;
     const advertisementData = req.body;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
@@ -176,6 +177,7 @@ const createAdvertisement = async (req, res) => {
       advertisementData.provider
     );
 
+    const AdvertiseData = req.getModel('AdvertiseData');
     const existingAd = await AdvertiseData.findOne({
       vehicle_stock_id: vehicle.vehicle_stock_id,
       company_id: req.user.company_id,
@@ -304,7 +306,8 @@ const createAdvertisement = async (req, res) => {
 };
 
 // Helper: Handle provider change logic
-const handleProviderChange = async (vehicle, currentAd, updateData, userId, companyId, userRole) => {
+const handleProviderChange = async (vehicle, currentAd, updateData, userId, companyId, userRole, req) => {
+  const AdvertiseData = req.getModel('AdvertiseData');
   const newProviderAd = await AdvertiseData.findOne({
     vehicle_stock_id: vehicle.vehicle_stock_id,
     company_id: companyId,
@@ -376,12 +379,12 @@ const updateAdvertisement = async (req, res) => {
       newProvider: updateData.provider
     });
 
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
-    const currentAd = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id);
+    const currentAd = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id, req);
     if (!currentAd) {
       return errorResponse(res, 404, 'Advertisement not found');
     }
@@ -390,7 +393,7 @@ const updateAdvertisement = async (req, res) => {
 
     if (providerChanged) {
       const { advertisement, statusCode, message } = await handleProviderChange(
-        vehicle, currentAd, updateData, req.user.id, req.user.company_id, req.user.role
+        vehicle, currentAd, updateData, req.user.id, req.user.company_id, req.user.role, req
       );
       return res.status(statusCode).json({ success: true, message, data: advertisement });
     }
@@ -527,13 +530,13 @@ const buildFinalPayload = (apiPayload, success, provider, publishResult = null, 
 const publishAdvertisement = async (req, res) => {
   try {
     const { vehicleId, advertisementId } = req.params;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
-    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id);
+    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id, req);
 
     if (!advertisement) {
       return errorResponse(res, 404, 'Advertisement not found');
@@ -1382,12 +1385,13 @@ async function uploadTradeMeImages(listingId, images, companyId) {
 const deleteAdvertisement = async (req, res) => {
   try {
     const { vehicleId, advertisementId } = req.params;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
+    const AdvertiseData = req.getModel('AdvertiseData');
     const advertisement = await AdvertiseData.findOneAndDelete({
       _id: advertisementId,
       vehicle_stock_id: vehicle.vehicle_stock_id,
@@ -1435,13 +1439,13 @@ const deleteAdvertisement = async (req, res) => {
 const withdrawAdvertisement = async (req, res) => {
   try {
     const { vehicleId, advertisementId } = req.params;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
-    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id);
+    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id, req);
 
     if (!advertisement) {
       return errorResponse(res, 404, 'Advertisement not found');
@@ -1489,12 +1493,13 @@ const withdrawAdvertisement = async (req, res) => {
 const getAdvertisementHistory = async (req, res) => {
   try {
     const { vehicleId, advertisementId } = req.params;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
+    const AdvertiseData = req.getModel('AdvertiseData');
     const advertisement = await AdvertiseData.findOne({
       _id: advertisementId,
       vehicle_stock_id: vehicle.vehicle_stock_id,
@@ -1523,13 +1528,13 @@ const getAdvertisementLogs = async (req, res) => {
   try {
     const { vehicleId, advertisementId } = req.params;
     const { event_action, limit = 50 } = req.query;
-    const vehicle = await findVehicle(vehicleId, req.user.company_id);
+    const vehicle = await findVehicle(vehicleId, req.user.company_id, req);
 
     if (!vehicle) {
       return errorResponse(res, 404, 'Vehicle not found');
     }
 
-    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id);
+    const advertisement = await findAdvertisement(advertisementId, vehicle.vehicle_stock_id, req.user.company_id, req);
 
     if (!advertisement) {
       return errorResponse(res, 404, 'Advertisement not found');

@@ -1,9 +1,8 @@
-const CostConfiguration = require('../models/CostConfiguration');
-const Currency = require('../models/Currency');
 const { logEvent } = require('./logs.controller');
 
 // Helper function to populate currency data
-const populateCurrencyData = async (costConfig, companyId) => {
+const populateCurrencyData = async (costConfig, companyId, req) => {
+  const Currency = req.getModel('Currency');
   const currencyDoc = await Currency.findOne({ company_id: companyId });
   
   if (currencyDoc && costConfig.cost_types) {
@@ -29,6 +28,8 @@ const populateCurrencyData = async (costConfig, companyId) => {
 // @access  Private (Company Super Admin)
 const getCostConfiguration = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    const Currency = req.getModel('Currency');
     let costConfig = await CostConfiguration.findOne({
       company_id: req.user.company_id
     }).lean();
@@ -44,7 +45,7 @@ const getCostConfiguration = async (req, res) => {
     }
     
     // Populate currency data
-    costConfig = await populateCurrencyData(costConfig, req.user.company_id);
+    costConfig = await populateCurrencyData(costConfig, req.user.company_id, req);
     
     res.status(200).json({
       success: true,
@@ -64,6 +65,7 @@ const getCostConfiguration = async (req, res) => {
 // @access  Private (Company Super Admin)
 const addCostType = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency,default_value   } = req.body;
     
     let costConfig = await CostConfiguration.findOne({
@@ -98,7 +100,7 @@ const addCostType = async (req, res) => {
     await costConfig.save();
     
     // Populate currency data
-    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id, req);
     
     await logEvent(
       req.user.company_id,
@@ -129,6 +131,7 @@ const addCostType = async (req, res) => {
 // @access  Private (Company Super Admin)
 const updateCostType = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { costTypeId } = req.params;
     const { cost_type, currency_id, default_tax_rate, default_tax_type, section_type, change_currency,default_value } = req.body;
     
@@ -169,7 +172,7 @@ const updateCostType = async (req, res) => {
     await costConfig.save();
     
     // Populate currency data
-    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id, req);
     
     await logEvent(
       req.user.company_id,
@@ -200,6 +203,7 @@ const updateCostType = async (req, res) => {
 // @access  Private (Company Super Admin)
 const deleteCostType = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { costTypeId } = req.params;
     
     const costConfig = await CostConfiguration.findOne({
@@ -230,7 +234,7 @@ const deleteCostType = async (req, res) => {
     await costConfig.save();
     
     // Populate currency data
-    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id, req);
     
     await logEvent(
       req.user.company_id,
@@ -261,6 +265,7 @@ const deleteCostType = async (req, res) => {
 // @access  Private (Company Super Admin)
 const reorderCostTypes = async (req, res) => {
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
     const { section_type, cost_type_ids } = req.body;
     
     const costConfig = await CostConfiguration.findOne({
@@ -286,7 +291,7 @@ const reorderCostTypes = async (req, res) => {
     await costConfig.save();
     
     // Populate currency data
-    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id);
+    let responseConfig = await populateCurrencyData(costConfig.toObject(), req.user.company_id, req);
     
     await logEvent(
       req.user.company_id,
@@ -319,6 +324,8 @@ const reorderCostTypes = async (req, res) => {
 const getCostConfigurationByVehicleType = async (req, res) => {
 
   try {
+    const CostConfiguration = req.getModel('CostConfiguration');
+    const Currency = req.getModel('Currency');
     const { vehiclePurchaseType } = req.params;
     // Find cost configuration for the company
     const costConfig = await CostConfiguration.findOne({
@@ -359,7 +366,8 @@ const getCostConfigurationByVehicleType = async (req, res) => {
     // Populate currency data for enabled cost types
     const populatedData = await populateCurrencyData(
       { cost_types: enabledCostTypes }, 
-      req.user.company_id
+      req.user.company_id,
+      req
     );
     
     // Replace the currency_id with populated data

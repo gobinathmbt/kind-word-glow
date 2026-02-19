@@ -3,11 +3,14 @@ const bcrypt = require("bcryptjs");
 const MasterAdmin = require("../models/MasterAdmin");
 const User = require("../models/User");
 const Company = require("../models/Company");
-const Subscription = require("../models/Subscriptions");
 const mailService = require("../config/mailer");
 const { logEvent } = require("./logs.controller");
 const Env_Configuration = require("../config/env");
 const { type } = require("os");
+const connectionManager = require("../config/dbConnectionManager");
+const { getModel } = require("../utils/modelFactory");
+// Company DB models accessed dynamically:
+// - Subscriptions (accessed via getModel in login/getMe functions)
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -91,6 +94,10 @@ const login = async (req, res) => {
     // For company users, check subscription status
     if (userType === "user" && user.company_id) {
       const company = user.company_id;
+
+      // Get company database connection for Subscription model
+      const companyDb = await connectionManager.getCompanyConnection(company._id);
+      const Subscription = getModel('Subscriptions', companyDb);
 
       // Check company subscription status
       if (company.subscription_status === "inactive") {
@@ -181,6 +188,10 @@ const login = async (req, res) => {
 
     // Check subscription status for company users
     if (userType === "user" && user.company_id) {
+      // Get company database connection for Subscription model
+      const companyDb = await connectionManager.getCompanyConnection(user.company_id._id);
+      const Subscription = getModel('Subscriptions', companyDb);
+
       const subscription = await Subscription.findOne({
         company_id: user.company_id._id,
         is_active: true,
@@ -406,6 +417,9 @@ const getMe = async (req, res) => {
     if (userType === "user" && user.company_id) {
       const company = user.company_id;
 
+      // Use req.getModel since getMe has protect middleware
+      const Subscription = req.getModel('Subscriptions');
+
       // Check company subscription status
       if (company.subscription_status === "inactive") {
         // Check if this is a newly registered company (no subscription history)
@@ -443,6 +457,9 @@ const getMe = async (req, res) => {
 
     // Active subscription details
     if (userType === "user" && user.company_id) {
+      // Use req.getModel since getMe has protect middleware
+      const Subscription = req.getModel('Subscriptions');
+
       const subscription = await Subscription.findOne({
         company_id: user.company_id._id,
         is_active: true,

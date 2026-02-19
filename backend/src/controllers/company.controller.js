@@ -1,9 +1,10 @@
 const User = require("../models/User");
 const Company = require("../models/Company");
-const Vehicle = require("../models/Vehicle");
-const Dealership = require("../models/Dealership");
 const { logEvent } = require("./logs.controller");
-const DropdownMaster = require("../models/DropdownMaster");
+// Company DB models accessed via req.getModel():
+// - Vehicle
+// - Dealership
+// - DropdownMaster
 
 // @desc    Get company dashboard overview stats
 // @route   GET /api/company/dashboard/stats
@@ -12,6 +13,9 @@ const getDashboardStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
     const { from, to } = req.query;
+
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
 
     // Create date filter
     const dateFilter = {};
@@ -88,6 +92,9 @@ const getVehicleStats = async (req, res) => {
     const companyId = req.user.company_id;
     const { from, to } = req.query;
 
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
+
     // Get vehicle counts by type
     const vehiclesByType = await Vehicle.aggregate([
       { $match: { company_id: companyId } },
@@ -150,6 +157,9 @@ const getInspectionStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
     const { from, to } = req.query;
+
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
 
     const dateFilter = {};
     if (from && to) {
@@ -215,6 +225,9 @@ const getAppraisalStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
     const { from, to } = req.query;
+
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
 
     const dateFilter = {};
     if (from && to) {
@@ -351,6 +364,9 @@ const getRevenueStats = async (req, res) => {
     const companyId = req.user.company_id;
     const { from, to } = req.query;
 
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
+
     // Calculate revenue from vehicle retail prices
     const revenueResult = await Vehicle.aggregate([
       { $match: { company_id: companyId } },
@@ -402,6 +418,9 @@ const getActivityStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
 
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
+
     // Get monthly activity data (mock - would aggregate by actual dates)
     const monthlyData = [
       { month: "Jan", inspections: 32, appraisals: 28 },
@@ -448,6 +467,9 @@ const getPerformanceStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
 
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
+
     // Get top performing users (mock data - would calculate from real activities)
     const topUsers = [
       { name: "John Doe", completedTasks: 45 },
@@ -489,6 +511,9 @@ const getPerformanceStats = async (req, res) => {
 const getSystemStats = async (req, res) => {
   try {
     const companyId = req.user.company_id;
+
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
 
     // Get pending tasks
     const pendingInspections = await Vehicle.countDocuments({
@@ -535,6 +560,9 @@ const getRecentActivity = async (req, res) => {
   try {
     const companyId = req.user.company_id;
     const { limit = 10 } = req.query;
+
+    // Get Vehicle model from Company DB
+    const Vehicle = req.getModel('Vehicle');
 
     // Get recent vehicles with activities
     const recentVehicles = await Vehicle.find({
@@ -1159,6 +1187,9 @@ const getCompanyMasterdropdownvalues = async (req, res) => {
         message: "dropdown_name must be an array",
       });
     }
+
+    // Get DropdownMaster model from Company DB
+    const DropdownMaster = req.getModel('DropdownMaster');
 
     // Fetch only matching dropdowns
     const dropdowns = await DropdownMaster.find({

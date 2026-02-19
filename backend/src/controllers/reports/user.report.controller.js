@@ -5,10 +5,6 @@
  */
 
 const User = require('../../models/User');
-const Vehicle = require('../../models/Vehicle');
-const WorkshopQuote = require('../../models/WorkshopQuote');
-const WorkshopReport = require('../../models/WorkshopReport');
-const GroupPermission = require('../../models/GroupPermission');
 const { 
   getDealershipFilter, 
   getDateFilter, 
@@ -29,6 +25,10 @@ const getUserPerformanceMetrics = async (req, res) => {
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
+
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const WorkshopReport = req.getModel('WorkshopReport');
 
     // Get users based on dealership filter
     let userQuery = { company_id, is_active: true };

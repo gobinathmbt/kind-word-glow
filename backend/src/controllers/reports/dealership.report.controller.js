@@ -4,14 +4,7 @@
  * Provides comprehensive dealership performance metrics across all business operations
  */
 
-const Dealership = require('../../models/Dealership');
-const Vehicle = require('../../models/Vehicle');
-const MasterVehicle = require('../../models/MasterVehicle');
-const AdvertiseVehicle = require('../../models/AdvertiseVehicle');
-const WorkshopQuote = require('../../models/WorkshopQuote');
-const WorkshopReport = require('../../models/WorkshopReport');
 const User = require('../../models/User');
-const ServiceBay = require('../../models/ServiceBay');
 const {
   getDealershipFilter,
   getDateFilter,
@@ -29,6 +22,12 @@ const {
  */
 const getDealershipOverview = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const WorkshopReport = req.getModel('WorkshopReport');
+    const ServiceBay = req.getModel('ServiceBay');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -248,6 +247,11 @@ const getDealershipOverview = async (req, res) => {
  */
 const getDealershipVehicleDistribution = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
+    const Vehicle = req.getModel('Vehicle');
+    const MasterVehicle = req.getModel('MasterVehicle');
+    const AdvertiseVehicle = req.getModel('AdvertiseVehicle');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -441,6 +445,10 @@ const getDealershipVehicleDistribution = async (req, res) => {
  */
 const getDealershipWorkshopPerformance = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    const WorkshopReport = req.getModel('WorkshopReport');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
@@ -764,6 +772,10 @@ const getDealershipWorkshopPerformance = async (req, res) => {
  */
 const getDealershipUserActivity = async (req, res) => {
   try {
+    const Dealership = req.getModel('Dealership');
+    const Vehicle = req.getModel('Vehicle');
+    const WorkshopQuote = req.getModel('WorkshopQuote');
+    
     const { company_id } = req.user;
     const dealershipFilter = getDealershipFilter(req.user);
     const dateFilter = getDateFilter(req.query);
