@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const variantSchema = new mongoose.Schema({
   displayName: {
@@ -34,5 +35,8 @@ variantSchema.pre('save', function(next) {
 // Index for faster lookups
 variantSchema.index({ displayValue: 1 }, { unique: true });
 variantSchema.index({ models: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Variant', variantSchema, 'main');
 
 module.exports = mongoose.model('Variant', variantSchema);

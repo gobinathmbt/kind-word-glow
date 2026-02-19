@@ -61,6 +61,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import NotificationSideModal from "@/components/notifications/NotificationSideModal";
+import { ThemeToggleDropdown } from "@/components/theme/ThemeToggleDropdown";
 import logo from "@/assests/logo/android-chrome-512x512.png";
 
 interface DashboardLayoutProps {
@@ -1049,6 +1050,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </Button>
             </NotificationSideModal>
 
+            <ThemeToggleDropdown />
+
             <Link to="/docs">
               <Button variant="ghost" size="sm">
                 <FileText className="h-4 w-4 mr-2" />
@@ -1079,6 +1082,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <Bell className="h-5 w-5" />
               </Button>
             </NotificationSideModal>
+
+            <ThemeToggleDropdown />
 
             <Button
               variant="ghost"

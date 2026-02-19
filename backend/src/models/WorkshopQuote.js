@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const QuoteResponseSchema = new mongoose.Schema({
   supplier_id: {
@@ -345,5 +346,8 @@ WorkshopQuoteSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('WorkshopQuote', WorkshopQuoteSchema, 'company');
 
 module.exports = mongoose.model("WorkshopQuote", WorkshopQuoteSchema);

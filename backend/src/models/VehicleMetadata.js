@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const vehicleMetadataSchema = new mongoose.Schema({
   make: {
@@ -62,5 +63,8 @@ vehicleMetadataSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('VehicleMetadata', vehicleMetadataSchema, 'main');
 
 module.exports = mongoose.model("VehicleMetadata", vehicleMetadataSchema);

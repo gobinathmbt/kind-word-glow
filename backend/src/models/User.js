@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const ModelRegistry = require('./modelRegistry');
 
 const UserSchema = new mongoose.Schema({
   username: {
@@ -165,5 +166,8 @@ UserSchema.methods.resetLoginAttempts = function() {
     $unset: { login_attempts: 1, account_locked_until: 1 }
   });
 };
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('User', UserSchema, 'main');
 
 module.exports = mongoose.model('User', UserSchema);

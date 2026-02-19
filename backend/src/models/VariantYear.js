@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const variantYearSchema = new mongoose.Schema({
   model: {
@@ -45,5 +46,8 @@ variantYearSchema.index(
   { model: 1, variant: 1, displayValue: 1 },
   { unique: true }
 );
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('VariantYear', variantYearSchema, 'main');
 
 module.exports = mongoose.model("VariantYear", variantYearSchema);

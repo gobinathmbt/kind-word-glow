@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const FieldConfigSchema = new mongoose.Schema({
   field_id: {
@@ -217,5 +218,8 @@ TradeinConfigSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('TradeinConfig', TradeinConfigSchema, 'company');
 
 module.exports = mongoose.model('TradeinConfig', TradeinConfigSchema);

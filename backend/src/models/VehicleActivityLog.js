@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const VehicleActivityLogSchema = new mongoose.Schema({
     company_id: {
@@ -69,5 +70,8 @@ const VehicleActivityLogSchema = new mongoose.Schema({
 // Indexes for faster retrieval
 VehicleActivityLogSchema.index({ company_id: 1, vehicle_stock_id: 1, vehicle_type: 1 });
 VehicleActivityLogSchema.index({ company_id: 1, timestamp: -1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('VehicleActivityLog', VehicleActivityLogSchema, 'company');
 
 module.exports = mongoose.model('VehicleActivityLog', VehicleActivityLogSchema);

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const WorkflowExecutionSchema = new mongoose.Schema({
   workflow_id: {
@@ -121,5 +122,8 @@ WorkflowExecutionSchema.index({ workflow_id: 1, created_at: -1 });
 WorkflowExecutionSchema.index({ company_id: 1, created_at: -1 });
 WorkflowExecutionSchema.index({ execution_status: 1, created_at: -1 });
 WorkflowExecutionSchema.index({ created_at: 1 }); // For cleanup cron
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('WorkflowExecution', WorkflowExecutionSchema, 'company');
 
 module.exports = mongoose.model('WorkflowExecution', WorkflowExecutionSchema);

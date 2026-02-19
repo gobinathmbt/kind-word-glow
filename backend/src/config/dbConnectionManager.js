@@ -109,6 +109,27 @@ class DatabaseConnectionManager {
   }
 
   /**
+   * Decrement active requests counter for a company connection
+   * @param {string} companyId - Company ID
+   */
+  decrementActiveRequests(companyId) {
+    if (!companyId) {
+      return;
+    }
+
+    if (this.companyConnections.has(companyId)) {
+      const connectionInfo = this.companyConnections.get(companyId);
+      // Safe decrement - never go below 0
+      connectionInfo.activeRequests = Math.max(0, connectionInfo.activeRequests - 1);
+      
+      // Log in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📉 Active requests decremented for company_${companyId}: ${connectionInfo.activeRequests}`);
+      }
+    }
+  }
+
+  /**
    * Close all connections for graceful shutdown
    */
   async closeAllConnections() {
@@ -140,17 +161,29 @@ class DatabaseConnectionManager {
 
   /**
    * Get connection statistics for monitoring
-   * @returns {Object} Connection statistics
+   * @returns {Object} Connection statistics including accurate activeRequests counts
    */
   getConnectionStats() {
+    // Calculate total active requests across all connections
+    let totalActiveRequests = 0;
+    const companyConnectionDetails = Array.from(this.companyConnections.entries()).map(([companyId, info]) => {
+      totalActiveRequests += info.activeRequests;
+      return {
+        companyId,
+        lastAccessed: info.lastAccessed,
+        activeRequests: info.activeRequests,
+        isIdle: info.activeRequests === 0
+      };
+    });
+
     return {
       ...this.connectionStats,
       activeConnections: this.companyConnections.size,
-      companyConnections: Array.from(this.companyConnections.entries()).map(([companyId, info]) => ({
-        companyId,
-        lastAccessed: info.lastAccessed,
-        activeRequests: info.activeRequests
-      }))
+      totalActiveRequests,
+      cacheHitRatio: this.connectionStats.totalRequests > 0 
+        ? (this.connectionStats.cacheHits / this.connectionStats.totalRequests * 100).toFixed(2) + '%'
+        : '0%',
+      companyConnections: companyConnectionDetails
     };
   }
 

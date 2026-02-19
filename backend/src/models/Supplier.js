@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const SupplierSchema = new mongoose.Schema({
   name: {
@@ -60,5 +61,8 @@ SupplierSchema.pre('save', function(next) {
 SupplierSchema.index({ company_id: 1, email: 1 }, { unique: true });
 SupplierSchema.index({ company_id: 1, is_active: 1 });
 SupplierSchema.index({ tags: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Supplier', SupplierSchema, 'company');
 
 module.exports = mongoose.model('Supplier', SupplierSchema);

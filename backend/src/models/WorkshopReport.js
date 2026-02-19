@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const WorkshopReportSchema = new mongoose.Schema({
   // Vehicle Information (Denormalized for performance)
@@ -324,5 +325,8 @@ WorkshopReportSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('WorkshopReport', WorkshopReportSchema, 'company');
 
 module.exports = mongoose.model('WorkshopReport', WorkshopReportSchema);

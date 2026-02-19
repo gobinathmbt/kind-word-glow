@@ -1,82 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* =========================
-   🎨 Global Theme Variables
+   🎨 Theme System - Design System
+   Color Palette: Forest Green + Customizable Themes
+   All colors in HSL format
    ========================= */
+
 @layer base {
   :root {
-    /* Automotive Professional Palette */
-    --background: 240 6% 97%;
-    --foreground: 240 10% 8%;
+    /* ROS Custom Properties */
+    --primary-green: #22c55e;
+    --primary-black: #0a0a0a;
+    --primary-white: #ffffff;
+
+    /* Core brand colors - Forest Green palette */
+    --forest: 152 81% 12%;
+    --forest-light: 152 60% 18%;
+    --forest-dark: 152 90% 6%;
+    --emerald: 160 84% 39%;
+    --emerald-glow: 160 100% 45%;
+    --mint: 158 60% 82%;
+
+    /* Custom color variables - Dynamically updated by ThemeProvider (Default: Emerald Glow) */
+    --color-primary: 142 76% 36%;
+    --color-secondary: 0 0% 96%;
+    --color-tertiary: 217 19% 17%;
+
+    /* Core Theme Colors */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 8%;
+    --card-foreground: 0 0% 8%;
+    --card-hover: 0 0% 97%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 8%;
+    --popover-foreground: 0 0% 8%;
 
-    /* Primary - Professional Blue */
-    --primary: 218 89% 51%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary - Dynamically updated by ThemeProvider */
+    --primary: var(--color-primary);
+    --primary-foreground: 0 0% 98%;
 
-    /* Secondary - Steel Gray */
-    --secondary: 215 20% 65%;
-    --secondary-foreground: 240 10% 8%;
+    /* Secondary - Dynamically updated by ThemeProvider */
+    --secondary: var(--color-secondary);
+    --secondary-foreground: 0 0% 12%;
 
-    /* Accent - Electric Blue */
-    --accent: 205 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    /* Tertiary - Dynamically updated by ThemeProvider */
+    --tertiary: var(--color-tertiary);
+    --tertiary-foreground: 0 0% 98%;
+
+    /* Accent - Derived from primary for theme consistency */
+    --accent: var(--color-primary);
+    --accent-foreground: 0 0% 98%;
 
     /* Muted */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 40%;
 
     /* Destructive - Warning Red */
-    --destructive: 0 85% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
     /* Success - Professional Green */
     --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
+    --success-foreground: 0 0% 98%;
 
     /* Warning - Amber */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning-foreground: 0 0% 2%;
 
     /* Borders */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 218 89% 51%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: var(--color-primary);
 
-    /* Automotive Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(218, 89%, 51%) 0%, hsl(205, 100%, 60%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(215, 20%, 65%) 0%, hsl(220, 14%, 96%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(240, 10%, 8%) 0%, hsl(218, 89%, 51%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(220, 14%, 96%) 100%);
+    /* Border Radius */
+    --radius: 0.625rem;
 
-    --radius: 0.75rem;
+    /* Sidebar */
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 0 0% 30%;
+    --sidebar-primary: var(--color-primary);
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 152 40% 92%;
+    --sidebar-accent-foreground: 152 81% 12%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: var(--color-primary);
+
+    /* Custom gradients - Dynamically adapt to theme colors */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--color-primary)), hsl(var(--color-secondary)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--color-secondary)), hsl(var(--muted)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--color-primary)));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 97%));
+    --gradient-glow: radial-gradient(ellipse at top, hsl(var(--color-primary) / 0.1), transparent 50%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 20px hsl(var(--color-primary) / 0.3);
+
+    /* Theme Transition Duration - Controls smoothness of theme changes */
+    --theme-transition-duration: 0.3s;
+    --theme-transition-timing: ease;
   }
 
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 95%;
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 95%;
-    --popover: 240 10% 6%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 218 89% 51%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 20% 25%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 220 14% 14%;
-    --muted-foreground: 220 9% 65%;
-    --accent: 205 100% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 85% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 18%;
-    --input: 220 13% 18%;
-    --ring: 218 89% 51%;
+    /* Custom color variables - Dynamically updated by ThemeProvider (Default: Emerald Glow Dark) */
+    --color-primary: 142 71% 45%;
+    --color-secondary: 0 0% 4%;
+    --color-tertiary: 0 0% 100%;
+
+    /* Core Theme Colors */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+    --card-hover: 0 0% 10%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Primary - Dynamically updated by ThemeProvider */
+    --primary: var(--color-primary);
+    --primary-foreground: 0 0% 2%;
+
+    /* Secondary - Dynamically updated by ThemeProvider */
+    --secondary: var(--color-secondary);
+    --secondary-foreground: 0 0% 98%;
+
+    /* Tertiary - Dynamically updated by ThemeProvider */
+    --tertiary: var(--color-tertiary);
+    --tertiary-foreground: 0 0% 2%;
+
+    /* Accent - Derived from primary for theme consistency */
+    --accent: var(--color-primary);
+    --accent-foreground: 0 0% 2%;
+
+    /* Muted */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Success */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 2%;
+
+    /* Borders */
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: var(--color-primary);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 70%;
+    --sidebar-primary: var(--color-primary);
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 152 60% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 12%;
+
+    /* Dark theme gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--color-primary)), hsl(var(--color-secondary)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--color-secondary)), hsl(var(--muted)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--background)), hsl(var(--color-primary)));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 8%), hsl(0 0% 6%));
+    --gradient-glow: radial-gradient(ellipse at top, hsl(var(--color-primary) / 0.15), transparent 50%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 20px hsl(var(--color-primary) / 0.3);
   }
 }
 
@@ -84,30 +187,47 @@
    🔤 Responsive Typography
    ========================= */
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   html {
-    font-size: 14px; /* default = large screen */
+    @apply antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-size: 15px; /* Reduced from default 16px */
   }
 
-  @media (max-width: 1024px) { /* md */
-    html {
-      font-size: 13px;
-    }
-  }
-
-  @media (max-width: 640px) { /* sm */
+  /* Responsive font sizing */
+  /* Mobile */
+  @media (max-width: 640px) {
     html {
       font-size: 12px;
     }
   }
 
+  /* Tablet / Small desktop */
+  @media (min-width: 641px) and (max-width: 1919px) {
+    html {
+      font-size: 14px;
+    }
+  }
+
+  /* Large screens */
+  @media (min-width: 1920px) {
+    html {
+      font-size: 18px;
+    }
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', system-ui, sans-serif;
     line-height: 1.5;
-    font-size: 1rem; /* relative to html */
+    font-size: 1rem;
   }
 
   h1 {
-    font-size: 2.5rem; /* scales with html size */
+    font-size: 2.5rem;
     line-height: 1.2;
     @apply font-bold tracking-tight;
   }
@@ -131,12 +251,57 @@
   }
 
   p, span, li, a, button, input, textarea {
-    font-size: 1rem; /* will shrink according to html size */
+    font-size: 1rem;
     line-height: 1.5;
   }
 
+  /* Smooth transitions for theme changes */
   * {
-    @apply border-border;
+    transition: 
+      background-color var(--theme-transition-duration) var(--theme-transition-timing),
+      color var(--theme-transition-duration) var(--theme-transition-timing),
+      border-color var(--theme-transition-duration) var(--theme-transition-timing),
+      box-shadow var(--theme-transition-duration) var(--theme-transition-timing);
+  }
+
+  /* Prevent transitions on page load */
+  .preload * {
+    transition: none !important;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+
+  /* Light mode scrollbar */
+  .light ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+  }
+
+  .light ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  /* Improve light mode text rendering */
+  .light {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -149,10 +314,118 @@
   .gradient-hero { background: var(--gradient-hero); }
   .gradient-card { background: var(--gradient-card); }
 
-  .glass-effect {
-    backdrop-filter: blur(12px);
-    background: hsla(0, 0%, 100%, 0.8);
-    border: 1px solid hsla(220, 13%, 91%, 0.3);
+  /* Keyboard-first focus styles */
+  .focus-ring {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* Stat card glow effect */
+  .stat-card {
+    @apply relative overflow-hidden;
+    background: var(--gradient-card);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), transparent);
+  }
+
+  /* Light mode improvements for stat card */
+  .light .stat-card {
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* POS Button styles */
+  .pos-button {
+    @apply relative transition-all duration-150 active:scale-95;
+  }
+
+  .pos-button:focus-visible {
+    @apply ring-2 ring-primary ring-offset-2 ring-offset-background outline-none;
+  }
+
+  /* Module card hover effect */
+  .module-card {
+    @apply transition-all duration-200;
+  }
+
+  .module-card:hover {
+    @apply border-primary/50;
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Light mode card styling */
+  .light .module-card {
+    @apply border border-border;
+  }
+
+  .light .module-card:hover {
+    @apply border-primary/70 bg-accent;
+  }
+
+  /* Command palette styles */
+  .command-palette {
+    background: hsl(var(--card) / 0.95);
+  }
+
+  .light .command-palette {
+    background: hsl(var(--card) / 0.98);
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* Glow text effect - mode aware */
+  .glow-text {
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+  }
+
+  .light .glow-text {
+    text-shadow: 0 0 15px hsl(var(--primary) / 0.3);
+  }
+
+  /* Mono font for numbers/codes */
+  .font-mono-display {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Input and form improvements */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  textarea,
+  select {
+    @apply transition-colors;
+  }
+
+  .light input[type='text'],
+  .light input[type='email'],
+  .light input[type='password'],
+  .light input[type='number'],
+  .light textarea,
+  .light select {
+    @apply border-border bg-background text-foreground;
+  }
+
+  .light input[type='text']:focus,
+  .light input[type='email']:focus,
+  .light input[type='password']:focus,
+  .light input[type='number']:focus,
+  .light textarea:focus,
+  .light select:focus {
+    @apply border-primary ring-primary;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+  }
+
+  /* Dropdown and menu improvements */
+  .light [role='menu'],
+  .light [role='listbox'],
+  .light [role='dialog'] {
+    @apply border border-border;
   }
 
   .automotive-shadow {
@@ -163,66 +436,157 @@
   }
 
   .hero-text {
-    background: linear-gradient(135deg, hsl(240, 10%, 8%) 0%, hsl(218, 89%, 51%) 100%);
+    background: var(--gradient-hero);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .animate-float { animation: float 3s ease-in-out infinite; }
-  .animate-slide-up { animation: slideUp 0.6s ease-out forwards; }
-  .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+  /* Theme transition utility classes */
+  .theme-transition-fast {
+    transition-duration: 0.15s !important;
+  }
+
+  .theme-transition-slow {
+    transition-duration: 0.5s !important;
+  }
+
+  .theme-transition-none {
+    transition: none !important;
+  }
+
+  /* Smooth color transitions for interactive elements */
+  button, a, input, select, textarea {
+    transition: 
+      background-color var(--theme-transition-duration) var(--theme-transition-timing),
+      color var(--theme-transition-duration) var(--theme-transition-timing),
+      border-color var(--theme-transition-duration) var(--theme-transition-timing),
+      box-shadow var(--theme-transition-duration) var(--theme-transition-timing),
+      transform 0.15s ease;
+  }
+
+  /* Smooth transitions for cards and containers */
+  .card, [role="dialog"], [data-radix-popper-content-wrapper] {
+    transition: 
+      background-color var(--theme-transition-duration) var(--theme-transition-timing),
+      border-color var(--theme-transition-duration) var(--theme-transition-timing),
+      box-shadow var(--theme-transition-duration) var(--theme-transition-timing);
+  }
+
+  /* Make scrollbar thinner ONLY for this scroll area */
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 /* =========================
-   🎞️ Keyframes
+   🎞️ Keyframes & Animations
    ========================= */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
+@layer utilities {
+  /* Animation utilities */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px hsl(var(--primary) / 0.2);
+    }
+    to {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    }
+  }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 
-/* =========================
-   🖱️ Professional Scrollbar
-   ========================= */
-::-webkit-scrollbar {
-  width: 8px;
-}
+  .animate-float { 
+    animation: float 3s ease-in-out infinite; 
+  }
 
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-}
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
 
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary));
-  border-radius: 4px;
-}
+  .animate-slide-up { 
+    animation: slideUp 0.6s ease-out forwards; 
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--accent));
-}
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
+  .animate-fade-in { 
+    animation: fadeIn 0.8s ease-out forwards; 
+  }
 
-/* Make scrollbar thinner ONLY for this scroll area */
-.custom-scrollbar::-webkit-scrollbar {
-  height: 4px; /* adjust as needed */
-}
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
+  /* Slide in from left */
+  .animate-slide-in {
+    animation: slideIn 0.2s ease-out;
+  }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Theme transition animations */
+  .animate-theme-transition { 
+    animation: themeTransition 0.3s ease-out forwards; 
+  }
+
+  @keyframes themeTransition {
+    0% { opacity: 0.95; }
+    50% { opacity: 0.98; }
+    100% { opacity: 1; }
+  }
+
+  .animate-color-shift { 
+    animation: colorShift 0.5s ease-in-out forwards; 
+  }
+
+  @keyframes colorShift {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.05); }
+    100% { filter: brightness(1); }
+  }
+
+  /* ROS Theme Utility Classes */
+  .theme-green {
+    background-color: var(--primary-green);
+    color: var(--primary-white);
+  }
+
+  .theme-black {
+    background-color: var(--primary-black);
+    color: var(--primary-white);
+  }
+
+  .theme-white {
+    background-color: var(--primary-white);
+    color: var(--primary-black);
+  }
 }

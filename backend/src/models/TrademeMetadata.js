@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const trademeMetadataSchema = new mongoose.Schema({
   value_id: {
@@ -60,5 +61,8 @@ trademeMetadataSchema.pre("save", function (next) {
   this.updated_at = Date.now();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('TrademeMetadata', trademeMetadataSchema, 'main');
 
 module.exports = mongoose.model("TrademeMetadata", trademeMetadataSchema, "tradememetadata");

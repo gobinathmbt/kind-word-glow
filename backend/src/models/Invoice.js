@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const InvoiceSchema = new mongoose.Schema({
   subscription_id: {
@@ -126,5 +127,8 @@ InvoiceSchema.index({ company_id: 1, created_at: -1 });
 InvoiceSchema.index({ subscription_id: 1 });
 InvoiceSchema.index({ invoice_number: 1 });
 InvoiceSchema.index({ payment_status: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Invoice', InvoiceSchema, 'company');
 
 module.exports = mongoose.model('Invoice', InvoiceSchema);

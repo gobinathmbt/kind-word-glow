@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const GroupPermissionSchema = new mongoose.Schema({
   name: {
@@ -49,5 +50,8 @@ GroupPermissionSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('GroupPermission', GroupPermissionSchema, 'company');
 
 module.exports = mongoose.model('GroupPermission', GroupPermissionSchema);

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 // Update the CostTypeSchema
 const CostTypeSchema = new mongoose.Schema({
@@ -97,5 +98,8 @@ CostConfigurationSchema.pre('save', function(next) {
 
 // Index for efficient queries
 CostConfigurationSchema.index({ company_id: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('CostConfiguration', CostConfigurationSchema, 'company');
 
 module.exports = mongoose.model('CostConfiguration', CostConfigurationSchema);

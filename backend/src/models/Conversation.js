@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const ConversationSchema = new mongoose.Schema({
   quote_id: {
@@ -97,5 +98,8 @@ ConversationSchema.index({ quote_id: 1, company_id: 1, supplier_id: 1 });
 ConversationSchema.index({ last_message_at: -1 });
 ConversationSchema.index({ 'company_id': 1, 'is_archived_company': 1 });
 ConversationSchema.index({ 'supplier_id': 1, 'is_archived_supplier': 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Conversation', ConversationSchema, 'company');
 
 module.exports = mongoose.model("Conversation", ConversationSchema);

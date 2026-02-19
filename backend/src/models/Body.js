@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const bodySchema = new mongoose.Schema({
   displayName: {
@@ -25,5 +26,8 @@ bodySchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel("Body", bodySchema, "main");
 
 module.exports = mongoose.model("Body", bodySchema);

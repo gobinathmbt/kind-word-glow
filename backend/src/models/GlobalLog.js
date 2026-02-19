@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const GlobalLogSchema = new mongoose.Schema({
   event_type: {
@@ -262,5 +263,8 @@ GlobalLogSchema.statics.createOptimizedQuery = function(filters) {
   
   return { query, sort };
 };
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('GlobalLog', GlobalLogSchema, 'main');
 
 module.exports = mongoose.model('GlobalLog', GlobalLogSchema);

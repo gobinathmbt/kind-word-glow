@@ -57,11 +57,17 @@ async function tenantContext(req, res, next) {
 
     // Attach company database connection for company users
     req.companyDb = null;
+    req.companyId = null; // Track company_id for cleanup
     
     if (req.user.company_db_name && req.user.role !== 'master_admin') {
       try {
         req.companyDb = await connectionManager.getCompanyConnection(req.user.company_id);
-        console.log(`✅ Company database attached for company: ${req.user.company_id}`);
+        req.companyId = req.user.company_id; // Store for later cleanup
+        
+        // Only log in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Company database attached for company: ${req.user.company_id}`);
+        }
       } catch (error) {
         console.error(`Failed to get company database connection for company ${req.user.company_id}:`, error);
         return res.status(500).json({
@@ -70,6 +76,22 @@ async function tenantContext(req, res, next) {
         });
       }
     }
+
+    // Add response 'finish' event listener to decrement activeRequests
+    res.on('finish', () => {
+      if (req.companyId) {
+        connectionManager.decrementActiveRequests(req.companyId);
+      }
+    });
+
+    // Add response 'close' event listener to handle error cases
+    // This handles cases where the connection is closed before response finishes
+    // (e.g., client disconnects, network errors, timeouts)
+    res.on('close', () => {
+      if (req.companyId) {
+        connectionManager.decrementActiveRequests(req.companyId);
+      }
+    });
 
     // Attach req.getModel helper function
     req.getModel = (modelName) => {

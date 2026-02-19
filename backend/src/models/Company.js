@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const CompanySchema = new mongoose.Schema({
   company_name: {
@@ -123,5 +124,8 @@ CompanySchema.virtual('company_age').get(function() {
 // Index for efficient queries
 CompanySchema.index({ email: 1 });
 CompanySchema.index({ subscription_status: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Company', CompanySchema, 'main');
 
 module.exports = mongoose.model('Company', CompanySchema);

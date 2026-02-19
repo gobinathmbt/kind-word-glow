@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const CustomModuleConfigSchema = new mongoose.Schema({
   company_id: {
@@ -56,5 +57,8 @@ CustomModuleConfigSchema.pre('save', function(next) {
 // Index for efficient queries
 CustomModuleConfigSchema.index({ company_id: 1 });
 CustomModuleConfigSchema.index({ 'custom_modules.module_name': 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('CustomModuleConfig', CustomModuleConfigSchema, 'main');
 
 module.exports = mongoose.model('CustomModuleConfig', CustomModuleConfigSchema);

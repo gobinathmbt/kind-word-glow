@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const CurrencyItemSchema = new mongoose.Schema({
   currency_name: {
@@ -77,5 +78,8 @@ CurrencySchema.pre('save', function(next) {
 
 // Index for efficient queries
 CurrencySchema.index({ company_id: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Currency', CurrencySchema, 'company');
 
 module.exports = mongoose.model('Currency', CurrencySchema);

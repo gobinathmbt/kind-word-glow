@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const BayTimingsSchema = new mongoose.Schema({
   day_of_week: {
@@ -106,5 +107,8 @@ ServiceBaySchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('ServiceBay', ServiceBaySchema, 'company');
 
 module.exports = mongoose.model('ServiceBay', ServiceBaySchema);

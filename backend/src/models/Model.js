@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const modelSchema = new mongoose.Schema({
   make: {
@@ -32,5 +33,8 @@ modelSchema.pre("save", function (next) {
 
 // Unique per make
 modelSchema.index({ make: 1, displayValue: 1 }, { unique: true });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Model', modelSchema, 'main');
 
 module.exports = mongoose.model("Model", modelSchema);

@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const PlanSchema = new mongoose.Schema({
   per_user_cost: {
@@ -46,5 +47,8 @@ PlanSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Plan', PlanSchema, 'main');
 
 module.exports = mongoose.model('Plan', PlanSchema);

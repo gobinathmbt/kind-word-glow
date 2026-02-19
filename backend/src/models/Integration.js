@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const IntegrationSchema = new mongoose.Schema({
   company_id: {
@@ -85,5 +86,8 @@ IntegrationSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Integration', IntegrationSchema, 'company');
 
 module.exports = mongoose.model('Integration', IntegrationSchema);

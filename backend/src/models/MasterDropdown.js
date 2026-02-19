@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const MasterDropdownValueSchema = new mongoose.Schema({
   option_value: { type: String, required: true, trim: true },
@@ -40,5 +41,8 @@ MasterDropdownSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('MasterDropdown', MasterDropdownSchema, 'main');
 
 module.exports = mongoose.model('MasterDropdown', MasterDropdownSchema);

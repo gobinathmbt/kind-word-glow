@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const WorkflowSchema = new mongoose.Schema({
   name: {
@@ -233,5 +234,8 @@ WorkflowSchema.pre("save", function (next) {
 WorkflowSchema.virtual("workflow_age").get(function () {
   return Math.floor((Date.now() - this.created_at) / (1000 * 60 * 60 * 24));
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Workflow', WorkflowSchema, 'company');
 
 module.exports = mongoose.model("Workflow", WorkflowSchema);

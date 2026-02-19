@@ -178,7 +178,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
             onClick={() => onPageChange(1)}
             isActive={page === 1}
             className={`cursor-pointer ${
-              page === 1 ? "bg-blue-600 text-white hover:bg-blue-700" : ""
+              page === 1 ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
             }`}
           >
             1
@@ -206,7 +206,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
               onClick={() => onPageChange(i)}
               isActive={page === i}
               className={`cursor-pointer ${
-                page === i ? "bg-blue-600 text-white hover:bg-blue-700" : ""
+                page === i ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
               }`}
             >
               {i}
@@ -232,7 +232,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
             isActive={page === totalPages}
             className={`cursor-pointer ${
               page === totalPages
-                ? "bg-blue-600 text-white hover:bg-blue-700"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : ""
             }`}
           >
@@ -264,7 +264,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
   const content = (
     <div className="flex flex-col h-full">
       {/* Fixed Header - Responsive */}
-      <div className="bg-white border-b border-gray-200 p-3 sm:p-4 flex-shrink-0">
+      <div className="bg-card border-b border-border p-3 sm:p-4 flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
           {/* Left side - Stats (Desktop) / Stats Dialog (Mobile) */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -275,7 +275,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-2 bg-gray-50 hover:bg-gray-100"
+                    className="h-8 px-2 bg-muted hover:bg-muted/80"
                   >
                     <BarChart3 className="h-4 w-4 mr-1" />
                     <span className="text-xs">Stats</span>
@@ -289,12 +289,12 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                     {statChips.map((chip, index) => (
                       <div
                         key={index}
-                        className={`flex items-center justify-between p-3 rounded-lg bg-gray-50 border ${
-                          chip.onClick ? "cursor-pointer hover:bg-gray-100" : ""
+                        className={`flex items-center justify-between p-3 rounded-lg bg-muted border border-border ${
+                          chip.onClick ? "cursor-pointer hover:bg-muted/80" : ""
                         }`}
                         onClick={chip.onClick}
                       >
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-foreground">
                           {chip.label}
                         </span>
                         <Badge
@@ -322,9 +322,9 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                   variant={chip.variant || "outline"}
                   className={`
         px-3 py-1 text-sm
-        ${chip.bgColor || "bg-gray-100"} 
+        ${chip.bgColor || "bg-muted"} 
         ${chip.textColor || ""} 
-        ${chip.hoverColor || "hover:bg-gray-100"}
+        ${chip.hoverColor || "hover:bg-muted/80"}
         whitespace-nowrap
         ${chip.onClick ? "cursor-pointer" : ""}
       `}
@@ -347,7 +347,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                     size="sm"
                     onClick={onRefresh}
                     disabled={isLoading}
-                    className="h-8 w-8 sm:h-9 sm:w-9 p-0 bg-gray-50 hover:bg-gray-100"
+                    className="h-8 w-8 sm:h-9 sm:w-9 p-0 bg-muted hover:bg-muted/80"
                   >
                     <RefreshCw
                       className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -404,7 +404,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 bg-gray-50 hover:bg-gray-100"
+                        className="h-8 w-8 p-0 bg-muted hover:bg-muted/80"
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -480,7 +480,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
             ) : (
               <div className="h-full overflow-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-white z-10 border-b shadow-sm">
+                  <TableHeader className="sticky top-0 bg-card z-10 border-b shadow-sm">
                     {renderTableHeader()}
                   </TableHeader>
                   <TableBody>{renderTableBody()}</TableBody>
@@ -492,7 +492,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
       </div>
 
       {/* Fixed Footer with Pagination - Responsive */}
-      <div className="bg-white border-t border-gray-200 py-2 px-3 sm:px-4 flex-shrink-0">
+      <div className="bg-card border-t border-border py-2 px-3 sm:px-4 flex-shrink-0">
         {/* Mobile Layout (Below 640px) */}
         <div className="flex sm:hidden items-center justify-between gap-2">
           {/* Left: Pagination Checkbox */}
@@ -631,7 +631,7 @@ const DataTableLayout: React.FC<DataTableLayoutProps> = ({
                     <PaginationItem>
                       <PaginationLink
                         isActive={true}
-                        className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+                        className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         1
                       </PaginationLink>

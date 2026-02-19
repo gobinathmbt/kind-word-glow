@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ModelRegistry = require("./modelRegistry");
 
 const MasterVehicleSchema = new mongoose.Schema({
   vehicle_stock_id: {
@@ -330,5 +331,8 @@ MasterVehicleSchema.pre("save", function (next) {
 
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('MasterVehicle', MasterVehicleSchema, 'company');
 
 module.exports = mongoose.model("MasterVehicle", MasterVehicleSchema);

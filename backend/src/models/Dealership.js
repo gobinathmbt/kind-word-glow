@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const DealershipSchema = new mongoose.Schema({
   dealership_id: {
@@ -77,5 +78,8 @@ DealershipSchema.index({ company_id: 1 });
 DealershipSchema.index({ dealership_id: 1 });
 DealershipSchema.index({ is_active: 1 });
 DealershipSchema.index({ dealership_name: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Dealership', DealershipSchema, 'company');
 
 module.exports = mongoose.model('Dealership', DealershipSchema);

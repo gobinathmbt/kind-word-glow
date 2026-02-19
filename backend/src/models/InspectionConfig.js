@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const FieldConfigSchema = new mongoose.Schema({
   field_id: {
@@ -219,5 +220,8 @@ InspectionConfigSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('InspectionConfig', InspectionConfigSchema, 'company');
 
 module.exports = mongoose.model('InspectionConfig', InspectionConfigSchema);

@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const DropdownValueSchema = new mongoose.Schema({
   option_value: {
@@ -101,5 +102,8 @@ DropdownMasterSchema.pre('save', function(next) {
 // Index for efficient queries
 DropdownMasterSchema.index({ company_id: 1, dropdown_name: 1 });
 DropdownMasterSchema.index({ is_active: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('DropdownMaster', DropdownMasterSchema, 'company');
 
 module.exports = mongoose.model('DropdownMaster', DropdownMasterSchema);

@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const SubscriptionSchema = new mongoose.Schema({
   company_id: {
@@ -100,5 +101,8 @@ SubscriptionSchema.virtual('days_remaining').get(function() {
   }
   return 0;
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Subscriptions', SubscriptionSchema, 'company');
 
 module.exports = mongoose.model('Subscription', SubscriptionSchema);

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const notificationConfigurationSchema = new mongoose.Schema({
   company_id: {
@@ -189,5 +190,8 @@ notificationConfigurationSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('NotificationConfiguration', notificationConfigurationSchema, 'company');
 
 module.exports = mongoose.model('NotificationConfiguration', notificationConfigurationSchema);

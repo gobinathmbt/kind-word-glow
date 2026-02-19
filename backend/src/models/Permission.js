@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const PermissionSchema = new mongoose.Schema({
   module_name: {
@@ -48,5 +49,8 @@ PermissionSchema.pre('save', function(next) {
 PermissionSchema.index({ module_name: 1 });
 PermissionSchema.index({ internal_name: 1 });
 PermissionSchema.index({ is_active: 1 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Permission', PermissionSchema, 'main');
 
 module.exports = mongoose.model('Permission', PermissionSchema);

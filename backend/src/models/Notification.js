@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 const notificationSchema = new mongoose.Schema({
   company_id: {
@@ -182,5 +183,8 @@ notificationSchema.statics.cleanupOldNotifications = function(daysOld = 2) {
     read_at: { $lt: cutoffDate }
   });
 };
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('Notification', notificationSchema, 'company');
 
 module.exports = mongoose.model('Notification', notificationSchema);

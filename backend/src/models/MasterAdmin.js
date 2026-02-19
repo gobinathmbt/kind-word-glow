@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const ModelRegistry = require('./modelRegistry');
 
 const MasterAdminSchema = new mongoose.Schema({
   first_name: {
@@ -137,5 +138,8 @@ MasterAdminSchema.methods.comparePassword = async function(enteredPassword) {
 MasterAdminSchema.virtual('full_name').get(function() {
   return `${this.first_name} ${this.last_name}`;
 });
+
+// Register with ModelRegistry
+ModelRegistry.registerModel('MasterAdmin', MasterAdminSchema, 'main');
 
 module.exports = mongoose.model('MasterAdmin', MasterAdminSchema);
