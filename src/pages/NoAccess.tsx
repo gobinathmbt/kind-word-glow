@@ -27,7 +27,7 @@ const NoAccess = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/company/dashboard">
+            <Link to="/dashboard">
               <Button variant="outline" className="w-full sm:w-auto">
                 <Home className="h-4 w-4 mr-2" />
                 Dashboard

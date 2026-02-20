@@ -32,7 +32,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { subscriptionServices, companyServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
+import { subscriptionServices, companyServices ,customModuleServices } from "@/api/services";
 import CheckoutModal from "./CheckoutModal";
 
 interface SubscriptionModalProps {
@@ -56,8 +57,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   canClose = true,
   currentSubscription,
   fullScreen = false,
-  userProfile,
 }) => {
+  const { user } = useAuth();
   const [subscriptionData, setSubscriptionData] = useState({
     number_of_days: 30,
     number_of_users: 1,
@@ -71,7 +72,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const [moduleCategories, setModuleCategories] = useState({
     superadmin: [],
     integration: [],
+    custom: [],
   });
+  const [companyCustomModules, setCompanyCustomModules] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("superadmin");
 
   // Clean up any timers when component unmounts
@@ -99,21 +102,42 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     queryKey: ["module-dropdowns"],
     queryFn: async () => {
       const response = await companyServices.getMasterdropdownvalues({
-        dropdown_name: ["company_superadmin_modules", "company_integration_modules"],
+        dropdown_name: ["company_superadmin_modules", "company_integration_modules", "custom_user_modules"],
       });
       return response.data;
     },
     enabled: isOpen,
   });
 
-  // Categorize modules based on dropdown configurations
+
+    const { data: companyCustomModuleConfig } = useQuery({
+      queryKey: ["company-custom-modules", user?.company_id?._id],
+      queryFn: async () => {
+        if (!user?.company_id?._id) return null;
+        const response = await customModuleServices.getCustomModuleConfigByCompanyFromCompanyRoute(
+          user.company_id._id
+        );
+        return response.data.data;
+      },
+      enabled: isOpen && !!user?.company_id?._id,
+    });
+
+  // Categorize modules based on dropdown configurations and company custom modules
   useEffect(() => {
     if (pricingConfig?.modules && dropdownData?.data) {
+      console.log("Categorizing modules...");
+      console.log("Pricing config modules:", pricingConfig.modules);
+      console.log("Dropdown data:", dropdownData.data);
+      console.log("Company custom module config:", companyCustomModuleConfig);
+
       const superadminDropdown = dropdownData.data.find(
         (item: any) => item.dropdown_name === "company_superadmin_modules"
       );
       const integrationDropdown = dropdownData.data.find(
         (item: any) => item.dropdown_name === "company_integration_modules"
+      );
+      const customDropdown = dropdownData.data.find(
+        (item: any) => item.dropdown_name === "custom_user_modules"
       );
 
       const superadminModuleNames = superadminDropdown?.values?.map(
@@ -122,19 +146,73 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       const integrationModuleNames = integrationDropdown?.values?.map(
         (v: any) => v.option_value
       ) || [];
+      const customModuleNames = customDropdown?.values?.map(
+        (v: any) => v.option_value
+      ) || [];
+
+      console.log("Custom module names from dropdown:", customModuleNames);
+
+      // Get company's assigned custom modules with their display names
+      const assignedCustomModules = companyCustomModuleConfig?.custom_modules || [];
+      const assignedCustomModuleNames = assignedCustomModules.map((m: any) => m.module_name);
+      setCompanyCustomModules(assignedCustomModuleNames);
+
+      console.log("Assigned custom modules:", assignedCustomModules);
+      console.log("Assigned custom module names:", assignedCustomModuleNames);
+
+      // Map custom modules from pricing config and merge with custom module display names
+      const customModulesFromPricing = pricingConfig.modules.filter((module: any) =>
+        customModuleNames.includes(module.module_name) &&
+        assignedCustomModuleNames.includes(module.module_name)
+      );
+
+      console.log("Custom modules from pricing (filtered):", customModulesFromPricing);
+
+      // Enhance custom modules with display names from companyCustomModuleConfig if available
+      const enhancedCustomModules = customModulesFromPricing.map((module: any) => {
+        const customModuleConfig = assignedCustomModules.find(
+          (cm: any) => cm.module_name === module.module_name
+        );
+        
+        const enhanced = {
+          ...module,
+          // Use custom display name if available, otherwise use pricing config display
+          display_value: customModuleConfig?.module_display || module.display_value,
+          is_active: customModuleConfig?.is_active !== false, // Default to true if not specified
+        };
+
+        console.log(`Enhanced module ${module.module_name}:`, enhanced);
+        return enhanced;
+      });
+
+      console.log("All enhanced custom modules:", enhancedCustomModules);
+
+      // If custom modules are available, show only custom modules
+      // Otherwise, show superadmin and integration modules
+      const hasCustomModules = enhancedCustomModules.length > 0;
+
+      console.log("Has custom modules:", hasCustomModules);
 
       const categorizedModules = {
-        superadmin: pricingConfig.modules.filter((module: any) =>
+        superadmin: hasCustomModules ? [] : pricingConfig.modules.filter((module: any) =>
           superadminModuleNames.includes(module.module_name)
         ),
-        integration: pricingConfig.modules.filter((module: any) =>
+        integration: hasCustomModules ? [] : pricingConfig.modules.filter((module: any) =>
           integrationModuleNames.includes(module.module_name)
         ),
+        custom: enhancedCustomModules,
       };
 
+      console.log("Final categorized modules:", categorizedModules);
+
       setModuleCategories(categorizedModules);
+
+      // Auto-switch to custom tab if custom modules are available
+      if (hasCustomModules) {
+        setActiveTab("custom");
+      }
     }
-  }, [pricingConfig, dropdownData]);
+  }, [pricingConfig, dropdownData, companyCustomModuleConfig]);
 
   // Pre-populate data for renewal/upgrade
   useEffect(() => {
@@ -410,14 +488,22 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                         Select Modules
                       </Label>
                       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                        <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
-                          <TabsTrigger value="superadmin" className="flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
-                            Super Admin ({moduleCategories.superadmin.length})
-                          </TabsTrigger>
-                          <TabsTrigger value="integration" className="flex items-center gap-2">
-                            <Cpu className="h-4 w-4" />
-                            Integration ({moduleCategories.integration.length})
+                        <TabsList className={`grid w-full ${moduleCategories.custom.length > 0 ? 'grid-cols-1' : 'grid-cols-3'} flex-shrink-0`}>
+                          {moduleCategories.custom.length === 0 && (
+                            <>
+                              <TabsTrigger value="superadmin" className="flex items-center gap-2">
+                                <Settings className="h-4 w-4" />
+                                Super Admin ({moduleCategories.superadmin.length})
+                              </TabsTrigger>
+                              <TabsTrigger value="integration" className="flex items-center gap-2">
+                                <Cpu className="h-4 w-4" />
+                                Integration ({moduleCategories.integration.length})
+                              </TabsTrigger>
+                            </>
+                          )}
+                          <TabsTrigger value="custom" className="flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            {moduleCategories.custom.length > 0 ? 'Available Modules' : 'Custom'} ({moduleCategories.custom.length})
                           </TabsTrigger>
                         </TabsList>
                         
@@ -572,6 +658,85 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                             </div>
                           )}
                         </TabsContent>
+
+                        <TabsContent value="custom" className="flex-1 overflow-y-auto pr-2 space-y-3 mt-4">
+                          {moduleCategories.custom.length > 0 ? (
+                            moduleCategories.custom.map((module) => {
+                              const isSelected =
+                                subscriptionData.selected_modules.includes(
+                                  module.module_name
+                                );
+                              const isCurrentlyActive =
+                                currentSubscription?.module_access?.includes(
+                                  module.module_name
+                                );
+                              const isFreeModule = module.cost_per_module === 0;
+                              // For custom modules, don't auto-disable free modules
+                              const hasCustomModules = companyCustomModules.length > 0;
+                              const isDisabled = hasCustomModules 
+                                ? false 
+                                : ((mode === "upgrade" && isCurrentlyActive) || isFreeModule);
+
+                              return (
+                                <div
+                                  key={module.module_name}
+                                  className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                                    isDisabled
+                                      ? "bg-muted/50 opacity-60"
+                                      : "hover:bg-muted/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <Label className="font-medium text-sm truncate block">
+                                        {module.display_value}
+                                      </Label>
+                                      <div className="flex gap-1 mt-1 flex-wrap">
+                                        {isCurrentlyActive && !hasCustomModules && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            Current
+                                          </Badge>
+                                        )}
+                                        {isFreeModule && !hasCustomModules && (
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs bg-green-500 hover:bg-green-600"
+                                          >
+                                            FREE
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2 flex-shrink-0">
+                                    <Badge variant="outline" className="text-xs">
+                                      ${module.cost_per_module}/day
+                                    </Badge>
+                                    <Switch
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) =>
+                                        handleModuleToggle(
+                                          module.module_name,
+                                          checked
+                                        )
+                                      }
+                                      disabled={isDisabled}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No Custom modules available</p>
+                            </div>
+                          )}
+                        </TabsContent>
                       </Tabs>
                     </div>
                   </CardContent>
@@ -708,7 +873,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           mode={mode}
           onSuccess={handleCheckoutSuccess}
           currentSubscription={currentSubscription}
-          userProfile={userProfile}
         />
       )}
     </>

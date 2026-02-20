@@ -28,13 +28,18 @@ const customModuleConfigValidation = [
 
 // Apply auth middleware to all routes
 router.use(protect);
+
+
+//global routes
+router.get('/company/:companyId', customModuleController.getCustomModuleConfigByCompany);
+
+
 router.use(authorize('master_admin'));
 
 // Routes
 router.get('/', customModuleController.getCustomModuleConfigs);
 router.get('/companies-without-config', customModuleController.getCompaniesWithoutConfig);
 router.get('/:id', customModuleController.getCustomModuleConfig);
-router.get('/company/:companyId', customModuleController.getCustomModuleConfigByCompany);
 router.post('/', customModuleConfigValidation, customModuleController.createOrUpdateCustomModuleConfig);
 router.put('/:id', customModuleConfigValidation, customModuleController.createOrUpdateCustomModuleConfig);
 router.delete('/:id', customModuleController.deleteCustomModuleConfig);

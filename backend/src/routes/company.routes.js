@@ -64,6 +64,10 @@ const {
   retrieveController
 } = require('../controllers/vehicleMetadata.controller');
 
+const {
+  getCustomModuleConfigByCompany
+} = require('../controllers/customModule.controller');
+
 // Import all report controllers
 const vehicleReports = require('../controllers/reports/vehicle.report.controller');
 const workshopQuoteReports = require('../controllers/reports/workshopQuote.report.controller');
@@ -151,6 +155,9 @@ router.post('/company_dropdowns/dropdowns/dropdown_values', authorize('company_s
 
 router.use('/company/dropdowns', authorize('company_super_admin'), require('./master.dropdown.routes'));
 router.get('/company/meta-data', authorize('company_super_admin'), retrieveController.dropdown);
+
+// Custom modules route
+router.get('/custom-modules/company/:companyId', getCustomModuleConfigByCompany);
 
 // ============================================================================
 // ANALYTICS REPORT ROUTES (77 endpoints across 18 schemas)

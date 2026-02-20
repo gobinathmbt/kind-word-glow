@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 declare global {
@@ -20,7 +21,6 @@ interface PayPalPaymentProps {
   mode: string;
   onSuccess?: () => void;
   currentSubscription?: any;
-  userProfile?: any;
   onClose: () => void;
   onCloseSubscription?: () => void;
   paymentSettings?: any;
@@ -32,16 +32,16 @@ const PayPalPayment: React.FC<PayPalPaymentProps> = ({
   mode,
   onSuccess,
   currentSubscription,
-  userProfile,
   onClose,
   paymentSettings,
 }) => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const [billingInfo, setBillingInfo] = useState({
-    email: userProfile?.email || "",
-    name: userProfile?.name || "",
+    email: user?.email || "",
+    name: user?.username || "",
   });
 
   useEffect(() => {

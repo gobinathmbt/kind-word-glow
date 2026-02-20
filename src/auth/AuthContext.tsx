@@ -75,7 +75,7 @@ interface User {
   id: string;
   email: string;
   role: "master_admin" | "company_super_admin" | "company_admin";
-  company_id?: string;
+  company_id?: any;
   is_first_login?: boolean;
   username?: string;
   company_name?: string;

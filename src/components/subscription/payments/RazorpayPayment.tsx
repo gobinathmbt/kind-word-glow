@@ -12,6 +12,7 @@ import {
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 declare global {
@@ -41,7 +42,6 @@ interface RazorpayPaymentProps {
   mode: string;
   onSuccess?: () => void;
   currentSubscription?: any;
-  userProfile?: any;
   onClose: () => void;
   onCloseSubscription?: () => void;
   paymentSettings?: any;
@@ -53,17 +53,17 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
   mode,
   onSuccess,
   currentSubscription,
-  userProfile,
   onClose,
   onCloseSubscription,
   paymentSettings,
 }) => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [billingInfo, setBillingInfo] = useState({
-    email: userProfile?.email || "",
-    name: userProfile?.name || "",
-    phone: userProfile?.phone || "",
+    email: user?.email || "",
+    name: user?.username || "",
+    phone: user?.company_id?.phone || "",
   });
 
   // Auto-close when payment screen opens

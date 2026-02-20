@@ -17,6 +17,7 @@ import Login from "./pages/Login";
 import RegisterCompany from "./pages/RegisterCompany";
 import NoAccess from "./pages/NoAccess";
 import Unauthorized from "./pages/Unauthorized";
+import DynamicDashboard from "./pages/DynamicDashboard";
 
 // Master Admin Pages
 import MasterDashboard from "./pages/master_admin/Dashboard";
@@ -67,6 +68,10 @@ import SupplierDashboard from "./pages/supplier/SupplierDashboard";
 import QuotesByStatus from "./pages/supplier/QuotesByStatus";
 import SupplierProfile from "./pages/supplier/SupplierProfile";
 
+// Tender Pages
+import TenderModule from "./pages/tender/TenderModule";
+import TenderDashboard from "./pages/tender/TenderDashboard";
+
 // Service Bay Pages
 import ServiceBays from "./pages/company/ServiceBays";
 import BayCalendar from "./pages/company/BayCalendar";
@@ -106,7 +111,15 @@ const App = () => {
       <Route path="/register-company" element={<RegisterCompany />} />
       <Route path="/no-access" element={<NoAccess />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
-      
+
+      {/* Dynamic Dashboard Route - redirects to appropriate dashboard based on user's modules */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute allowedRoles={['master_admin', 'company_super_admin', 'company_admin']}>
+          <DynamicDashboard />
+        </ProtectedRoute>
+      } />
+
+
       {/* Master Admin Routes */}
       <Route path="/master/dashboard" element={
         <ProtectedRoute allowedRoles={['master_admin']}>
@@ -134,7 +147,7 @@ const App = () => {
           <GlobalLogs />
         </ProtectedRoute>
       } />
-  
+
       <Route path="/master/dropdowns" element={
         <ProtectedRoute allowedRoles={['master_admin']}>
           <MasterDropdownMaster />
@@ -165,15 +178,24 @@ const App = () => {
           <MasterSettings />
         </ProtectedRoute>
       } />
-      
-      {/* Company Routes */}
+
+      {/* Dynamic Dashboard Route - redirects to appropriate dashboard based on user's modules */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute allowedRoles={['master_admin', 'company_super_admin', 'company_admin']}>
+          <DynamicDashboard />
+        </ProtectedRoute>
+      } />
+
+      {/* Company Dashboard Route */}
       <Route path="/company/dashboard" element={
-        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="vehicle_dashboard">
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="vehicle_main_dashboard">
           <UnifiedDashboard />
         </ProtectedRoute>
       } />
+
+      {/* Company Routes */}
       <Route path="/company/dealerships" element={
-        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="multi_dealsership">
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="multi_dealership">
           <Dealerships />
         </ProtectedRoute>
       } />
@@ -212,7 +234,7 @@ const App = () => {
           <TradeinConfig />
         </ProtectedRoute>
       } />
-      
+
       {/* Vehicle Routes with Module Requirements */}
       <Route path="/vehicles/inspection" element={
         <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="vehicle_inspection">
@@ -231,7 +253,7 @@ const App = () => {
           <MasterVehicleList />
         </ProtectedRoute>
       } />
-      
+
       {/* Ad Publishing Routes */}
       <Route path="/vehicles/adpublishing" element={
         <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="ad_publishing">
@@ -268,7 +290,7 @@ const App = () => {
         </ProtectedRoute>
       } />
       <Route path="/company/notifications" element={
-        <ProtectedRoute allowedRoles={['company_super_admin']}  requiredModule="company_notifications">
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="company_notifications">
           <NotificationConfiguration />
         </ProtectedRoute>
       } />
@@ -288,6 +310,25 @@ const App = () => {
         </ProtectedRoute>
       } />
 
+      {/* Tender Routes */}
+      <Route path="/tender/dashboard" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="tender_main_dashboard">
+          <TenderDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/tender/module" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="tender_module">
+          <TenderModule />
+        </ProtectedRoute>
+      } />
+      <Route path="/tender/settings" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="tender_company_settings">
+          <CompanySettings />
+        </ProtectedRoute>
+      } />
+
+
+
       <Route path="/supplier/dashboard" element={
         <SupplierLayout title="Dashboard">
           <SupplierDashboard />
@@ -304,10 +345,10 @@ const App = () => {
           <SupplierProfile />
         </SupplierLayout>
       } />
-      
+
       {/* Master Inspection Routes */}
-      <Route 
-        path="/vehicle/master/:company_id/:vehicle_stock_id/:vehicle_type/:mode" 
+      <Route
+        path="/vehicle/master/:company_id/:vehicle_stock_id/:vehicle_type/:mode"
         element={
           <Dialog open={true} onOpenChange={() => window.history.back()}>
             <DialogContent className="max-w-[80vw] max-h-[80vh] w-[80vw] h-[80vh] p-0 overflow-hidden">
@@ -316,15 +357,15 @@ const App = () => {
               </div>
             </DialogContent>
           </Dialog>
-        } 
-      />            
+        }
+      />
       {/* Documentation */}
       <Route path="/docs" element={
         <ProtectedRoute allowedRoles={['master_admin', 'company_super_admin', 'company_admin']}>
           <Documentation />
         </ProtectedRoute>
       } />
-      
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -338,7 +379,7 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               {isMobile ? (
-                <PullToRefresh onRefresh={handleRefresh}>          
+                <PullToRefresh onRefresh={handleRefresh}>
                   {routesContent}
                 </PullToRefresh>
               ) : (

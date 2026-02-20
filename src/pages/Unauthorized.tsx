@@ -14,7 +14,7 @@ const Unauthorized = () => {
         return '/master/dashboard';
       case 'company_super_admin':
       case 'company_admin':
-        return '/company/dashboard';
+        return '/dashboard';
       default:
         return '/';
     }

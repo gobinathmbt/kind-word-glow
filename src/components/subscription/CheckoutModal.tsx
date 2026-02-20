@@ -42,7 +42,6 @@ interface CheckoutModalProps {
   mode: "new" | "upgrade" | "renewal";
   onSuccess?: () => void;
   currentSubscription?: any;
-  userProfile?: any;
 }
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -54,7 +53,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   mode,
   onSuccess,
   currentSubscription,
-  userProfile,
 }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"stripe" | "paypal" | "razorpay">("stripe");
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
@@ -145,7 +143,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
       mode,
       onSuccess,
       currentSubscription,
-      userProfile,
       onClose,
       onCloseSubscription,
       paymentSettings,

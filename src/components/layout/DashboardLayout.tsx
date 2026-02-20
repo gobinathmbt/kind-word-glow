@@ -39,6 +39,7 @@ import {
   Plug,
   HardHat,
   CalendarCheck,
+  TreePalm,
 } from "lucide-react";
 import { authServices, subscriptionServices } from "@/api/services";
 import { Badge } from "../ui/badge";
@@ -165,7 +166,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       // We prevent this by not scrolling at all
       // The scrollRestoration = 'manual' should handle most cases,
       // but we add an extra safeguard for the main content area
-      
+
       prevPathnameRef.current = location.pathname;
     }
   }, [location.pathname]);
@@ -270,13 +271,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           icon: Home,
           label: "Dashboard",
           path: "/company/dashboard",
-          module: "vehicle_dashboard",
+          module: "vehicle_main_dashboard",
+        },
+        {
+          icon: Home,
+          label: "Dashboard",
+          path: "/tender/dashboard",
+          module: "tender_main_dashboard",
         },
         {
           icon: Building,
           label: "Multi Dealership",
           path: "/company/dealerships",
-          module: "multi_dealsership",
+          module: "multi_dealership",
         },
         {
           icon: Users,
@@ -402,6 +409,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           path: "/company/settings",
           module: "company_settings",
         },
+        {
+          icon: TreePalm,
+          label: "Tender",
+          path: "/tender/module",
+          module: "tender_module",
+        },
+        {
+          icon: UserCog,
+          label: "Settings",
+          path: "/tender/settings",
+          module: "tender_company_settings",
+        },
       ];
     }
 
@@ -410,7 +429,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         icon: BarChart3,
         label: "Dashboard",
         path: "/company/dashboard",
-        module: "vehicle_dashboard",
+        module: "vehicle_main_dashboard",
       },
       {
         icon: Search,
@@ -540,7 +559,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     // If module changed, fetch permissions for that module
     if (detectedModule && detectedModule !== currentModule) {
       setCurrentModule(detectedModule);
-      
+
       authServices
         .getCurrentUserPermissions(detectedModule)
         .then((response) => {
@@ -638,11 +657,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 >
                   <PopoverTrigger asChild>
                     <button
-                      className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 cursor-pointer w-full ${
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      }`}
+                      className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 cursor-pointer w-full ${isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        }`}
                       onClick={(e) => handleMenuClick(menuKey, e)}
                       type="button"
                     >
@@ -667,11 +685,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                           <Link
                             key={childIndex}
                             to={child.path || "#"}
-                            className={`flex items-center p-2 rounded-md transition-colors text-sm ${
-                              isChildActive
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                            }`}
+                            className={`flex items-center p-2 rounded-md transition-colors text-sm ${isChildActive
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              }`}
                             onClick={() => {
                               setIsMobileMenuOpen(false);
                               setClickedMenu(null);
@@ -699,11 +716,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <TooltipTrigger asChild>
             <Link
               to={item.path || "#"}
-              className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+              className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 ${isActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 setClickedMenu(null);
@@ -738,11 +754,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onOpenChange={() => toggleMenuExpansion(menuKey)}
         >
           <CollapsibleTrigger
-            className={`w-full flex items-center rounded-lg transition-all duration-200 p-3 space-x-3 justify-between ${
-              isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            }`}
+            className={`w-full flex items-center rounded-lg transition-all duration-200 p-3 space-x-3 justify-between ${isActive
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
           >
             <div className="flex items-center space-x-3">
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -767,11 +782,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   <Link
                     key={childIndex}
                     to={child.path || "#"}
-                    className={`flex items-center p-2 rounded-lg transition-colors text-sm ${
-                      isChildActive
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    }`}
+                    className={`flex items-center p-2 rounded-lg transition-colors text-sm ${isChildActive
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <ChildIcon className="h-4 w-4 mr-3" />
@@ -788,11 +802,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <Link
           key={index}
           to={item.path || "#"}
-          className={`flex items-center rounded-lg transition-all duration-200 p-3 space-x-3 ${
-            isActive
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          }`}
+          className={`flex items-center rounded-lg transition-all duration-200 p-3 space-x-3 ${isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            }`}
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
@@ -804,15 +817,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const Sidebar = ({ className = "" }) => (
     <div
-      className={`flex flex-col h-full bg-card border-r transition-all duration-300 ease-in-out ${className} ${
-        isSidebarCollapsed ? "w-16" : "w-64"
-      }`}
+      className={`flex flex-col h-full bg-card border-r transition-all duration-300 ease-in-out ${className} ${isSidebarCollapsed ? "w-16" : "w-64"
+        }`}
     >
       <div className="p-4 flex items-center justify-between">
         <div
-          className={`flex items-center transition-all duration-300 ${
-            isSidebarCollapsed ? "justify-center w-full" : "space-x-2"
-          }`}
+          className={`flex items-center transition-all duration-300 ${isSidebarCollapsed ? "justify-center w-full" : "space-x-2"
+            }`}
         >
           {!isSidebarCollapsed && (
             <>
@@ -844,9 +855,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </TooltipProvider>
         ) : (
           <div
-            className={`text-center p-4 text-muted-foreground transition-all duration-300 ${
-              isSidebarCollapsed ? "px-2" : ""
-            }`}
+            className={`text-center p-4 text-muted-foreground transition-all duration-300 ${isSidebarCollapsed ? "px-2" : ""
+              }`}
           >
             <Lock className="h-6 w-6 mx-auto mb-2" />
             {!isSidebarCollapsed && (
@@ -858,9 +868,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       <div className="p-3 border-t">
         <div
-          className={`flex items-center transition-all duration-300 ${
-            isSidebarCollapsed ? "justify-center" : "space-x-3 mb-3"
-          }`}
+          className={`flex items-center transition-all duration-300 ${isSidebarCollapsed ? "justify-center" : "space-x-3 mb-3"
+            }`}
         >
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <User className="h-4 w-4 text-primary" />
@@ -879,9 +888,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <Button
               onClick={logout}
               variant="ghost"
-              className={`w-full transition-all duration-300 ${
-                isSidebarCollapsed ? "p-2 justify-center" : "justify-start"
-              }`}
+              className={`w-full transition-all duration-300 ${isSidebarCollapsed ? "p-2 justify-center" : "justify-start"
+                }`}
             >
               <LogOut className="h-4 w-4" />
               {!isSidebarCollapsed && <span className="ml-2">Logout</span>}

@@ -124,17 +124,8 @@ const Login = () => {
     if (from) {
       navigate(from);
     } else {
-      switch (userData.role) {
-        case "master_admin":
-          navigate("/master/dashboard");
-          break;
-        case "company_super_admin":
-        case "company_admin":
-          navigate("/company/dashboard");
-          break;
-        default:
-          navigate("/");
-      }
+      // Always redirect to /dashboard which will dynamically route to the correct dashboard
+      navigate("/dashboard");
     }
   };
 
@@ -142,12 +133,7 @@ const Login = () => {
     setShowSubscriptionModal(false);
     try {
       await login(email, password);
-      const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-      let dashboardRoute = "/company/dashboard";
-      if (userData.role === "master_admin") {
-        dashboardRoute = "/master/dashboard";
-      }
-      sessionStorage.setItem("redirect_after_refresh", dashboardRoute);
+      sessionStorage.setItem("redirect_after_refresh", "/dashboard");
       window.location.reload();
     } catch (error) {
       console.error("Post-payment login error =>", error);

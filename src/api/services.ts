@@ -413,6 +413,10 @@ export const customModuleServices = {
   getCustomModuleConfigByCompany: (companyId: string) =>
     apiClient.get(`/api/master/custom-modules/company/${companyId}`),
 
+  // Company route version (no master_admin required)
+  getCustomModuleConfigByCompanyFromCompanyRoute: (companyId: string) =>
+    apiClient.get(`/api/company/custom-modules/company/${companyId}`),
+
   createCustomModuleConfig: (data: any) =>
     apiClient.post("/api/master/custom-modules", data),
 

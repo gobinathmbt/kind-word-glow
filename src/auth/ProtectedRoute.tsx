@@ -53,8 +53,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Check module access for company_admin users
-  if (requiredModule && user.role === 'company_admin' || user.role === 'company_super_admin') {
+  // Check module access for company users only when requiredModule is specified
+  if (requiredModule && (user.role === 'company_admin' || user.role === 'company_super_admin')) {
     // If user has no module access at all
     if (!userModule?.data?.module || !Array.isArray(userModule.data.module) || userModule.data.module.length === 0) {
       return <Navigate to="/no-access" replace />;

@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, CreditCard, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { subscriptionServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Stripe promise will be initialized dynamically with database key
@@ -24,7 +25,6 @@ interface StripePaymentProps {
   mode: string;
   onSuccess?: () => void;
   currentSubscription?: any;
-  userProfile?: any;
   onClose: () => void;
   onCloseSubscription?: () => void;
   paymentSettings?: any;
@@ -37,17 +37,17 @@ const StripePaymentForm: React.FC<StripePaymentProps> = ({
   mode,
   onSuccess,
   currentSubscription,
-  userProfile,
   onClose,
 }) => {
+  const { user } = useAuth();
   const stripe = useStripe();
   const elements = useElements();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [billingDetails, setBillingDetails] = useState({
-    name: userProfile?.name || "",
-    email: userProfile?.email || "",
+    name: user?.username || "",
+    email: user?.email || "",
     address: {
       line1: "",
       line2: "",
