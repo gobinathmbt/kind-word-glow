@@ -18,6 +18,18 @@ router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
 router.use(tenantContext);
 
+// Log all notification API calls
+router.use((req, res, next) => {
+  console.log('🔔 NOTIFICATION API CALLED:', {
+    method: req.method,
+    path: req.path,
+    fullUrl: req.originalUrl,
+    user: req.user?.id,
+    query: req.query
+  });
+  next();
+});
+
 // Notification operations
 router.get('/', getNotifications);
 router.get('/stats', getNotificationStats);

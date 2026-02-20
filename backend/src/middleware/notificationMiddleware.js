@@ -30,9 +30,13 @@ const notificationMiddleware = async (req, res, next) => {
     originalJson.call(this, data);
     if (res.statusCode >= 200 && res.statusCode < 300 && data.success) {
       setImmediate(() => {
-        processNotificationTriggers(req, res, data).catch(error => {
-          console.error('Error processing notification triggers:', error);
-        });
+        // Check if req.getModel is available before processing
+        if (req.getModel) {
+          processNotificationTriggers(req, res, data).catch(error => {
+            console.error('Error processing notification triggers:', error);
+          });
+        }
+        // Silently skip if getModel not available (route doesn't need notifications)
       });
     }
   };
@@ -43,12 +47,7 @@ const notificationMiddleware = async (req, res, next) => {
 // Process notification triggers based on request
 const processNotificationTriggers = async (req, res, responseData) => {
   try {
-    // Check if req.getModel is available
-    if (!req.getModel) {
-      console.warn('req.getModel not available in notificationMiddleware - skipping notification processing');
-      return;
-    }
-
+    // req.getModel should be available at this point since we check before calling
     const method = req.method.toLowerCase();
     const path = req.baseUrl;
     
@@ -78,13 +77,47 @@ const processNotificationTriggers = async (req, res, responseData) => {
       return;
     }
 
-    // Get active notification configurations for this trigger
-    const configurations = await NotificationConfiguration.find({
-      company_id: req.user.company_id,
-      trigger_type: triggerType,
-      target_schema: targetSchema,
-      is_active: true
-    }).populate('target_users.user_ids', 'first_name last_name email');
+    // Get active notification configurations for this trigger using aggregation
+    const configurations = await NotificationConfiguration.aggregate([
+      {
+        $match: {
+          company_id: req.user.company_id,
+          trigger_type: triggerType,
+          target_schema: targetSchema,
+          is_active: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'target_users.user_ids',
+          foreignField: '_id',
+          as: 'target_users_info'
+        }
+      },
+      {
+        $addFields: {
+          'target_users.user_ids': {
+            $map: {
+              input: '$target_users_info',
+              as: 'user',
+              in: {
+                _id: '$$user._id',
+                first_name: '$$user.first_name',
+                last_name: '$$user.last_name',
+                email: '$$user.email'
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          target_users_info: 0
+        }
+      }
+    ]);
+    
     if (configurations.length === 0) {
       return;
     }
@@ -304,12 +337,6 @@ const getTargetUsers = async (config, companyId) => {
 // Create notification for a specific user
 const createNotificationForUser = async (config, user, req, responseData) => {
   try {
-    // Check if req.getModel is available
-    if (!req.getModel) {
-      console.error('req.getModel not available - cannot create notification');
-      return;
-    }
-
     // Get Notification model from company DB
     const Notification = req.getModel('Notification');
     if (!Notification) {
@@ -337,38 +364,43 @@ const createNotificationForUser = async (config, user, req, responseData) => {
     const message = replaceMessageVariables(config.message_template.body, responseData.data, user, req);
     
     // Create notification
-    const notification = await Notification.create({
-      company_id: req.user.company_id,
-      configuration_id: config._id,
-      recipient_id: user._id,
-      title,
-      message,
-      type: config.type,
-      priority: config.priority,
-      category: 'system',
-      source_entity: {
-        entity_type: config.target_schema,
-        entity_id: entityId,
-        entity_data: responseData.data
-      },
-      action_url: config.message_template.action_url,
-      status: 'sent',
-      channels: {
-        in_app: {
-          sent: true,
-          sent_at: new Date()
+    try {
+      const notification = await Notification.create({
+        company_id: req.user.company_id,
+        configuration_id: config._id,
+        recipient_id: user._id,
+        title,
+        message,
+        type: config.type,
+        priority: config.priority,
+        category: 'system',
+        source_entity: {
+          entity_type: config.target_schema,
+          entity_id: entityId,
+          entity_data: responseData.data
+        },
+        action_url: config.message_template.action_url,
+        status: 'sent',
+        channels: {
+          in_app: {
+            sent: true,
+            sent_at: new Date()
+          }
+        },
+        metadata: {
+          trigger_type: config.trigger_type,
+          trigger_timestamp: new Date(),
+          user_agent: req.get('User-Agent'),
+          ip_address: req.ip
         }
-      },
-      metadata: {
-        trigger_type: config.trigger_type,
-        trigger_timestamp: new Date(),
-        user_agent: req.get('User-Agent'),
-        ip_address: req.ip
-      }
-    });
-    
-    // Send real-time notification via socket
-    await sendRealTimeNotification(notification, user._id, req);
+      });
+      
+      // Send real-time notification via socket
+      await sendRealTimeNotification(notification, user._id, req);
+    } catch (createError) {
+      console.error('❌ Error creating notification:', createError);
+      throw createError;
+    }
 
     
   } catch (error) {
@@ -444,12 +476,6 @@ const replaceMessageVariables = (template, data, user, req) => {
 // Send real-time notification via socket
 const sendRealTimeNotification = async (notification, userId, req) => {
   try {
-    // Check if req.getModel is available
-    if (!req.getModel) {
-      console.warn('req.getModel not available - skipping unread count');
-      return;
-    }
-
     // Get Notification model from company DB
     const Notification = req.getModel('Notification');
     if (!Notification) {

@@ -40,15 +40,64 @@ const getIntegrations = async (req, res) => {
       ];
     }
 
-    // Fetch integrations with pagination
+    // Fetch integrations with pagination using aggregation
     const [integrations, total] = await Promise.all([
-      Integration.find(filter)
-        .populate("created_by", "first_name last_name email")
-        .populate("updated_by", "first_name last_name email")
-        .sort({ created_at: -1 })
-        .skip(skip)
-        .limit(numericLimit)
-        .lean(),
+      Integration.aggregate([
+        { $match: filter },
+        { $sort: { created_at: -1 } },
+        { $skip: skip },
+        { $limit: numericLimit },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'created_by',
+            foreignField: '_id',
+            as: 'created_by_info'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'updated_by',
+            foreignField: '_id',
+            as: 'updated_by_info'
+          }
+        },
+        {
+          $addFields: {
+            created_by: {
+              $cond: {
+                if: { $gt: [{ $size: '$created_by_info' }, 0] },
+                then: {
+                  _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                  first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                  last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                  email: { $arrayElemAt: ['$created_by_info.email', 0] }
+                },
+                else: null
+              }
+            },
+            updated_by: {
+              $cond: {
+                if: { $gt: [{ $size: '$updated_by_info' }, 0] },
+                then: {
+                  _id: { $arrayElemAt: ['$updated_by_info._id', 0] },
+                  first_name: { $arrayElemAt: ['$updated_by_info.first_name', 0] },
+                  last_name: { $arrayElemAt: ['$updated_by_info.last_name', 0] },
+                  email: { $arrayElemAt: ['$updated_by_info.email', 0] }
+                },
+                else: null
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            created_by_info: 0,
+            updated_by_info: 0
+          }
+        }
+      ]),
       Integration.countDocuments(filter),
     ]);
 
@@ -80,13 +129,67 @@ const getIntegration = async (req, res) => {
     const Integration = req.getModel("Integration");
     const { id } = req.params;
 
-    const integration = await Integration.findOne({
-      _id: id,
-      company_id: req.user.company_id,
-    })
-      .populate("created_by", "first_name last_name email")
-      .populate("updated_by", "first_name last_name email")
-      .lean();
+    const integrations = await Integration.aggregate([
+      {
+        $match: {
+          _id: id,
+          company_id: req.user.company_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'created_by',
+          foreignField: '_id',
+          as: 'created_by_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'updated_by',
+          foreignField: '_id',
+          as: 'updated_by_info'
+        }
+      },
+      {
+        $addFields: {
+          created_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$created_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$created_by_info.email', 0] }
+              },
+              else: null
+            }
+          },
+          updated_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$updated_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$updated_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$updated_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$updated_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$updated_by_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          created_by_info: 0,
+          updated_by_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
+
+    const integration = integrations[0] || null;
 
     if (!integration) {
       return res.status(404).json({

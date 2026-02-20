@@ -222,14 +222,65 @@ const getWorkflows = async (req, res) => {
       ];
     }
 
-    const workflows = await Workflow.find(query)
-      .populate("created_by", "first_name last_name email")
-      .populate("last_modified_by", "first_name last_name email")
-      .sort({ updated_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const totalWorkflows = await Workflow.countDocuments(query);
+    const [workflows, totalWorkflows] = await Promise.all([
+      Workflow.aggregate([
+        { $match: query },
+        { $sort: { updated_at: -1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: limit * 1 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'created_by',
+            foreignField: '_id',
+            as: 'created_by_info'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'last_modified_by',
+            foreignField: '_id',
+            as: 'last_modified_by_info'
+          }
+        },
+        {
+          $addFields: {
+            created_by: {
+              $cond: {
+                if: { $gt: [{ $size: '$created_by_info' }, 0] },
+                then: {
+                  _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                  first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                  last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                  email: { $arrayElemAt: ['$created_by_info.email', 0] }
+                },
+                else: null
+              }
+            },
+            last_modified_by: {
+              $cond: {
+                if: { $gt: [{ $size: '$last_modified_by_info' }, 0] },
+                then: {
+                  _id: { $arrayElemAt: ['$last_modified_by_info._id', 0] },
+                  first_name: { $arrayElemAt: ['$last_modified_by_info.first_name', 0] },
+                  last_name: { $arrayElemAt: ['$last_modified_by_info.last_name', 0] },
+                  email: { $arrayElemAt: ['$last_modified_by_info.email', 0] }
+                },
+                else: null
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            created_by_info: 0,
+            last_modified_by_info: 0
+          }
+        }
+      ]),
+      Workflow.countDocuments(query)
+    ]);
 
     res.json({
       success: true,
@@ -260,12 +311,67 @@ const getWorkflow = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user.company_id;
 
-    const workflow = await Workflow.findOne({
-      _id: id,
-      company_id: companyId,
-    })
-      .populate("created_by", "first_name last_name email")
-      .populate("last_modified_by", "first_name last_name email");
+    const workflows = await Workflow.aggregate([
+      {
+        $match: {
+          _id: id,
+          company_id: companyId
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'created_by',
+          foreignField: '_id',
+          as: 'created_by_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'last_modified_by',
+          foreignField: '_id',
+          as: 'last_modified_by_info'
+        }
+      },
+      {
+        $addFields: {
+          created_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$created_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$created_by_info.email', 0] }
+              },
+              else: null
+            }
+          },
+          last_modified_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$last_modified_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$last_modified_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$last_modified_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$last_modified_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$last_modified_by_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          created_by_info: 0,
+          last_modified_by_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
+
+    const workflow = workflows[0] || null;
 
     if (!workflow) {
       return res.status(404).json({
@@ -313,12 +419,45 @@ const createWorkflow = async (req, res) => {
     const workflow = new Workflow(workflowData);
     await workflow.save();
 
-    await workflow.populate("created_by", "first_name last_name email");
+    // Manually fetch created_by user data
+    const workflows = await Workflow.aggregate([
+      { $match: { _id: workflow._id } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'created_by',
+          foreignField: '_id',
+          as: 'created_by_info'
+        }
+      },
+      {
+        $addFields: {
+          created_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$created_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$created_by_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          created_by_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
 
     res.status(201).json({
       success: true,
       message: "Workflow created successfully",
-      data: workflow,
+      data: workflows[0] || workflow.toObject(),
     });
   } catch (error) {
     console.error("Create workflow error:", error);
@@ -361,13 +500,67 @@ const updateWorkflow = async (req, res) => {
     workflow.updated_at = new Date();
 
     await workflow.save();
-    await workflow.populate("created_by", "first_name last_name email");
-    await workflow.populate("last_modified_by", "first_name last_name email");
+    
+    // Manually fetch user data
+    const workflows = await Workflow.aggregate([
+      { $match: { _id: workflow._id } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'created_by',
+          foreignField: '_id',
+          as: 'created_by_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'last_modified_by',
+          foreignField: '_id',
+          as: 'last_modified_by_info'
+        }
+      },
+      {
+        $addFields: {
+          created_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$created_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$created_by_info.email', 0] }
+              },
+              else: null
+            }
+          },
+          last_modified_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$last_modified_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$last_modified_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$last_modified_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$last_modified_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$last_modified_by_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          created_by_info: 0,
+          last_modified_by_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
 
     res.json({
       success: true,
       message: "Workflow updated successfully",
-      data: workflow,
+      data: workflows[0] || workflow.toObject(),
     });
   } catch (error) {
     console.error("Update workflow error:", error);

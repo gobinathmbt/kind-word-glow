@@ -1,4 +1,4 @@
-// notification.handler.js - Notification namespace socket handlers
+  // notification.handler.js - Notification namespace socket handlers
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
@@ -107,33 +107,71 @@ const initializeNotificationHandlers = (notificationIO) => {
     // Handle get notifications request
     socket.on("get_notifications", async (data) => {
       try {
-        const { page = 1, limit = 20, is_read = 'all', type = 'all' } = data;
+        console.log('🔔 Socket: get_notifications event received', {
+          userId: socket.user._id,
+          userIdType: typeof socket.user._id,
+          data
+        });
+        
+        const { page = 1, limit = 20, is_read = 'all', type = 'all', priority = 'all' } = data;
         const userId = socket.user._id;
         const companyId = socket.user.company_id;
 
+        // Convert string IDs to ObjectId for MongoDB query
+        const mongoose = require('mongoose');
+        const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+        const companyObjectId = mongoose.Types.ObjectId.isValid(companyId) ? new mongoose.Types.ObjectId(companyId) : companyId;
+
         // Build query
         const query = { 
-          recipient_id: userId,
-          company_id: companyId
+          recipient_id: userObjectId,
+          company_id: companyObjectId
         };
 
         if (is_read !== 'all') {
-          query.is_read = is_read === 'true';
+          query.is_read = is_read === 'true' || is_read === true;
         }
 
         if (type !== 'all') {
           query.type = type;
         }
 
-        // Execute query with pagination
-        const notifications = await Notification.find(query)
-          .populate('configuration_id', 'name description')
+        if (priority !== 'all') {
+          query.priority = priority;
+        }
+
+        console.log('🔍 Socket: Query:', JSON.stringify(query), {
+          userObjectId: userObjectId.toString(),
+          companyObjectId: companyObjectId.toString()
+        });
+
+        // Get company connection and Notification model
+        const dbConnectionManager = require('../config/dbConnectionManager');
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId);
+        const ModelRegistry = require('../models/modelRegistry');
+        const CompanyNotification = ModelRegistry.getModel('Notification', companyConnection);
+
+        console.log('📊 Using Notification model from database:', CompanyNotification.db.name);
+
+        // Execute query with pagination using company database model
+        const notifications = await CompanyNotification.find(query)
           .sort({ created_at: -1 })
           .limit(limit * 1)
-          .skip((page - 1) * limit);
+          .skip((page - 1) * limit)
+          .lean();
 
-        const total = await Notification.countDocuments(query);
-        const unreadCount = await Notification.getUnreadCount(userId, companyId);
+        const total = await CompanyNotification.countDocuments(query);
+        const unreadCount = await CompanyNotification.getUnreadCount(userObjectId, companyObjectId);
+
+        console.log('✅ Socket: Found notifications:', {
+          count: notifications.length,
+          total,
+          unreadCount,
+          sampleNotification: notifications[0] ? {
+            _id: notifications[0]._id,
+            title: notifications[0].title
+          } : null
+        });
 
         socket.emit("notifications_data", {
           notifications,
@@ -147,7 +185,7 @@ const initializeNotificationHandlers = (notificationIO) => {
           }
         });
       } catch (error) {
-        console.error('Error fetching notifications via socket:', error);
+        console.error('❌ Socket: Error fetching notifications:', error);
         socket.emit("notification_error", { 
           message: "Failed to fetch notifications",
           error: error.message 
@@ -160,10 +198,22 @@ const initializeNotificationHandlers = (notificationIO) => {
       try {
         const { notification_id } = data;
         const userId = socket.user._id;
+        const companyId = socket.user.company_id;
 
-        const notification = await Notification.findOne({
-          _id: notification_id,
-          recipient_id: userId
+        // Get company connection and Notification model
+        const dbConnectionManager = require('../config/dbConnectionManager');
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId);
+        const ModelRegistry = require('../models/modelRegistry');
+        const CompanyNotification = ModelRegistry.getModel('Notification', companyConnection);
+
+        // Convert to ObjectId
+        const mongoose = require('mongoose');
+        const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+        const notificationObjectId = mongoose.Types.ObjectId.isValid(notification_id) ? new mongoose.Types.ObjectId(notification_id) : notification_id;
+
+        const notification = await CompanyNotification.findOne({
+          _id: notificationObjectId,
+          recipient_id: userObjectId
         });
 
         if (!notification) {
@@ -177,7 +227,8 @@ const initializeNotificationHandlers = (notificationIO) => {
           await notification.markAsRead();
           
           // Emit updated unread count
-          const unreadCount = await Notification.getUnreadCount(userId);
+          const companyObjectId = mongoose.Types.ObjectId.isValid(companyId) ? new mongoose.Types.ObjectId(companyId) : companyId;
+          const unreadCount = await CompanyNotification.getUnreadCount(userObjectId, companyObjectId);
           socket.emit("unread_count_update", { unread_count: unreadCount });
           
           socket.emit("notification_marked_read", {
@@ -186,7 +237,7 @@ const initializeNotificationHandlers = (notificationIO) => {
           });
         }
       } catch (error) {
-        console.error('Error marking notification as read via socket:', error);
+        console.error('❌ Socket: Error marking notification as read:', error);
         socket.emit("notification_error", { 
           message: "Failed to mark notification as read",
           error: error.message 
@@ -200,10 +251,21 @@ const initializeNotificationHandlers = (notificationIO) => {
         const userId = socket.user._id;
         const companyId = socket.user.company_id;
 
-        const result = await Notification.updateMany(
+        // Get company connection and Notification model
+        const dbConnectionManager = require('../config/dbConnectionManager');
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId);
+        const ModelRegistry = require('../models/modelRegistry');
+        const CompanyNotification = ModelRegistry.getModel('Notification', companyConnection);
+
+        // Convert to ObjectId
+        const mongoose = require('mongoose');
+        const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+        const companyObjectId = mongoose.Types.ObjectId.isValid(companyId) ? new mongoose.Types.ObjectId(companyId) : companyId;
+
+        const result = await CompanyNotification.updateMany(
           { 
-            recipient_id: userId,
-            company_id: companyId,
+            recipient_id: userObjectId,
+            company_id: companyObjectId,
             is_read: false 
           },
           { 
@@ -223,7 +285,7 @@ const initializeNotificationHandlers = (notificationIO) => {
 
         socket.emit("unread_count_update", { unread_count: 0 });
       } catch (error) {
-        console.error('Error marking all notifications as read via socket:', error);
+        console.error('❌ Socket: Error marking all notifications as read:', error);
         socket.emit("notification_error", { 
           message: "Failed to mark all notifications as read",
           error: error.message 
@@ -236,10 +298,23 @@ const initializeNotificationHandlers = (notificationIO) => {
       try {
         const { notification_id } = data;
         const userId = socket.user._id;
+        const companyId = socket.user.company_id;
 
-        const notification = await Notification.findOneAndDelete({
-          _id: notification_id,
-          recipient_id: userId
+        // Get company connection and Notification model
+        const dbConnectionManager = require('../config/dbConnectionManager');
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId);
+        const ModelRegistry = require('../models/modelRegistry');
+        const CompanyNotification = ModelRegistry.getModel('Notification', companyConnection);
+
+        // Convert to ObjectId
+        const mongoose = require('mongoose');
+        const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+        const notificationObjectId = mongoose.Types.ObjectId.isValid(notification_id) ? new mongoose.Types.ObjectId(notification_id) : notification_id;
+        const companyObjectId = mongoose.Types.ObjectId.isValid(companyId) ? new mongoose.Types.ObjectId(companyId) : companyId;
+
+        const notification = await CompanyNotification.findOneAndDelete({
+          _id: notificationObjectId,
+          recipient_id: userObjectId
         });
 
         if (!notification) {
@@ -249,7 +324,7 @@ const initializeNotificationHandlers = (notificationIO) => {
           return;
         }
 
-        const unreadCount = await Notification.getUnreadCount(userId);
+        const unreadCount = await CompanyNotification.getUnreadCount(userObjectId, companyObjectId);
         
         socket.emit("notification_deleted", {
           notification_id,
@@ -258,7 +333,7 @@ const initializeNotificationHandlers = (notificationIO) => {
 
         socket.emit("unread_count_update", { unread_count: unreadCount });
       } catch (error) {
-        console.error('Error deleting notification via socket:', error);
+        console.error('❌ Socket: Error deleting notification:', error);
         socket.emit("notification_error", { 
           message: "Failed to delete notification",
           error: error.message 
@@ -272,11 +347,22 @@ const initializeNotificationHandlers = (notificationIO) => {
         const userId = socket.user._id;
         const companyId = socket.user.company_id;
 
-        const unreadCount = await Notification.getUnreadCount(userId, companyId);
+        // Get company connection and Notification model
+        const dbConnectionManager = require('../config/dbConnectionManager');
+        const companyConnection = await dbConnectionManager.getCompanyConnection(companyId);
+        const ModelRegistry = require('../models/modelRegistry');
+        const CompanyNotification = ModelRegistry.getModel('Notification', companyConnection);
+
+        // Convert to ObjectId
+        const mongoose = require('mongoose');
+        const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+        const companyObjectId = mongoose.Types.ObjectId.isValid(companyId) ? new mongoose.Types.ObjectId(companyId) : companyId;
+
+        const unreadCount = await CompanyNotification.getUnreadCount(userObjectId, companyObjectId);
         
         socket.emit("unread_count_update", { unread_count: unreadCount });
       } catch (error) {
-        console.error('Error getting unread count via socket:', error);
+        console.error('❌ Socket: Error getting unread count:', error);
         socket.emit("notification_error", { 
           message: "Failed to get unread count",
           error: error.message 

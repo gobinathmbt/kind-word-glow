@@ -215,13 +215,65 @@ const getWorkshopVehicleDetails = async (req, res) => {
         .filter((category) => category.sections.length > 0);
     }
 
-    const quotes = await WorkshopQuote.find({
-      vehicle_stock_id: req.params.vehicleId,
-      vehicle_type: req.params.vehicleType,
-      company_id: req.user.company_id,
-    })
-      .populate("selected_suppliers", "name email supplier_shop_name")
-      .populate("approved_supplier", "name email supplier_shop_name");
+    const quotes = await WorkshopQuote.aggregate([
+      {
+        $match: {
+          vehicle_stock_id: parseInt(req.params.vehicleId),
+          vehicle_type: req.params.vehicleType,
+          company_id: req.user.company_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'selected_suppliers',
+          foreignField: '_id',
+          as: 'selected_suppliers_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'approved_supplier',
+          foreignField: '_id',
+          as: 'approved_supplier_info'
+        }
+      },
+      {
+        $addFields: {
+          selected_suppliers: {
+            $map: {
+              input: '$selected_suppliers_info',
+              as: 'supplier',
+              in: {
+                _id: '$$supplier._id',
+                name: '$$supplier.name',
+                email: '$$supplier.email',
+                supplier_shop_name: '$$supplier.supplier_shop_name'
+              }
+            }
+          },
+          approved_supplier: {
+            $cond: {
+              if: { $gt: [{ $size: '$approved_supplier_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$approved_supplier_info._id', 0] },
+                name: { $arrayElemAt: ['$approved_supplier_info.name', 0] },
+                email: { $arrayElemAt: ['$approved_supplier_info.email', 0] },
+                supplier_shop_name: { $arrayElemAt: ['$approved_supplier_info.supplier_shop_name', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          selected_suppliers_info: 0,
+          approved_supplier_info: 0
+        }
+      }
+    ]);
 
     res.status(200).json({
       success: true,
@@ -428,23 +480,125 @@ const getQuotesForField = async (req, res) => {
   try {
     const WorkshopQuote = req.getModel('WorkshopQuote');
     const { vehicle_type, vehicle_stock_id, field_id } = req.params;
-    const quote = await WorkshopQuote.findOne({
-      vehicle_type,
-      company_id: req.user.company_id,
-      vehicle_stock_id: parseInt(vehicle_stock_id),
-      field_id,
-    })
-      .populate("selected_suppliers", "name email supplier_shop_name")
-      .populate("approved_supplier", "name email supplier_shop_name")
-      .populate(
-        "supplier_responses.supplier_id",
-        "name email supplier_shop_name"
-      );
+    const quotes = await WorkshopQuote.aggregate([
+      {
+        $match: {
+          vehicle_type,
+          company_id: req.user.company_id,
+          vehicle_stock_id: parseInt(vehicle_stock_id),
+          field_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'selected_suppliers',
+          foreignField: '_id',
+          as: 'selected_suppliers_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'approved_supplier',
+          foreignField: '_id',
+          as: 'approved_supplier_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'supplier_responses.supplier_id',
+          foreignField: '_id',
+          as: 'supplier_responses_info'
+        }
+      },
+      {
+        $addFields: {
+          selected_suppliers: {
+            $map: {
+              input: '$selected_suppliers_info',
+              as: 'supplier',
+              in: {
+                _id: '$$supplier._id',
+                name: '$$supplier.name',
+                email: '$$supplier.email',
+                supplier_shop_name: '$$supplier.supplier_shop_name'
+              }
+            }
+          },
+          approved_supplier: {
+            $cond: {
+              if: { $gt: [{ $size: '$approved_supplier_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$approved_supplier_info._id', 0] },
+                name: { $arrayElemAt: ['$approved_supplier_info.name', 0] },
+                email: { $arrayElemAt: ['$approved_supplier_info.email', 0] },
+                supplier_shop_name: { $arrayElemAt: ['$approved_supplier_info.supplier_shop_name', 0] }
+              },
+              else: null
+            }
+          },
+          supplier_responses: {
+            $map: {
+              input: '$supplier_responses',
+              as: 'response',
+              in: {
+                $mergeObjects: [
+                  '$$response',
+                  {
+                    supplier_id: {
+                      $let: {
+                        vars: {
+                          matchedSupplier: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: '$supplier_responses_info',
+                                  as: 'sup',
+                                  cond: { $eq: ['$$sup._id', '$$response.supplier_id'] }
+                                }
+                              },
+                              0
+                            ]
+                          }
+                        },
+                        in: {
+                          $cond: {
+                            if: { $ne: ['$$matchedSupplier', null] },
+                            then: {
+                              _id: '$$matchedSupplier._id',
+                              name: '$$matchedSupplier.name',
+                              email: '$$matchedSupplier.email',
+                              supplier_shop_name: '$$matchedSupplier.supplier_shop_name'
+                            },
+                            else: '$$response.supplier_id'
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          selected_suppliers_info: 0,
+          approved_supplier_info: 0,
+          supplier_responses_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
 
     res.status(200).json({
       success: true,
-      data: quote,
+      data: quotes[0] || null,
     });
+ 
   } catch (error) {
     console.error("Get quotes for field error:", error);
     res.status(500).json({
@@ -585,12 +739,48 @@ const createBayQuote = async (req, res) => {
       field_id,
     });
 
-    // Verify bay exists and get primary admin
-    const bay = await ServiceBay.findOne({
-      _id: bay_id,
-      company_id: req.user.company_id,
-      is_active: true,
-    }).populate("primary_admin", "first_name last_name email");
+    // Verify bay exists and get primary admin using aggregation
+    const bayResult = await ServiceBay.aggregate([
+      {
+        $match: {
+          _id: bay_id,
+          company_id: req.user.company_id,
+          is_active: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'primary_admin',
+          foreignField: '_id',
+          as: 'primary_admin_info'
+        }
+      },
+      {
+        $addFields: {
+          primary_admin: {
+            $cond: {
+              if: { $gt: [{ $size: '$primary_admin_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$primary_admin_info._id', 0] },
+                first_name: { $arrayElemAt: ['$primary_admin_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$primary_admin_info.last_name', 0] },
+                email: { $arrayElemAt: ['$primary_admin_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          primary_admin_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
+
+    const bay = bayResult[0] || null;
 
     if (!bay) {
       return res.status(404).json({
@@ -901,20 +1091,94 @@ const getBayQuoteForField = async (req, res) => {
   try {
     const WorkshopQuote = req.getModel('WorkshopQuote');
     const { vehicle_type, vehicle_stock_id, field_id } = req.params;
-    const quote = await WorkshopQuote.findOne({
-      quote_type: "bay",
-      vehicle_type,
-      company_id: req.user.company_id,
-      vehicle_stock_id: parseInt(vehicle_stock_id),
-      field_id,
-    })
-      .populate("bay_id", "bay_name bay_description bay_timings")
-      .populate("bay_user_id", "first_name last_name email")
-      .populate("accepted_by", "first_name last_name email");
+    
+    const quotes = await WorkshopQuote.aggregate([
+      {
+        $match: {
+          quote_type: "bay",
+          vehicle_type,
+          company_id: req.user.company_id,
+          vehicle_stock_id: parseInt(vehicle_stock_id),
+          field_id
+        }
+      },
+      {
+        $lookup: {
+          from: 'servicebays',
+          localField: 'bay_id',
+          foreignField: '_id',
+          as: 'bay_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'bay_user_id',
+          foreignField: '_id',
+          as: 'bay_user_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'accepted_by',
+          foreignField: '_id',
+          as: 'accepted_by_info'
+        }
+      },
+      {
+        $addFields: {
+          bay_id: {
+            $cond: {
+              if: { $gt: [{ $size: '$bay_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$bay_info._id', 0] },
+                bay_name: { $arrayElemAt: ['$bay_info.bay_name', 0] },
+                bay_description: { $arrayElemAt: ['$bay_info.bay_description', 0] },
+                bay_timings: { $arrayElemAt: ['$bay_info.bay_timings', 0] }
+              },
+              else: null
+            }
+          },
+          bay_user_id: {
+            $cond: {
+              if: { $gt: [{ $size: '$bay_user_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$bay_user_info._id', 0] },
+                first_name: { $arrayElemAt: ['$bay_user_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$bay_user_info.last_name', 0] },
+                email: { $arrayElemAt: ['$bay_user_info.email', 0] }
+              },
+              else: null
+            }
+          },
+          accepted_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$accepted_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$accepted_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$accepted_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$accepted_by_info.last_name', 0] },
+                email: { $arrayElemAt: ['$accepted_by_info.email', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          bay_info: 0,
+          bay_user_info: 0,
+          accepted_by_info: 0
+        }
+      },
+      { $limit: 1 }
+    ]);
 
     res.status(200).json({
       success: true,
-      data: quote,
+      data: quotes[0] || null,
     });
   } catch (error) {
     console.error("Get bay quote for field error:", error);
@@ -969,20 +1233,86 @@ const getBayCalendar = async (req, res) => {
 
     const bayIds = userBays.map((b) => b._id);
 
-    // Get bay quotes for these bays within date range
-    const quotes = await WorkshopQuote.find({
-quote_type: ["bay", "manual"],
-
-      bay_id: { $in: bayIds },
-      booking_date: {
-        $gte: new Date(start_date),
-        $lte: new Date(end_date),
+    // Get bay quotes for these bays within date range using aggregation
+    const quotes = await WorkshopQuote.aggregate([
+      {
+        $match: {
+          quote_type: { $in: ["bay", "manual"] },
+          bay_id: { $in: bayIds },
+          booking_date: {
+            $gte: new Date(start_date),
+            $lte: new Date(end_date),
+          }
+        }
       },
-    })
-      .populate("bay_id", "bay_name")
-      .populate("created_by", "first_name last_name")
-      .populate("accepted_by", "first_name last_name")
-      .lean();
+      {
+        $lookup: {
+          from: 'servicebays',
+          localField: 'bay_id',
+          foreignField: '_id',
+          as: 'bay_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'created_by',
+          foreignField: '_id',
+          as: 'created_by_info'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'accepted_by',
+          foreignField: '_id',
+          as: 'accepted_by_info'
+        }
+      },
+      {
+        $addFields: {
+          bay_id: {
+            $cond: {
+              if: { $gt: [{ $size: '$bay_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$bay_info._id', 0] },
+                bay_name: { $arrayElemAt: ['$bay_info.bay_name', 0] }
+              },
+              else: null
+            }
+          },
+          created_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$created_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$created_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$created_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$created_by_info.last_name', 0] }
+              },
+              else: null
+            }
+          },
+          accepted_by: {
+            $cond: {
+              if: { $gt: [{ $size: '$accepted_by_info' }, 0] },
+              then: {
+                _id: { $arrayElemAt: ['$accepted_by_info._id', 0] },
+                first_name: { $arrayElemAt: ['$accepted_by_info.first_name', 0] },
+                last_name: { $arrayElemAt: ['$accepted_by_info.last_name', 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          bay_info: 0,
+          created_by_info: 0,
+          accepted_by_info: 0
+        }
+      }
+    ]);
 
     res.status(200).json({
       success: true,
