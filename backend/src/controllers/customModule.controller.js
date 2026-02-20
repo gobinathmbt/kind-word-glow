@@ -33,8 +33,8 @@ const getCustomModuleConfigs = async (req, res) => {
     const total = await CustomModuleConfig.countDocuments(searchQuery);
     const configs = await CustomModuleConfig.find(searchQuery)
       .populate('company_id', 'company_name email')
-      .populate('created_by', 'name email')
-      .populate('updated_by', 'name email')
+      .populate('created_by', 'first_name last_name email')
+      .populate('updated_by', 'first_name last_name email')
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(limit);
@@ -70,8 +70,8 @@ const getCustomModuleConfig = async (req, res) => {
     
     const config = await CustomModuleConfig.findById(id)
       .populate('company_id', 'company_name email')
-      .populate('created_by', 'name email')
-      .populate('updated_by', 'name email');
+      .populate('created_by', 'first_name last_name email')
+      .populate('updated_by', 'first_name last_name email');
     
     if (!config) {
       return res.status(404).json({
@@ -101,8 +101,8 @@ const getCustomModuleConfigByCompany = async (req, res) => {
     
     const config = await CustomModuleConfig.findOne({ company_id: companyId })
       .populate('company_id', 'company_name email')
-      .populate('created_by', 'name email')
-      .populate('updated_by', 'name email');
+      .populate('created_by', 'first_name last_name email')
+      .populate('updated_by', 'first_name last_name email');
 
     res.json({
       success: true,
@@ -162,8 +162,8 @@ const createOrUpdateCustomModuleConfig = async (req, res) => {
 
     // Populate the response
     await config.populate('company_id', 'company_name email');
-    await config.populate('created_by', 'name email');
-    await config.populate('updated_by', 'name email');
+    await config.populate('created_by', 'first_name last_name email');
+    await config.populate('updated_by', 'first_name last_name email');
 
     res.status(config.isNew ? 201 : 200).json({
       success: true,

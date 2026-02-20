@@ -22,7 +22,6 @@ const {
 
 // All routes require authentication
 router.use(protect);
-router.use(authorize('company_super_admin', 'company_admin'));
 router.use(companyScopeCheck);
 router.use(tenantContext);
 
@@ -39,13 +38,13 @@ router.post('/create', authorize('company_super_admin'), createSubscription);
 router.patch('/:subscriptionId/payment-status', authorize('company_super_admin'), updatePaymentStatus);
 
 // Get company subscription
-router.get('/current', getCompanySubscription);
+router.get('/current', authorize('company_super_admin', 'company_admin'), getCompanySubscription);
 
 // Get subscription history
 router.get('/history', authorize('company_super_admin'), getSubscriptionHistory);
 
 // Get company subscription info
-router.get('/company-info', getCompanySubscriptionInfo);
+router.get('/company-info', authorize('company_super_admin', 'company_admin'), getCompanySubscriptionInfo);
 
 // Fetch invoice from payment gateway
 router.get('/:subscriptionId/invoice-from-gateway', authorize('company_super_admin'), fetchInvoiceFromGateway);

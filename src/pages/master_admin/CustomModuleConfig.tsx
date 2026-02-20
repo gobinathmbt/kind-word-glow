@@ -60,11 +60,15 @@ interface CustomModuleConfig {
   custom_modules: CustomModule[];
   is_active: boolean;
   created_by: {
-    name: string;
+    _id: string;
+    first_name: string;
+    last_name: string;
     email: string;
   };
   updated_by?: {
-    name: string;
+    _id: string;
+    first_name: string;
+    last_name: string;
     email: string;
   };
   created_at: string;
@@ -258,8 +262,8 @@ const CustomModuleConfig = () => {
         aValue = a.company_id?.email;
         bValue = b.company_id?.email;
       } else if (sortField === 'created_by_name') {
-        aValue = a.created_by?.name || '';
-        bValue = b.created_by?.name || '';
+        aValue = `${a.created_by?.first_name || ''} ${a.created_by?.last_name || ''}`;
+        bValue = `${b.created_by?.first_name || ''} ${b.created_by?.last_name || ''}`;
       } else if (sortField === 'modules_count') {
         aValue = a.custom_modules?.length || 0;
         bValue = b.custom_modules?.length || 0;
@@ -555,7 +559,7 @@ const CustomModuleConfig = () => {
           </TableCell>
           <TableCell>
             <div className="text-sm">
-              {config.created_by?.name || 'N/A'}
+              {config.created_by ? `${config.created_by.first_name} ${config.created_by.last_name}` : 'N/A'}
             </div>
           </TableCell>
           <TableCell>
