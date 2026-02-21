@@ -96,6 +96,7 @@ const CreateTenderDealershipUserModal: React.FC<
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tender-dealership-users"] });
+      queryClient.invalidateQueries({ queryKey: ["all-tender-dealership-users"] });
       toast.success(
         isEditMode
           ? "User updated successfully"

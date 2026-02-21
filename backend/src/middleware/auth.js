@@ -209,6 +209,26 @@ const protectDealership = async (req, res, next) => {
       });
     }
 
+    // Check if dealership is active
+    const TenderDealership = ModelRegistry.getModel('TenderDealership', companyDb);
+    const dealership = await TenderDealership.findById(user.tenderDealership_id);
+    
+    if (!dealership) {
+      dbConnectionManager.decrementActiveRequests(decoded.company_id);
+      return res.status(401).json({
+        success: false,
+        message: 'Dealership not found'
+      });
+    }
+
+    if (!dealership.isActive) {
+      dbConnectionManager.decrementActiveRequests(decoded.company_id);
+      return res.status(403).json({
+        success: false,
+        message: 'Dealership is inactive. Please contact your administrator.'
+      });
+    }
+
     // Add dealership user to request
     req.dealershipUser = {
       id: user._id,

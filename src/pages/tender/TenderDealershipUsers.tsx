@@ -19,9 +19,7 @@ import {
   ArrowDown,
   X,
   SlidersHorizontal,
-  Search,
   Power,
-    RotateCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -237,6 +235,8 @@ const TenderDealershipUsers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tender-dealership-users"] });
+      queryClient.invalidateQueries({ queryKey: ["all-tender-dealership-users"] });
+      refetch();
       toast.success("User deleted successfully");
       setIsDeleteDialogOpen(false);
       setDeleteTargetId(null);
@@ -254,6 +254,8 @@ const TenderDealershipUsers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tender-dealership-users"] });
+      queryClient.invalidateQueries({ queryKey: ["all-tender-dealership-users"] });
+      refetch();
       toast.success("User status updated successfully");
     },
     onError: (error: any) => {
@@ -270,8 +272,13 @@ const TenderDealershipUsers = () => {
 
 
 
-  const handleRefresh = () => {
-    refetch();
+  const handleRefresh = async () => {
+    const result = await refetch();
+    if (result.isSuccess) {
+      toast.success("Data refreshed successfully");
+    } else if (result.isError) {
+      toast.error("Failed to refresh data");
+    }
   };
 
   const handlePageChange = (newPage: number) => {

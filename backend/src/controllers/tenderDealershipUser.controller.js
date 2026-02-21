@@ -64,7 +64,8 @@ const getTenderDealershipUsers = async (req, res) => {
 
     let filter = {
       company_id: req.dealershipUser.company_id,
-      tenderDealership_id: req.dealershipUser.tenderDealership_id
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      role: { $ne: 'primary_tender_dealership_user' } // Exclude primary users
     };
 
     // Handle status filter
@@ -95,16 +96,19 @@ const getTenderDealershipUsers = async (req, res) => {
     // Get stats
     const totalUsers = await TenderDealershipUser.countDocuments({ 
       company_id: req.dealershipUser.company_id,
-      tenderDealership_id: req.dealershipUser.tenderDealership_id
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      role: { $ne: 'primary_tender_dealership_user' }
     });
     const activeUsers = await TenderDealershipUser.countDocuments({ 
       company_id: req.dealershipUser.company_id,
       tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      role: { $ne: 'primary_tender_dealership_user' },
       isActive: true 
     });
     const inactiveUsers = await TenderDealershipUser.countDocuments({ 
       company_id: req.dealershipUser.company_id,
       tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      role: { $ne: 'primary_tender_dealership_user' },
       isActive: false 
     });
 
