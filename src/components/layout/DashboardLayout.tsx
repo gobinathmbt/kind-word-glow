@@ -280,6 +280,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           module: "tender_main_dashboard",
         },
         {
+          icon: Building2,
+          label: "Dealerships",
+          path: "/tender/dealership",
+          module: "tender_dealerships",
+        },
+        {
           icon: Building,
           label: "Multi Dealership",
           path: "/company/dealerships",
@@ -292,6 +298,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           module: "vehicle_user",
         },
         {
+          icon: Users,
+          label: "Users",
+          path: "/tender/users",
+          module: "tender_user",
+        },
+        {
           icon: Wrench,
           label: "Service Bay",
           path: "/company/service-bays",
@@ -302,6 +314,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           label: "Permission",
           path: "/company/permissions",
           module: "vehicle_permission",
+        },
+        {
+          icon: Shield,
+          label: "Permission",
+          path: "/tender/permissions",
+          module: "tender_permission",
         },
         {
           icon: DollarSign,

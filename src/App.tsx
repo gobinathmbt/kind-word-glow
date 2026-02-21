@@ -71,6 +71,7 @@ import SupplierProfile from "./pages/supplier/SupplierProfile";
 // Tender Pages
 import TenderModule from "./pages/tender/TenderModule";
 import TenderDashboard from "./pages/tender/TenderDashboard";
+import TenderDealership from "./pages/tender/TenderDealership";
 
 // Service Bay Pages
 import ServiceBays from "./pages/company/ServiceBays";
@@ -193,6 +194,9 @@ const App = () => {
         </ProtectedRoute>
       } />
 
+
+
+
       {/* Company Routes */}
       <Route path="/company/dealerships" element={
         <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="multi_dealership">
@@ -310,10 +314,29 @@ const App = () => {
         </ProtectedRoute>
       } />
 
+
+
+
+
       {/* Tender Routes */}
       <Route path="/tender/dashboard" element={
         <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="tender_main_dashboard">
           <TenderDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/tender/users" element={
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="tender_user">
+          <CompanyUsers />
+        </ProtectedRoute>
+      } />
+      <Route path="/tender/permissions" element={
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="tender_permission">
+          <UserPermissions />
+        </ProtectedRoute>
+      } />
+      <Route path="/tender/dealership" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="tender_dealerships">
+          <TenderDealership />
         </ProtectedRoute>
       } />
       <Route path="/tender/module" element={
