@@ -577,18 +577,59 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         selectedVariant={alternateVehicleData.variant}
                         selectedYear={alternateVehicleData.year}
                         selectedBody={alternateVehicleData.body_style}
-                        onMakeChange={(value) => handleInputChange("make", value)}
-                        onModelChange={(value) => handleInputChange("model", value)}
-                        onVariantChange={(value) => handleInputChange("variant", value)}
-                        onYearChange={(value) => handleInputChange("year", value)}
-                        onBodyChange={(value) => handleInputChange("body_style", value)}
-                        errors={errors}
+                        onMakeChange={(value) =>
+                          setAlternateVehicleData((prev) => ({
+                            ...prev,
+                            make: value,
+                          }))
+                        }
+                        onModelChange={(value) =>
+                          setAlternateVehicleData((prev) => ({
+                            ...prev,
+                            model: value,
+                          }))
+                        }
+                        onYearChange={(value) =>
+                          setAlternateVehicleData((prev) => ({
+                            ...prev,
+                            year: value,
+                          }))
+                        }
+                        onVariantChange={(value) =>
+                          setAlternateVehicleData((prev) => ({
+                            ...prev,
+                            variant: value,
+                          }))
+                        }
+                        onBodyChange={(value) =>
+                          setAlternateVehicleData((prev) => ({
+                            ...prev,
+                            body_style: value,
+                          }))
+                        }
                         layout="grid-2"
                         showMakePlus={false}
                         showModelPlus={false}
                         showVariantPlus={false}
                         showYearPlus={false}
                         showBodyPlus={false}
+                        disabled={!canEdit}
+                        makeProps={{ required: true }}
+                        modelProps={{ required: true }}
+                        yearProps={{ required: true }}
+                        errors={{
+                          make: errors.make,
+                          model: errors.model,
+                          year: errors.year,
+                        }}
+                        onErrorsChange={(newErrors: any) => {
+                          setErrors((prev: any) => ({
+                            ...prev,
+                            make: newErrors.make,
+                            model: newErrors.model,
+                            year: newErrors.year,
+                          }));
+                        }}
                       />
                     </div>
 
