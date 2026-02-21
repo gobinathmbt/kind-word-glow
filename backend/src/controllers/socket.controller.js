@@ -35,12 +35,23 @@ const {
   getConnectedNotificationUsers
 } = require("../handlers/notification.handler");
 
+// Import tender chat handlers
+const {
+  initializeTenderChatHandlers,
+  tenderChatAuthMiddleware,
+  tenderChatConnectedUsers,
+  getOrCreateTenderConversation,
+  markTenderMessagesAsRead,
+  emitTenderChatUserStatus,
+} = require("../handlers/tenderChat.handler");
+
 
 
 let mainIO;
 let chatIO;
 let metaIO;
 let notificationIO;
+let tenderChatIO;
 
 const initializeSocket = (server) => {
   console.log("Initializing Multi-namespace Socket.io...");
@@ -77,6 +88,9 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace
   notificationIO = mainIO.of("/notifications");
 
+  // Initialize Tender Chat namespace
+  tenderChatIO = mainIO.of("/tender-chat");
+
 
   console.log(
     `Multi-namespace Socket.io server initialized with CORS origin: ${
@@ -86,6 +100,7 @@ const initializeSocket = (server) => {
   console.log("Chat namespace: /chat");
   console.log("Metadata namespace: /metadata");
   console.log("Notification namespace: /notifications");
+  console.log("Tender Chat namespace: /tender-chat");
 
   // Set up Chat namespace authentication middleware
   chatIO.use(chatAuthMiddleware);
@@ -96,6 +111,9 @@ const initializeSocket = (server) => {
   // Set up Notification namespace authentication middleware
   notificationIO.use(notificationAuthMiddleware);
 
+  // Set up Tender Chat namespace authentication middleware
+  tenderChatIO.use(tenderChatAuthMiddleware);
+
   // Initialize Chat namespace handlers
   initializeChatHandlers(chatIO);
 
@@ -105,8 +123,12 @@ const initializeSocket = (server) => {
   // Initialize Notification namespace handlers
   initializeNotificationHandlers(notificationIO);
 
+  // Initialize Tender Chat namespace handlers
+  const dbConnectionManager = require('../config/dbConnectionManager');
+  initializeTenderChatHandlers(tenderChatIO, dbConnectionManager);
 
-  return { mainIO, chatIO, metaIO, notificationIO, };
+
+  return { mainIO, chatIO, metaIO, notificationIO, tenderChatIO };
 };
 
 // Getter functions for socket instances
@@ -136,6 +158,13 @@ const getNotificationSocketIO = () => {
     throw new Error("Notification Socket.io not initialized");
   }
   return notificationIO;
+};
+
+const getTenderChatSocketIO = () => {
+  if (!tenderChatIO) {
+    throw new Error("Tender Chat Socket.io not initialized");
+  }
+  return tenderChatIO;
 };
 
 
@@ -171,6 +200,10 @@ const getConnectedUsers = () => {
       ...data,
     })),
     notifications: getConnectedNotificationUsers(),
+    tenderChat: Array.from(tenderChatConnectedUsers.entries()).map(([key, data]) => ({
+      key,
+      ...data,
+    })),
   };
 };
 
@@ -181,11 +214,13 @@ module.exports = {
   getChatSocketIO,
   getMetaSocketIO,
   getNotificationSocketIO,
+  getTenderChatSocketIO,
   getActiveOperations,
   getConnectedUsers,
   connectedUsers,
   metaConnectedUsers,
   notificationConnectedUsers,
+  tenderChatConnectedUsers,
   // Export helper functions for external use if needed
   getOrCreateConversation,
   markMessagesAsRead,
@@ -195,6 +230,9 @@ module.exports = {
   processBatchWithSocket,
   sendRealTimeNotification,
   sendDealershipNotification,
+  getOrCreateTenderConversation,
+  markTenderMessagesAsRead,
+  emitTenderChatUserStatus,
   BATCH_SIZE,
   BATCH_DELAY,
 };

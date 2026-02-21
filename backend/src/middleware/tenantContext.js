@@ -39,8 +39,8 @@ const { getModel } = require('../utils/modelFactory');
 async function tenantContext(req, res, next) {
   try {
     // Skip tenant context for unauthenticated requests
-    // These routes don't have router.use(protect) middleware
-    if (!req.user) {
+    // These routes don't have router.use(protect) or router.use(protectDealership) middleware
+    if (!req.user && !req.dealershipUser) {
       return next();
     }
 
@@ -55,26 +55,33 @@ async function tenantContext(req, res, next) {
       });
     }
 
-    // Attach company database connection for company users and suppliers
+    // Attach company database connection for company users, suppliers, and dealership users
     req.companyDb = null;
     req.companyId = null; // Track company_id for cleanup
     
     // For regular users: check company_db_name and role
     // For suppliers: just check if company_id exists
-    const isRegularUser = req.user.company_db_name && req.user.role !== 'master_admin';
-    const isSupplier = req.user.role === 'supplier' && req.user.company_id;
+    // For dealership users: check if dealershipUser exists with company_id
+    const isRegularUser = req.user && req.user.company_db_name && req.user.role !== 'master_admin';
+    const isSupplier = req.user && req.user.role === 'supplier' && req.user.company_id;
+    const isDealershipUser = req.dealershipUser && req.dealershipUser.company_id;
     
-    if (isRegularUser || isSupplier) {
+    if (isRegularUser || isSupplier || isDealershipUser) {
       try {
-        req.companyDb = await connectionManager.getCompanyConnection(req.user.company_id);
-        req.companyId = req.user.company_id; // Store for later cleanup
+        // Get company_id from appropriate source
+        const companyId = req.dealershipUser ? req.dealershipUser.company_id : req.user.company_id;
+        
+        req.companyDb = await connectionManager.getCompanyConnection(companyId);
+        req.companyId = companyId; // Store for later cleanup
         
         // Only log in development mode
         if (process.env.NODE_ENV === 'development') {
-          console.log(`✅ Company database attached for company: ${req.user.company_id}`);
+          const userType = req.dealershipUser ? 'dealership user' : (isSupplier ? 'supplier' : 'user');
+          console.log(`✅ Company database attached for ${userType}, company: ${companyId}`);
         }
       } catch (error) {
-        console.error(`Failed to get company database connection for company ${req.user.company_id}:`, error);
+        const companyId = req.dealershipUser ? req.dealershipUser.company_id : req.user.company_id;
+        console.error(`Failed to get company database connection for company ${companyId}:`, error);
         return res.status(500).json({
           success: false,
           message: 'Database connection error'

@@ -148,8 +148,110 @@ const companyScopeCheck = (req, res, next) => {
   next();
 };
 
+// Protect dealership routes - authenticate dealership user
+const protectDealership = async (req, res, next) => {
+  try {
+    let token;
+
+    // Get token from header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided, access denied'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, Env_Configuration.JWT_SECRET);
+
+    // Verify this is a dealership user token
+    if (decoded.type !== 'dealership_user') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token type'
+      });
+    }
+
+    // Get company database connection
+    const companyDb = await dbConnectionManager.getCompanyConnection(decoded.company_id);
+    const TenderDealershipUser = ModelRegistry.getModel('TenderDealershipUser', companyDb);
+
+    // Find user in company database
+    const user = await TenderDealershipUser.findById(decoded.id);
+
+    if (!user) {
+      dbConnectionManager.decrementActiveRequests(decoded.company_id);
+      return res.status(401).json({
+        success: false,
+        message: 'User not found, token invalid'
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      dbConnectionManager.decrementActiveRequests(decoded.company_id);
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+
+    // Verify user belongs to the dealership in token
+    if (user.tenderDealership_id.toString() !== decoded.tenderDealership_id) {
+      dbConnectionManager.decrementActiveRequests(decoded.company_id);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid dealership context'
+      });
+    }
+
+    // Add dealership user to request
+    req.dealershipUser = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      tenderDealership_id: user.tenderDealership_id,
+      company_id: decoded.company_id,
+      company_db_name: decoded.company_db_name,
+      type: 'dealership_user'
+    };
+
+    // Store company_id for cleanup
+    req.companyId = decoded.company_id;
+
+    next();
+  } catch (error) {
+    console.error('Dealership auth middleware error:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error in authentication'
+    });
+  }
+};
+
 module.exports = {
   protect,
   authorize,
-  companyScopeCheck
+  companyScopeCheck,
+  protectDealership
 };

@@ -24,7 +24,7 @@ require('./Variant');
 require('./VariantYear');
 require('./VehicleMetadata');
 
-// Company DB Models (26 models)
+// Company DB Models (33 models)
 require('./AdvertiseData');
 require('./AdvertiseVehicle');
 require('./Conversation');
@@ -42,6 +42,13 @@ require('./NotificationConfiguration');
 require('./ServiceBay');
 require('./Subscriptions');
 require('./Supplier');
+require('./Tender');
+require('./TenderConversation');
+require('./TenderDealership');
+require('./TenderDealershipUser');
+require('./TenderHistory');
+require('./TenderNotification');
+require('./TenderVehicle');
 require('./TradeinConfig');
 require('./Vehicle');
 require('./VehicleActivityLog');
