@@ -5,6 +5,8 @@ const {
   getDealershipTender,
   submitQuote,
   withdrawQuote,
+  getQuotesByStatus,
+  getOrdersByStatus,
   acceptOrder,
   deliverOrder,
   abortOrder,
@@ -24,6 +26,10 @@ router.use(tenantContext);
 // Tender viewing routes
 router.get('/tenders', getDealershipTenders);
 router.get('/tenders/:id', getDealershipTender);
+
+// Quote and Order viewing routes
+router.get('/quotes', getQuotesByStatus);
+router.get('/orders', getOrdersByStatus);
 
 // Quote submission and withdrawal routes
 router.post('/tenders/:id/quote', submitQuote);

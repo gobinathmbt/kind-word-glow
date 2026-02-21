@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TenderDealershipLayout from "@/components/layout/TenderDealershipLayout";
@@ -115,78 +116,68 @@ const TenderDealershipDashboard = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-              {/* Total Tenders */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Tenders
-                  </CardTitle>
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalTenders}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    All incoming tender requests
-                  </p>
-                </CardContent>
-              </Card>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-6">
               {/* Open Quotes */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Open Quotes
-                  </CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{openQuotes}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Awaiting your response
-                  </p>
-                </CardContent>
-              </Card>
+              <Link to="/tender-dealership/quotes/Open">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Open Quotes
+                    </CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{openQuotes}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      New tenders awaiting response
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
 
               {/* Submitted Quotes */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Submitted Quotes
-                  </CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{submittedQuotes}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Quotes under review
-                  </p>
-                </CardContent>
-              </Card>
+              <Link to="/tender-dealership/quotes/Submitted">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Submitted Quotes
+                    </CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{submittedQuotes}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Quotes under review
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
 
               {/* Orders */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Orders
-                  </CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalOrders}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Approved quotes
-                  </p>
-                </CardContent>
-              </Card>
+              <Link to="/tender-dealership/orders/Order - Approved">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Orders
+                    </CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalOrders}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Approved quotes
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
-            {/* Recent Tenders */}
+            {/* Recent Quotes */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Recent Tenders</CardTitle>
-                  <Link to="/tender-dealership/tenders">
+                  <CardTitle className="text-lg">Recent Quotes</CardTitle>
+                  <Link to="/tender-dealership/quotes/Open">
                     <Button variant="outline" size="sm">
                       View All
                     </Button>
@@ -219,7 +210,7 @@ const TenderDealershipDashboard = () => {
                             Expires: {new Date(tender.tender_expiry_time).toLocaleDateString()}
                           </div>
                         </div>
-                        <Link to={`/tender-dealership/tenders`}>
+                        <Link to={`/tender-dealership/quotes/${tender.quote_status}`}>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4 mr-2" />
                             View
@@ -232,10 +223,10 @@ const TenderDealershipDashboard = () => {
                   <div className="text-center py-8">
                     <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-lg font-semibold mb-2">
-                      No Tenders Yet
+                      No Quotes Yet
                     </h3>
                     <p className="text-muted-foreground">
-                      You don't have any tender requests at the moment.
+                      You don't have any quotes at the moment.
                     </p>
                   </div>
                 )}
@@ -248,11 +239,17 @@ const TenderDealershipDashboard = () => {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Link to="/tender-dealership/tenders">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Link to="/tender-dealership/quotes/Open">
                     <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
                       <ClipboardList className="h-6 w-6" />
-                      <span className="text-sm font-medium">View Tenders</span>
+                      <span className="text-sm font-medium">My Quotes</span>
+                    </Button>
+                  </Link>
+                  <Link to="/tender-dealership/orders/Order - Approved">
+                    <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
+                      <Package className="h-6 w-6" />
+                      <span className="text-sm font-medium">My Orders</span>
                     </Button>
                   </Link>
                   <Link to="/tender-dealership/profile">
@@ -264,7 +261,7 @@ const TenderDealershipDashboard = () => {
                   {(dealershipUser.role === "primary_tender_dealership_user") && (
                     <Link to="/tender-dealership/users">
                       <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
-                        <Package className="h-6 w-6" />
+                        <Users className="h-6 w-6" />
                         <span className="text-sm font-medium">Manage Users</span>
                       </Button>
                     </Link>

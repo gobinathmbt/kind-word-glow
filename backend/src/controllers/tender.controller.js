@@ -2,6 +2,7 @@ const User = require('../models/User');
 const { logEvent } = require('./logs.controller');
 const { createTenderHistory } = require('../utils/tenderHistory.utils');
 const mailService = require('../config/mailer');
+const Env_Configuration = require("../config/env");
 const frontendUrl =Env_Configuration.FRONTEND_URL || 'http://localhost:8080';
 /**
  * Manually populate User fields from main DB for Tender documents

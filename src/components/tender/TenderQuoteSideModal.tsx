@@ -334,7 +334,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               {/* Tabs for Sent Vehicle and Alternate Vehicle */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="sent">Sent Vehicle</TabsTrigger>
+                  <TabsTrigger value="sent">Received Vehicle</TabsTrigger>
                   <TabsTrigger value="alternate">Alternate Vehicle</TabsTrigger>
                 </TabsList>
 

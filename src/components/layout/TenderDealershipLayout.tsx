@@ -11,6 +11,8 @@ import {
   ClipboardList,
   UserCircle,
   Settings,
+  FileText,
+  Package,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -96,10 +98,16 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
       roleRequired: ['primary_tender_dealership_user'], // Only admin and primary users can see this
     },
     {
-      icon: ClipboardList,
-      label: 'Tender Requests',
-      path: '/tender-dealership/tenders',
-      description: 'View and respond to tenders',
+      icon: FileText,
+      label: 'Quotes',
+      path: '/tender-dealership/quotes/Open',
+      description: 'Manage your quotes',
+    },
+    {
+      icon: Package,
+      label: 'Orders',
+      path: '/tender-dealership/orders/Order - Approved',
+      description: 'View your orders',
     },
     {
       icon: UserCircle,
@@ -117,6 +125,13 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
   };
 
   const isMenuActive = (item: NavigationItem): boolean => {
+    // For quotes and orders, check if the path starts with the base path
+    if (item.path.includes('/quotes/') && location.pathname.startsWith('/tender-dealership/quotes/')) {
+      return true;
+    }
+    if (item.path.includes('/orders/') && location.pathname.startsWith('/tender-dealership/orders/')) {
+      return true;
+    }
     return location.pathname === item.path;
   };
 

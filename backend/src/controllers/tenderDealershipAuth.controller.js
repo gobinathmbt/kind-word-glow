@@ -1538,12 +1538,250 @@ const abortOrder = async (req, res) => {
   }
 };
 
+// @desc    Get quotes by status for dealership
+// @route   GET /api/tender-dealership-auth/quotes
+// @access  Private (Dealership User)
+const getQuotesByStatus = async (req, res) => {
+  try {
+    const Tender = req.getModel('Tender');
+    const TenderVehicle = req.getModel('TenderVehicle');
+    const { page = 1, limit = 20, search, status } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build filter for TenderVehicle
+    let vehicleFilter = {
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+    };
+
+    // Filter by quote status if provided
+    if (status && status !== 'all') {
+      vehicleFilter.quote_status = status;
+    } else {
+      // For quotes, exclude order statuses
+      vehicleFilter.quote_status = { 
+        $in: ['Open', 'In Progress', 'Submitted', 'Withdrawn', 'Closed'] 
+      };
+    }
+
+    // Get total count for pagination
+    const total = await TenderVehicle.countDocuments(vehicleFilter);
+
+    // Get TenderVehicle records
+    const tenderVehicles = await TenderVehicle.find(vehicleFilter)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    if (tenderVehicles.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        total: 0,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: 0,
+          total_records: 0,
+          per_page: parseInt(limit),
+          has_next_page: false,
+          has_prev_page: false
+        }
+      });
+    }
+
+    // Get tender IDs
+    const tenderIds = tenderVehicles.map(tv => tv.tender_id);
+
+    // Build tender filter
+    let tenderFilter = {
+      _id: { $in: tenderIds },
+      company_id: req.dealershipUser.company_id
+    };
+
+    // Add search filter if provided
+    if (search) {
+      tenderFilter.$or = [
+        { tender_id: { $regex: search, $options: 'i' } },
+        { 'customer_info.name': { $regex: search, $options: 'i' } },
+        { 'customer_info.email': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.make': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.model': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Get tenders
+    const tenders = await Tender.find(tenderFilter).lean();
+
+    // Create a map of tender_id to tender data
+    const tenderMap = {};
+    tenders.forEach(tender => {
+      tenderMap[tender._id.toString()] = tender;
+    });
+
+    // Combine tender and vehicle data
+    const results = tenderVehicles
+      .map(tv => {
+        const tender = tenderMap[tv.tender_id.toString()];
+        if (!tender) return null;
+
+        return {
+          ...tender,
+          ...tv,
+          _id: tv._id,
+          vehicle_id: tv._id,
+        };
+      })
+      .filter(item => item !== null);
+
+    res.status(200).json({
+      success: true,
+      data: results,
+      total: total,
+      pagination: {
+        current_page: parseInt(page),
+        total_pages: Math.ceil(total / limit),
+        total_records: total,
+        per_page: parseInt(limit),
+        has_next_page: page < Math.ceil(total / limit),
+        has_prev_page: page > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Get quotes by status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving quotes'
+    });
+  }
+};
+
+// @desc    Get orders by status for dealership
+// @route   GET /api/tender-dealership-auth/orders
+// @access  Private (Dealership User)
+const getOrdersByStatus = async (req, res) => {
+  try {
+    const Tender = req.getModel('Tender');
+    const TenderVehicle = req.getModel('TenderVehicle');
+    const { page = 1, limit = 20, search, status } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build filter for TenderVehicle
+    let vehicleFilter = {
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+    };
+
+    // Filter by order status if provided
+    if (status && status !== 'all') {
+      vehicleFilter.quote_status = status;
+    } else {
+      // For orders, only include order statuses
+      vehicleFilter.quote_status = { 
+        $in: ['Order - Approved', 'Accepted', 'Delivered', 'Aborted'] 
+      };
+    }
+
+    // Get total count for pagination
+    const total = await TenderVehicle.countDocuments(vehicleFilter);
+
+    // Get TenderVehicle records
+    const tenderVehicles = await TenderVehicle.find(vehicleFilter)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    if (tenderVehicles.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        total: 0,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: 0,
+          total_records: 0,
+          per_page: parseInt(limit),
+          has_next_page: false,
+          has_prev_page: false
+        }
+      });
+    }
+
+    // Get tender IDs
+    const tenderIds = tenderVehicles.map(tv => tv.tender_id);
+
+    // Build tender filter
+    let tenderFilter = {
+      _id: { $in: tenderIds },
+      company_id: req.dealershipUser.company_id
+    };
+
+    // Add search filter if provided
+    if (search) {
+      tenderFilter.$or = [
+        { tender_id: { $regex: search, $options: 'i' } },
+        { 'customer_info.name': { $regex: search, $options: 'i' } },
+        { 'customer_info.email': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.make': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.model': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Get tenders
+    const tenders = await Tender.find(tenderFilter).lean();
+
+    // Create a map of tender_id to tender data
+    const tenderMap = {};
+    tenders.forEach(tender => {
+      tenderMap[tender._id.toString()] = tender;
+    });
+
+    // Combine tender and vehicle data
+    const results = tenderVehicles
+      .map(tv => {
+        const tender = tenderMap[tv.tender_id.toString()];
+        if (!tender) return null;
+
+        return {
+          ...tender,
+          ...tv,
+          _id: tv._id,
+          vehicle_id: tv._id,
+        };
+      })
+      .filter(item => item !== null);
+
+    res.status(200).json({
+      success: true,
+      data: results,
+      total: total,
+      pagination: {
+        current_page: parseInt(page),
+        total_pages: Math.ceil(total / limit),
+        total_records: total,
+        per_page: parseInt(limit),
+        has_next_page: page < Math.ceil(total / limit),
+        has_prev_page: page > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Get orders by status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving orders'
+    });
+  }
+};
+
 module.exports = {
   dealershipLogin,
   getDealershipTenders,
   getDealershipTender,
   submitQuote,
   withdrawQuote,
+  getQuotesByStatus,
+  getOrdersByStatus,
   acceptOrder,
   deliverOrder,
   abortOrder,
