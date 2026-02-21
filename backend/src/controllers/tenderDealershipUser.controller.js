@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const { logEvent } = require('./logs.controller');
 const mailService = require('../config/mailer');
+const Env_Configuration = require("../config/env");
 
 /**
  * Manually populate User fields from main DB for TenderDealershipUser documents
@@ -245,7 +246,7 @@ const createTenderDealershipUser = async (req, res) => {
     try {
       const Company = require('../models/Company');
       const company = await Company.findById(req.dealershipUser.company_id);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+      const frontendUrl = Env_Configuration.FRONTEND_URL || 'http://localhost:8080';
       
       const html = `<!DOCTYPE html>
 <html lang="en">
@@ -333,7 +334,7 @@ const createTenderDealershipUser = async (req, res) => {
               <!-- CTA Button -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
                 <tr><td align="center">
-                  <a href="${frontendUrl}/login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">
                     🚀 &nbsp; Access the Tender Portal
                   </a>
                 </td></tr>

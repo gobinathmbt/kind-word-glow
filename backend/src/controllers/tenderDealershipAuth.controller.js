@@ -6,6 +6,7 @@ const Company = require("../models/Company");
 const User = require("../models/User");
 const { createTenderHistory } = require("../utils/tenderHistory.utils");
 const mailService = require("../config/mailer");
+const frontendUrl =Env_Configuration.FRONTEND_URL || 'http://localhost:8080';
 
 // Generate JWT Token for dealership user
 const generateDealershipToken = (user, dealershipId, companyId) => {
@@ -544,25 +545,111 @@ const submitQuote = async (req, res) => {
 
         // Send email notification
         try {
-          const emailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #3b82f6;">Quote Received</h1>
-              <p>Hello ${admin.first_name},</p>
-              <p>A dealership has submitted a quote for tender:</p>
-              
-              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Tender ID:</strong> ${tender.tender_id}</p>
-                <p><strong>Customer:</strong> ${tender.customer_info.name}</p>
-                <p><strong>Vehicle:</strong> ${tender.basic_vehicle_info.make} ${tender.basic_vehicle_info.model} ${tender.basic_vehicle_info.year}</p>
-                <p><strong>Quote Price:</strong> $${tenderVehicle.quote_price?.toLocaleString() || 'N/A'}</p>
-                <p><strong>Vehicle Type:</strong> ${tenderVehicle.vehicle_type === 'sent_vehicle' ? 'Requested Vehicle' : 'Alternate Vehicle'}</p>
-              </div>
-              
-              <p>Please log in to the admin portal to review the quote.</p>
-              
-              <p>Best regards,<br>Auto Erp Team</p>
-            </div>
-          `;
+          const emailHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quote Received</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
+    <tr>
+      <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">🚗</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Complete Vehicle Management Solution</td>
+                </tr>
+              </table>
+              <div style="display:inline-block;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Quote Update</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+                Quote<br/>
+                <span style="color:#22c55e;">Received</span>
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
+                A dealership has submitted a <strong style="color:#111827;">quote</strong> for the following tender. Please review the details below.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                  <td style="background:linear-gradient(180deg,#22c55e,#16a34a);width:4px;border-radius:4px 0 0 4px;"></td>
+                  <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">📋 Quote Details</p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender.tender_id}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Customer</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender.customer_info?.name || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Vehicle</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender.basic_vehicle_info?.make || ''} ${tender.basic_vehicle_info?.model || ''} ${tender.basic_vehicle_info?.year || ''}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Quote Price</td>
+                      <td>
+                        <span style="display:inline-block;background:#fff;border:1px solid #d1fae5;color:#111827;font-size:13px;font-weight:700;padding:6px 14px;border-radius:8px;">${tenderVehicle.quote_price ? ('$' + tenderVehicle.quote_price.toLocaleString()) : 'N/A'}</span>
+                      </td>
+                    </tr></table>
+
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">📝 &nbsp; View Tender &amp; Review Quote</a>
+                </td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#2a2a2c;padding:28px 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">Auto ERP Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Secure Mail</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">© 2025 Auto ERP. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
 
           await mailService.sendEmail({
             to: admin.email,
@@ -571,7 +658,6 @@ const submitQuote = async (req, res) => {
           });
         } catch (emailError) {
           console.error(`Failed to send email to ${admin.email}:`, emailError);
-          // Continue with other emails even if one fails
         }
       }
     }
@@ -706,25 +792,105 @@ const withdrawQuote = async (req, res) => {
       });
 
       // Send email notification
-      try {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #ef4444;">Quote Withdrawn</h1>
-            <p>Hello ${admin.first_name},</p>
-            <p>A dealership has withdrawn their quote for tender:</p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Tender ID:</strong> ${tender.tender_id}</p>
-              <p><strong>Customer:</strong> ${tender.customer_info.name}</p>
-              <p><strong>Vehicle:</strong> ${tender.basic_vehicle_info.make} ${tender.basic_vehicle_info.model} ${tender.basic_vehicle_info.year}</p>
-              <p><strong>Vehicle Type:</strong> ${tenderVehicle.vehicle_type === 'sent_vehicle' ? 'Requested Vehicle' : 'Alternate Vehicle'}</p>
-            </div>
-            
-            <p>Please log in to the admin portal to view the updated tender status.</p>
-            
-            <p>Best regards,<br>Auto Erp Team</p>
-          </div>
-        `;
+        try {
+          const emailHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quote Withdrawn</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
+    <tr>
+      <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#f97316,#ef4444);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">⚠️</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Tender Update</td>
+                </tr>
+              </table>
+              <div style="display:inline-block;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Quote Update</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+                Quote<br/>
+                <span style="color:#ef4444;">Withdrawn</span>
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
+                A dealership has withdrawn their quote for the tender below. The tender status has been updated.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                  <td style="background:linear-gradient(180deg,#f97316,#ef4444);width:4px;border-radius:4px 0 0 4px;"></td>
+                  <td style="background:#fff7ed;border:1px solid #ffedd5;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#d97706;">📋 Tender Details</p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tender.tender_id}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Customer</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tender.customer_info?.name || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Vehicle</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tender.basic_vehicle_info?.make || ''} ${tender.basic_vehicle_info?.model || ''} ${tender.basic_vehicle_info?.year || ''}</td>
+                    </tr></table>
+
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#f97316 0%,#ef4444 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;">🔎 &nbsp; View Tender</a>
+                </td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#2a2a2c;padding:28px 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">Auto ERP Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Notice</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">© 2025 Auto ERP. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
 
         await mailService.sendEmail({
           to: admin.email,
@@ -733,7 +899,6 @@ const withdrawQuote = async (req, res) => {
         });
       } catch (emailError) {
         console.error(`Failed to send email to ${admin.email}:`, emailError);
-        // Continue with other emails even if one fails
       }
     }
 
@@ -828,25 +993,110 @@ const acceptOrder = async (req, res) => {
       });
 
       // Send email notification
-      try {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #3b82f6;">Order Accepted</h1>
-            <p>Hello ${admin.first_name},</p>
-            <p>The dealership has accepted the order for tender:</p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Tender ID:</strong> ${tender?.tender_id || 'N/A'}</p>
-              <p><strong>Customer:</strong> ${tender?.customer_info?.name || 'N/A'}</p>
-              <p><strong>Vehicle:</strong> ${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</p>
-              <p><strong>Quote Price:</strong> ${tenderVehicle.quote_price?.toLocaleString() || 'N/A'}</p>
-            </div>
-            
-            <p>The dealership will proceed with delivery.</p>
-            
-            <p>Best regards,<br>Auto Erp Team</p>
-          </div>
-        `;
+        try {
+          const emailHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Accepted</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
+    <tr>
+      <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">✅</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Order Update</td>
+                </tr>
+              </table>
+              <div style="display:inline-block;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Order Update</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+                Order<br/>
+                <span style="color:#22c55e;">Accepted</span>
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
+                The dealership has accepted the order associated with the tender below. See the key details.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                  <td style="background:linear-gradient(180deg,#22c55e,#16a34a);width:4px;border-radius:4px 0 0 4px;"></td>
+                  <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">📋 Order Details</p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender?.tender_id || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Customer</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender?.customer_info?.name || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Vehicle</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Quote Price</td>
+                      <td><span style="display:inline-block;background:#fff;border:1px solid #d1fae5;color:#111827;font-size:13px;font-weight:700;padding:6px 14px;border-radius:8px;">${tenderVehicle.quote_price ? tenderVehicle.quote_price.toLocaleString() : 'N/A'}</span></td>
+                    </tr></table>
+
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;">📦 &nbsp; View Order</a>
+                </td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#2a2a2c;padding:28px 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">Auto ERP Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Secure Mail</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">© 2025 Auto ERP. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
 
         await mailService.sendEmail({
           to: admin.email,
@@ -855,7 +1105,6 @@ const acceptOrder = async (req, res) => {
         });
       } catch (emailError) {
         console.error(`Failed to send email to ${admin.email}:`, emailError);
-        // Continue with other emails even if one fails
       }
     }
 
@@ -951,26 +1200,110 @@ const deliverOrder = async (req, res) => {
       });
 
       // Send email notification
-      try {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #10b981;">Order Delivered</h1>
-            <p>Hello ${admin.first_name},</p>
-            <p>The dealership has marked the order as delivered for tender:</p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Tender ID:</strong> ${tender?.tender_id || 'N/A'}</p>
-              <p><strong>Customer:</strong> ${tender?.customer_info?.name || 'N/A'}</p>
-              <p><strong>Vehicle:</strong> ${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</p>
-              <p><strong>Quote Price:</strong> ${tenderVehicle.quote_price?.toLocaleString() || 'N/A'}</p>
-              <p><strong>Delivery Date:</strong> ${new Date().toLocaleDateString()}</p>
-            </div>
-            
-            <p>The order has been completed successfully.</p>
-            
-            <p>Best regards,<br>Auto Erp Team</p>
-          </div>
-        `;
+        try {
+          const emailHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Delivered</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
+    <tr>
+      <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#10b981,#059669);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">🚚</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Order Update</td>
+                </tr>
+              </table>
+              <div style="display:inline-block;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:#10b981;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Order Update</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+                Order<br/>
+                <span style="color:#10b981;">Delivered</span>
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
+                The dealership has marked the order as delivered. Below are the details for your reference.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                  <td style="background:linear-gradient(180deg,#10b981,#059669);width:4px;border-radius:4px 0 0 4px;"></td>
+                  <td style="background:#ecfdf5;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#059669;">📋 Delivery Details</p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender?.tender_id || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Customer</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tender?.customer_info?.name || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Vehicle</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Delivery Date</td>
+                      <td><span style="display:inline-block;background:#fff;border:1px solid #d1fae5;color:#111827;font-size:13px;font-weight:700;padding:6px 14px;border-radius:8px;">${new Date().toLocaleDateString()}</span></td>
+                    </tr></table>
+
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;">📄 &nbsp; View Delivery</a>
+                </td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#2a2a2c;padding:28px 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">Auto ERP Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.18);color:#10b981;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Info</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">© 2025 Auto ERP. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
 
         await mailService.sendEmail({
           to: admin.email,
@@ -979,7 +1312,6 @@ const deliverOrder = async (req, res) => {
         });
       } catch (emailError) {
         console.error(`Failed to send email to ${admin.email}:`, emailError);
-        // Continue with other emails even if one fails
       }
     }
 
@@ -1080,25 +1412,106 @@ const abortOrder = async (req, res) => {
 
       // Send email notification
       try {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #ef4444;">Order Aborted</h1>
-            <p>Hello ${admin.first_name},</p>
-            <p>The dealership has aborted the order for tender:</p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Tender ID:</strong> ${tender?.tender_id || 'N/A'}</p>
-              <p><strong>Customer:</strong> ${tender?.customer_info?.name || 'N/A'}</p>
-              <p><strong>Vehicle:</strong> ${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</p>
-              <p><strong>Quote Price:</strong> ${tenderVehicle.quote_price?.toLocaleString() || 'N/A'}</p>
-              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-            </div>
-            
-            <p>Please contact the dealership for more information.</p>
-            
-            <p>Best regards,<br>Auto Erp Team</p>
-          </div>
-        `;
+        const emailHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Aborted</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
+    <tr>
+      <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#ef4444,#f97316);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">🛑</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Order Update</td>
+                </tr>
+              </table>
+              <div style="display:inline-block;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Order Update</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+                Order<br/>
+                <span style="color:#ef4444;">Aborted</span>
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
+                The dealership has aborted the order for the tender below. See details and the provided reason if available.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                  <td style="background:linear-gradient(180deg,#ef4444,#f97316);width:4px;border-radius:4px 0 0 4px;"></td>
+                  <td style="background:#fff7ed;border:1px solid #ffedd5;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#d97706;">📋 Order Details</p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tender?.tender_id || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Customer</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tender?.customer_info?.name || 'N/A'}</td>
+                    </tr></table>
+
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Vehicle</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;background:#fff;border:1px solid #fde68a;padding:6px 14px;border-radius:8px;">${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}</td>
+                    </tr></table>
+
+                    ${reason ? `<p style="margin-top:12px;font-size:13px;color:#6b7280;"><strong>Reason:</strong> ${reason}</p>` : ''}
+
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#ef4444 0%,#f97316 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;">⚠️ &nbsp; View Order Details</a>
+                </td></tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#2a2a2c;padding:28px 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">Auto ERP Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Notice</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">© 2025 Auto ERP. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
 
         await mailService.sendEmail({
           to: admin.email,
@@ -1107,7 +1520,6 @@ const abortOrder = async (req, res) => {
         });
       } catch (emailError) {
         console.error(`Failed to send email to ${admin.email}:`, emailError);
-        // Continue with other emails even if one fails
       }
     }
 
