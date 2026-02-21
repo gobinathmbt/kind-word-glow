@@ -25,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import logo from "@/assests/logo/android-chrome-512x512.png";
 
 interface TenderDealershipLayoutProps {
   children: React.ReactNode;
@@ -122,16 +123,9 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
       {/* Logo */}
       <div className={`p-4 border-b ${isSidebarCollapsed && !isMobile ? 'px-4' : ''}`}>
         <div className="flex items-center space-x-2">
-          <ClipboardList className="h-6 w-6 text-primary flex-shrink-0" />
+          <img src={logo} className="h-6 w-6 text-primary flex-shrink-0" />
           {(!isSidebarCollapsed || isMobile) && (
-            <div>
-              <span className="text-lg font-bold">Dealership Portal</span>
-              {dealershipInfo?.dealership_name && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {dealershipInfo.dealership_name}
-                </p>
-              )}
-            </div>
+            <span className="text-lg font-bold">Auto Erp</span>
           )}
         </div>
       </div>
@@ -311,6 +305,18 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
                   0
                 </Badge>
               </Button>
+
+              {dealershipInfo?.dealership_id && (
+                <Badge variant="outline" className="text-xs">
+                  Dealership ID: {dealershipInfo.dealership_id}
+                </Badge>
+              )}
+
+              {dealershipInfo?.company_id && (
+                <Badge variant="outline" className="text-xs">
+                  Company ID: {dealershipInfo.company_id}
+                </Badge>
+              )}
             </div>
           </header>
 

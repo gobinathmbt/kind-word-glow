@@ -55,21 +55,17 @@ async function populateTenderDealershipUserCreators(items) {
 
 // @desc    Get tender dealership users (filtered by dealership)
 // @route   GET /api/tender-dealership-user
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const getTenderDealershipUsers = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
-    const { page = 1, limit = 10, search, dealership_id, status } = req.query;
+    const { page = 1, limit = 10, search, status } = req.query;
     const skip = (page - 1) * limit;
 
     let filter = {
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     };
-
-    // Filter by dealership if provided
-    if (dealership_id) {
-      filter.tenderDealership_id = dealership_id;
-    }
 
     // Handle status filter
     if (status && status !== 'all') {
@@ -98,17 +94,17 @@ const getTenderDealershipUsers = async (req, res) => {
 
     // Get stats
     const totalUsers = await TenderDealershipUser.countDocuments({ 
-      company_id: req.user.company_id,
-      ...(dealership_id && { tenderDealership_id: dealership_id })
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     });
     const activeUsers = await TenderDealershipUser.countDocuments({ 
-      company_id: req.user.company_id,
-      ...(dealership_id && { tenderDealership_id: dealership_id }),
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
       isActive: true 
     });
     const inactiveUsers = await TenderDealershipUser.countDocuments({ 
-      company_id: req.user.company_id,
-      ...(dealership_id && { tenderDealership_id: dealership_id }),
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
       isActive: false 
     });
 
@@ -141,14 +137,15 @@ const getTenderDealershipUsers = async (req, res) => {
 
 // @desc    Get single tender dealership user
 // @route   GET /api/tender-dealership-user/:id
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const getTenderDealershipUser = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
     
     const user = await TenderDealershipUser.findOne({
       _id: req.params.id,
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     }).lean();
 
     if (!user) {
@@ -177,22 +174,21 @@ const getTenderDealershipUser = async (req, res) => {
 
 // @desc    Create new tender dealership user
 // @route   POST /api/tender-dealership-user
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const createTenderDealershipUser = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
     
     // Validate required fields
-    const { username, email, tenderDealership_id, role } = req.body;
+    const { username, email, role } = req.body;
     
-    if (!username || !email || !tenderDealership_id || !role) {
+    if (!username || !email || !role) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, dealership ID, and role are required',
+        message: 'Username, email, and role are required',
         errors: [
           !username && { field: 'username', message: 'Username is required' },
           !email && { field: 'email', message: 'Email is required' },
-          !tenderDealership_id && { field: 'tenderDealership_id', message: 'Dealership ID is required' },
           !role && { field: 'role', message: 'Role is required' }
         ].filter(Boolean)
       });
@@ -200,7 +196,7 @@ const createTenderDealershipUser = async (req, res) => {
 
     // Check for duplicate username within company
     const existingUser = await TenderDealershipUser.findOne({
-      company_id: req.user.company_id,
+      company_id: req.dealershipUser.company_id,
       username: username.toLowerCase()
     });
 
@@ -215,8 +211,8 @@ const createTenderDealershipUser = async (req, res) => {
     // Verify dealership exists and belongs to company
     const TenderDealership = req.getModel('TenderDealership');
     const dealership = await TenderDealership.findOne({
-      _id: tenderDealership_id,
-      company_id: req.user.company_id
+      _id: req.dealershipUser.tenderDealership_id,
+      company_id: req.dealershipUser.company_id
     });
 
     if (!dealership) {
@@ -232,11 +228,11 @@ const createTenderDealershipUser = async (req, res) => {
       username: username.toLowerCase().trim(),
       email: email.toLowerCase().trim(),
       password: defaultPassword,
-      tenderDealership_id,
-      company_id: req.user.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      company_id: req.dealershipUser.company_id,
       role,
       isActive: true,
-      created_by: req.user.id
+      created_by: req.dealershipUser.id
     };
 
     const user = await TenderDealershipUser.create(userData);
@@ -244,7 +240,7 @@ const createTenderDealershipUser = async (req, res) => {
     // Send email notification with credentials
     try {
       const Company = require('../models/Company');
-      const company = await Company.findById(req.user.company_id);
+      const company = await Company.findById(req.dealershipUser.company_id);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
       
       const html = `
@@ -254,10 +250,10 @@ const createTenderDealershipUser = async (req, res) => {
           <p>An account has been created for you at ${dealership.dealership_name} on ${company ? company.company_name : 'Auto ERP'} Tender Portal. Here are your login credentials:</p>
           
           <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Username:</strong> ${user.username}</p>
+            <p><strong>Username:</strong> ${user.email}</p>
             <p><strong>Password:</strong> ${defaultPassword}</p>
-            <p><strong>Company ID:</strong> ${req.user.company_id}</p>
-            <p><strong>Dealership ID:</strong> ${tenderDealership_id}</p>
+            <p><strong>Company ID:</strong> ${req.dealershipUser.company_id}</p>
+            <p><strong>Dealership ID:</strong> ${req.dealershipUser.tenderDealership_id}</p>
             <p><strong>Role:</strong> ${role}</p>
           </div>
           
@@ -280,8 +276,8 @@ const createTenderDealershipUser = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user.id,
-      company_id: req.user.company_id,
+      user_id: req.dealershipUser.id,
+      company_id: req.dealershipUser.company_id,
       action: 'CREATE',
       resource_type: 'TenderDealershipUser',
       resource_id: user._id,
@@ -335,7 +331,7 @@ const createTenderDealershipUser = async (req, res) => {
 
 // @desc    Update tender dealership user
 // @route   PUT /api/tender-dealership-user/:id
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const updateTenderDealershipUser = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
@@ -343,7 +339,8 @@ const updateTenderDealershipUser = async (req, res) => {
     // Find user
     const user = await TenderDealershipUser.findOne({
       _id: req.params.id,
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     });
 
     if (!user) {
@@ -356,7 +353,7 @@ const updateTenderDealershipUser = async (req, res) => {
     // Check for duplicate username if username is being changed
     if (req.body.username && req.body.username.toLowerCase() !== user.username.toLowerCase()) {
       const existingUser = await TenderDealershipUser.findOne({
-        company_id: req.user.company_id,
+        company_id: req.dealershipUser.company_id,
         username: req.body.username.toLowerCase(),
         _id: { $ne: req.params.id }
       });
@@ -387,8 +384,8 @@ const updateTenderDealershipUser = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user.id,
-      company_id: req.user.company_id,
+      user_id: req.dealershipUser.id,
+      company_id: req.dealershipUser.company_id,
       action: 'UPDATE',
       resource_type: 'TenderDealershipUser',
       resource_id: user._id,
@@ -442,7 +439,7 @@ const updateTenderDealershipUser = async (req, res) => {
 
 // @desc    Delete tender dealership user (permanent)
 // @route   DELETE /api/tender-dealership-user/:id
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const deleteTenderDealershipUser = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
@@ -450,7 +447,8 @@ const deleteTenderDealershipUser = async (req, res) => {
     // Find user
     const user = await TenderDealershipUser.findOne({
       _id: req.params.id,
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     });
 
     if (!user) {
@@ -476,8 +474,8 @@ const deleteTenderDealershipUser = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user.id,
-      company_id: req.user.company_id,
+      user_id: req.dealershipUser.id,
+      company_id: req.dealershipUser.company_id,
       action: 'DELETE',
       resource_type: 'TenderDealershipUser',
       resource_id: user._id,
@@ -502,7 +500,7 @@ const deleteTenderDealershipUser = async (req, res) => {
 
 // @desc    Toggle tender dealership user status
 // @route   PATCH /api/tender-dealership-user/:id/status
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const toggleTenderDealershipUserStatus = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
@@ -510,7 +508,8 @@ const toggleTenderDealershipUserStatus = async (req, res) => {
     // Find user
     const user = await TenderDealershipUser.findOne({
       _id: req.params.id,
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     });
 
     if (!user) {
@@ -535,8 +534,8 @@ const toggleTenderDealershipUserStatus = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user.id,
-      company_id: req.user.company_id,
+      user_id: req.dealershipUser.id,
+      company_id: req.dealershipUser.company_id,
       action: 'UPDATE',
       resource_type: 'TenderDealershipUser',
       resource_id: user._id,
@@ -566,7 +565,7 @@ const toggleTenderDealershipUserStatus = async (req, res) => {
 
 // @desc    Reset tender dealership user password
 // @route   POST /api/tender-dealership-user/:id/reset-password
-// @access  Private (Dealership Admin/Primary User or Company Admin)
+// @access  Private (Primary Tender Dealership User only)
 const resetTenderDealershipUserPassword = async (req, res) => {
   try {
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
@@ -574,7 +573,8 @@ const resetTenderDealershipUserPassword = async (req, res) => {
     // Find user
     const user = await TenderDealershipUser.findOne({
       _id: req.params.id,
-      company_id: req.user.company_id
+      company_id: req.dealershipUser.company_id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
     });
 
     if (!user) {
@@ -592,7 +592,7 @@ const resetTenderDealershipUserPassword = async (req, res) => {
     // Send email notification with new password
     try {
       const Company = require('../models/Company');
-      const company = await Company.findById(req.user.company_id);
+      const company = await Company.findById(req.dealershipUser.company_id);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
       
       const TenderDealership = req.getModel('TenderDealership');
@@ -607,7 +607,7 @@ const resetTenderDealershipUserPassword = async (req, res) => {
           <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Username:</strong> ${user.username}</p>
             <p><strong>New Password:</strong> ${defaultPassword}</p>
-            <p><strong>Company ID:</strong> ${req.user.company_id}</p>
+            <p><strong>Company ID:</strong> ${req.dealershipUser.company_id}</p>
             <p><strong>Dealership ID:</strong> ${user.tenderDealership_id}</p>
           </div>
           
@@ -632,8 +632,8 @@ const resetTenderDealershipUserPassword = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user.id,
-      company_id: req.user.company_id,
+      user_id: req.dealershipUser.id,
+      company_id: req.dealershipUser.company_id,
       action: 'UPDATE',
       resource_type: 'TenderDealershipUser',
       resource_id: user._id,

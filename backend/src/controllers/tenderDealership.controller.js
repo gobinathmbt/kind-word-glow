@@ -237,153 +237,117 @@ const createTenderDealership = async (req, res) => {
       const company = await Company.findById(req.user.company_id);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
 
-      const html = `
-       <!DOCTYPE html>
+      const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Welcome Email</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0f0f0f;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0f0f0f;padding:48px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;padding:48px 16px;">
     <tr>
       <td align="center">
 
         <!-- Email Card -->
-        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 0 0 1px rgba(34,197,94,0.2),0 32px 64px rgba(0,0,0,0.5);">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 8px 32px rgba(0,0,0,0.06);">
 
           <!-- HEADER -->
           <tr>
-            <td style="background:linear-gradient(135deg,#0a0a0a 0%,#111827 100%);padding:48px 48px 44px;">
-
-              <!-- Brand -->
-              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
+            <td style="background:#1c1c1e;padding:44px 48px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
                   <td style="background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;width:42px;height:42px;text-align:center;vertical-align:middle;font-size:20px;line-height:42px;">🚗</td>
-                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP</td>
+                  <td style="padding-left:12px;vertical-align:middle;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Auto ERP - Complete Vehicle Management Solution</td>
                 </tr>
               </table>
-
-              <!-- Badge -->
-              <div style="display:inline-block;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:18px;">
-                Tender Portal
-              </div>
-
-              <!-- Title -->
-              <h1 style="margin:0;font-size:30px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
+              <div style="display:inline-block;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:16px;">Tender Portal</div>
+              <h1 style="margin:0;font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
                 Welcome to<br/>
-                <span style="color:#22c55e;">${company ? company.company_name : "Auto ERP"}</span> Portal
+                <span style="color:#22c55e;">${company ? company.company_name : 'Auto ERP'}</span> Portal
               </h1>
-
             </td>
           </tr>
 
           <!-- BODY -->
           <tr>
-            <td style="padding:44px 48px 0 48px;">
-
-              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">
-                Dear ${dealership.dealership_name} Team,
-              </p>
-              <p style="margin:0 0 32px;font-size:14px;color:#6b7280;line-height:1.75;">
-                Your dealership has been <strong style="color:#111827;">successfully registered</strong> on our tender portal. Below are your account credentials — please keep them secure.
-              </p>
+            <td style="padding:40px 48px 0 48px;background:#ffffff;">
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Dear ${dealership.dealership_name} Team,</p>
+              <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">Your dealership has been <strong style="color:#111827;">successfully registered</strong> on our tender portal. Below are your account credentials — please keep them secure.</p>
 
               <!-- Credentials Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
                 <tr>
                   <td style="background:linear-gradient(180deg,#22c55e,#16a34a);width:4px;border-radius:4px 0 0 4px;"></td>
-                  <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:28px 28px 24px;">
+                  <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">🔐 Your Login Credentials</p>
 
-                    <p style="margin:0 0 20px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">🔐 Your Login Credentials</p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Username</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${username}</td>
+                    </tr></table>
 
-                    <!-- Username -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
-                      <tr>
-                        <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Username</td>
-                        <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${username}</td>
-                      </tr>
-                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Password</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${defaultPassword}</td>
+                    </tr></table>
 
-                    <!-- Password -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
-                      <tr>
-                        <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Password</td>
-                        <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${defaultPassword}</td>
-                      </tr>
-                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Company ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${req.user.company_id}</td>
+                    </tr></table>
 
-                    <!-- Company ID -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
-                      <tr>
-                        <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Company ID</td>
-                        <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${req.user.company_id}</td>
-                      </tr>
-                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Dealership ID</td>
+                      <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${dealership._id}</td>
+                    </tr></table>
 
-                    <!-- Dealership ID -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
-                      <tr>
-                        <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Dealership ID</td>
-                        <td style="font-size:14px;color:#111827;font-weight:700;font-family:'Courier New',monospace;background:#fff;border:1px solid #d1fae5;padding:6px 14px;border-radius:8px;">${dealership._id}</td>
-                      </tr>
-                    </table>
-
-                    <!-- Role -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Role</td>
-                        <td><span style="display:inline-block;background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:4px 14px;border-radius:100px;">Primary Tender Dealership User</span></td>
-                      </tr>
-                    </table>
-
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Role</td>
+                      <td><span style="display:inline-block;background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:4px 14px;border-radius:100px;">Primary Tender Dealership User</span></td>
+                    </tr></table>
                   </td>
                 </tr>
               </table>
 
               <!-- Security Notice -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;margin-bottom:32px;">
-                <tr>
-                  <td style="padding:14px 18px;font-size:13px;color:#92400e;line-height:1.6;">
-                    <strong>⚠️ Security Notice:</strong> Please log in and <strong>change your password immediately</strong> to protect your account.
-                  </td>
-                </tr>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;margin-bottom:30px;">
+                <tr><td style="padding:14px 18px;font-size:13px;color:#92400e;line-height:1.6;">
+                  <strong>⚠️ Security Notice:</strong> Please log in and <strong>change your password immediately</strong> to protect your account.
+                </td></tr>
               </table>
 
               <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:44px;">
-                <tr>
-                  <td align="center">
-                    <a href="${frontendUrl}/login"
-                       style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 24px rgba(34,197,94,0.4);">
-                      🚀 &nbsp; Access the Tender Portal
-                    </a>
-                  </td>
-                </tr>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
+                <tr><td align="center">
+                  <a href="${frontendUrl}/login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">
+                    🚀 &nbsp; Access the Tender Portal
+                  </a>
+                </td></tr>
               </table>
-
             </td>
           </tr>
 
           <!-- FOOTER -->
           <tr>
-            <td style="background:#0f0f0f;padding:32px 48px;">
+            <td style="background:#2a2a2c;padding:28px 48px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td>
-                    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#ffffff;">${company ? company.company_name : "Auto ERP"} Team</p>
-                    <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">This is an automated message. Please do not reply directly.</p>
+                    <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#f9fafb;">${company ? company.company_name : 'Auto ERP'} Team</p>
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">This is an automated message. Please do not reply directly.</p>
                   </td>
                   <td align="right" style="vertical-align:middle;">
                     <span style="display:inline-block;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22c55e;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;">Secure Mail</span>
                   </td>
                 </tr>
               </table>
-              <div style="height:1px;background:rgba(255,255,255,0.06);margin:24px 0;"></div>
-              <p style="margin:0;font-size:11px;color:#4b5563;text-align:center;line-height:1.7;">
-                © 2025 ${company ? company.company_name : "Auto ERP"}. All rights reserved.&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" style="color:#22c55e;text-decoration:none;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" style="color:#22c55e;text-decoration:none;">Support</a>
+              <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0;"></div>
+              <p style="margin:0;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;">
+                © 2025 ${company ? company.company_name : 'Auto ERP'}. All rights reserved.&nbsp;|&nbsp;
+                <a href="#" style="color:#22c55e;text-decoration:none;">Privacy Policy</a>&nbsp;|&nbsp;
+                <a href="#" style="color:#22c55e;text-decoration:none;">Support</a>
               </p>
             </td>
           </tr>
@@ -394,8 +358,7 @@ const createTenderDealership = async (req, res) => {
   </table>
 
 </body>
-</html>
-      `;
+</html>`;
 
       await mailService.sendEmail({
         to: dealership.email,

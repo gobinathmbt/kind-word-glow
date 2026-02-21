@@ -14,7 +14,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  Settings,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -22,7 +21,6 @@ import {
   SlidersHorizontal,
   Search,
   Power,
-  PowerOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -32,7 +30,6 @@ import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/utils/permissionController";
 import CreateTenderDealershipModal from "@/components/tender/CreateTenderDealershipModal";
-import TenderDealershipSettingsModal from "@/components/tender/TenderDealershipSettingsModal";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +49,6 @@ import { Label } from "@/components/ui/label";
 const TenderDealership = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,7 +60,6 @@ const TenderDealership = () => {
   const [sortField, setSortField] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [editDealership, setEditDealership] = useState<any>(null);
-  const [settingsDealership, setSettingsDealership] = useState<any>(null);
 
   const { completeUser } = useAuth();
   const canRefresh = hasPermission(completeUser, "tender_dealership_refresh");
@@ -76,10 +71,6 @@ const TenderDealership = () => {
   const canToggleStatus = hasPermission(
     completeUser,
     "tender_dealership_status_toggle"
-  );
-  const canManageSettings = hasPermission(
-    completeUser,
-    "tender_dealership_settings"
   );
 
   // Function to fetch all dealerships when pagination is disabled
@@ -285,11 +276,6 @@ const TenderDealership = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSettingsClick = (dealership: any) => {
-    setSettingsDealership(dealership);
-    setIsSettingsDialogOpen(true);
-  };
-
   const handleCreateSuccess = () => {
     setIsCreateDialogOpen(false);
     refetch();
@@ -437,15 +423,6 @@ const TenderDealership = () => {
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("hubRecID")}
-      >
-        <div className="flex items-center">
-          HubRecID
-          {getSortIcon("hubRecID")}
-        </div>
-      </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
         onClick={() => handleSort("dealership_name")}
       >
         <div className="flex items-center">
@@ -464,38 +441,11 @@ const TenderDealership = () => {
       </TableHead>
       <TableHead
         className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("billing_address")}
+        onClick={() => handleSort("email")}
       >
         <div className="flex items-center">
-          Billing Address
-          {getSortIcon("billing_address")}
-        </div>
-      </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("abn")}
-      >
-        <div className="flex items-center">
-          ABN
-          {getSortIcon("abn")}
-        </div>
-      </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("dp_name")}
-      >
-        <div className="flex items-center">
-          DP Name
-          {getSortIcon("dp_name")}
-        </div>
-      </TableHead>
-      <TableHead
-        className="bg-muted/50 cursor-pointer hover:bg-muted/70"
-        onClick={() => handleSort("brand_or_make")}
-      >
-        <div className="flex items-center">
-          Brand/Make
-          {getSortIcon("brand_or_make")}
+          Email
+          {getSortIcon("email")}
         </div>
       </TableHead>
       <TableHead
@@ -523,11 +473,8 @@ const TenderDealership = () => {
           </TableCell>
           <TableCell>
             <span className="text-sm font-mono">
-              {dealership.tenderDealership_id}
+              {dealership._id}
             </span>
-          </TableCell>
-          <TableCell>
-            <span className="text-sm">{dealership.hubRecID || "-"}</span>
           </TableCell>
           <TableCell>
             <div className="flex items-center space-x-2">
@@ -558,34 +505,7 @@ const TenderDealership = () => {
             </div>
           </TableCell>
           <TableCell>
-            <div className="text-sm">
-              {dealership.billing_address?.street && (
-                <div>{dealership.billing_address.street}</div>
-              )}
-              {(dealership.billing_address?.suburb ||
-                dealership.billing_address?.state) && (
-                <div className="text-muted-foreground">
-                  {[
-                    dealership.billing_address?.suburb,
-                    dealership.billing_address?.state,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </div>
-              )}
-              {!dealership.billing_address?.street &&
-                !dealership.billing_address?.suburb &&
-                !dealership.billing_address?.state && <span>-</span>}
-            </div>
-          </TableCell>
-          <TableCell>
-            <span className="text-sm">{dealership.abn || "-"}</span>
-          </TableCell>
-          <TableCell>
-            <span className="text-sm">{dealership.dp_name || "-"}</span>
-          </TableCell>
-          <TableCell>
-            <span className="text-sm">{dealership.brand_or_make || "-"}</span>
+            <span className="text-sm">{dealership.email || "-"}</span>
           </TableCell>
           <TableCell>
             <Badge
@@ -613,11 +533,7 @@ const TenderDealership = () => {
                         }
                         className="h-8 w-8 p-0"
                       >
-                        {dealership.isActive ? (
-                          <PowerOff className="h-4 w-4 text-red-600" />
-                        ) : (
-                          <Power className="h-4 w-4 text-green-600" />
-                        )}
+                        <Power className={`h-4 w-4 ${dealership.isActive ? 'text-green-600' : 'text-gray-400'}`} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -662,25 +578,6 @@ const TenderDealership = () => {
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Delete</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              {canManageSettings && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSettingsClick(dealership)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Settings className="h-4 w-4 text-gray-600" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Settings</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -773,15 +670,6 @@ const TenderDealership = () => {
           onOpenChange={setIsEditDialogOpen}
           onSuccess={handleEditSuccess}
           dealership={editDealership}
-        />
-      )}
-
-      {/* Settings Modal */}
-      {settingsDealership && (
-        <TenderDealershipSettingsModal
-          open={isSettingsDialogOpen}
-          onOpenChange={setIsSettingsDialogOpen}
-          dealership={settingsDealership}
         />
       )}
 

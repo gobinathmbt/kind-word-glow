@@ -86,18 +86,34 @@ const TenderDealershipSchema = new mongoose.Schema({
   }
 });
 
-// Generate tenderDealership_id from name + timestamp
-TenderDealershipSchema.pre('save', function(next) {
+// Generate unique 8-digit hexadecimal tenderDealership_id
+TenderDealershipSchema.pre('save', async function(next) {
   if (this.isNew) {
-    const now = new Date();
-    const timestamp = now.getTime();
-    const sanitizedName = this.dealership_name
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '');
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
     
-    this.tenderDealership_id = `${sanitizedName}_${timestamp}`;
+    while (!isUnique && attempts < maxAttempts) {
+      // Generate 8-digit hexadecimal ID (uppercase)
+      const randomHex = Math.floor(Math.random() * 0xFFFFFFFF).toString(16).toUpperCase().padStart(8, '0');
+      const candidateId = randomHex;
+      
+      // Check if this ID already exists
+      const existing = await this.constructor.findOne({ 
+        tenderDealership_id: candidateId 
+      });
+      
+      if (!existing) {
+        this.tenderDealership_id = candidateId;
+        isUnique = true;
+      }
+      
+      attempts++;
+    }
+    
+    if (!isUnique) {
+      return next(new Error('Failed to generate unique dealership ID after multiple attempts'));
+    }
   }
   
   this.updated_at = new Date();

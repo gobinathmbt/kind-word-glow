@@ -1928,7 +1928,7 @@ export const tenderDealershipService = {
 
   // Toggle tender dealership active status
   toggleTenderDealershipStatus: (id: string, data: any) =>
-    apiClient.patch(`/api/tender-dealership/${id}/toggle`, data),
+    apiClient.patch(`/api/tender-dealership/${id}/status`, data),
 
   // Get users for a specific tender dealership
   getTenderDealershipUsers: (id: string, params?: any) =>
@@ -1962,7 +1962,7 @@ export const tenderDealershipUserService = {
 
   // Reset tender dealership user password
   resetTenderDealershipUserPassword: (id: string) =>
-    apiClient.post(`/api/tender-dealership-user/reset-password/${id}`),
+    apiClient.post(`/api/tender-dealership-user/${id}/reset-password`),
 };
 
 export const tenderService = {
