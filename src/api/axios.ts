@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('supplier_token');
       sessionStorage.removeItem('tender_dealership_token');
-      window.location.href = '/login';
+      // window.location.href = '/login';
     }
     return Promise.reject(error);
   }

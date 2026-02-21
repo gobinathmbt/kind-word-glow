@@ -76,7 +76,7 @@ const Login = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const { login } = useAuth();
+  const { login, supplierLogin, tenderDealershipLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -110,12 +110,9 @@ const Login = () => {
 
   const supplierLoginMutation = useMutation({
     mutationFn: async () => {
-      const response = await supplierAuthServices.login(email, password, companyId);
-      return response.data;
+      await supplierLogin(email, password, companyId);
     },
-    onSuccess: (data) => {
-      sessionStorage.setItem("supplier_token", data.data.token);
-      sessionStorage.setItem("supplier_user", JSON.stringify(data.data.supplier));
+    onSuccess: () => {
       toast.success("Login successful");
       navigate("/supplier/dashboard");
     },
@@ -127,22 +124,9 @@ const Login = () => {
 
   const tenderDealerLoginMutation = useMutation({
     mutationFn: async () => {
-      const response = await tenderDealershipAuthService.login({
-        email,
-        password,
-        company_id: companyId,
-        dealership_id: dealershipId,
-      });
-      return response.data;
+      await tenderDealershipLogin(email, password, companyId, dealershipId);
     },
-    onSuccess: (data) => {
-      sessionStorage.setItem("tender_dealership_token", data.token);
-      sessionStorage.setItem("tender_dealership_user", JSON.stringify(data.user));
-      sessionStorage.setItem("tender_dealership_info", JSON.stringify({
-        dealership_name: data.user?.dealership_name || "Dealership",
-        company_id: companyId,
-        dealership_id: dealershipId,
-      }));
+    onSuccess: () => {
       toast.success("Login successful");
       navigate("/tender-dealership/dashboard");
     },

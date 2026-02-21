@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { companyServices } from "@/api/services";
+import { useAuth } from "@/auth/AuthContext";
 import Select from "react-select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -175,6 +176,8 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
   bodyProps = {},
 }) => {
   const queryClient = useQueryClient();
+  const { completeUser } = useAuth();
+  console.log(completeUser)
   const [apiError, setApiError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState({
     make: "",
@@ -183,6 +186,14 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     year: "",
     body: "",
   });
+
+  // Determine if user is a tender dealership user
+  const isTenderDealershipUser = completeUser?.type === "dealership_user";
+
+  // Select the appropriate metadata service based on user type
+  const metadataService = isTenderDealershipUser 
+    ? companyServices.getTenderDealershipMetaData 
+    : companyServices.getCompanyMetaData;
 
   // Internal errors state
   const [internalErrors, setInternalErrors] = useState<ValidationErrors>({});
@@ -283,8 +294,8 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: makesError,
     refetch: refetchMakes,
   } = useQuery({
-    queryKey: ["dropdown-makes-global"],
-    queryFn: () => companyServices.getCompanyMetaData("makes"),
+    queryKey: ["dropdown-makes-global", isTenderDealershipUser ? "tender" : "company"],
+    queryFn: () => metadataService("makes"),
     ...queryOptions,
   });
 
@@ -295,9 +306,9 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: modelsError,
     refetch: refetchModels,
   } = useQuery({
-    queryKey: ["dropdown-models-global", selectedIds.make],
+    queryKey: ["dropdown-models-global", selectedIds.make, isTenderDealershipUser ? "tender" : "company"],
     queryFn: () =>
-      companyServices.getCompanyMetaData("models", {
+      metadataService("models", {
         makeId: selectedIds.make || undefined,
       }),
     enabled: isEdit ? true : !!selectedIds.make,
@@ -311,9 +322,9 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: variantsError,
     refetch: refetchVariants,
   } = useQuery({
-    queryKey: ["dropdown-variants-global", selectedIds.model],
+    queryKey: ["dropdown-variants-global", selectedIds.model, isTenderDealershipUser ? "tender" : "company"],
     queryFn: () =>
-      companyServices.getCompanyMetaData("variants", {
+      metadataService("variants", {
         modelId: selectedIds.model || undefined,
       }),
     enabled: isEdit ? true : !!selectedIds.model,
@@ -327,14 +338,14 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: yearsError,
     refetch: refetchYears,
   } = useQuery({
-    queryKey: ["dropdown-years-global", selectedIds.model, selectedIds.variant, isEdit ? "edit" : "view"],
+    queryKey: ["dropdown-years-global", selectedIds.model, selectedIds.variant, isEdit ? "edit" : "view", isTenderDealershipUser ? "tender" : "company"],
     queryFn: () => {
       // In edit mode with selectedYear but no model/variant, fetch all years
       if (isEdit && selectedYear && !selectedIds.model && !selectedIds.variant) {
-        return companyServices.getCompanyMetaData("years", {});
+        return metadataService("years", {});
       }
       // Otherwise, fetch years based on model/variant
-      return companyServices.getCompanyMetaData("years", {
+      return metadataService("years", {
         modelId: selectedIds.model || undefined,
         variantId: selectedIds.variant || undefined,
       });
@@ -350,8 +361,8 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
     error: bodiesError,
     refetch: refetchBodies,
   } = useQuery({
-    queryKey: ["dropdown-bodies-global"],
-    queryFn: () => companyServices.getCompanyMetaData("bodies"),
+    queryKey: ["dropdown-bodies-global", isTenderDealershipUser ? "tender" : "company"],
+    queryFn: () => metadataService("bodies"),
     ...queryOptions,
   });
 
@@ -450,6 +461,12 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
 
   // Handle adding a new entry
   const handleAddEntry = async (type: string, data: any) => {
+    // Tender dealership users cannot add new entries
+    if (isTenderDealershipUser) {
+      toast.error("You don't have permission to add new entries");
+      return;
+    }
+
     setAddingEntry(true);
     try {
       let response;
@@ -706,7 +723,7 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
               />
             </div>
           )}
-          {showPlusButton && onPlusClick && (
+          {showPlusButton && onPlusClick && !isTenderDealershipUser && (
             <Button
               type="button"
               variant="outline"
@@ -863,16 +880,18 @@ const VehicleMetadataSelector: React.FC<VehicleMetadataSelectorProps> = ({
         {renderFields()}
       </div>
 
-      {/* AddEntryDialog with default type and uneditable */}
-      <AddsingleEntryDialog
-        makes={allMakes?.data?.data || []}
-        onAddEntry={handleAddEntry}
-        isLoading={addingEntry}
-        isOpen={showAddEntryDialog}
-        onClose={handleCloseAddEntryDialog}
-        defaultType={defaultEntryType}
-        typeEditable={false}
-      />
+      {/* AddEntryDialog with default type and uneditable - only for non-tender dealership users */}
+      {!isTenderDealershipUser && (
+        <AddsingleEntryDialog
+          makes={allMakes?.data?.data || []}
+          onAddEntry={handleAddEntry}
+          isLoading={addingEntry}
+          isOpen={showAddEntryDialog}
+          onClose={handleCloseAddEntryDialog}
+          defaultType={defaultEntryType}
+          typeEditable={false}
+        />
+      )}
     </div>
   );
 };

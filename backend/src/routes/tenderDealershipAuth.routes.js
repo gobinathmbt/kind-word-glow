@@ -40,4 +40,8 @@ router.post('/orders/:id/accept', acceptOrder);
 router.post('/orders/:id/deliver', deliverOrder);
 router.post('/orders/:id/abort', abortOrder);
 
+// Vehicle metadata routes for tender dealerships
+const { retrieveController } = require('../controllers/vehicleMetadata.controller');
+router.get('/meta-data', retrieveController.dropdown);
+
 module.exports = router;

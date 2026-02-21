@@ -93,6 +93,8 @@ interface AuthContextType {
   completeUser: CompleteUser | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
+  supplierLogin: (email: string, password: string, companyId: string) => Promise<void>;
+  tenderDealershipLogin: (email: string, password: string, companyId: string, dealershipId: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   updateUserPermissions: (permissions: string[], hasFullAccess: boolean) => void;
@@ -115,9 +117,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
-const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
+  const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
   const [token, setToken] = useState<string | null>(
-    sessionStorage.getItem("token")
+    sessionStorage.getItem("token") || 
+    sessionStorage.getItem("supplier_token") || 
+    sessionStorage.getItem("tender_dealership_token")
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -133,16 +137,61 @@ const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
 
   const fetchUserInfo = async () => {
     try {
-      const response = await axios.get("/api/auth/me");
-      const userData = response.data.user;
-      setUser(userData);
-      setCompleteUser(userData);
-      sessionStorage.setItem(
-        "user",
-        JSON.stringify(
-          (({ company_id, dealership_ids, ...rest }) => rest)(userData)
-        )
-      );
+      // Check which type of token we have
+      const supplierToken = sessionStorage.getItem("supplier_token");
+      const tenderToken = sessionStorage.getItem("tender_dealership_token");
+      
+      if (supplierToken) {
+        // For supplier, get user info from session storage
+        const supplierUser = sessionStorage.getItem("supplier_user");
+        if (supplierUser) {
+          const userData = JSON.parse(supplierUser);
+          const completeUserData = {
+            id: userData.id,
+            email: userData.email,
+            role: userData.role || "supplier",
+            type: "supplier",
+            company_id: userData.company_id,
+            dealership_ids: [],
+            username: userData.name,
+            company_name: userData.company_name,
+          } as CompleteUser;
+          
+          setUser(userData);
+          setCompleteUser(completeUserData);
+        }
+      } else if (tenderToken) {
+        // For tender dealership, get user info from session storage
+        const tenderUser = sessionStorage.getItem("tender_dealership_user");
+        if (tenderUser) {
+          const userData = JSON.parse(tenderUser);
+          const completeUserData = {
+            id: userData.id,
+            email: userData.email,
+            role: userData.role,
+            type: "dealership_user",
+            company_id: userData.company_id,
+            dealership_ids: [],
+            username: userData.username,
+            company_name: userData.company_name,
+          } as CompleteUser;
+          
+          setUser(userData);
+          setCompleteUser(completeUserData);
+        }
+      } else {
+        // Regular company user
+        const response = await axios.get("/api/auth/me");
+        const userData = response.data.user;
+        setUser(userData);
+        setCompleteUser(userData);
+        sessionStorage.setItem(
+          "user",
+          JSON.stringify(
+            (({ company_id, dealership_ids, ...rest }) => rest)(userData)
+          )
+        );
+      }
     } catch (error) {
       console.error("Failed to fetch user info:", error);
       logout();
@@ -167,12 +216,96 @@ const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
     }
   };
 
+  const supplierLogin = async (email: string, password: string, companyId: string) => {
+    try {
+      const response = await axios.post("/api/supplier-auth/login", { 
+        email, 
+        password, 
+        company_id: companyId 
+      });
+      const { token: newToken, supplier } = response.data.data;
+      
+      setToken(newToken);
+      
+      const completeUserData = {
+        id: supplier.id,
+        email: supplier.email,
+        role: supplier.role || "supplier",
+        type: "supplier",
+        company_id: supplier.company_id,
+        dealership_ids: [],
+        username: supplier.name,
+        company_name: supplier.company_name,
+      } as CompleteUser;
+      
+      setUser(supplier);
+      setCompleteUser(completeUserData);
+      
+      sessionStorage.setItem("supplier_token", newToken);
+      sessionStorage.setItem("supplier_user", JSON.stringify(supplier));
+      axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+    } catch (error) {
+      console.error("Supplier login error:", error);
+      throw error;
+    }
+  };
+
+  const tenderDealershipLogin = async (
+    email: string, 
+    password: string, 
+    companyId: string, 
+    dealershipId: string
+  ) => {
+    try {
+      const response = await axios.post("/api/tender-dealership-auth/login", {
+        email,
+        password,
+        company_id: companyId,
+        dealership_id: dealershipId,
+      });
+      const { token: newToken, user: userData } = response.data;
+      
+      setToken(newToken);
+      
+      const completeUserData = {
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        type: "dealership_user",
+        company_id: userData.company_id,
+        dealership_ids: [],
+        username: userData.username,
+        company_name: userData.company_name,
+      } as CompleteUser;
+      
+      setUser(userData);
+      setCompleteUser(completeUserData);
+      
+      sessionStorage.setItem("tender_dealership_token", newToken);
+      sessionStorage.setItem("tender_dealership_user", JSON.stringify(userData));
+      sessionStorage.setItem("tender_dealership_info", JSON.stringify({
+        dealership_name: userData.dealership_name || "Dealership",
+        company_id: companyId,
+        dealership_id: dealershipId,
+      }));
+      axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+    } catch (error) {
+      console.error("Tender dealership login error:", error);
+      throw error;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setCompleteUser(null);
     setToken(null);
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
+    sessionStorage.removeItem("supplier_token");
+    sessionStorage.removeItem("supplier_user");
+    sessionStorage.removeItem("tender_dealership_token");
+    sessionStorage.removeItem("tender_dealership_user");
+    sessionStorage.removeItem("tender_dealership_info");
     delete axios.defaults.headers.common["Authorization"];
   };
 
@@ -189,7 +322,17 @@ const [completeUser, setCompleteUser] = useState<CompleteUser | null>(null);
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isLoading, completeUser, updateUserPermissions }}
+      value={{ 
+        user, 
+        token, 
+        login, 
+        supplierLogin,
+        tenderDealershipLogin,
+        logout, 
+        isLoading, 
+        completeUser, 
+        updateUserPermissions 
+      }}
     >
       {children}
     </AuthContext.Provider>

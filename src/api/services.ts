@@ -521,6 +521,11 @@ export const companyServices = {
       params: { type, ...params },
     }),
 
+  getTenderDealershipMetaData: (type, params = {}) =>
+    apiClient.get("/api/tender-dealership-auth/meta-data", {
+      params: { type, ...params },
+    }),
+
   createMake: (data: any) => apiClient.post("/api/company/create/make", data),
   createModel: (data: any) => apiClient.post("/api/company/create/model", data),
   createVariant: (data: any) =>
