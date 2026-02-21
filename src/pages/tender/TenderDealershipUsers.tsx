@@ -21,8 +21,7 @@ import {
   SlidersHorizontal,
   Search,
   Power,
-  PowerOff,
-  RotateCw,
+    RotateCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -264,27 +263,12 @@ const TenderDealershipUsers = () => {
     },
   });
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await tenderDealershipUserService.resetTenderDealershipUserPassword(id);
-    },
-    onSuccess: () => {
-      toast.success("Password reset successfully. New password sent via email.");
-    },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to reset password"
-      );
-    },
-  });
 
   const handleToggleStatus = (id: string, isActive: boolean) => {
     toggleStatusMutation.mutate({ id, isActive });
   };
 
-  const handleResetPassword = (id: string) => {
-    resetPasswordMutation.mutate(id);
-  };
+
 
   const handleRefresh = () => {
     refetch();
@@ -410,6 +394,7 @@ const TenderDealershipUsers = () => {
 
   const renderTableHeader = () => (
     <TableRow>
+      <TableHead className="w-[80px]">S.No</TableHead>
       <TableHead
         className="cursor-pointer hover:bg-muted/50"
         onClick={() => handleSort("username")}
@@ -450,7 +435,7 @@ const TenderDealershipUsers = () => {
     if (sortedUsers.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="text-center py-8">
+          <TableCell colSpan={6} className="text-center py-8">
             <div className="flex flex-col items-center gap-2">
               <Users className="h-12 w-12 text-muted-foreground" />
               <p className="text-muted-foreground">No users found</p>
@@ -460,8 +445,11 @@ const TenderDealershipUsers = () => {
       );
     }
 
-    return sortedUsers.map((user: any) => (
+    return sortedUsers.map((user: any, index: number) => (
       <TableRow key={user._id} className="hover:bg-muted/50">
+        <TableCell className="font-medium text-muted-foreground">
+          {paginationEnabled ? (page - 1) * rowsPerPage + index + 1 : index + 1}
+        </TableCell>
         <TableCell className="font-medium">{user.username}</TableCell>
         <TableCell>{user.email}</TableCell>
         <TableCell>
@@ -470,7 +458,10 @@ const TenderDealershipUsers = () => {
           </Badge>
         </TableCell>
         <TableCell>
-          <Badge variant={user.isActive ? "default" : "secondary"}>
+          <Badge 
+            variant={user.isActive ? "default" : "secondary"}
+            className={user.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800 hover:bg-gray-100"}
+          >
             {user.isActive ? "Active" : "Inactive"}
           </Badge>
         </TableCell>
@@ -488,9 +479,9 @@ const TenderDealershipUsers = () => {
                     className="h-8 w-8 p-0"
                   >
                     {user.isActive ? (
-                      <PowerOff className="h-4 w-4 text-orange-600" />
-                    ) : (
                       <Power className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Power className="h-4 w-4 text-gray-400" />
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -500,23 +491,6 @@ const TenderDealershipUsers = () => {
               </Tooltip>
             </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleResetPassword(user._id)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <RotateCw className="h-4 w-4 text-blue-600" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Reset Password</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
 
             <TooltipProvider>
               <Tooltip>

@@ -8,7 +8,6 @@ const {
   updateTenderDealershipUser,
   deleteTenderDealershipUser,
   toggleTenderDealershipUserStatus,
-  resetTenderDealershipUserPassword
 } = require('../controllers/tenderDealershipUser.controller');
 
 const router = express.Router();
@@ -44,6 +43,5 @@ router.post('/', createTenderDealershipUser);
 router.put('/:id', updateTenderDealershipUser);
 router.delete('/:id', deleteTenderDealershipUser);
 router.patch('/:id/status', toggleTenderDealershipUserStatus);
-router.post('/:id/reset-password', resetTenderDealershipUserPassword);
 
 module.exports = router;
