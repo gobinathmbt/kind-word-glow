@@ -474,8 +474,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 15. Create frontend API service layer
-  - [ ] 15.1 Create tenderDealershipService with API methods
+- [x] 15. Create frontend API service layer
+  - [x] 15.1 Create tenderDealershipService with API methods
     - getTenderDealerships (with pagination and search)
     - getTenderDealership (by ID)
     - createTenderDealership
@@ -485,7 +485,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - getTenderDealershipUsers
     - _Requirements: 1.1, 1.5, 1.6, 1.7, 1.8, 1.9_
   
-  - [ ] 15.2 Create tenderDealershipUserService with API methods
+  - [x] 15.2 Create tenderDealershipUserService with API methods
     - getTenderDealershipUsers
     - getTenderDealershipUser
     - createTenderDealershipUser
@@ -495,7 +495,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - resetTenderDealershipUserPassword
     - _Requirements: 2.1, 2.4, 2.5, 2.6, 2.7_
   
-  - [ ] 15.3 Create tenderService with API methods
+  - [x] 15.3 Create tenderService with API methods
     - getTenders (with pagination, search, filters)
     - getTender (by ID)
     - createTender
@@ -510,7 +510,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - closeTender
     - _Requirements: 3.1, 3.4, 3.7, 3.8, 3.9, 4.1, 4.2, 5.1, 5.5, 13.1_
   
-  - [ ] 15.4 Create tenderDealershipAuthService with API methods
+  - [x] 15.4 Create tenderDealershipAuthService with API methods
     - login (with username, password, company_id, dealership_id)
     - getProfile
     - updateProfile
@@ -525,28 +525,28 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - deliverOrder
     - _Requirements: 6.1, 8.1, 8.2, 9.1, 11.1, 11.5, 12.6, 12.7_
   
-  - [ ] 15.5 Create tenderConversationService with API methods
+  - [x] 15.5 Create tenderConversationService with API methods
     - getConversation
     - sendMessage
     - markAsRead
     - _Requirements: 18.1, 18.2_
 
-- [ ] 16. Implement admin side - Tender Dealership Management page
-  - [ ] 16.1 Create TenderDealership.tsx page component
+- [x] 16. Implement admin side - Tender Dealership Management page
+  - [x] 16.1 Create TenderDealership.tsx page component
     - Use DataTableLayout component
     - Display dealerships in table with columns: ID, HubRecID, Name, Address, Billing Address, ABN, DP Name, Brand/Make
     - Add action buttons: Active/Inactive toggle, Edit, Delete, Settings
     - Implement pagination and search
     - _Requirements: 1.5, 1.6, 1.7, 1.8, 1.9_
   
-  - [ ] 16.2 Create CreateTenderDealershipModal component
+  - [x] 16.2 Create CreateTenderDealershipModal component
     - Form fields for all dealership information
     - Address and billing address sections
     - Form validation
     - Submit to create/update dealership
     - _Requirements: 1.1, 1.4, 1.8_
   
-  - [ ] 16.3 Create TenderDealershipSettingsModal component
+  - [x] 16.3 Create TenderDealershipSettingsModal component
     - Display list of dealership users
     - CRUD operations for users
     - Only accessible by super admin
@@ -559,8 +559,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - _Requirements: 1.5, 1.6, 1.7, 1.8_
 
 
-- [ ] 17. Implement admin side - Tender Module page
-  - [ ] 17.1 Create TenderModule.tsx page component
+- [x] 17. Implement admin side - Tender Module page
+  - [x] 17.1 Create TenderModule.tsx page component
     - Use DataTableLayout component
     - Display tenders in table with columns: Tender ID, Customer Info, Vehicle Info, Status, Response Count
     - Add action buttons: Active/Inactive toggle, Edit, Delete, Send, View, History, Chat
@@ -568,7 +568,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Display response count in "X/Y" format
     - _Requirements: 3.4, 3.5, 3.6, 3.7, 3.8, 4.1, 5.1, 5.5, 18.1_
   
-  - [ ] 17.2 Create CreateTenderModal component
+  - [x] 17.2 Create CreateTenderModal component
     - Customer information form section
     - Vehicle information using VehicleMetadataSelector
     - Tender expiry date/time picker
@@ -576,7 +576,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Submit to create/update tender
     - _Requirements: 3.1, 3.2, 3.3, 3.9_
   
-  - [ ] 17.3 Create SendTenderModal component
+  - [x] 17.3 Create SendTenderModal component
     - Display list of available dealerships with checkboxes
     - Filter out inactive dealerships
     - Filter out dealerships that already received tender
@@ -584,14 +584,14 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Confirmation before sending
     - _Requirements: 4.1, 4.2, 4.5, 4.8_
   
-  - [ ] 17.4 Create TenderRecipientsModal component
+  - [x] 17.4 Create TenderRecipientsModal component
     - Display list of dealerships that received tender
     - Show dealership name, status, response date
     - View icon opens TenderVehicleSideModal
     - Status badges with color coding
     - _Requirements: 5.1, 5.2, 5.3_
   
-  - [ ] 17.5 Create TenderVehicleSideModal component
+  - [x] 17.5 Create TenderVehicleSideModal component
     - Similar to VehicleTradeSideModal.tsx
     - Read-only view of vehicle information
     - Show quote price if submitted
@@ -599,7 +599,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Approve quote button for admin
     - _Requirements: 5.3, 5.4, 13.1, 13.2_
   
-  - [ ] 17.6 Create TenderHistoryModal component
+  - [x] 17.6 Create TenderHistoryModal component
     - Timeline view of all tender actions
     - Display: Action type, Timestamp, Performed by, Old/New status, Notes
     - Filter by action type and date range
@@ -612,8 +612,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Test status filters
     - _Requirements: 3.4, 3.5, 3.6, 4.1, 5.1_
 
-- [ ] 18. Implement dealership portal layout and authentication
-  - [ ] 18.1 Create TenderDealershipLayout.tsx component
+- [x] 18. Implement dealership portal layout and authentication
+  - [x] 18.1 Create TenderDealershipLayout.tsx component
     - Similar to SupplierLayout.tsx
     - Navigation menu: Dashboard, Users (admin only), Tender Requests, Profile
     - Display dealership name and user info in header
@@ -621,7 +621,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Role-based menu visibility
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.9_
   
-  - [ ] 18.2 Create TenderDealershipLogin.tsx page
+  - [x] 18.2 Create TenderDealershipLogin.tsx page
     - Login form with username, password, company_id, dealership_id fields
     - Form validation
     - Submit to dealership auth endpoint
@@ -629,7 +629,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Redirect to dashboard on success
     - _Requirements: 6.1, 6.2, 6.6_
   
-  - [ ] 18.3 Add dealership auth routes to App.tsx
+  - [x] 18.3 Add dealership auth routes to App.tsx
     - /tender-dealership/login
     - /tender-dealership/dashboard
     - /tender-dealership/users
@@ -646,21 +646,21 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
 
-- [ ] 19. Implement dealership portal - Dashboard and Users pages
-  - [ ] 19.1 Create TenderDealershipDashboard.tsx page
+- [x] 19. Implement dealership portal - Dashboard and Users pages
+  - [x] 19.1 Create TenderDealershipDashboard.tsx page
     - Statistics cards: Total Tenders, Open Quotes, Submitted Quotes, Orders
     - Recent tenders list
     - Quick actions
     - _Requirements: 7.1_
   
-  - [ ] 19.2 Create TenderDealershipUsers.tsx page (admin only)
+  - [x] 19.2 Create TenderDealershipUsers.tsx page (admin only)
     - Use DataTableLayout component
     - Display users in table with columns: Username, Email, Role, Status, Actions
     - CRUD operations for users
     - Only visible to primary users and admins
     - _Requirements: 2.1, 2.4, 2.5, 2.6, 2.7, 7.3_
   
-  - [ ] 19.3 Create CreateTenderDealershipUserModal component
+  - [x] 19.3 Create CreateTenderDealershipUserModal component
     - Form fields for username, email, role
     - Form validation
     - Submit to create/update user
@@ -672,8 +672,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Test user CRUD operations
     - _Requirements: 7.1, 2.4, 2.5_
 
-- [ ] 20. Implement dealership portal - Tender Requests page
-  - [ ] 20.1 Create TenderRequests.tsx page
+- [x] 20. Implement dealership portal - Tender Requests page
+  - [x] 20.1 Create TenderRequests.tsx page
     - Use DataTableLayout component
     - Display incoming tenders in table
     - Columns: Tender ID, Customer, Vehicle, Expiry, Status, Actions
@@ -681,7 +681,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Filter by status
     - _Requirements: 8.1, 8.2, 8.9_
   
-  - [ ] 20.2 Create TenderQuoteSideModal component
+  - [x] 20.2 Create TenderQuoteSideModal component
     - Two tabs: Sent Vehicle, Alternate Vehicle
     - Sent Vehicle tab: Make/Model/Year/Variant read-only, other fields editable
     - Alternate Vehicle tab: Full VehicleMetadataSelector
@@ -698,8 +698,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Test draft and submit actions
     - _Requirements: 8.1, 8.2, 8.3, 9.1, 9.2, 9.3_
 
-- [ ] 21. Implement dealership portal - Quotes and Orders pages
-  - [ ] 21.1 Create QuotesByStatus.tsx page
+- [x] 21. Implement dealership portal - Quotes and Orders pages
+  - [x] 21.1 Create QuotesByStatus.tsx page
     - Tabs: Open, In Progress, Submitted, Withdrawn, Closed
     - Each tab displays quotes in that status
     - Use DataTableLayout component
@@ -707,7 +707,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Withdraw action for submitted quotes
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.8_
   
-  - [ ] 21.2 Create OrdersByStatus.tsx page
+  - [x] 21.2 Create OrdersByStatus.tsx page
     - Tabs: Approved, Accepted, Delivered, Aborted
     - Each tab displays orders in that status
     - Use DataTableLayout component
@@ -715,7 +715,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - View action opens order details modal
     - _Requirements: 12.1, 12.2, 12.4, 12.5, 12.6, 12.7, 12.8_
   
-  - [ ] 21.3 Create OrderDetailsModal component
+  - [x] 21.3 Create OrderDetailsModal component
     - Display order information
     - Display vehicle details
     - Display customer information
@@ -728,8 +728,8 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - Test action buttons
     - _Requirements: 11.1, 11.2, 12.1, 12.2_
 
-- [ ] 22. Implement dealership portal - Profile page
-  - [ ] 22.1 Create TenderDealershipProfile.tsx page
+- [x] 22. Implement dealership portal - Profile page
+  - [x] 22.1 Create TenderDealershipProfile.tsx page
     - Display user information
     - Change password form
     - Update profile information form

@@ -72,6 +72,13 @@ import SupplierProfile from "./pages/supplier/SupplierProfile";
 import TenderModule from "./pages/tender/TenderModule";
 import TenderDashboard from "./pages/tender/TenderDashboard";
 import TenderDealership from "./pages/tender/TenderDealership";
+import TenderDealershipLogin from "./pages/tender/TenderDealershipLogin";
+import TenderDealershipDashboard from "./pages/tender/TenderDealershipDashboard";
+import TenderDealershipUsers from "./pages/tender/TenderDealershipUsers";
+import TenderRequests from "./pages/tender/TenderRequests";
+import TenderQuotesByStatus from "./pages/tender/QuotesByStatus";
+import TenderOrdersByStatus from "./pages/tender/OrdersByStatus";
+import TenderDealershipProfile from "./pages/tender/TenderDealershipProfile";
 
 // Service Bay Pages
 import ServiceBays from "./pages/company/ServiceBays";
@@ -79,6 +86,9 @@ import BayCalendar from "./pages/company/BayCalendar";
 
 // Supplier Layout
 import SupplierLayout from "./components/layout/SupplierLayout";
+
+// Tender Dealership Layout
+import TenderDealershipLayout from "./components/layout/TenderDealershipLayout";
 
 // Master Inspection Component
 import MasterInspection from "./components/inspection/MasterInspection";
@@ -368,6 +378,21 @@ const App = () => {
           <SupplierProfile />
         </SupplierLayout>
       } />
+
+      {/* Tender Dealership Portal Routes */}
+      <Route path="/tender-dealership/login" element={<TenderDealershipLogin />} />
+      
+      <Route path="/tender-dealership/dashboard" element={<TenderDealershipDashboard />} />
+
+      <Route path="/tender-dealership/users" element={<TenderDealershipUsers />} />
+
+      <Route path="/tender-dealership/tenders" element={<TenderRequests />} />
+
+      <Route path="/tender-dealership/quotes/:status" element={<TenderQuotesByStatus />} />
+
+      <Route path="/tender-dealership/orders/:status" element={<TenderOrdersByStatus />} />
+
+      <Route path="/tender-dealership/profile" element={<TenderDealershipProfile />} />
 
       {/* Master Inspection Routes */}
       <Route

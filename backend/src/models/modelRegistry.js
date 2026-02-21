@@ -49,6 +49,7 @@ class ModelRegistry {
       "Subscriptions",
       "Supplier",
       "Tender",
+      "TenderConversation",
       "TenderDealership",
       "TenderDealershipUser",
       "TenderHistory",
