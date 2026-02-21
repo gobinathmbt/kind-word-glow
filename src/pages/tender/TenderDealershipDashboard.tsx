@@ -25,7 +25,7 @@ const TenderDealershipDashboard = () => {
     const user = sessionStorage.getItem("tender_dealership_user");
 
     if (!token || !user) {
-      navigate("/tender-dealership/login");
+      navigate("/login");
       return;
     }
 

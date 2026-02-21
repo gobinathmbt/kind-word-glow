@@ -262,7 +262,7 @@ const createTenderDealershipUser = async (req, res) => {
           </div>
           
           <p>Please log in and change your password immediately for security purposes.</p>
-          <p>You can access the tender portal at: <a href="${frontendUrl}/tender-dealership/login">Login Here</a></p>
+          <p>You can access the tender portal at: <a href="${frontendUrl}/login">Login Here</a></p>
           
           <p>Best regards,<br>${company ? company.company_name : 'Auto ERP'} Team</p>
         </div>
@@ -612,7 +612,7 @@ const resetTenderDealershipUserPassword = async (req, res) => {
           </div>
           
           <p>Please log in and change your password immediately for security purposes.</p>
-          <p>You can access the tender portal at: <a href="${frontendUrl}/tender-dealership/login">Login Here</a></p>
+          <p>You can access the tender portal at: <a href="${frontendUrl}/login">Login Here</a></p>
           
           <p>If you did not request this password reset, please contact your administrator immediately.</p>
           

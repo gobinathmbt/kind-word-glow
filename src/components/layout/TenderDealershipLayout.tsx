@@ -110,7 +110,7 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
     sessionStorage.removeItem('tender_dealership_token');
     sessionStorage.removeItem('tender_dealership_user');
     sessionStorage.removeItem('tender_dealership_info');
-    navigate('/tender-dealership/login');
+    navigate('/login');
   };
 
   const isMenuActive = (item: NavigationItem): boolean => {

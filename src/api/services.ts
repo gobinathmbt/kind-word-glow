@@ -1314,8 +1314,8 @@ export const bayQuoteServices = {
 
 // Supplier Auth Services
 export const supplierAuthServices = {
-  login: (email: string, password: string) =>
-    apiClient.post("/api/supplier-auth/login", { email, password }),
+  login: (email: string, password: string, company_id: string) =>
+    apiClient.post("/api/supplier-auth/login", { email, password, company_id }),
 
   getProfile: () => apiClient.get("/api/supplier-auth/profile"),
 
@@ -2016,9 +2016,9 @@ export const tenderService = {
 };
 
 export const tenderDealershipAuthService = {
-  // Login with username, password, company_id, dealership_id
+  // Login with email, password, company_id, dealership_id
   login: (data: {
-    username: string;
+    email: string;
     password: string;
     company_id: string;
     dealership_id: string;

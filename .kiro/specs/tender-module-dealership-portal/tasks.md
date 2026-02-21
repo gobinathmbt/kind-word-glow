@@ -630,7 +630,7 @@ This implementation plan breaks down the Tender Module and Dealership Portal fea
     - _Requirements: 6.1, 6.2, 6.6_
   
   - [x] 18.3 Add dealership auth routes to App.tsx
-    - /tender-dealership/login
+    - /login
     - /tender-dealership/dashboard
     - /tender-dealership/users
     - /tender-dealership/tenders

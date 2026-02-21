@@ -66,7 +66,7 @@ const TenderRequests = () => {
     const info = sessionStorage.getItem("tender_dealership_info");
 
     if (!token || !user) {
-      navigate("/tender-dealership/login");
+      navigate("/login");
       return;
     }
 

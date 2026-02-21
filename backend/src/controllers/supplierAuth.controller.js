@@ -8,12 +8,12 @@ const { type } = require("os");
 // @access  Public
 const supplierLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, company_id } = req.body;
 
-    if (!email || !password) {
+    if (!email || !password || !company_id) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Email, password, and company_id are required",
       });
     }
 
@@ -22,61 +22,60 @@ const supplierLogin = async (req, res) => {
     const { getModel } = require("../utils/modelFactory");
     const Company = require("../models/Company");
 
-    // Get all companies from main database
-    let allCompanies;
+    // Validate company exists and is active
+    let company;
     try {
-      allCompanies = await Company.find({ is_active: true }).select('_id company_name');
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error during login',
-      });
-    }
+      company = await Company.findById(company_id);
+      if (!company) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+        });
+      }
 
-    if (!allCompanies || allCompanies.length === 0) {
+      if (!company.is_active) {
+        return res.status(401).json({
+          success: false,
+          message: "Company is inactive",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching company:', error);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    // Search for supplier across all company databases
-    let foundSupplier = null;
-    let foundCompanyId = null;
-    let companyDb = null;
-
-    for (const company of allCompanies) {
-      try {
-        // Get company database connection
-        companyDb = await connectionManager.getCompanyConnection(company._id);
-        
-        // Get Supplier model from company database
-        const Supplier = getModel('Supplier', companyDb);
-
-        // Search for supplier in this company (don't populate - Company model is on main DB)
-        const supplier = await Supplier.findOne({
-          email: email.toLowerCase(),
-          is_active: true,
-        });
-
-        if (supplier) {
-          foundSupplier = supplier;
-          foundCompanyId = company._id;
-          break; // Found the supplier, stop searching
-        }
-
-        // Decrement if not found in this company
-        connectionManager.decrementActiveRequests(company._id);
-
-      } catch (error) {
-        console.error(`Error searching supplier in company ${company._id}:`, error);
-        connectionManager.decrementActiveRequests(company._id);
-        continue;
-      }
+    // Get company database connection
+    let companyDb;
+    try {
+      companyDb = await connectionManager.getCompanyConnection(company_id);
+    } catch (error) {
+      console.error(`Error connecting to company database ${company_id}:`, error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error during login',
+      });
     }
 
-    // If supplier not found in any company
+    // Setup cleanup handler
+    const cleanup = () => {
+      connectionManager.decrementActiveRequests(company_id);
+    };
+    res.on('finish', cleanup);
+    res.on('close', cleanup);
+
+    // Get Supplier model from company database
+    const Supplier = getModel('Supplier', companyDb);
+
+    // Search for supplier in this company
+    const foundSupplier = await Supplier.findOne({
+      email: email.toLowerCase(),
+      is_active: true,
+    });
+
+    // If supplier not found
     if (!foundSupplier) {
       return res.status(401).json({
         success: false,
@@ -86,36 +85,9 @@ const supplierLogin = async (req, res) => {
 
     // Verify password
     if (password !== foundSupplier.password) {
-      connectionManager.decrementActiveRequests(foundCompanyId);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
-      });
-    }
-
-    // Setup cleanup handler for the found company
-    const cleanup = () => {
-      connectionManager.decrementActiveRequests(foundCompanyId);
-    };
-    res.on('finish', cleanup);
-    res.on('close', cleanup);
-
-    // Manually populate company details from main database
-    // (Can't use .populate() since Company model is on main DB and Supplier is on company DB)
-    let companyData;
-    try {
-      companyData = await Company.findById(foundSupplier.company_id).select('_id company_name');
-      if (!companyData) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching company details:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error during login',
       });
     }
 
@@ -124,7 +96,7 @@ const supplierLogin = async (req, res) => {
       {
         supplier_id: foundSupplier._id,
         email: foundSupplier.email,
-        company_id: companyData._id,
+        company_id: company._id,
       },
       Env_Configuration.JWT_SECRET || "your-secret-key",
       { expiresIn: "30d" }
@@ -139,8 +111,8 @@ const supplierLogin = async (req, res) => {
           name: foundSupplier.name,
           email: foundSupplier.email,
           supplier_shop_name: foundSupplier.supplier_shop_name,
-          company_id: companyData._id,
-          company_name: companyData.company_name,
+          company_id: company._id,
+          company_name: company.company_name,
           type: "supplier",
           role: "supplier",
         },

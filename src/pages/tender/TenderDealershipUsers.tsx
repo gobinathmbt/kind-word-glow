@@ -75,7 +75,7 @@ const TenderDealershipUsers = () => {
     const info = sessionStorage.getItem("tender_dealership_info");
 
     if (!token || !user) {
-      navigate("/tender-dealership/login");
+      navigate("/login");
       return;
     }
 
@@ -619,7 +619,7 @@ const TenderDealershipUsers = () => {
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog
-        open={isDeleteDialogOpen}
+        isOpen={isDeleteDialogOpen}
         onClose={() => {
           setIsDeleteDialogOpen(false);
           setDeleteTargetId(null);

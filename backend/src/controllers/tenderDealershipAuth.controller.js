@@ -32,13 +32,13 @@ const generateDealershipToken = (user, dealershipId, companyId) => {
 // @access  Public
 const dealershipLogin = async (req, res) => {
   try {
-    const { username, password, company_id, dealership_id } = req.body;
+    const { email, password, company_id, dealership_id } = req.body;
 
     // Validate required fields
-    if (!username || !password || !company_id || !dealership_id) {
+    if (!email || !password || !company_id || !dealership_id) {
       return res.status(400).json({
         success: false,
-        message: "Username, password, company_id, and dealership_id are required",
+        message: "Email, password, company_id, and dealership_id are required",
       });
     }
 
@@ -80,9 +80,9 @@ const dealershipLogin = async (req, res) => {
     // Get TenderDealershipUser model from company database
     const TenderDealershipUser = getModel('TenderDealershipUser', companyDb);
 
-    // Find user by username, company_id, and dealership_id
+    // Find user by email, company_id, and dealership_id
     const user = await TenderDealershipUser.findOne({
-      username,
+      email: email.toLowerCase(),
       company_id,
       tenderDealership_id: dealership_id,
     });

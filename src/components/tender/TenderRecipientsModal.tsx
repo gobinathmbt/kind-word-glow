@@ -42,7 +42,7 @@ const TenderRecipientsModal: React.FC<TenderRecipientsModalProps> = ({
   });
 
   const recipients = recipientsData?.data || [];
-
+  console.log(recipients)
   // Get status badge color
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -125,20 +125,20 @@ const TenderRecipientsModal: React.FC<TenderRecipientsModalProps> = ({
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {recipient.dealership?.dealership_name ||
+                            {recipient.dealership_name ||
                               "Unknown Dealership"}
                           </span>
                         </div>
 
                         <div className="text-sm text-muted-foreground space-y-1">
-                          {recipient.dealership?.email && (
+                          {recipient.email && (
                             <div className="flex items-center gap-2">
                               <span className="text-xs">
                                 {recipient.dealership.email}
                               </span>
                             </div>
                           )}
-                          {recipient.dealership?.brand_or_make && (
+                          {recipient.brand_or_make && (
                             <div className="text-xs">
                               Brand: {recipient.dealership.brand_or_make}
                             </div>

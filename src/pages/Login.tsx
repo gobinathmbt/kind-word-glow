@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { supplierAuthServices } from "@/api/services";
+import { supplierAuthServices, tenderDealershipAuthService } from "@/api/services";
 import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Car,
@@ -29,7 +30,8 @@ import SubscriptionModal from "@/components/subscription/SubscriptionModal";
 import axios from "axios";
 import { BASE_URL } from "@/lib/config";
 
-type LoginMode = "company" | "supplier";
+type LoginMode = "company" | "other";
+type OtherLoginType = "supplier" | "tender_dealer";
 type ViewMode = "login" | "register";
 
 interface RegisterFormData {
@@ -50,9 +52,12 @@ const Login = () => {
   }
 
   const [mode, setMode] = useState<LoginMode>("company");
+  const [otherLoginType, setOtherLoginType] = useState<OtherLoginType>("supplier");
   const [viewMode, setViewMode] = useState<ViewMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [dealershipId, setDealershipId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -105,7 +110,7 @@ const Login = () => {
 
   const supplierLoginMutation = useMutation({
     mutationFn: async () => {
-      const response = await supplierAuthServices.login(email, password);
+      const response = await supplierAuthServices.login(email, password, companyId);
       return response.data;
     },
     onSuccess: (data) => {
@@ -113,6 +118,33 @@ const Login = () => {
       sessionStorage.setItem("supplier_user", JSON.stringify(data.data.supplier));
       toast.success("Login successful");
       navigate("/supplier/dashboard");
+    },
+    onError: (error: any) => {
+      setError(error.response?.data?.message || "Login failed");
+      toast.error(error.response?.data?.message || "Login failed");
+    },
+  });
+
+  const tenderDealerLoginMutation = useMutation({
+    mutationFn: async () => {
+      const response = await tenderDealershipAuthService.login({
+        email,
+        password,
+        company_id: companyId,
+        dealership_id: dealershipId,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      sessionStorage.setItem("tender_dealership_token", data.token);
+      sessionStorage.setItem("tender_dealership_user", JSON.stringify(data.user));
+      sessionStorage.setItem("tender_dealership_info", JSON.stringify({
+        dealership_name: data.user?.dealership_name || "Dealership",
+        company_id: companyId,
+        dealership_id: dealershipId,
+      }));
+      toast.success("Login successful");
+      navigate("/tender-dealership/dashboard");
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || "Login failed");
@@ -151,10 +183,28 @@ const Login = () => {
       return;
     }
 
-    if (mode === "company") {
-      companyLoginMutation.mutate();
+    if (mode === "other") {
+      // Validate company_id for both supplier and tender dealer
+      if (!companyId) {
+        setError("Company ID is required");
+        toast.error("Company ID is required");
+        return;
+      }
+
+      // Validate dealership_id for tender dealer
+      if (otherLoginType === "tender_dealer" && !dealershipId) {
+        setError("Dealership ID is required for tender dealer login");
+        toast.error("Dealership ID is required for tender dealer login");
+        return;
+      }
+
+      if (otherLoginType === "supplier") {
+        supplierLoginMutation.mutate();
+      } else {
+        tenderDealerLoginMutation.mutate();
+      }
     } else {
-      supplierLoginMutation.mutate();
+      companyLoginMutation.mutate();
     }
   };
 
@@ -207,7 +257,7 @@ const Login = () => {
     }
   };
 
-  const isLoading = companyLoginMutation.isPending || supplierLoginMutation.isPending;
+  const isLoading = companyLoginMutation.isPending || supplierLoginMutation.isPending || tenderDealerLoginMutation.isPending;
 
   return (
     <>
@@ -373,22 +423,40 @@ const Login = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode("supplier")}
+                    onClick={() => setMode("other")}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-300 font-medium text-sm ${
-                      mode === "supplier"
+                      mode === "other"
                         ? "bg-emerald-600 text-white shadow-sm"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     <Truck className="h-4 w-4" />
-                    Supplier
+                    Other Logins
                   </button>
                 </div>
+
+                {/* Other Login Type Dropdown */}
+                {mode === "other" && (
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="otherLoginType" className="text-slate-700 text-sm">Login As</Label>
+                    <Select value={otherLoginType} onValueChange={(value) => setOtherLoginType(value as OtherLoginType)}>
+                      <SelectTrigger id="otherLoginType" className="w-full h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="supplier">Supplier</SelectItem>
+                        <SelectItem value="tender_dealer">Tender Dealer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome Back</h2>
                   <p className="text-slate-600 text-sm">
-                    {mode === "company" ? "Sign in to your company account" : "Sign in as supplier"}
+                    {mode === "company" 
+                      ? "Sign in to your company account" 
+                      : `Sign in as ${otherLoginType === "supplier" ? "supplier" : "tender dealer"}`}
                   </p>
                 </div>
 
@@ -436,10 +504,48 @@ const Login = () => {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {mode === "supplier" && (
+                    {mode === "other" && (
                       <p className="text-xs text-slate-500">Default password: Welcome@123</p>
                     )}
                   </div>
+
+                  {/* Company ID field for other login types */}
+                  {mode === "other" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="companyId" className="text-slate-700 text-sm">Company ID</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          id="companyId"
+                          type="text"
+                          value={companyId}
+                          onChange={(e) => setCompanyId(e.target.value)}
+                          placeholder="Enter company ID"
+                          className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dealership ID field for tender dealer only */}
+                  {mode === "other" && otherLoginType === "tender_dealer" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="dealershipId" className="text-slate-700 text-sm">Dealership ID</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          id="dealershipId"
+                          type="text"
+                          value={dealershipId}
+                          onChange={(e) => setDealershipId(e.target.value)}
+                          placeholder="Enter dealership ID"
+                          className="pl-10 h-11 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     type="submit"
