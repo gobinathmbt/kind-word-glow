@@ -154,7 +154,7 @@ const TenderDealershipDashboard = () => {
               </Link>
 
               {/* Orders */}
-              <Link to="/tender-dealership/orders/Order - Approved">
+              <Link to="/tender-dealership/orders/Order%20-%20Approved">
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
@@ -246,7 +246,7 @@ const TenderDealershipDashboard = () => {
                       <span className="text-sm font-medium">My Quotes</span>
                     </Button>
                   </Link>
-                  <Link to="/tender-dealership/orders/Order - Approved">
+                  <Link to="/tender-dealership/orders/Order%20-%20Approved">
                     <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
                       <Package className="h-6 w-6" />
                       <span className="text-sm font-medium">My Orders</span>

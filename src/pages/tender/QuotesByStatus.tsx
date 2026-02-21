@@ -161,8 +161,11 @@ const QuotesByStatus = () => {
 
   // Withdraw quote mutation
   const withdrawQuoteMutation = useMutation({
-    mutationFn: async (tenderId: string) => {
-      const response = await tenderDealershipAuthService.withdrawQuote(tenderId);
+    mutationFn: async (quote: any) => {
+      const response = await tenderDealershipAuthService.withdrawQuote(
+        quote.tender_id,
+        { vehicle_id: quote._id }
+      );
       return response.data;
     },
     onSuccess: () => {
@@ -232,7 +235,7 @@ const QuotesByStatus = () => {
 
   const confirmWithdraw = () => {
     if (quoteToWithdraw) {
-      withdrawQuoteMutation.mutate(quoteToWithdraw._id);
+      withdrawQuoteMutation.mutate(quoteToWithdraw);
     }
   };
 

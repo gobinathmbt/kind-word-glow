@@ -8,11 +8,12 @@ import {
   LogOut,
   LayoutDashboard,
   Users,
-  ClipboardList,
   UserCircle,
   Settings,
   FileText,
   Package,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -27,6 +28,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import logo from "@/assests/logo/android-chrome-512x512.png";
 import { toast } from "sonner";
 import apiClient from "@/api/axios";
@@ -39,10 +45,17 @@ interface TenderDealershipLayoutProps {
 interface NavigationItem {
   icon: any;
   label: string;
-  path: string;
+  path?: string;
   description?: string;
   count?: number;
-  roleRequired?: string[]; // Roles that can see this menu item
+  roleRequired?: string[];
+  children?: NavigationSubItem[];
+}
+
+interface NavigationSubItem {
+  label: string;
+  path: string;
+  description?: string;
 }
 
 const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
@@ -53,6 +66,10 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    'Quotes': true,
+    'Orders': true,
+  });
   const mainContentRef = useRef<HTMLElement>(null);
 
   // Get dealership user info from session storage
@@ -95,19 +112,30 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
       label: 'Users',
       path: '/tender-dealership/users',
       description: 'Manage dealership users',
-      roleRequired: ['primary_tender_dealership_user'], // Only admin and primary users can see this
+      roleRequired: ['primary_tender_dealership_user'],
     },
     {
       icon: FileText,
       label: 'Quotes',
-      path: '/tender-dealership/quotes/Open',
       description: 'Manage your quotes',
+      children: [
+        { label: 'Open', path: '/tender-dealership/quotes/Open', description: 'New tender requests' },
+        { label: 'In Progress', path: '/tender-dealership/quotes/In%20Progress', description: 'Drafts being worked on' },
+        { label: 'Submitted', path: '/tender-dealership/quotes/Submitted', description: 'Quotes under review' },
+        { label: 'Withdrawn', path: '/tender-dealership/quotes/Withdrawn', description: 'Withdrawn quotes' },
+        { label: 'Closed', path: '/tender-dealership/quotes/Closed', description: 'Not selected quotes' },
+      ],
     },
     {
       icon: Package,
       label: 'Orders',
-      path: '/tender-dealership/orders/Order - Approved',
       description: 'View your orders',
+      children: [
+        { label: 'Approved', path: '/tender-dealership/orders/Order%20-%20Approved', description: 'Newly approved orders' },
+        { label: 'Accepted', path: '/tender-dealership/orders/Accepted', description: 'Orders you accepted' },
+        { label: 'Delivered', path: '/tender-dealership/orders/Delivered', description: 'Completed deliveries' },
+        { label: 'Aborted', path: '/tender-dealership/orders/Aborted', description: 'Cancelled orders' },
+      ],
     },
     {
       icon: UserCircle,
@@ -124,12 +152,23 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
     navigate('/login');
   };
 
+  const toggleMenu = (menuLabel: string) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuLabel]: !prev[menuLabel]
+    }));
+  };
+
   const isMenuActive = (item: NavigationItem): boolean => {
+    // For items with children, check if any child path matches
+    if (item.children) {
+      return item.children.some(child => location.pathname === child.path);
+    }
     // For quotes and orders, check if the path starts with the base path
-    if (item.path.includes('/quotes/') && location.pathname.startsWith('/tender-dealership/quotes/')) {
+    if (item.path?.includes('/quotes/') && location.pathname.startsWith('/tender-dealership/quotes/')) {
       return true;
     }
-    if (item.path.includes('/orders/') && location.pathname.startsWith('/tender-dealership/orders/')) {
+    if (item.path?.includes('/orders/') && location.pathname.startsWith('/tender-dealership/orders/')) {
       return true;
     }
     return location.pathname === item.path;
@@ -155,27 +194,54 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
             const Icon = item.icon;
             const isActive = isMenuActive(item);
             
+            // Collapsed sidebar - show icon only
             if (isSidebarCollapsed && !isMobile) {
               return (
-                <TooltipProvider key={item.path}>
+                <TooltipProvider key={item.label}>
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <Link
-                        to={item.path}
-                        className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
-                          isActive 
-                            ? 'bg-primary text-primary-foreground shadow-sm' 
-                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                        }`}
-                        onClick={() => isMobile && setIsMobileMenuOpen(false)}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </Link>
+                      {item.children ? (
+                        <div
+                          className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 cursor-pointer ${
+                            isActive 
+                              ? 'bg-primary text-primary-foreground shadow-sm' 
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <Link
+                          to={item.path!}
+                          className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
+                            isActive 
+                              ? 'bg-primary text-primary-foreground shadow-sm' 
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                          onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </Link>
+                      )}
                     </TooltipTrigger>
                     <TooltipContent side="right" className="flex flex-col">
                       <span className="font-medium">{item.label}</span>
                       {item.description && (
                         <span className="text-xs text-muted-foreground">{item.description}</span>
+                      )}
+                      {item.children && (
+                        <div className="mt-2 space-y-1">
+                          {item.children.map(child => (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              className="block px-2 py-1 text-xs hover:bg-accent rounded"
+                              onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
                       )}
                     </TooltipContent>
                   </Tooltip>
@@ -183,10 +249,55 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
               );
             }
             
+            // Expanded sidebar - show full menu with collapsible children
+            if (item.children) {
+              const isExpanded = expandedMenus[item.label] !== false; // Default to true if not set
+              
+              return (
+                <Collapsible key={item.label} open={isExpanded} onOpenChange={() => toggleMenu(item.label)}>
+                  <CollapsibleTrigger className={`group flex items-center justify-between w-full px-3 py-2 rounded-lg transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-accent-foreground'}`} />
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className={`font-medium text-sm truncate ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
+                          {item.label}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''} ${isActive ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-1 ml-7 space-y-1">
+                    {item.children.map(child => {
+                      const isChildActive = location.pathname === child.path;
+                      return (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          className={`block px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
+                            isChildActive
+                              ? 'bg-accent text-accent-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                          }`}
+                          onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                        >
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            }
+            
+            // Regular menu item without children
             return (
               <Link
                 key={item.path}
-                to={item.path}
+                to={item.path!}
                 className={`group flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                   isActive 
                     ? 'bg-primary text-primary-foreground shadow-sm' 

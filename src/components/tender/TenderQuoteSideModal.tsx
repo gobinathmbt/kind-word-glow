@@ -205,6 +205,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       const data = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
       const payload = {
         vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
+        vehicle_id: activeTab === "sent" ? tender._id : undefined, // Include vehicle_id for sent_vehicle
         ...data,
         quote_price: data.quote_price ? parseFloat(data.quote_price) : undefined,
         odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
@@ -214,7 +215,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         is_draft: true,
       };
 
-      await tenderDealershipAuthService.submitQuote(tender._id, payload);
+      await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
       toast.success("Draft saved successfully");
       onClose();
     } catch (error: any) {
@@ -241,6 +242,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       const data = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
       const payload = {
         vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
+        vehicle_id: activeTab === "sent" ? tender._id : undefined, // Include vehicle_id for sent_vehicle
         ...data,
         quote_price: parseFloat(data.quote_price),
         odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
@@ -250,7 +252,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         is_draft: false,
       };
 
-      await tenderDealershipAuthService.submitQuote(tender._id, payload);
+      await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
       toast.success("Quote submitted successfully");
       setShowSubmitDialog(false);
       onClose();

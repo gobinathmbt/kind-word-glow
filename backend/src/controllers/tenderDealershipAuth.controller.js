@@ -1628,6 +1628,7 @@ const getQuotesByStatus = async (req, res) => {
           ...tender,
           ...tv,
           _id: tv._id,
+          tender_id: tender._id, // Keep the actual tender ID for API calls
           vehicle_id: tv._id,
         };
       })
@@ -1746,6 +1747,7 @@ const getOrdersByStatus = async (req, res) => {
           ...tender,
           ...tv,
           _id: tv._id,
+          tender_id: tender._id, // Keep the actual tender ID for API calls
           vehicle_id: tv._id,
         };
       })
