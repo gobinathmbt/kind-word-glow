@@ -55,11 +55,16 @@ async function tenantContext(req, res, next) {
       });
     }
 
-    // Attach company database connection for company users
+    // Attach company database connection for company users and suppliers
     req.companyDb = null;
     req.companyId = null; // Track company_id for cleanup
     
-    if (req.user.company_db_name && req.user.role !== 'master_admin') {
+    // For regular users: check company_db_name and role
+    // For suppliers: just check if company_id exists
+    const isRegularUser = req.user.company_db_name && req.user.role !== 'master_admin';
+    const isSupplier = req.user.role === 'supplier' && req.user.company_id;
+    
+    if (isRegularUser || isSupplier) {
       try {
         req.companyDb = await connectionManager.getCompanyConnection(req.user.company_id);
         req.companyId = req.user.company_id; // Store for later cleanup

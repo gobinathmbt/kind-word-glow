@@ -8,6 +8,7 @@ const {
   getSupplierProfile
 } = require('../controllers/supplierAuth.controller');
 const Env_Configuration = require('../config/env');
+const tenantContext = require('../middleware/tenantContext');
 
 const router = express.Router();
 
@@ -29,6 +30,13 @@ const protectSupplier = async (req, res, next) => {
 
     const decoded = jwt.verify(token, Env_Configuration.JWT_SECRET || 'your-secret-key');
     req.supplier = decoded;
+    
+    // Also set req.user for tenantContext middleware to attach company database
+    req.user = {
+      company_id: decoded.company_id,
+      role: 'supplier'
+    };
+    
     next();
   } catch (error) {
     return res.status(401).json({
@@ -38,11 +46,12 @@ const protectSupplier = async (req, res, next) => {
   }
 };
 
-// Public routes
+// Public routes (no authentication required)
 router.post('/login', supplierLogin);
 
 // Protected supplier routes
 router.use(protectSupplier);
+router.use(tenantContext);
 router.get('/profile', getSupplierProfile);
 router.get('/vehicles', getSupplierVehicles);
 router.get('/vehicle/:vehicleStockId/:vehicleType', getSupplierVehicleDetails);

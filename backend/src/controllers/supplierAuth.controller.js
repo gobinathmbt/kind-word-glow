@@ -8,7 +8,6 @@ const { type } = require("os");
 // @access  Public
 const supplierLogin = async (req, res) => {
   try {
-    const Supplier = req.getModel('Supplier');
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -17,31 +16,115 @@ const supplierLogin = async (req, res) => {
         message: "Email and password are required",
       });
     }
-    const supplier = await Supplier.findOne({
-      email: email.toLowerCase(),
-      is_active: true,
-    }).populate("company_id", "company_name");
 
-    if (!supplier) {
+    // Get connection manager and utilities
+    const connectionManager = require("../config/dbConnectionManager");
+    const { getModel } = require("../utils/modelFactory");
+    const Company = require("../models/Company");
+
+    // Get all companies from main database
+    let allCompanies;
+    try {
+      allCompanies = await Company.find({ is_active: true }).select('_id company_name');
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error during login',
+      });
+    }
+
+    if (!allCompanies || allCompanies.length === 0) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    if (password !== supplier.password) {
+    // Search for supplier across all company databases
+    let foundSupplier = null;
+    let foundCompanyId = null;
+    let companyDb = null;
+
+    for (const company of allCompanies) {
+      try {
+        // Get company database connection
+        companyDb = await connectionManager.getCompanyConnection(company._id);
+        
+        // Get Supplier model from company database
+        const Supplier = getModel('Supplier', companyDb);
+
+        // Search for supplier in this company (don't populate - Company model is on main DB)
+        const supplier = await Supplier.findOne({
+          email: email.toLowerCase(),
+          is_active: true,
+        });
+
+        if (supplier) {
+          foundSupplier = supplier;
+          foundCompanyId = company._id;
+          break; // Found the supplier, stop searching
+        }
+
+        // Decrement if not found in this company
+        connectionManager.decrementActiveRequests(company._id);
+
+      } catch (error) {
+        console.error(`Error searching supplier in company ${company._id}:`, error);
+        connectionManager.decrementActiveRequests(company._id);
+        continue;
+      }
+    }
+
+    // If supplier not found in any company
+    if (!foundSupplier) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
+      });
+    }
+
+    // Verify password
+    if (password !== foundSupplier.password) {
+      connectionManager.decrementActiveRequests(foundCompanyId);
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // Setup cleanup handler for the found company
+    const cleanup = () => {
+      connectionManager.decrementActiveRequests(foundCompanyId);
+    };
+    res.on('finish', cleanup);
+    res.on('close', cleanup);
+
+    // Manually populate company details from main database
+    // (Can't use .populate() since Company model is on main DB and Supplier is on company DB)
+    let companyData;
+    try {
+      companyData = await Company.findById(foundSupplier.company_id).select('_id company_name');
+      if (!companyData) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching company details:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error during login',
       });
     }
 
     // Generate JWT token
     const token = jwt.sign(
       {
-        supplier_id: supplier._id,
-        email: supplier.email,
-        company_id: supplier.company_id._id,
+        supplier_id: foundSupplier._id,
+        email: foundSupplier.email,
+        company_id: companyData._id,
       },
       Env_Configuration.JWT_SECRET || "your-secret-key",
       { expiresIn: "30d" }
@@ -52,12 +135,12 @@ const supplierLogin = async (req, res) => {
       message: "Login successful",
       data: {
         supplier: {
-          id: supplier._id,
-          name: supplier.name,
-          email: supplier.email,
-          supplier_shop_name: supplier.supplier_shop_name,
-          company_id: supplier.company_id._id,
-          company_name: supplier.company_id.company_name,
+          id: foundSupplier._id,
+          name: foundSupplier.name,
+          email: foundSupplier.email,
+          supplier_shop_name: foundSupplier.supplier_shop_name,
+          company_id: companyData._id,
+          company_name: companyData.company_name,
           type: "supplier",
           role: "supplier",
         },
