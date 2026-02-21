@@ -33,7 +33,7 @@ const TenderDealershipUserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['primary_tender_dealership_user', 'tender_dealership_user', 'admin', 'salesman'],
+    enum: ['primary_tender_dealership_user', 'tender_dealership_user', 'salesman'],
     required: true
   },
   isActive: {
