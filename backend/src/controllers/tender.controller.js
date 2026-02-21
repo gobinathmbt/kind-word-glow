@@ -268,7 +268,7 @@ const createTender = async (req, res) => {
       basic_vehicle_info: req.body.basic_vehicle_info,
       tender_expiry_time: req.body.tender_expiry_time,
       company_id: req.user.company_id,
-      created_by: req.user._id,
+      created_by: req.user.id,
       tender_status: 'Pending'
     };
 
@@ -280,7 +280,7 @@ const createTender = async (req, res) => {
       action_type: 'created',
       old_status: null,
       new_status: 'Pending',
-      performed_by: req.user._id,
+      performed_by: req.user.id,
       performed_by_type: 'admin',
       notes: `Tender created: ${tender.tender_id}`,
       metadata: {
@@ -291,7 +291,7 @@ const createTender = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'CREATE',
       resource_type: 'Tender',
@@ -389,7 +389,7 @@ const updateTender = async (req, res) => {
       action_type: 'updated',
       old_status: oldStatus,
       new_status: tender.tender_status,
-      performed_by: req.user._id,
+      performed_by: req.user.id,
       performed_by_type: 'admin',
       notes: `Tender updated: ${tender.tender_id}`,
       metadata: {
@@ -399,7 +399,7 @@ const updateTender = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'UPDATE',
       resource_type: 'Tender',
@@ -472,7 +472,7 @@ const deleteTender = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'DELETE',
       resource_type: 'Tender',
@@ -527,7 +527,7 @@ const toggleTenderStatus = async (req, res) => {
       action_type: tender.isActive ? 'activated' : 'deactivated',
       old_status: tender.tender_status,
       new_status: tender.tender_status,
-      performed_by: req.user._id,
+      performed_by: req.user.id,
       performed_by_type: 'admin',
       notes: `Tender ${tender.isActive ? 'activated' : 'deactivated'}: ${tender.tender_id}`,
       metadata: {
@@ -538,7 +538,7 @@ const toggleTenderStatus = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'UPDATE',
       resource_type: 'Tender',
@@ -666,7 +666,7 @@ const sendTender = async (req, res) => {
         action_type: 'sent',
         old_status: 'Pending',
         new_status: 'Sent',
-        performed_by: req.user._id,
+        performed_by: req.user.id,
         performed_by_type: 'admin',
         notes: `Tender sent to ${dealership.dealership_name}`,
         metadata: {
@@ -746,7 +746,7 @@ const sendTender = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'SEND',
       resource_type: 'Tender',
@@ -1142,7 +1142,7 @@ const approveQuote = async (req, res) => {
       action_type: 'approved',
       old_status: oldTenderStatus,
       new_status: 'Approved',
-      performed_by: req.user._id,
+      performed_by: req.user.id,
       performed_by_type: 'admin',
       notes: `Quote approved for ${winningDealership?.dealership_name || 'dealership'}`,
       metadata: {
@@ -1243,7 +1243,7 @@ const approveQuote = async (req, res) => {
           action_type: 'rejected',
           old_status: 'Submitted',
           new_status: 'Closed',
-          performed_by: req.user._id,
+          performed_by: req.user.id,
           performed_by_type: 'admin',
           notes: `Quote not selected for ${dealership?.dealership_name || 'dealership'}`,
           metadata: {
@@ -1255,7 +1255,7 @@ const approveQuote = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'APPROVE',
       resource_type: 'Tender',
@@ -1325,7 +1325,7 @@ const closeTender = async (req, res) => {
       action_type: 'closed',
       old_status: oldStatus,
       new_status: 'Closed',
-      performed_by: req.user._id,
+      performed_by: req.user.id,
       performed_by_type: 'admin',
       notes: `Tender closed by admin`,
       metadata: {
@@ -1335,7 +1335,7 @@ const closeTender = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'CLOSE',
       resource_type: 'Tender',

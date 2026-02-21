@@ -1902,3 +1902,183 @@ export default {
   dashboardReportServices: dashboardReportServices,
   dashboardAnalytics: dashboardAnalyticsServices,
 };
+
+
+// Tender Module Services
+export const tenderDealershipService = {
+  // Get all tender dealerships with pagination and search
+  getTenderDealerships: (params?: any) =>
+    apiClient.get("/api/tender-dealership", { params }),
+
+  // Get single tender dealership by ID
+  getTenderDealership: (id: string) =>
+    apiClient.get(`/api/tender-dealership/${id}`),
+
+  // Create new tender dealership
+  createTenderDealership: (data: any) =>
+    apiClient.post("/api/tender-dealership", data),
+
+  // Update tender dealership
+  updateTenderDealership: (id: string, data: any) =>
+    apiClient.put(`/api/tender-dealership/${id}`, data),
+
+  // Delete tender dealership (permanent)
+  deleteTenderDealership: (id: string) =>
+    apiClient.delete(`/api/tender-dealership/${id}`),
+
+  // Toggle tender dealership active status
+  toggleTenderDealershipStatus: (id: string, data: any) =>
+    apiClient.patch(`/api/tender-dealership/${id}/toggle`, data),
+
+  // Get users for a specific tender dealership
+  getTenderDealershipUsers: (id: string, params?: any) =>
+    apiClient.get(`/api/tender-dealership/${id}/users`, { params }),
+};
+
+export const tenderDealershipUserService = {
+  // Get all tender dealership users (filtered by dealership)
+  getTenderDealershipUsers: (params?: any) =>
+    apiClient.get("/api/tender-dealership-user", { params }),
+
+  // Get single tender dealership user by ID
+  getTenderDealershipUser: (id: string) =>
+    apiClient.get(`/api/tender-dealership-user/${id}`),
+
+  // Create new tender dealership user
+  createTenderDealershipUser: (data: any) =>
+    apiClient.post("/api/tender-dealership-user", data),
+
+  // Update tender dealership user
+  updateTenderDealershipUser: (id: string, data: any) =>
+    apiClient.put(`/api/tender-dealership-user/${id}`, data),
+
+  // Delete tender dealership user (permanent)
+  deleteTenderDealershipUser: (id: string) =>
+    apiClient.delete(`/api/tender-dealership-user/${id}`),
+
+  // Toggle tender dealership user active status
+  toggleTenderDealershipUserStatus: (id: string, data: any) =>
+    apiClient.patch(`/api/tender-dealership-user/${id}/toggle`, data),
+
+  // Reset tender dealership user password
+  resetTenderDealershipUserPassword: (id: string) =>
+    apiClient.post(`/api/tender-dealership-user/reset-password/${id}`),
+};
+
+export const tenderService = {
+  // Get all tenders with pagination, search, and filters
+  getTenders: (params?: any) =>
+    apiClient.get("/api/tender", { params }),
+
+  // Get single tender by ID
+  getTender: (id: string) =>
+    apiClient.get(`/api/tender/${id}`),
+
+  // Create new tender
+  createTender: (data: any) =>
+    apiClient.post("/api/tender", data),
+
+  // Update tender
+  updateTender: (id: string, data: any) =>
+    apiClient.put(`/api/tender/${id}`, data),
+
+  // Delete tender (permanent)
+  deleteTender: (id: string) =>
+    apiClient.delete(`/api/tender/${id}`),
+
+  // Toggle tender active status
+  toggleTenderStatus: (id: string, data: any) =>
+    apiClient.patch(`/api/tender/${id}/toggle`, data),
+
+  // Send tender to selected dealerships
+  sendTender: (id: string, data: any) =>
+    apiClient.post(`/api/tender/${id}/send`, data),
+
+  // Get dealerships that received the tender
+  getTenderRecipients: (id: string, params?: any) =>
+    apiClient.get(`/api/tender/${id}/recipients`, { params }),
+
+  // Get available dealerships for sending tender
+  getAvailableDealerships: (id: string, params?: any) =>
+    apiClient.get(`/api/tender/${id}/available-dealerships`, { params }),
+
+  // Get tender history
+  getTenderHistory: (id: string, params?: any) =>
+    apiClient.get(`/api/tender/${id}/history`, { params }),
+
+  // Approve a quote
+  approveQuote: (id: string, data: any) =>
+    apiClient.post(`/api/tender/${id}/approve-quote`, data),
+
+  // Close tender
+  closeTender: (id: string, data?: any) =>
+    apiClient.post(`/api/tender/${id}/close`, data),
+};
+
+export const tenderDealershipAuthService = {
+  // Login with username, password, company_id, dealership_id
+  login: (data: {
+    username: string;
+    password: string;
+    company_id: string;
+    dealership_id: string;
+  }) => apiClient.post("/api/tender-dealership-auth/login", data),
+
+  // Get dealership user profile
+  getProfile: () =>
+    apiClient.get("/api/tender-dealership-auth/profile"),
+
+  // Update dealership user profile
+  updateProfile: (data: any) =>
+    apiClient.put("/api/tender-dealership-auth/profile", data),
+
+  // Change password
+  changePassword: (data: any) =>
+    apiClient.post("/api/tender-dealership-auth/change-password", data),
+
+  // Get tenders for dealership
+  getTenders: (params?: any) =>
+    apiClient.get("/api/tender-dealership-auth/tenders", { params }),
+
+  // Get tender details by ID
+  getTender: (id: string) =>
+    apiClient.get(`/api/tender-dealership-auth/tenders/${id}`),
+
+  // Submit or update quote
+  submitQuote: (id: string, data: any) =>
+    apiClient.post(`/api/tender-dealership-auth/tenders/${id}/quote`, data),
+
+  // Withdraw quote
+  withdrawQuote: (id: string, data?: any) =>
+    apiClient.post(`/api/tender-dealership-auth/tenders/${id}/withdraw`, data),
+
+  // Get quotes by status
+  getQuotesByStatus: (params?: any) =>
+    apiClient.get("/api/tender-dealership-auth/quotes", { params }),
+
+  // Get orders by status
+  getOrdersByStatus: (params?: any) =>
+    apiClient.get("/api/tender-dealership-auth/orders", { params }),
+
+  // Accept order
+  acceptOrder: (id: string, data?: any) =>
+    apiClient.post(`/api/tender-dealership-auth/orders/${id}/accept`, data),
+
+  // Mark order as delivered
+  deliverOrder: (id: string, data?: any) =>
+    apiClient.post(`/api/tender-dealership-auth/orders/${id}/deliver`, data),
+};
+
+export const tenderConversationService = {
+  // Get conversation messages for a tender-dealership pair
+  getConversation: (tenderId: string, dealershipId: string, params?: any) =>
+    apiClient.get(`/api/tender-conversation/${tenderId}/${dealershipId}`, { params }),
+
+  // Send message in conversation
+  sendMessage: (tenderId: string, dealershipId: string, data: any) =>
+    apiClient.post(`/api/tender-conversation/${tenderId}/${dealershipId}`, data),
+
+  // Mark messages as read
+  markAsRead: (tenderId: string, dealershipId: string, data?: any) =>
+    apiClient.patch(`/api/tender-conversation/${tenderId}/${dealershipId}/read`, data),
+};

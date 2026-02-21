@@ -16,6 +16,7 @@ const TenderHistorySchema = new mongoose.Schema({
     enum: [
       'created',
       'sent',
+      'updated',
       'viewed',
       'quote_submitted',
       'quote_withdrawn',

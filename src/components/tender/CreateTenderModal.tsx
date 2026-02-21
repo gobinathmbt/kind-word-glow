@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { tenderService } from "@/services/tenderService";
+import { tenderService } from "@/api/services";
 import { User, Car, Calendar } from "lucide-react";
 import VehicleMetadataSelector from "@/components/common/VehicleMetadataSelector";
 

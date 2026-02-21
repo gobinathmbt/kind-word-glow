@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { tenderService } from "@/services/tenderService";
+import { tenderService } from "@/api/services";
 import { Building2, Search, CheckSquare, Square } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ const SendTenderModal: React.FC<SendTenderModalProps> = ({
   tender,
 }) => {
   const [selectedDealerships, setSelectedDealerships] = useState<string[]>([]);
+  console.log("Selected Dealerships:", selectedDealerships);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -62,7 +63,7 @@ const SendTenderModal: React.FC<SendTenderModalProps> = ({
       dealership.brand_or_make?.toLowerCase().includes(searchLower)
     );
   });
-
+console.log(filteredDealerships)
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
@@ -86,7 +87,7 @@ const SendTenderModal: React.FC<SendTenderModalProps> = ({
     if (selectedDealerships.length === filteredDealerships.length) {
       setSelectedDealerships([]);
     } else {
-      setSelectedDealerships(filteredDealerships.map((d: any) => d._id));
+      setSelectedDealerships(filteredDealerships.map((d: any) => d.id));
     }
   };
 
@@ -196,19 +197,19 @@ const SendTenderModal: React.FC<SendTenderModalProps> = ({
               <div className="space-y-2">
                 {filteredDealerships.map((dealership: any) => (
                   <div
-                    key={dealership._id}
+                    key={dealership.id}
                     className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors cursor-pointer hover:bg-accent ${
-                      selectedDealerships.includes(dealership._id)
+                      selectedDealerships.includes(dealership.id)
                         ? "bg-accent border-primary"
                         : "border-border"
                     }`}
-                    onClick={() => handleToggleDealership(dealership._id)}
+                    onClick={() => handleToggleDealership(dealership.id)}
                   >
                     <Checkbox
-                      id={dealership._id}
-                      checked={selectedDealerships.includes(dealership._id)}
+                      id={dealership.id}
+                      checked={selectedDealerships.includes(dealership.id)}
                       onCheckedChange={() =>
-                        handleToggleDealership(dealership._id)
+                        handleToggleDealership(dealership.id)
                       }
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -216,7 +217,7 @@ const SendTenderModal: React.FC<SendTenderModalProps> = ({
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         <Label
-                          htmlFor={dealership._id}
+                          htmlFor={dealership.id}
                           className="font-medium cursor-pointer"
                         >
                           {dealership.dealership_name}

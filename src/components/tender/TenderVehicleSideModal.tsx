@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { tenderService } from "@/services/tenderService";
+import { tenderService } from "@/api/services";
 import {
   Car,
   DollarSign,

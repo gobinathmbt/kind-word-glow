@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { tenderDealershipAuthService } from "@/services/tenderDealershipAuthService";
+import { tenderDealershipAuthService } from "@/api/services";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import TenderDealershipLayout from "@/components/layout/TenderDealershipLayout";
 import {

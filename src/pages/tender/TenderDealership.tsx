@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { tenderDealershipService } from "@/services/tenderDealershipService";
+import { tenderDealershipService } from "@/api/services";
 import DeleteConfirmationDialog from "@/components/dialogs/DeleteConfirmationDialog";
 import DataTableLayout from "@/components/common/DataTableLayout";
 import { useAuth } from "@/auth/AuthContext";

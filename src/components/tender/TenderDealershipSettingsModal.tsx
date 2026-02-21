@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { tenderDealershipUserService } from "@/services/tenderDealershipUserService";
+import { tenderDealershipUserService } from "@/api/services";
 import {
   User,
   Plus,

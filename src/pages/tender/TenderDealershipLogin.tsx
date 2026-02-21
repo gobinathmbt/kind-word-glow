@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { tenderDealershipAuthService } from "@/services/tenderDealershipAuthService";
+import { tenderDealershipAuthService } from "@/api/services";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +36,10 @@ const TenderDealershipLogin = () => {
         company_id: companyId,
         dealership_id: dealershipId,
       });
-      return response.data;
+      return response;
     },
     onSuccess: (data) => {
+      console.log(data)
       // Store token and user info in session storage
       sessionStorage.setItem("tender_dealership_token", data.data.token);
       sessionStorage.setItem("tender_dealership_user", JSON.stringify(data.data.user));
@@ -52,6 +53,7 @@ const TenderDealershipLogin = () => {
       navigate("/tender-dealership/dashboard");
     },
     onError: (error: any) => {
+      console.log(error)
       const errorMessage = error.response?.data?.message || "Login failed";
       setError(errorMessage);
       toast.error(errorMessage);

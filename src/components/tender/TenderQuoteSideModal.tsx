@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { tenderDealershipAuthService } from "@/services/tenderDealershipAuthService";
+import { tenderDealershipAuthService } from "@/api/services";
 import {
   Car,
   DollarSign,

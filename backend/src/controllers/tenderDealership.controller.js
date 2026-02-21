@@ -200,7 +200,7 @@ const createTenderDealership = async (req, res) => {
     const dealershipData = {
       ...req.body,
       company_id: req.user.company_id,
-      created_by: req.user._id
+      created_by: req.user.id
     };
 
     const dealership = await TenderDealership.create(dealershipData);
@@ -267,7 +267,7 @@ const createTenderDealership = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'CREATE',
       resource_type: 'TenderDealership',
@@ -360,7 +360,7 @@ const updateTenderDealership = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'UPDATE',
       resource_type: 'TenderDealership',
@@ -432,7 +432,7 @@ const deleteTenderDealership = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'DELETE',
       resource_type: 'TenderDealership',
@@ -482,7 +482,7 @@ const toggleTenderDealershipStatus = async (req, res) => {
 
     // Log event
     await logEvent({
-      user_id: req.user._id,
+      user_id: req.user.id,
       company_id: req.user.company_id,
       action: 'UPDATE',
       resource_type: 'TenderDealership',
