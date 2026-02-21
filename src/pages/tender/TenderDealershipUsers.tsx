@@ -314,9 +314,7 @@ const TenderDealershipUsers = () => {
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case "primary_tender_dealership_user":
-        return "default";
-      case "admin":
-        return "secondary";
+        return "default"
       case "salesman":
         return "outline";
       default:
@@ -328,8 +326,6 @@ const TenderDealershipUsers = () => {
     switch (role) {
       case "primary_tender_dealership_user":
         return "Primary User";
-      case "admin":
-        return "Admin";
       case "salesman":
         return "Salesman";
       case "tender_dealership_user":
@@ -666,10 +662,6 @@ const TenderDealershipUsers = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="primary_tender_dealership_user">
-                    Primary User
-                  </SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="salesman">Salesman</SelectItem>
                   <SelectItem value="tender_dealership_user">User</SelectItem>
                 </SelectContent>

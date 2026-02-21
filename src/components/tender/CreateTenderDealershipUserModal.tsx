@@ -196,11 +196,7 @@ const CreateTenderDealershipUserModal: React.FC<
                   <SelectItem value="tender_dealership_user">
                     Dealership User
                   </SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="salesman">Salesman</SelectItem>
-                  <SelectItem value="primary_tender_dealership_user">
-                    Primary User
-                  </SelectItem>
                 </SelectContent>
               </Select>
               {errors.role && (

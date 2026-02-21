@@ -261,8 +261,7 @@ const TenderDealershipDashboard = () => {
                       <span className="text-sm font-medium">My Profile</span>
                     </Button>
                   </Link>
-                  {(dealershipUser.role === "primary_tender_dealership_user" || 
-                    dealershipUser.role === "admin") && (
+                  {(dealershipUser.role === "primary_tender_dealership_user") && (
                     <Link to="/tender-dealership/users">
                       <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
                         <Package className="h-6 w-6" />

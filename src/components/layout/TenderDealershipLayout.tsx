@@ -91,7 +91,7 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
       label: 'Users',
       path: '/tender-dealership/users',
       description: 'Manage dealership users',
-      roleRequired: ['primary_tender_dealership_user', 'admin'], // Only admin and primary users can see this
+      roleRequired: ['primary_tender_dealership_user'], // Only admin and primary users can see this
     },
     {
       icon: ClipboardList,

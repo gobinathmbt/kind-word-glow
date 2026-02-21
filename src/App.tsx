@@ -10,6 +10,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import GlobalLoader from "./components/common/GlobalLoader";
+import { loadingStateManager } from "./lib/loadingState";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -103,6 +105,7 @@ const handleRefresh = async () => {
 
 const App = () => {
   const [isMobile, setIsMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -111,6 +114,15 @@ const App = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    // Subscribe to loading state changes
+    const unsubscribe = loadingStateManager.subscribe((loading) => {
+      setIsLoading(loading);
+    });
+
+    return unsubscribe;
   }, []);
 
   const routesContent = (
@@ -420,6 +432,7 @@ const App = () => {
       <ThemeProvider>
         <AuthProvider>
           <TooltipProvider>
+            <GlobalLoader isLoading={isLoading} />
             <Toaster />
             <Sonner />
             <BrowserRouter>
