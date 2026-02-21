@@ -913,13 +913,13 @@ const getTenderRecipients = async (req, res) => {
       });
     }
 
-    // Get all TenderVehicle records for this tender (sent_vehicle type only)
-    const tenderVehicles = await TenderVehicle.find({
+    // Get all TenderVehicle records for this tender (sent_vehicle type only for main list)
+    const sentVehicles = await TenderVehicle.find({
       tender_id: tender._id,
       vehicle_type: 'sent_vehicle'
     }).lean();
 
-    if (tenderVehicles.length === 0) {
+    if (sentVehicles.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
@@ -927,8 +927,26 @@ const getTenderRecipients = async (req, res) => {
       });
     }
 
+    // Get all alternate vehicles for this tender
+    const alternateVehicles = await TenderVehicle.find({
+      tender_id: tender._id,
+      vehicle_type: 'alternate_vehicle'
+    }).lean();
+
+    // Create a map of parent_vehicle_id to alternate vehicles
+    const alternatesByParent = {};
+    alternateVehicles.forEach(av => {
+      const parentId = av.parent_vehicle_id?.toString();
+      if (parentId) {
+        if (!alternatesByParent[parentId]) {
+          alternatesByParent[parentId] = [];
+        }
+        alternatesByParent[parentId].push(av);
+      }
+    });
+
     // Get dealership IDs
-    const dealershipIds = tenderVehicles.map(tv => tv.tenderDealership_id);
+    const dealershipIds = sentVehicles.map(tv => tv.tenderDealership_id);
 
     // Get dealership details
     const dealerships = await TenderDealership.find({
@@ -942,9 +960,11 @@ const getTenderRecipients = async (req, res) => {
       dealershipMap[d._id.toString()] = d;
     });
 
-    // Build response with quote status and response date
-    const recipients = tenderVehicles.map(tv => {
+    // Build response with quote status, response date, and alternate vehicles
+    const recipients = sentVehicles.map(tv => {
       const dealership = dealershipMap[tv.tenderDealership_id.toString()];
+      const vehicleId = tv._id.toString();
+      const alternates = alternatesByParent[vehicleId] || [];
       
       return {
         dealership_id: tv.tenderDealership_id,
@@ -954,7 +974,18 @@ const getTenderRecipients = async (req, res) => {
         quote_price: tv.quote_price,
         response_date: tv.submitted_at || null,
         vehicle_id: tv._id,
-        created_at: tv.created_at
+        created_at: tv.created_at,
+        alternate_vehicles_count: alternates.length,
+        alternate_vehicles: alternates.map(av => ({
+          vehicle_id: av._id,
+          make: av.make,
+          model: av.model,
+          year: av.year,
+          variant: av.variant,
+          quote_status: av.quote_status,
+          quote_price: av.quote_price,
+          submitted_at: av.submitted_at
+        }))
       };
     });
 
@@ -968,6 +999,95 @@ const getTenderRecipients = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error retrieving tender recipients'
+    });
+  }
+};
+
+// @desc    Get dealership quote details (sent vehicle + all alternate vehicles)
+// @route   GET /api/tender/:id/dealership-quote/:dealershipId
+// @access  Private (Company Admin)
+const getDealershipQuoteDetails = async (req, res) => {
+  try {
+    const Tender = req.getModel('Tender');
+    const TenderDealership = req.getModel('TenderDealership');
+    const TenderVehicle = req.getModel('TenderVehicle');
+    
+    const { id: tenderId, dealershipId } = req.params;
+
+    // Find tender
+    const tender = await Tender.findOne({
+      _id: tenderId,
+      company_id: req.user.company_id
+    });
+
+    if (!tender) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tender not found'
+      });
+    }
+
+    // Get dealership details
+    const dealership = await TenderDealership.findOne({
+      _id: dealershipId,
+      company_id: req.user.company_id
+    }).lean();
+
+    if (!dealership) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dealership not found'
+      });
+    }
+
+    // Get sent vehicle (main quote)
+    const sentVehicle = await TenderVehicle.findOne({
+      tender_id: tenderId,
+      tenderDealership_id: dealershipId,
+      vehicle_type: 'sent_vehicle'
+    }).lean();
+
+    if (!sentVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'No quote found for this dealership'
+      });
+    }
+
+    // Get all alternate vehicles for this dealership
+    const alternateVehicles = await TenderVehicle.find({
+      tender_id: tenderId,
+      tenderDealership_id: dealershipId,
+      vehicle_type: 'alternate_vehicle',
+      parent_vehicle_id: sentVehicle._id
+    }).lean();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        dealership: {
+          _id: dealership._id,
+          dealership_name: dealership.dealership_name,
+          email: dealership.email,
+          phone: dealership.phone,
+          address: dealership.address
+        },
+        tender: {
+          _id: tender._id,
+          tender_id: tender.tender_id,
+          tender_status: tender.tender_status,
+          tender_expiry_time: tender.tender_expiry_time
+        },
+        sent_vehicle: sentVehicle,
+        alternate_vehicles: alternateVehicles
+      }
+    });
+
+  } catch (error) {
+    console.error('Get dealership quote details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving dealership quote details'
     });
   }
 };
@@ -1679,6 +1799,7 @@ module.exports = {
   calculateResponseCount,
   sendTender,
   getTenderRecipients,
+  getDealershipQuoteDetails,
   getAvailableDealerships,
   getTenderHistory,
   approveQuote,

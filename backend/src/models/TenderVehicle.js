@@ -17,6 +17,11 @@ const TenderVehicleSchema = new mongoose.Schema({
     enum: ['sent_vehicle', 'alternate_vehicle'],
     required: true
   },
+  parent_vehicle_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TenderVehicle',
+    default: null
+  },
   
   // Vehicle details
   make: {
@@ -158,6 +163,7 @@ TenderVehicleSchema.pre('save', function(next) {
 TenderVehicleSchema.index({ tender_id: 1, tenderDealership_id: 1 });
 TenderVehicleSchema.index({ tender_id: 1, vehicle_type: 1 });
 TenderVehicleSchema.index({ quote_status: 1 });
+TenderVehicleSchema.index({ parent_vehicle_id: 1 });
 
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderVehicle', TenderVehicleSchema, 'company');

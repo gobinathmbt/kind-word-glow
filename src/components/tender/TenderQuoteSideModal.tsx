@@ -64,9 +64,13 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
+  const [existingAlternateVehicles, setExistingAlternateVehicles] = useState<any[]>([]);
+  const [selectedAlternateIndex, setSelectedAlternateIndex] = useState<number>(0);
 
   // Sent vehicle form data
   const [sentVehicleData, setSentVehicleData] = useState<any>({
+    vehicle_id: null,
     make: "",
     model: "",
     year: "",
@@ -88,8 +92,9 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     quote_notes: "",
   });
 
-  // Alternate vehicle form data
-  const [alternateVehicleData, setAlternateVehicleData] = useState<any>({
+  // Alternate vehicle form data (array to support multiple alternates)
+  const [alternateVehiclesData, setAlternateVehiclesData] = useState<any[]>([{
+    vehicle_id: null,
     make: "",
     model: "",
     year: "",
@@ -109,61 +114,109 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     features: "",
     quote_price: "",
     quote_notes: "",
-  });
+  }]);
 
   const [errors, setErrors] = useState<any>({});
 
   // Initialize form data when tender changes
   useEffect(() => {
     if (tender && open) {
-      // Initialize sent vehicle with tender's basic vehicle info
-      setSentVehicleData({
-        make: tender.basic_vehicle_info?.make || "",
-        model: tender.basic_vehicle_info?.model || "",
-        year: tender.basic_vehicle_info?.year || "",
-        variant: tender.basic_vehicle_info?.variant || "",
-        body_style: tender.basic_vehicle_info?.body_style || "",
-        color: tender.basic_vehicle_info?.color || "",
-        registration_number: "",
-        vin: "",
-        odometer_reading: "",
-        engine_type: "",
-        engine_capacity: "",
-        fuel_type: "",
-        transmission: "",
-        doors: "",
-        seats: "",
-        drive_type: "",
-        features: "",
-        quote_price: "",
-        quote_notes: "",
-      });
+      // Fetch existing quotes for this tender
+      const fetchExistingQuotes = async () => {
+        setIsLoadingQuotes(true);
+        try {
+          // Assuming tender object has the vehicle data already loaded
+          // If not, we need to fetch it via API
+          
+          // Initialize sent vehicle with tender's basic vehicle info
+          const sentVehicleInitial = {
+            vehicle_id: tender.vehicle_id || tender._id, // Use the sent vehicle ID if available
+            make: tender.basic_vehicle_info?.make || "",
+            model: tender.basic_vehicle_info?.model || "",
+            year: tender.basic_vehicle_info?.year || "",
+            variant: tender.basic_vehicle_info?.variant || "",
+            body_style: tender.basic_vehicle_info?.body_style || "",
+            color: tender.basic_vehicle_info?.color || "",
+            registration_number: tender.registration_number || "",
+            vin: tender.vin || "",
+            odometer_reading: tender.odometer_reading || "",
+            engine_type: tender.engine_details?.engine_type || "",
+            engine_capacity: tender.engine_details?.engine_capacity || "",
+            fuel_type: tender.engine_details?.fuel_type || "",
+            transmission: tender.engine_details?.transmission || "",
+            doors: tender.specifications?.doors || "",
+            seats: tender.specifications?.seats || "",
+            drive_type: tender.specifications?.drive_type || "",
+            features: tender.specifications?.features?.join(", ") || "",
+            quote_price: tender.quote_price || "",
+            quote_notes: tender.quote_notes || "",
+          };
+          setSentVehicleData(sentVehicleInitial);
 
-      // Reset alternate vehicle
-      setAlternateVehicleData({
-        make: "",
-        model: "",
-        year: "",
-        variant: "",
-        body_style: "",
-        color: "",
-        registration_number: "",
-        vin: "",
-        odometer_reading: "",
-        engine_type: "",
-        engine_capacity: "",
-        fuel_type: "",
-        transmission: "",
-        doors: "",
-        seats: "",
-        drive_type: "",
-        features: "",
-        quote_price: "",
-        quote_notes: "",
-      });
+          // Check if tender has alternate vehicles loaded
+          if (tender.alternate_vehicles && tender.alternate_vehicles.length > 0) {
+            const alternates = tender.alternate_vehicles.map((av: any) => ({
+              vehicle_id: av._id,
+              make: av.make || "",
+              model: av.model || "",
+              year: av.year || "",
+              variant: av.variant || "",
+              body_style: av.body_style || "",
+              color: av.color || "",
+              registration_number: av.registration_number || "",
+              vin: av.vin || "",
+              odometer_reading: av.odometer_reading || "",
+              engine_type: av.engine_details?.engine_type || "",
+              engine_capacity: av.engine_details?.engine_capacity || "",
+              fuel_type: av.engine_details?.fuel_type || "",
+              transmission: av.engine_details?.transmission || "",
+              doors: av.specifications?.doors || "",
+              seats: av.specifications?.seats || "",
+              drive_type: av.specifications?.drive_type || "",
+              features: av.specifications?.features?.join(", ") || "",
+              quote_price: av.quote_price || "",
+              quote_notes: av.quote_notes || "",
+            }));
+            setAlternateVehiclesData(alternates);
+            setExistingAlternateVehicles(tender.alternate_vehicles);
+          } else {
+            // Reset to single empty alternate vehicle
+            setAlternateVehiclesData([{
+              vehicle_id: null,
+              make: "",
+              model: "",
+              year: "",
+              variant: "",
+              body_style: "",
+              color: "",
+              registration_number: "",
+              vin: "",
+              odometer_reading: "",
+              engine_type: "",
+              engine_capacity: "",
+              fuel_type: "",
+              transmission: "",
+              doors: "",
+              seats: "",
+              drive_type: "",
+              features: "",
+              quote_price: "",
+              quote_notes: "",
+            }]);
+            setExistingAlternateVehicles([]);
+          }
 
-      setErrors({});
-      setActiveTab("sent");
+          setErrors({});
+          setActiveTab("sent");
+          setSelectedAlternateIndex(0);
+        } catch (error) {
+          console.error("Error loading quotes:", error);
+        } finally {
+          setIsLoadingQuotes(false);
+        }
+      };
+
+      fetchExistingQuotes();
     }
   }, [tender, open]);
 
@@ -173,7 +226,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
 
   const validateForm = (isDraft: boolean = false) => {
     const newErrors: any = {};
-    const data = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
+    const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
 
     // For submission, all fields are required
     if (!isDraft) {
@@ -202,22 +255,63 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     setIsSaving(true);
 
     try {
-      const data = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
-      const payload = {
-        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
-        vehicle_id: activeTab === "sent" ? tender._id : undefined, // Include vehicle_id for sent_vehicle
-        ...data,
-        quote_price: data.quote_price ? parseFloat(data.quote_price) : undefined,
-        odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
+      const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
+      
+      // Build engine_details object
+      const engineDetails = {
+        engine_type: data.engine_type || undefined,
+        engine_capacity: data.engine_capacity || undefined,
+        fuel_type: data.fuel_type || undefined,
+        transmission: data.transmission || undefined,
+      };
+
+      // Build specifications object
+      const specifications = {
         doors: data.doors ? parseInt(data.doors) : undefined,
         seats: data.seats ? parseInt(data.seats) : undefined,
-        features: data.features ? data.features.split(",").map((f: string) => f.trim()) : [],
+        drive_type: data.drive_type || undefined,
+        features: data.features ? data.features.split(",").map((f: string) => f.trim()).filter(Boolean) : [],
+      };
+
+      const payload = {
+        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
+        vehicle_id: data.vehicle_id || undefined,
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        variant: data.variant || undefined,
+        body_style: data.body_style || undefined,
+        color: data.color || undefined,
+        registration_number: data.registration_number || undefined,
+        vin: data.vin || undefined,
+        odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
+        engine_details: engineDetails,
+        specifications: specifications,
+        quote_price: data.quote_price ? parseFloat(data.quote_price) : undefined,
+        quote_notes: data.quote_notes || undefined,
         is_draft: true,
       };
 
-      await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      
+      // Update the vehicle_id if it was a new alternate vehicle
+      if (activeTab === "alternate" && !data.vehicle_id && response.data?.data?._id) {
+        setAlternateVehiclesData((prev) => {
+          const updated = [...prev];
+          updated[selectedAlternateIndex] = {
+            ...updated[selectedAlternateIndex],
+            vehicle_id: response.data.data._id
+          };
+          return updated;
+        });
+      } else if (activeTab === "sent" && !data.vehicle_id && response.data?.data?._id) {
+        setSentVehicleData((prev) => ({
+          ...prev,
+          vehicle_id: response.data.data._id
+        }));
+      }
+      
       toast.success("Draft saved successfully");
-      onClose();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to save draft");
     } finally {
@@ -239,20 +333,62 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const data = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
-      const payload = {
-        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
-        vehicle_id: activeTab === "sent" ? tender._id : undefined, // Include vehicle_id for sent_vehicle
-        ...data,
-        quote_price: parseFloat(data.quote_price),
-        odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
+      const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
+      
+      // Build engine_details object
+      const engineDetails = {
+        engine_type: data.engine_type || undefined,
+        engine_capacity: data.engine_capacity || undefined,
+        fuel_type: data.fuel_type || undefined,
+        transmission: data.transmission || undefined,
+      };
+
+      // Build specifications object
+      const specifications = {
         doors: data.doors ? parseInt(data.doors) : undefined,
         seats: data.seats ? parseInt(data.seats) : undefined,
-        features: data.features ? data.features.split(",").map((f: string) => f.trim()) : [],
+        drive_type: data.drive_type || undefined,
+        features: data.features ? data.features.split(",").map((f: string) => f.trim()).filter(Boolean) : [],
+      };
+
+      const payload = {
+        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
+        vehicle_id: data.vehicle_id || undefined,
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        variant: data.variant || undefined,
+        body_style: data.body_style || undefined,
+        color: data.color || undefined,
+        registration_number: data.registration_number || undefined,
+        vin: data.vin || undefined,
+        odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
+        engine_details: engineDetails,
+        specifications: specifications,
+        quote_price: parseFloat(data.quote_price),
+        quote_notes: data.quote_notes || undefined,
         is_draft: false,
       };
 
-      await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      
+      // Update the vehicle_id if it was a new alternate vehicle
+      if (activeTab === "alternate" && !data.vehicle_id && response.data?.data?._id) {
+        setAlternateVehiclesData((prev) => {
+          const updated = [...prev];
+          updated[selectedAlternateIndex] = {
+            ...updated[selectedAlternateIndex],
+            vehicle_id: response.data.data._id
+          };
+          return updated;
+        });
+      } else if (activeTab === "sent" && !data.vehicle_id && response.data?.data?._id) {
+        setSentVehicleData((prev) => ({
+          ...prev,
+          vehicle_id: response.data.data._id
+        }));
+      }
+      
       toast.success("Quote submitted successfully");
       setShowSubmitDialog(false);
       onClose();
@@ -267,7 +403,12 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     if (activeTab === "sent") {
       setSentVehicleData({ ...sentVehicleData, [field]: value });
     } else {
-      setAlternateVehicleData({ ...alternateVehicleData, [field]: value });
+      const updatedAlternates = [...alternateVehiclesData];
+      updatedAlternates[selectedAlternateIndex] = {
+        ...updatedAlternates[selectedAlternateIndex],
+        [field]: value
+      };
+      setAlternateVehiclesData(updatedAlternates);
     }
 
     // Clear error for this field
@@ -276,7 +417,45 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     }
   };
 
-  const currentData = activeTab === "sent" ? sentVehicleData : alternateVehicleData;
+  const handleAddAlternateVehicle = () => {
+    setAlternateVehiclesData([...alternateVehiclesData, {
+      vehicle_id: null,
+      make: "",
+      model: "",
+      year: "",
+      variant: "",
+      body_style: "",
+      color: "",
+      registration_number: "",
+      vin: "",
+      odometer_reading: "",
+      engine_type: "",
+      engine_capacity: "",
+      fuel_type: "",
+      transmission: "",
+      doors: "",
+      seats: "",
+      drive_type: "",
+      features: "",
+      quote_price: "",
+      quote_notes: "",
+    }]);
+    setSelectedAlternateIndex(alternateVehiclesData.length);
+  };
+
+  const handleRemoveAlternateVehicle = (index: number) => {
+    if (alternateVehiclesData.length === 1) {
+      toast.error("You must have at least one alternate vehicle slot");
+      return;
+    }
+    const updatedAlternates = alternateVehiclesData.filter((_, i) => i !== index);
+    setAlternateVehiclesData(updatedAlternates);
+    if (selectedAlternateIndex >= updatedAlternates.length) {
+      setSelectedAlternateIndex(updatedAlternates.length - 1);
+    }
+  };
+
+  const currentData = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
   const expired = isExpired();
   const canEdit = !readOnly && !expired && (tender.quote_status === "Open" || tender.quote_status === "In Progress");
 
@@ -568,44 +747,118 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                 {/* Alternate Vehicle Tab */}
                 <TabsContent value="alternate" className="space-y-4 mt-4">
                   <div className="space-y-4">
+                    {/* Alternate Vehicle Selector */}
+                    {alternateVehiclesData.length > 1 && (
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                        <Label className="text-sm font-medium">Alternate Vehicle:</Label>
+                        <Select
+                          value={selectedAlternateIndex.toString()}
+                          onValueChange={(value) => setSelectedAlternateIndex(parseInt(value))}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {alternateVehiclesData.map((_, index) => (
+                              <SelectItem key={index} value={index.toString()}>
+                                Alternate {index + 1}
+                                {alternateVehiclesData[index].vehicle_id && " (Saved)"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddAlternateVehicle}
+                          disabled={!canEdit}
+                        >
+                          + Add Another
+                        </Button>
+                        {alternateVehiclesData.length > 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveAlternateVehicle(selectedAlternateIndex)}
+                            disabled={!canEdit}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {alternateVehiclesData.length === 1 && (
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddAlternateVehicle}
+                          disabled={!canEdit}
+                        >
+                          + Add Another Alternate Vehicle
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Vehicle Metadata Selector */}
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">Vehicle Details *</Label>
                       <VehicleMetadataSelector
-                        selectedMake={alternateVehicleData.make}
-                        selectedModel={alternateVehicleData.model}
-                        selectedVariant={alternateVehicleData.variant}
-                        selectedYear={alternateVehicleData.year}
-                        selectedBody={alternateVehicleData.body_style}
+                        selectedMake={currentData.make}
+                        selectedModel={currentData.model}
+                        selectedVariant={currentData.variant}
+                        selectedYear={currentData.year}
+                        selectedBody={currentData.body_style}
                         onMakeChange={(value) =>
-                          setAlternateVehicleData((prev) => ({
-                            ...prev,
-                            make: value,
-                          }))
+                          setAlternateVehiclesData((prev) => {
+                            const updated = [...prev];
+                            updated[selectedAlternateIndex] = {
+                              ...updated[selectedAlternateIndex],
+                              make: value,
+                            };
+                            return updated;
+                          })
                         }
                         onModelChange={(value) =>
-                          setAlternateVehicleData((prev) => ({
-                            ...prev,
-                            model: value,
-                          }))
+                          setAlternateVehiclesData((prev) => {
+                            const updated = [...prev];
+                            updated[selectedAlternateIndex] = {
+                              ...updated[selectedAlternateIndex],
+                              model: value,
+                            };
+                            return updated;
+                          })
                         }
                         onYearChange={(value) =>
-                          setAlternateVehicleData((prev) => ({
-                            ...prev,
-                            year: value,
-                          }))
+                          setAlternateVehiclesData((prev) => {
+                            const updated = [...prev];
+                            updated[selectedAlternateIndex] = {
+                              ...updated[selectedAlternateIndex],
+                              year: value,
+                            };
+                            return updated;
+                          })
                         }
                         onVariantChange={(value) =>
-                          setAlternateVehicleData((prev) => ({
-                            ...prev,
-                            variant: value,
-                          }))
+                          setAlternateVehiclesData((prev) => {
+                            const updated = [...prev];
+                            updated[selectedAlternateIndex] = {
+                              ...updated[selectedAlternateIndex],
+                              variant: value,
+                            };
+                            return updated;
+                          })
                         }
                         onBodyChange={(value) =>
-                          setAlternateVehicleData((prev) => ({
-                            ...prev,
-                            body_style: value,
-                          }))
+                          setAlternateVehiclesData((prev) => {
+                            const updated = [...prev];
+                            updated[selectedAlternateIndex] = {
+                              ...updated[selectedAlternateIndex],
+                              body_style: value,
+                            };
+                            return updated;
+                          })
                         }
                         layout="grid-2"
                         showMakePlus={false}
@@ -640,7 +893,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                       <div className="space-y-2">
                         <Label>Color</Label>
                         <Input
-                          value={alternateVehicleData.color}
+                          value={currentData.color}
                           onChange={(e) => handleInputChange("color", e.target.value)}
                           disabled={!canEdit}
                         />
@@ -648,7 +901,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                       <div className="space-y-2">
                         <Label>Registration Number</Label>
                         <Input
-                          value={alternateVehicleData.registration_number}
+                          value={currentData.registration_number}
                           onChange={(e) => handleInputChange("registration_number", e.target.value)}
                           disabled={!canEdit}
                         />
@@ -656,7 +909,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                       <div className="space-y-2">
                         <Label>VIN</Label>
                         <Input
-                          value={alternateVehicleData.vin}
+                          value={currentData.vin}
                           onChange={(e) => handleInputChange("vin", e.target.value)}
                           disabled={!canEdit}
                         />
@@ -665,7 +918,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <Label>Odometer Reading (km)</Label>
                         <Input
                           type="number"
-                          value={alternateVehicleData.odometer_reading}
+                          value={currentData.odometer_reading}
                           onChange={(e) => handleInputChange("odometer_reading", e.target.value)}
                           disabled={!canEdit}
                         />
@@ -681,7 +934,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <div className="space-y-2">
                           <Label>Engine Type</Label>
                           <Input
-                            value={alternateVehicleData.engine_type}
+                            value={currentData.engine_type}
                             onChange={(e) => handleInputChange("engine_type", e.target.value)}
                             disabled={!canEdit}
                           />
@@ -689,7 +942,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <div className="space-y-2">
                           <Label>Engine Capacity</Label>
                           <Input
-                            value={alternateVehicleData.engine_capacity}
+                            value={currentData.engine_capacity}
                             onChange={(e) => handleInputChange("engine_capacity", e.target.value)}
                             disabled={!canEdit}
                           />
@@ -697,7 +950,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <div className="space-y-2">
                           <Label>Fuel Type</Label>
                           <Select
-                            value={alternateVehicleData.fuel_type}
+                            value={currentData.fuel_type}
                             onValueChange={(value) => handleInputChange("fuel_type", value)}
                             disabled={!canEdit}
                           >
@@ -716,7 +969,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <div className="space-y-2">
                           <Label>Transmission</Label>
                           <Select
-                            value={alternateVehicleData.transmission}
+                            value={currentData.transmission}
                             onValueChange={(value) => handleInputChange("transmission", value)}
                             disabled={!canEdit}
                           >
@@ -744,7 +997,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                           <Label>Doors</Label>
                           <Input
                             type="number"
-                            value={alternateVehicleData.doors}
+                            value={currentData.doors}
                             onChange={(e) => handleInputChange("doors", e.target.value)}
                             disabled={!canEdit}
                           />
@@ -753,7 +1006,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                           <Label>Seats</Label>
                           <Input
                             type="number"
-                            value={alternateVehicleData.seats}
+                            value={currentData.seats}
                             onChange={(e) => handleInputChange("seats", e.target.value)}
                             disabled={!canEdit}
                           />
@@ -761,7 +1014,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         <div className="space-y-2">
                           <Label>Drive Type</Label>
                           <Select
-                            value={alternateVehicleData.drive_type}
+                            value={currentData.drive_type}
                             onValueChange={(value) => handleInputChange("drive_type", value)}
                             disabled={!canEdit}
                           >
@@ -780,7 +1033,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                       <div className="space-y-2">
                         <Label>Features (comma-separated)</Label>
                         <Textarea
-                          value={alternateVehicleData.features}
+                          value={currentData.features}
                           onChange={(e) => handleInputChange("features", e.target.value)}
                           placeholder="e.g., Leather seats, Sunroof, Navigation"
                           disabled={!canEdit}
@@ -799,7 +1052,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                       <Input
                         type="number"
                         step="0.01"
-                        value={alternateVehicleData.quote_price}
+                        value={currentData.quote_price}
                         onChange={(e) => handleInputChange("quote_price", e.target.value)}
                         placeholder="Enter quote price"
                         disabled={!canEdit}
@@ -817,7 +1070,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                         Quote Notes
                       </Label>
                       <Textarea
-                        value={alternateVehicleData.quote_notes}
+                        value={currentData.quote_notes}
                         onChange={(e) => handleInputChange("quote_notes", e.target.value)}
                         placeholder="Add any additional notes or comments"
                         rows={4}

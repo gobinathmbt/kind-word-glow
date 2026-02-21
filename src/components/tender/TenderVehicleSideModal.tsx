@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { tenderService } from "@/api/services";
 import {
@@ -48,13 +49,21 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
 }) => {
   const [isApproving, setIsApproving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [selectedVehicleForApproval, setSelectedVehicleForApproval] = useState<any>(null);
+
+  // Check if vehicle data has the new structure (sent_vehicle + alternate_vehicles)
+  const hasCompleteData = vehicle?.sent_vehicle && vehicle?.dealership;
+  const sentVehicle = hasCompleteData ? vehicle.sent_vehicle : vehicle;
+  const alternateVehicles = hasCompleteData ? (vehicle.alternate_vehicles || []) : [];
+  const dealershipInfo = hasCompleteData ? vehicle.dealership : vehicle.dealership;
 
   const handleApproveQuote = async () => {
     setIsApproving(true);
 
     try {
+      const vehicleToApprove = selectedVehicleForApproval || sentVehicle;
       await tenderService.approveQuote(tender._id, {
-        tenderVehicle_id: vehicle._id,
+        tenderVehicle_id: vehicleToApprove._id,
       });
       toast.success("Quote approved successfully");
       setShowApproveDialog(false);
@@ -64,6 +73,11 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
     } finally {
       setIsApproving(false);
     }
+  };
+
+  const handleApproveClick = (vehicleData: any) => {
+    setSelectedVehicleForApproval(vehicleData);
+    setShowApproveDialog(true);
   };
 
   // Get status badge color
@@ -92,8 +106,288 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
     }
   };
 
-  const canApprove =
-    vehicle.quote_status === "Submitted" && tender.tender_status !== "Approved";
+  const canApprove = (vehicleData: any) =>
+    vehicleData.quote_status === "Submitted" && tender.tender_status !== "Approved";
+
+  const renderVehicleDetails = (vehicleData: any) => (
+    <div className="space-y-6">
+      {/* Status and Type */}
+      <div className="flex items-center justify-between">
+        <Badge
+          variant="secondary"
+          className={getStatusBadgeColor(vehicleData.quote_status)}
+        >
+          {vehicleData.quote_status}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={
+            vehicleData.vehicle_type === "sent_vehicle"
+              ? "bg-blue-50 text-blue-700"
+              : "bg-purple-50 text-purple-700"
+          }
+        >
+          {vehicleData.vehicle_type === "sent_vehicle"
+            ? "Received Vehicle"
+            : "Alternate Vehicle"}
+        </Badge>
+      </div>
+
+      {/* Quote Price */}
+      {vehicleData.quote_price && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-1">
+            <DollarSign className="h-5 w-5 text-green-700" />
+            <Label className="text-sm font-medium text-green-900">
+              Quote Price
+            </Label>
+          </div>
+          <div className="text-2xl font-bold text-green-700">
+            ${vehicleData.quote_price.toLocaleString()}
+          </div>
+        </div>
+      )}
+
+      <Separator />
+
+      {/* Vehicle Information */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <Car className="h-4 w-4" />
+          <span>Vehicle Information</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Make</Label>
+            <div className="text-sm font-medium">
+              {vehicleData.make || "-"}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Model</Label>
+            <div className="text-sm font-medium">
+              {vehicleData.model || "-"}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Year</Label>
+            <div className="text-sm font-medium">
+              {vehicleData.year || "-"}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Variant</Label>
+            <div className="text-sm font-medium">
+              {vehicleData.variant || "-"}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              Body Style
+            </Label>
+            <div className="text-sm font-medium">
+              {vehicleData.body_style || "-"}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Color</Label>
+            <div className="text-sm font-medium">
+              {vehicleData.color || "-"}
+            </div>
+          </div>
+
+          {vehicleData.registration_number && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Registration
+              </Label>
+              <div className="text-sm font-medium">
+                {vehicleData.registration_number}
+              </div>
+            </div>
+          )}
+
+          {vehicleData.vin && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">VIN</Label>
+              <div className="text-sm font-medium">{vehicleData.vin}</div>
+            </div>
+          )}
+
+          {vehicleData.odometer_reading && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Odometer
+              </Label>
+              <div className="text-sm font-medium">
+                {vehicleData.odometer_reading.toLocaleString()} km
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Engine Details */}
+      {vehicleData.engine_details &&
+        Object.values(vehicleData.engine_details).some((v) => v) && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold">Engine Details</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                {vehicleData.engine_details.engine_type && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Engine Type
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.engine_details.engine_type}
+                    </div>
+                  </div>
+                )}
+
+                {vehicleData.engine_details.engine_capacity && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Capacity
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.engine_details.engine_capacity}
+                    </div>
+                  </div>
+                )}
+
+                {vehicleData.engine_details.fuel_type && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Fuel Type
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.engine_details.fuel_type}
+                    </div>
+                  </div>
+                )}
+
+                {vehicleData.engine_details.transmission && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Transmission
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.engine_details.transmission}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+      {/* Specifications */}
+      {vehicleData.specifications &&
+        Object.values(vehicleData.specifications).some((v) => v) && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold">Specifications</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                {vehicleData.specifications.doors && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Doors
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.specifications.doors}
+                    </div>
+                  </div>
+                )}
+
+                {vehicleData.specifications.seats && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Seats
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.specifications.seats}
+                    </div>
+                  </div>
+                )}
+
+                {vehicleData.specifications.drive_type && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Drive Type
+                    </Label>
+                    <div className="text-sm font-medium">
+                      {vehicleData.specifications.drive_type}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {vehicleData.specifications.features &&
+                vehicleData.specifications.features.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">
+                      Features
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {vehicleData.specifications.features.map(
+                        (feature: string, index: number) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {feature}
+                          </Badge>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+            </div>
+          </>
+        )}
+
+      {/* Quote Notes */}
+      {vehicleData.quote_notes && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <FileText className="h-4 w-4" />
+              <span>Quote Notes</span>
+            </div>
+            <div className="text-sm p-3 bg-muted rounded-lg">
+              {vehicleData.quote_notes}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Approve Button */}
+      {canApprove(vehicleData) && (
+        <div className="pt-4">
+          <Button
+            onClick={() => handleApproveClick(vehicleData)}
+            className="w-full bg-green-600 hover:bg-green-700"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Approve This Quote
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -103,291 +397,55 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
             <SheetTitle>Vehicle Quote Details</SheetTitle>
             <SheetDescription>
               View quote information from{" "}
-              {vehicle.dealership?.dealership_name || "dealership"}
+              {dealershipInfo?.dealership_name || "dealership"}
             </SheetDescription>
           </SheetHeader>
 
           <ScrollArea className="h-[calc(100vh-180px)] mt-6 pr-4">
-            <div className="space-y-6">
-              {/* Status and Type */}
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant="secondary"
-                  className={getStatusBadgeColor(vehicle.quote_status)}
-                >
-                  {vehicle.quote_status}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={
-                    vehicle.vehicle_type === "sent_vehicle"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-purple-50 text-purple-700"
-                  }
-                >
-                  {vehicle.vehicle_type === "sent_vehicle"
-                    ? "Sent Vehicle"
-                    : "Alternate Vehicle"}
-                </Badge>
-              </div>
+            {alternateVehicles.length > 0 ? (
+              <Tabs defaultValue="sent" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="sent">
+                    Received Vehicle
+                    {sentVehicle.quote_price && (
+                      <span className="ml-2 text-xs text-green-600">
+                        ${sentVehicle.quote_price.toLocaleString()}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="alternates">
+                    Alternate Vehicles ({alternateVehicles.length})
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Quote Price */}
-              {vehicle.quote_price && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="h-5 w-5 text-green-700" />
-                    <Label className="text-sm font-medium text-green-900">
-                      Quote Price
-                    </Label>
-                  </div>
-                  <div className="text-2xl font-bold text-green-700">
-                    ${vehicle.quote_price.toLocaleString()}
-                  </div>
-                </div>
-              )}
+                <TabsContent value="sent">
+                  {renderVehicleDetails(sentVehicle)}
+                </TabsContent>
 
-              <Separator />
-
-              {/* Vehicle Information */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                  <Car className="h-4 w-4" />
-                  <span>Vehicle Information</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Make
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.make || "-"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Model
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.model || "-"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Year
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.year || "-"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Variant
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.variant || "-"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Body Style
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.body_style || "-"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Color
-                    </Label>
-                    <div className="text-sm font-medium">
-                      {vehicle.color || "-"}
-                    </div>
-                  </div>
-
-                  {vehicle.registration_number && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Registration
-                      </Label>
-                      <div className="text-sm font-medium">
-                        {vehicle.registration_number}
-                      </div>
-                    </div>
-                  )}
-
-                  {vehicle.vin && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        VIN
-                      </Label>
-                      <div className="text-sm font-medium">{vehicle.vin}</div>
-                    </div>
-                  )}
-
-                  {vehicle.odometer_reading && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Odometer
-                      </Label>
-                      <div className="text-sm font-medium">
-                        {vehicle.odometer_reading.toLocaleString()} km
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Engine Details */}
-              {vehicle.engine_details &&
-                Object.values(vehicle.engine_details).some((v) => v) && (
-                  <>
-                    <Separator />
-                    <div className="space-y-4">
-                      <Label className="text-sm font-semibold">
-                        Engine Details
-                      </Label>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {vehicle.engine_details.engine_type && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Engine Type
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.engine_details.engine_type}
-                            </div>
-                          </div>
-                        )}
-
-                        {vehicle.engine_details.engine_capacity && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Capacity
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.engine_details.engine_capacity}
-                            </div>
-                          </div>
-                        )}
-
-                        {vehicle.engine_details.fuel_type && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Fuel Type
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.engine_details.fuel_type}
-                            </div>
-                          </div>
-                        )}
-
-                        {vehicle.engine_details.transmission && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Transmission
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.engine_details.transmission}
-                            </div>
-                          </div>
+                <TabsContent value="alternates">
+                  <div className="space-y-6">
+                    {alternateVehicles.map((altVehicle: any, index: number) => (
+                      <div key={altVehicle._id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-semibold">
+                            Alternate Vehicle {index + 1}
+                          </h3>
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                            {altVehicle.make} {altVehicle.model} {altVehicle.year}
+                          </Badge>
+                        </div>
+                        {renderVehicleDetails(altVehicle)}
+                        {index < alternateVehicles.length - 1 && (
+                          <Separator className="mt-6" />
                         )}
                       </div>
-                    </div>
-                  </>
-                )}
-
-              {/* Specifications */}
-              {vehicle.specifications &&
-                Object.values(vehicle.specifications).some((v) => v) && (
-                  <>
-                    <Separator />
-                    <div className="space-y-4">
-                      <Label className="text-sm font-semibold">
-                        Specifications
-                      </Label>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {vehicle.specifications.doors && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Doors
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.specifications.doors}
-                            </div>
-                          </div>
-                        )}
-
-                        {vehicle.specifications.seats && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Seats
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.specifications.seats}
-                            </div>
-                          </div>
-                        )}
-
-                        {vehicle.specifications.drive_type && (
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
-                              Drive Type
-                            </Label>
-                            <div className="text-sm font-medium">
-                              {vehicle.specifications.drive_type}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {vehicle.specifications.features &&
-                        vehicle.specifications.features.length > 0 && (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">
-                              Features
-                            </Label>
-                            <div className="flex flex-wrap gap-2">
-                              {vehicle.specifications.features.map(
-                                (feature: string, index: number) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {feature}
-                                  </Badge>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  </>
-                )}
-
-              {/* Quote Notes */}
-              {vehicle.quote_notes && (
-                <>
-                  <Separator />
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      <span>Quote Notes</span>
-                    </div>
-                    <div className="text-sm p-3 bg-muted rounded-lg">
-                      {vehicle.quote_notes}
-                    </div>
+                    ))}
                   </div>
-                </>
-              )}
-            </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              renderVehicleDetails(sentVehicle)
+            )}
           </ScrollArea>
 
           {/* Footer Actions */}
@@ -396,15 +454,6 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              {canApprove && (
-                <Button
-                  onClick={() => setShowApproveDialog(true)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve Quote
-                </Button>
-              )}
             </div>
           </div>
         </SheetContent>
@@ -420,13 +469,31 @@ const TenderVehicleSideModal: React.FC<TenderVehicleSideModalProps> = ({
             </AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to approve this quote from{" "}
-              {vehicle.dealership?.dealership_name}? This will:
+              {dealershipInfo?.dealership_name}? This will:
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Convert this quote to an approved order</li>
                 <li>Close all other quotes for this tender</li>
                 <li>Send notifications to all dealerships</li>
                 <li>Update the tender status to "Approved"</li>
               </ul>
+              {selectedVehicleForApproval && (
+                <div className="mt-3 p-3 bg-muted rounded-lg">
+                  <div className="text-sm font-medium">
+                    {selectedVehicleForApproval.vehicle_type === "alternate_vehicle" && (
+                      <Badge variant="outline" className="mb-2 bg-purple-50 text-purple-700">
+                        Alternate Vehicle
+                      </Badge>
+                    )}
+                    <div>
+                      {selectedVehicleForApproval.make} {selectedVehicleForApproval.model}{" "}
+                      {selectedVehicleForApproval.year}
+                    </div>
+                    <div className="text-green-600 font-bold mt-1">
+                      ${selectedVehicleForApproval.quote_price?.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

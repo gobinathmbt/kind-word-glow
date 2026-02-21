@@ -69,9 +69,21 @@ const TenderRecipientsModal: React.FC<TenderRecipientsModalProps> = ({
     }
   };
 
-  const handleViewClick = (recipient: any) => {
-    setSelectedVehicle(recipient);
-    setIsVehicleModalOpen(true);
+  const handleViewClick = async (recipient: any) => {
+    // Fetch complete dealership quote details including alternate vehicles
+    try {
+      const response = await tenderService.getDealershipQuoteDetails(
+        tender._id,
+        recipient.dealership_id
+      );
+      setSelectedVehicle(response.data.data);
+      setIsVehicleModalOpen(true);
+    } catch (error) {
+      console.error("Failed to fetch dealership quote details:", error);
+      // Fallback to using recipient data
+      setSelectedVehicle(recipient);
+      setIsVehicleModalOpen(true);
+    }
   };
 
   const handleVehicleModalClose = () => {
@@ -158,6 +170,11 @@ const TenderRecipientsModal: React.FC<TenderRecipientsModalProps> = ({
                           {recipient.quote_price && (
                             <div className="text-xs font-medium text-green-700">
                               Quote: ${recipient.quote_price.toLocaleString()}
+                            </div>
+                          )}
+                          {recipient.alternate_vehicles_count > 0 && (
+                            <div className="text-xs font-medium text-purple-700">
+                              + {recipient.alternate_vehicles_count} Alternate Vehicle{recipient.alternate_vehicles_count > 1 ? 's' : ''}
                             </div>
                           )}
                         </div>

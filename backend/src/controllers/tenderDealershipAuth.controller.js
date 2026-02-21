@@ -423,11 +423,26 @@ const submitQuote = async (req, res) => {
         });
       }
 
+      // Find the sent_vehicle for this dealership to link as parent
+      const sentVehicle = await TenderVehicle.findOne({
+        tender_id: tender._id,
+        tenderDealership_id: req.dealershipUser.tenderDealership_id,
+        vehicle_type: 'sent_vehicle'
+      });
+
+      if (!sentVehicle) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sent vehicle not found. Cannot create alternate vehicle.'
+        });
+      }
+
       // Create new alternate vehicle
       tenderVehicle = new TenderVehicle({
         tender_id: tender._id,
         tenderDealership_id: req.dealershipUser.tenderDealership_id,
         vehicle_type: 'alternate_vehicle',
+        parent_vehicle_id: sentVehicle._id,
         make,
         model,
         year,
