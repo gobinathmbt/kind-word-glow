@@ -370,7 +370,7 @@ const CreateTenderModal: React.FC<CreateTenderModalProps> = ({
                   },
                 }))
               }
-              layout="grid-5"
+              layout="grid-2"
               makeProps={{ required: true }}
               modelProps={{ required: true }}
               yearProps={{ required: true }}
