@@ -10,6 +10,7 @@ const {
   toggleTenderStatus,
   sendTender,
   getTenderRecipients,
+  getTenderDealershipStatusSummary,
   getDealershipQuoteDetails,
   getAvailableDealerships,
   getTenderHistory,
@@ -36,6 +37,7 @@ router.patch('/:id/status', toggleTenderStatus);
 // Tender distribution routes
 router.post('/:id/send', sendTender);
 router.get('/:id/recipients', getTenderRecipients);
+router.get('/:id/dealership-status-summary', getTenderDealershipStatusSummary);
 router.get('/:id/dealership-quote/:dealershipId', getDealershipQuoteDetails);
 router.get('/:id/available-dealerships', getAvailableDealerships);
 

@@ -30,6 +30,11 @@ import {
 import DataTableLayout from "@/components/common/DataTableLayout";
 import TenderDealershipLayout from "@/components/layout/TenderDealershipLayout";
 import TenderQuoteSideModal from "@/components/tender/TenderQuoteSideModal";
+import {
+  validateDealershipDataIsolation,
+  debugDealershipContext,
+  validateDealershipAPIResponse,
+} from "@/utils/tenderDataIsolationDebug";
 
 const QuotesByStatus = () => {
   const { status } = useParams();
@@ -58,8 +63,16 @@ const QuotesByStatus = () => {
       return;
     }
 
-    setDealershipUser(JSON.parse(user));
-    setDealershipInfo(JSON.parse(info || "{}"));
+    const parsedUser = JSON.parse(user);
+    const parsedInfo = JSON.parse(info || "{}");
+
+    setDealershipUser(parsedUser);
+    setDealershipInfo(parsedInfo);
+
+    // Debug: Log dealership context
+    if (process.env.NODE_ENV === "development") {
+      debugDealershipContext(parsedUser);
+    }
   }, [navigate]);
 
   // Fetch all quotes when pagination is disabled
@@ -114,6 +127,20 @@ const QuotesByStatus = () => {
         limit: rowsPerPage,
         search,
       });
+
+      // Validate data isolation
+      if (
+        process.env.NODE_ENV === "development" &&
+        dealershipUser &&
+        response.data?.data
+      ) {
+        validateDealershipAPIResponse(
+          response.data,
+          dealershipUser.tenderDealership_id
+        );
+        validateDealershipDataIsolation(dealershipUser, response.data.data);
+      }
+
       return response.data;
     },
     enabled: !!status && !!dealershipUser,

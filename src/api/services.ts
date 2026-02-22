@@ -1999,6 +1999,10 @@ export const tenderService = {
   getTenderRecipients: (id: string, params?: any) =>
     apiClient.get(`/api/tender/${id}/recipients`, { params }),
 
+  // Get dealership status summary for a tender
+  getTenderDealershipStatusSummary: (id: string, params?: any) =>
+    apiClient.get(`/api/tender/${id}/dealership-status-summary`, { params }),
+
   // Get complete dealership quote details (sent + alternate vehicles)
   getDealershipQuoteDetails: (tenderId: string, dealershipId: string) =>
     apiClient.get(`/api/tender/${tenderId}/dealership-quote/${dealershipId}`),

@@ -966,16 +966,53 @@ const getTenderRecipients = async (req, res) => {
       const vehicleId = tv._id.toString();
       const alternates = alternatesByParent[vehicleId] || [];
       
+      // Calculate response time in hours
+      let responseTimeHours = null;
+      if (tv.submitted_at) {
+        const submittedTime = new Date(tv.submitted_at).getTime();
+        const createdTime = new Date(tv.created_at).getTime();
+        responseTimeHours = Math.round((submittedTime - createdTime) / (1000 * 60 * 60));
+      }
+      
+      // Check if dealership has submitted any quotes (including alternates)
+      const hasSubmittedQuotes = tv.quote_status === 'Submitted' || 
+                                  tv.quote_status === 'Order - Approved' ||
+                                  tv.quote_status === 'Accepted' ||
+                                  tv.quote_status === 'Delivered';
+      
+      // Determine overall dealership status
+      let dealershipStatus = 'Pending';
+      if (tv.quote_status === 'Submitted' || tv.quote_status === 'In Progress') {
+        dealershipStatus = 'In Review';
+      } else if (tv.quote_status === 'Order - Approved') {
+        dealershipStatus = 'Approved';
+      } else if (tv.quote_status === 'Accepted') {
+        dealershipStatus = 'Accepted';
+      } else if (tv.quote_status === 'Delivered') {
+        dealershipStatus = 'Delivered';
+      } else if (tv.quote_status === 'Withdrawn') {
+        dealershipStatus = 'Withdrawn';
+      } else if (tv.quote_status === 'Closed') {
+        dealershipStatus = 'Not Selected';
+      }
+      
       return {
         dealership_id: tv.tenderDealership_id,
         dealership_name: dealership ? dealership.dealership_name : 'Unknown',
         dealership_email: dealership ? dealership.email : '',
+        dealership_phone: dealership ? dealership.phone : '',
+        dealership_address: dealership ? dealership.address : null,
         quote_status: tv.quote_status,
+        dealership_status: dealershipStatus,
         quote_price: tv.quote_price,
         response_date: tv.submitted_at || null,
+        response_time_hours: responseTimeHours,
+        has_submitted_quotes: hasSubmittedQuotes,
         vehicle_id: tv._id,
         created_at: tv.created_at,
+        updated_at: tv.updated_at,
         alternate_vehicles_count: alternates.length,
+        total_quotes_submitted: 1 + alternates.filter(av => av.quote_status === 'Submitted').length,
         alternate_vehicles: alternates.map(av => ({
           vehicle_id: av._id,
           make: av.make,
@@ -984,7 +1021,8 @@ const getTenderRecipients = async (req, res) => {
           variant: av.variant,
           quote_status: av.quote_status,
           quote_price: av.quote_price,
-          submitted_at: av.submitted_at
+          submitted_at: av.submitted_at,
+          created_at: av.created_at
         }))
       };
     });
@@ -999,6 +1037,151 @@ const getTenderRecipients = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error retrieving tender recipients'
+    });
+  }
+};
+
+// @desc    Get dealership status summary for a tender
+// @route   GET /api/tender/:id/dealership-status-summary
+// @access  Private (Company Admin)
+const getTenderDealershipStatusSummary = async (req, res) => {
+  try {
+    const Tender = req.getModel('Tender');
+    const TenderVehicle = req.getModel('TenderVehicle');
+    const TenderDealership = req.getModel('TenderDealership');
+
+    // Find tender
+    const tender = await Tender.findOne({
+      _id: req.params.id,
+      company_id: req.user.company_id
+    });
+
+    if (!tender) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tender not found'
+      });
+    }
+
+    // Get all sent vehicles for this tender
+    const sentVehicles = await TenderVehicle.find({
+      tender_id: tender._id,
+      vehicle_type: 'sent_vehicle'
+    }).lean();
+
+    if (sentVehicles.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          tender_id: tender._id,
+          tender_number: tender.tender_id,
+          total_dealerships: 0,
+          dealerships_pending: 0,
+          dealerships_responded: 0,
+          dealerships_approved: 0,
+          dealerships_withdrawn: 0,
+          dealerships_not_selected: 0,
+          average_response_time_hours: null,
+          summary: []
+        }
+      });
+    }
+
+    // Get dealership details
+    const dealershipIds = sentVehicles.map(tv => tv.tenderDealership_id);
+    const dealerships = await TenderDealership.find({
+      _id: { $in: dealershipIds },
+      company_id: req.user.company_id
+    }).lean();
+
+    const dealershipMap = {};
+    dealerships.forEach(d => {
+      dealershipMap[d._id.toString()] = d;
+    });
+
+    // Calculate statistics
+    let dealershipsPending = 0;
+    let dealershipsResponded = 0;
+    let dealershipsApproved = 0;
+    let dealershipsWithdrawn = 0;
+    let dealershipsNotSelected = 0;
+    let totalResponseTimeHours = 0;
+    let respondedCount = 0;
+
+    // Build summary
+    const summary = sentVehicles.map(tv => {
+      const dealership = dealershipMap[tv.tenderDealership_id.toString()];
+      
+      // Determine dealership status
+      let status = 'Pending';
+      if (tv.quote_status === 'Submitted' || tv.quote_status === 'In Progress') {
+        status = 'Responded';
+        dealershipsResponded++;
+      } else if (tv.quote_status === 'Order - Approved') {
+        status = 'Approved';
+        dealershipsApproved++;
+      } else if (tv.quote_status === 'Withdrawn') {
+        status = 'Withdrawn';
+        dealershipsWithdrawn++;
+      } else if (tv.quote_status === 'Closed') {
+        status = 'Not Selected';
+        dealershipsNotSelected++;
+      } else {
+        dealershipsPending++;
+      }
+
+      // Calculate response time
+      let responseTimeHours = null;
+      if (tv.submitted_at) {
+        const submittedTime = new Date(tv.submitted_at).getTime();
+        const createdTime = new Date(tv.created_at).getTime();
+        responseTimeHours = Math.round((submittedTime - createdTime) / (1000 * 60 * 60));
+        totalResponseTimeHours += responseTimeHours;
+        respondedCount++;
+      }
+
+      return {
+        dealership_id: tv.tenderDealership_id,
+        dealership_name: dealership ? dealership.dealership_name : 'Unknown',
+        dealership_email: dealership ? dealership.email : '',
+        status,
+        quote_status: tv.quote_status,
+        quote_price: tv.quote_price,
+        response_date: tv.submitted_at || null,
+        response_time_hours: responseTimeHours,
+        sent_date: tv.created_at
+      };
+    });
+
+    // Calculate average response time
+    const averageResponseTimeHours = respondedCount > 0 
+      ? Math.round(totalResponseTimeHours / respondedCount) 
+      : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        tender_id: tender._id,
+        tender_number: tender.tender_id,
+        total_dealerships: sentVehicles.length,
+        dealerships_pending: dealershipsPending,
+        dealerships_responded: dealershipsResponded,
+        dealerships_approved: dealershipsApproved,
+        dealerships_withdrawn: dealershipsWithdrawn,
+        dealerships_not_selected: dealershipsNotSelected,
+        average_response_time_hours: averageResponseTimeHours,
+        response_rate_percentage: Math.round(
+          (dealershipsResponded / sentVehicles.length) * 100
+        ),
+        summary
+      }
+    });
+
+  } catch (error) {
+    console.error('Get dealership status summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving dealership status summary'
     });
   }
 };
@@ -1799,6 +1982,7 @@ module.exports = {
   calculateResponseCount,
   sendTender,
   getTenderRecipients,
+  getTenderDealershipStatusSummary,
   getDealershipQuoteDetails,
   getAvailableDealerships,
   getTenderHistory,

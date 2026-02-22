@@ -43,8 +43,38 @@ const dealershipLogin = async (req, res) => {
       });
     }
 
+    // Validate company_id is a valid MongoDB ObjectId format (24 hex characters)
+    const company_id_str = String(company_id).trim();
+    if (!company_id_str.match(/^[0-9a-fA-F]{24}$/)) {
+      console.warn(`[SECURITY] Invalid company_id format attempted: ${company_id_str} (length: ${company_id_str.length})`);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company_id format",
+      });
+    }
+
+    // Validate dealership_id is a valid MongoDB ObjectId format (24 hex characters)
+    const dealership_id_str = String(dealership_id).trim();
+    if (!dealership_id_str.match(/^[0-9a-fA-F]{24}$/)) {
+      console.warn(`[SECURITY] Invalid dealership_id format attempted: ${dealership_id_str} (length: ${dealership_id_str.length})`);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid dealership_id format",
+      });
+    }
+
     // Validate company exists and is active
-    const company = await Company.findById(company_id);
+    let company;
+    try {
+      company = await Company.findById(company_id);
+    } catch (error) {
+      console.error(`Error validating company: ${error.message}`);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company_id",
+      });
+    }
+
     if (!company) {
       return res.status(401).json({
         success: false,
@@ -81,11 +111,34 @@ const dealershipLogin = async (req, res) => {
     // Get TenderDealershipUser model from company database
     const TenderDealershipUser = getModel('TenderDealershipUser', companyDb);
 
-    // Find user by email, company_id, and dealership_id
+    // Get dealership model to verify it exists and is active FIRST
+    const TenderDealership = getModel('TenderDealership', companyDb);
+    let dealership;
+    try {
+      dealership = await TenderDealership.findOne({
+        _id: dealership_id,
+        company_id,
+        isActive: true
+      });
+    } catch (error) {
+      console.error(`Error validating dealership: ${error.message}`);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid dealership_id",
+      });
+    }
+
+    if (!dealership) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // STEP 1: Find user by email and company_id (across ALL dealerships first)
     const user = await TenderDealershipUser.findOne({
       email: email.toLowerCase(),
       company_id,
-      tenderDealership_id: dealership_id,
     });
 
     if (!user) {
@@ -95,17 +148,38 @@ const dealershipLogin = async (req, res) => {
       });
     }
 
-    // Check if user is active
+    // STEP 2: CRITICAL SECURITY CHECK - Verify user belongs to the REQUESTED dealership ONLY
+    // User MUST have tenderDealership_id matching the requested dealership
+    const userDealershipId = user.tenderDealership_id.toString();
+    const requestedDealershipId = dealership_id_str;
+
+    if (userDealershipId !== requestedDealershipId) {
+      console.warn(`[SECURITY] ⚠️ UNAUTHORIZED DEALERSHIP ACCESS ATTEMPT`);
+      console.warn(`Email: ${user.email}`);
+      console.warn(`User's Dealership: ${userDealershipId}`);
+      console.warn(`Requested Dealership: ${requestedDealershipId}`);
+      console.warn(`Company: ${company_id}`);
+      console.warn(`Status: REJECTED - User does not belong to requested dealership`);
+      
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // STEP 3: Check if user is active
     if (!user.isActive) {
+      console.warn(`[SECURITY] Inactive user login attempt: ${user.email} for dealership ${dealership_id_str}`);
       return res.status(401).json({
         success: false,
         message: "Account is deactivated",
       });
     }
 
-    // Verify password
+    // STEP 4: Verify password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      console.warn(`[SECURITY] Invalid password for user: ${user.email} at dealership ${dealership_id}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -114,10 +188,6 @@ const dealershipLogin = async (req, res) => {
 
     // Generate JWT token
     const token = generateDealershipToken(user, dealership_id, company_id);
-
-    // Get dealership information
-    const TenderDealership = getModel('TenderDealership', companyDb);
-    const dealership = await TenderDealership.findById(dealership_id);
 
     // Prepare user data for response
     const userData = {
