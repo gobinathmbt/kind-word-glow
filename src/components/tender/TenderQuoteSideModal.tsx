@@ -64,8 +64,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
-  const [existingAlternateVehicles, setExistingAlternateVehicles] = useState<any[]>([]);
   const [selectedAlternateIndex, setSelectedAlternateIndex] = useState<number>(0);
 
   // Sent vehicle form data
@@ -123,7 +121,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     if (tender && open) {
       // Fetch existing quotes for this tender
       const fetchExistingQuotes = async () => {
-        setIsLoadingQuotes(true);
         try {
           // Assuming tender object has the vehicle data already loaded
           // If not, we need to fetch it via API
@@ -178,7 +175,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               quote_notes: av.quote_notes || "",
             }));
             setAlternateVehiclesData(alternates);
-            setExistingAlternateVehicles(tender.alternate_vehicles);
           } else {
             // Reset to single empty alternate vehicle
             setAlternateVehiclesData([{
@@ -203,7 +199,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               quote_price: "",
               quote_notes: "",
             }]);
-            setExistingAlternateVehicles([]);
           }
 
           setErrors({});
@@ -212,7 +207,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         } catch (error) {
           console.error("Error loading quotes:", error);
         } finally {
-          setIsLoadingQuotes(false);
         }
       };
 

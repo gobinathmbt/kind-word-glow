@@ -1563,9 +1563,10 @@ const getQuotesByStatus = async (req, res) => {
     const { page = 1, limit = 20, search, status } = req.query;
     const skip = (page - 1) * limit;
 
-    // Build filter for TenderVehicle
+    // Build filter for sent_vehicle only (main quotes)
     let vehicleFilter = {
       tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      vehicle_type: 'sent_vehicle' // Only get sent vehicles for main list
     };
 
     // Filter by quote status if provided
@@ -1578,17 +1579,17 @@ const getQuotesByStatus = async (req, res) => {
       };
     }
 
-    // Get total count for pagination
+    // Get total count for pagination (only sent vehicles)
     const total = await TenderVehicle.countDocuments(vehicleFilter);
 
-    // Get TenderVehicle records
-    const tenderVehicles = await TenderVehicle.find(vehicleFilter)
+    // Get sent vehicle records
+    const sentVehicles = await TenderVehicle.find(vehicleFilter)
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
-    if (tenderVehicles.length === 0) {
+    if (sentVehicles.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
@@ -1604,8 +1605,25 @@ const getQuotesByStatus = async (req, res) => {
       });
     }
 
+    // Get all alternate vehicles for these sent vehicles
+    const sentVehicleIds = sentVehicles.map(sv => sv._id);
+    const alternateVehicles = await TenderVehicle.find({
+      parent_vehicle_id: { $in: sentVehicleIds },
+      vehicle_type: 'alternate_vehicle'
+    }).lean();
+
+    // Create a map of parent_vehicle_id to alternate vehicles
+    const alternatesByParent = {};
+    alternateVehicles.forEach(av => {
+      const parentId = av.parent_vehicle_id.toString();
+      if (!alternatesByParent[parentId]) {
+        alternatesByParent[parentId] = [];
+      }
+      alternatesByParent[parentId].push(av);
+    });
+
     // Get tender IDs
-    const tenderIds = tenderVehicles.map(tv => tv.tender_id);
+    const tenderIds = sentVehicles.map(tv => tv.tender_id);
 
     // Build tender filter
     let tenderFilter = {
@@ -1633,18 +1651,21 @@ const getQuotesByStatus = async (req, res) => {
       tenderMap[tender._id.toString()] = tender;
     });
 
-    // Combine tender and vehicle data
-    const results = tenderVehicles
-      .map(tv => {
-        const tender = tenderMap[tv.tender_id.toString()];
+    // Combine tender and vehicle data with alternates
+    const results = sentVehicles
+      .map(sv => {
+        const tender = tenderMap[sv.tender_id.toString()];
         if (!tender) return null;
+
+        const alternates = alternatesByParent[sv._id.toString()] || [];
 
         return {
           ...tender,
-          ...tv,
-          _id: tv._id,
-          tender_id: tender._id, // Keep the actual tender ID for API calls
-          vehicle_id: tv._id,
+          ...sv,
+          _id: sv._id,
+          tender_id: tender._id,// Use the tender_id string for display
+          vehicle_id: sv._id,
+          alternate_vehicles: alternates
         };
       })
       .filter(item => item !== null);
