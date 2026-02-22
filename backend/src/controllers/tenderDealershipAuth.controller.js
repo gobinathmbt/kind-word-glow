@@ -596,14 +596,23 @@ const submitQuote = async (req, res) => {
 
     // Send notification to admin if quotes are submitted (not draft) - once per tender
     if (!is_draft) {
-      // Get company admin users
+      console.log('📧 Starting notification process for quote submission...');
+      console.log('Tender ID:', tender._id);
+      console.log('Company ID:', req.dealershipUser.company_id);
+      
+      // Get company admin users - use req.getModel for multi-tenant support
+      const User = req.getModel('User');
       const adminUsers = await User.find({
         company_id: req.dealershipUser.company_id,
         is_active: true
       }).select('_id email first_name last_name');
+      
+      console.log(`Found ${adminUsers.length} admin users to notify`);
 
       // Create notifications for each admin
       for (const admin of adminUsers) {
+        console.log(`Creating notification for admin: ${admin.email}`);
+        
         await TenderNotification.create({
           recipient_id: admin._id,
           recipient_type: 'admin',
@@ -614,6 +623,7 @@ const submitQuote = async (req, res) => {
 
         // Send email notification
         try {
+          console.log(`Sending email to: ${admin.email}`);
           const emailHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -725,20 +735,26 @@ const submitQuote = async (req, res) => {
             subject: `Quotes Received for Tender ${tender.tender_id} (${savedVehicles.length} vehicle(s))`,
             html: emailHtml
           });
+          console.log(`✅ Email sent successfully to: ${admin.email}`);
         } catch (emailError) {
-          console.error(`Failed to send email to ${admin.email}:`, emailError);
+          console.error(`❌ Failed to send email to ${admin.email}:`, emailError);
         }
       }
+      
+      console.log('✅ Notification process completed');
     }
 
+    console.log('📤 Sending success response to client...');
     res.status(200).json({
       success: true,
       message: is_draft ? `${savedVehicles.length} quote(s) saved as draft successfully` : `${savedVehicles.length} quote(s) submitted successfully`,
       data: savedVehicles
     });
+    console.log('✅ Response sent successfully');
 
   } catch (error) {
-    console.error('Submit quote error:', error);
+    console.error('❌ Submit quote error:', error);
+    console.error('Error stack:', error.stack);
     
     // Handle validation errors
     if (error.name === 'ValidationError') {
@@ -756,7 +772,8 @@ const submitQuote = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Error submitting quotes'
+      message: 'Error submitting quotes',
+      error: error.message
     });
   }
 };

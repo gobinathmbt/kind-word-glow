@@ -2049,9 +2049,11 @@ export const tenderDealershipAuthService = {
   getTender: (id: string) =>
     apiClient.get(`/api/tender-dealership-auth/tenders/${id}`),
 
-  // Submit or update quote
+  // Submit or update quote (with extended timeout for email processing)
   submitQuote: (id: string, data: any) =>
-    apiClient.post(`/api/tender-dealership-auth/tenders/${id}/quote`, data),
+    apiClient.post(`/api/tender-dealership-auth/tenders/${id}/quote`, data, {
+      timeout: 60000, // 60 seconds to allow for email sending to multiple admins
+    }),
 
   // Withdraw quote
   withdrawQuote: (id: string, data?: any) =>

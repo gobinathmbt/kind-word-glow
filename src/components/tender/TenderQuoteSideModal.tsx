@@ -119,6 +119,8 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   // Initialize form data when tender changes
   useEffect(() => {
     if (tender && open) {
+      console.log('🔄 Initializing form with tender data:', tender);
+      
       // Fetch existing quotes for this tender
       const fetchExistingQuotes = async () => {
         try {
@@ -148,6 +150,8 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
             quote_price: tender.quote_price || "",
             quote_notes: tender.quote_notes || "",
           };
+          
+          console.log('📝 Sent vehicle initialized:', sentVehicleInitial);
           setSentVehicleData(sentVehicleInitial);
 
           // Check if tender has alternate vehicles loaded
@@ -174,9 +178,11 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               quote_price: av.quote_price || "",
               quote_notes: av.quote_notes || "",
             }));
+            console.log('📝 Alternate vehicles loaded:', alternates);
             setAlternateVehiclesData(alternates);
           } else {
             // Reset to single empty alternate vehicle
+            console.log('📝 No alternate vehicles, initializing empty array');
             setAlternateVehiclesData([{
               vehicle_id: null,
               make: "",
@@ -219,6 +225,11 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   };
 
   const validateForm = (isDraft: boolean = false) => {
+    console.log('🔍 Validating form...');
+    console.log('Sent vehicle data:', sentVehicleData);
+    console.log('Alternate vehicles data:', alternateVehiclesData);
+    console.log('Is draft:', isDraft);
+    
     const newErrors: any = {};
 
     // Validate sent vehicle
@@ -228,21 +239,28 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       }
     }
 
-    // Validate all alternate vehicles
+    // Validate all alternate vehicles - only validate if they have ANY data entered
     alternateVehiclesData.forEach((alt, idx) => {
-      if (!isDraft) {
-        if (!alt.quote_price || parseFloat(alt.quote_price) <= 0) {
-          newErrors[`alt_${idx}_quote_price`] = "Alternate vehicle quote price is required and must be greater than 0";
-        }
-      }
-      if (alt.make || alt.model || alt.year) {
-        // If any field is filled, require all
+      // Check if this alternate vehicle has any meaningful data
+      const hasAnyData = alt.make || alt.model || alt.year || alt.quote_price || 
+                         alt.color || alt.registration_number || alt.vin;
+      
+      if (hasAnyData) {
+        // If any field is filled, require make, model, year
         if (!alt.make) newErrors[`alt_${idx}_make`] = "Make is required";
         if (!alt.model) newErrors[`alt_${idx}_model`] = "Model is required";
         if (!alt.year) newErrors[`alt_${idx}_year`] = "Year is required";
+        
+        // Quote price is required for submission (not draft)
+        if (!isDraft) {
+          if (!alt.quote_price || parseFloat(alt.quote_price) <= 0) {
+            newErrors[`alt_${idx}_quote_price`] = "Quote price is required and must be greater than 0";
+          }
+        }
       }
     });
 
+    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -282,10 +300,18 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       };
     };
 
-    // Build vehicles array with sent vehicle + all alternates
+    // Filter out empty alternate vehicles (only include if they have make, model, or year)
+    const validAlternates = alternateVehiclesData.filter(alt => 
+      alt.make || alt.model || alt.year || alt.quote_price || 
+      alt.color || alt.registration_number || alt.vin
+    );
+
+    console.log('📦 Building payload with valid alternates:', validAlternates.length);
+
+    // Build vehicles array with sent vehicle + valid alternates only
     const vehicles = [
       buildVehiclePayload(sentVehicleData, "sent_vehicle"),
-      ...alternateVehiclesData.map((alt) => buildVehiclePayload(alt, "alternate_vehicle"))
+      ...validAlternates.map((alt) => buildVehiclePayload(alt, "alternate_vehicle"))
     ];
 
     return {
@@ -335,7 +361,23 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       
       toast.success("All quotes saved as draft successfully");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to save draft");
+      const errorMsg = error.response?.data?.message || "Failed to save draft";
+      
+      // Check if error response contains specific field errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        toast.error(
+          <div className="space-y-1">
+            <div className="font-semibold">Save failed:</div>
+            <div className="text-sm space-y-1">
+              {error.response.data.errors.map((err: any, idx: number) => (
+                <div key={idx}>{err.message || err}</div>
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -348,16 +390,54 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     }
 
     if (!validateForm(false)) {
-      toast.error("Please fill in all required fields");
+      // Generate detailed error message
+      const errorMessages: string[] = [];
+      
+      // Check sent vehicle
+      if (!sentVehicleData.quote_price || parseFloat(sentVehicleData.quote_price) <= 0) {
+        errorMessages.push("❌ Sent Vehicle: Quote price is required and must be greater than 0");
+      }
+      
+      // Check alternate vehicles
+      alternateVehiclesData.forEach((alt, idx) => {
+        if (alt.make || alt.model || alt.year) {
+          const vehicleInfo = `Alternate Vehicle ${idx + 1}`;
+          if (!alt.make) errorMessages.push(`❌ ${vehicleInfo}: Make is required`);
+          if (!alt.model) errorMessages.push(`❌ ${vehicleInfo}: Model is required`);
+          if (!alt.year) errorMessages.push(`❌ ${vehicleInfo}: Year is required`);
+          if (!alt.quote_price || parseFloat(alt.quote_price) <= 0) {
+            errorMessages.push(`❌ ${vehicleInfo}: Quote price is required and must be greater than 0`);
+          }
+        }
+      });
+
+      // Show detailed error
+      if (errorMessages.length > 0) {
+        toast.error(
+          <div className="space-y-1">
+            <div className="font-semibold">Please fix the following errors:</div>
+            <div className="text-sm space-y-1">
+              {errorMessages.map((msg, idx) => (
+                <div key={idx}>{msg}</div>
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        toast.error("Please fill in all required fields");
+      }
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      console.log('🚀 Submitting quote to backend...');
       const payload = buildUnifiedPayload(false);
+      console.log('📦 Payload:', payload);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      console.log('✅ Response received from backend:', response);
       
       // Update vehicle IDs from response if they were new
       if (response.data?.data) {
@@ -385,11 +465,31 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         });
       }
       
+      console.log('🎉 Showing success toast');
       toast.success("All quotes submitted successfully");
       setShowSubmitDialog(false);
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to submit quotes");
+      console.error('❌ Error submitting quote:', error);
+      console.error('Error response:', error.response);
+      
+      const errorMsg = error.response?.data?.message || "Failed to submit quotes";
+      
+      // Check if error response contains specific field errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        toast.error(
+          <div className="space-y-1">
+            <div className="font-semibold">Submission failed:</div>
+            <div className="text-sm space-y-1">
+              {error.response.data.errors.map((err: any, idx: number) => (
+                <div key={idx}>{err.message || err}</div>
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1112,24 +1212,57 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
 
       {/* Submit Confirmation Dialog */}
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
-              Submit Quote
+              Submit All Quotes
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to submit this quote? Once submitted, you cannot edit it.
-              <div className="mt-4 p-3 bg-muted rounded-lg">
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Vehicle Type:</span>
-                    <span>{activeTab === "sent" ? "Sent Vehicle" : "Alternate Vehicle"}</span>
+              Are you sure you want to submit all quotes? Once submitted, you cannot edit them.
+              <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
+                {/* Sent Vehicle */}
+                <div className="p-3 bg-muted rounded-lg border-l-4 border-green-600">
+                  <div className="text-sm space-y-2">
+                    <div className="font-semibold text-green-700">Sent Vehicle</div>
+                    <div className="text-xs text-muted-foreground">
+                      {sentVehicleData.make} {sentVehicleData.model} {sentVehicleData.year}
+                    </div>
+                    <div className="flex justify-between items-center pt-1 border-t border-muted">
+                      <span className="font-medium">Quote Price:</span>
+                      <span className="text-green-600 font-bold">
+                        ${parseFloat(sentVehicleData.quote_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Quote Price:</span>
-                    <span className="text-green-600 font-bold">
-                      ${parseFloat(currentData.quote_price || "0").toLocaleString()}
+                </div>
+
+                {/* Alternate Vehicles */}
+                {alternateVehiclesData.map((alt, idx) => (
+                  (alt.make || alt.model || alt.year) && (
+                    <div key={idx} className="p-3 bg-muted rounded-lg border-l-4 border-blue-600">
+                      <div className="text-sm space-y-2">
+                        <div className="font-semibold text-blue-700">Alternate Vehicle {idx + 1}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {alt.make} {alt.model} {alt.year}
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-muted">
+                          <span className="font-medium">Quote Price:</span>
+                          <span className="text-green-600 font-bold">
+                            ${parseFloat(alt.quote_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+
+                {/* Total */}
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-green-900">Total Quotes:</span>
+                    <span className="text-lg font-bold text-green-700">
+                      {1 + alternateVehiclesData.filter(alt => alt.make || alt.model || alt.year).length} vehicle(s)
                     </span>
                   </div>
                 </div>
@@ -1143,7 +1276,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               disabled={isSubmitting}
               className="bg-green-600 hover:bg-green-700"
             >
-              {isSubmitting ? "Submitting..." : "Submit Quote"}
+              {isSubmitting ? "Submitting..." : "Submit All Quotes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

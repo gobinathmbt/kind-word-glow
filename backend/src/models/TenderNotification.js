@@ -21,6 +21,7 @@ const TenderNotificationSchema = new mongoose.Schema({
     enum: [
       'tender_sent',
       'quote_submitted',
+      'quote_withdrawn',
       'quote_approved',
       'quote_rejected',
       'tender_closed',
