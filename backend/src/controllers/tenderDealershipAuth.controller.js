@@ -329,7 +329,7 @@ const getDealershipTender = async (req, res) => {
   }
 };
 
-// @desc    Submit or update quote for a tender
+// @desc    Submit or update quotes for a tender (handles single or multiple vehicles)
 // @route   POST /api/tender-dealership-auth/tenders/:id/quote
 // @access  Private (Dealership User)
 const submitQuote = async (req, res) => {
@@ -338,26 +338,7 @@ const submitQuote = async (req, res) => {
     const TenderVehicle = req.getModel('TenderVehicle');
     const TenderNotification = req.getModel('TenderNotification');
     
-    const { 
-      vehicle_id, 
-      vehicle_type = 'sent_vehicle',
-      is_draft = false,
-      // Vehicle details
-      make,
-      model,
-      year,
-      variant,
-      body_style,
-      color,
-      registration_number,
-      vin,
-      odometer_reading,
-      engine_details,
-      specifications,
-      attachments,
-      quote_price,
-      quote_notes
-    } = req.body;
+    const { is_draft = false, vehicles } = req.body;
 
     // Find the tender
     const tender = await Tender.findOne({
@@ -384,163 +365,236 @@ const submitQuote = async (req, res) => {
       });
     }
 
-    let tenderVehicle;
-    let isNewVehicle = false;
-
-    // If vehicle_id is provided, update existing vehicle
-    if (vehicle_id) {
-      tenderVehicle = await TenderVehicle.findOne({
-        _id: vehicle_id,
-        tender_id: tender._id,
-        tenderDealership_id: req.dealershipUser.tenderDealership_id
-      });
-
-      if (!tenderVehicle) {
-        return res.status(404).json({
-          success: false,
-          message: 'Vehicle record not found'
-        });
-      }
+    // Support both new unified format (vehicles array) and legacy single vehicle format
+    let vehiclesToProcess = [];
+    
+    if (vehicles && Array.isArray(vehicles)) {
+      // New unified format - accept array of vehicles
+      vehiclesToProcess = vehicles;
     } else {
-      // Creating new alternate vehicle
-      if (vehicle_type !== 'alternate_vehicle') {
-        return res.status(400).json({
-          success: false,
-          message: 'vehicle_id is required for sent_vehicle updates'
-        });
-      }
-
-      // Validate required fields for new alternate vehicle
-      if (!make || !model || !year) {
-        return res.status(400).json({
-          success: false,
-          message: 'Make, model, and year are required for alternate vehicles',
-          errors: [
-            { field: 'make', message: 'Make is required' },
-            { field: 'model', message: 'Model is required' },
-            { field: 'year', message: 'Year is required' }
-          ]
-        });
-      }
-
-      // Find the sent_vehicle for this dealership to link as parent
-      const sentVehicle = await TenderVehicle.findOne({
-        tender_id: tender._id,
-        tenderDealership_id: req.dealershipUser.tenderDealership_id,
-        vehicle_type: 'sent_vehicle'
-      });
-
-      if (!sentVehicle) {
-        return res.status(400).json({
-          success: false,
-          message: 'Sent vehicle not found. Cannot create alternate vehicle.'
-        });
-      }
-
-      // Create new alternate vehicle
-      tenderVehicle = new TenderVehicle({
-        tender_id: tender._id,
-        tenderDealership_id: req.dealershipUser.tenderDealership_id,
-        vehicle_type: 'alternate_vehicle',
-        parent_vehicle_id: sentVehicle._id,
+      // Legacy format - single vehicle
+      const {
+        vehicle_id,
+        vehicle_type = 'sent_vehicle',
         make,
         model,
         year,
-        quote_status: 'Open',
-        created_by: req.dealershipUser.id
-      });
-      isNewVehicle = true;
+        variant,
+        body_style,
+        color,
+        registration_number,
+        vin,
+        odometer_reading,
+        engine_details,
+        specifications,
+        attachments,
+        quote_price,
+        quote_notes
+      } = req.body;
+      
+      vehiclesToProcess = [{
+        vehicle_id,
+        vehicle_type,
+        make,
+        model,
+        year,
+        variant,
+        body_style,
+        color,
+        registration_number,
+        vin,
+        odometer_reading,
+        engine_details,
+        specifications,
+        attachments,
+        quote_price,
+        quote_notes
+      }];
     }
 
-    // Track old status for history
-    const oldStatus = tenderVehicle.quote_status;
+    // Process all vehicles in a single transaction
+    const savedVehicles = [];
+    let tenderUpdated = false;
 
-    // Update vehicle details (only editable fields for sent_vehicle)
-    if (vehicle_type === 'sent_vehicle') {
-      // For sent_vehicle, make/model/year/variant are read-only
-      // Update other fields
-      if (body_style !== undefined) tenderVehicle.body_style = body_style;
-      if (color !== undefined) tenderVehicle.color = color;
-      if (registration_number !== undefined) tenderVehicle.registration_number = registration_number;
-      if (vin !== undefined) tenderVehicle.vin = vin;
-      if (odometer_reading !== undefined) tenderVehicle.odometer_reading = odometer_reading;
-      if (engine_details !== undefined) tenderVehicle.engine_details = engine_details;
-      if (specifications !== undefined) tenderVehicle.specifications = specifications;
-      if (attachments !== undefined) tenderVehicle.attachments = attachments;
-    } else {
-      // For alternate_vehicle, all fields are editable
-      if (make !== undefined) tenderVehicle.make = make;
-      if (model !== undefined) tenderVehicle.model = model;
-      if (year !== undefined) tenderVehicle.year = year;
-      if (variant !== undefined) tenderVehicle.variant = variant;
-      if (body_style !== undefined) tenderVehicle.body_style = body_style;
-      if (color !== undefined) tenderVehicle.color = color;
-      if (registration_number !== undefined) tenderVehicle.registration_number = registration_number;
-      if (vin !== undefined) tenderVehicle.vin = vin;
-      if (odometer_reading !== undefined) tenderVehicle.odometer_reading = odometer_reading;
-      if (engine_details !== undefined) tenderVehicle.engine_details = engine_details;
-      if (specifications !== undefined) tenderVehicle.specifications = specifications;
-      if (attachments !== undefined) tenderVehicle.attachments = attachments;
-    }
+    for (const vehicleData of vehiclesToProcess) {
+      const {
+        vehicle_id,
+        vehicle_type,
+        make,
+        model,
+        year,
+        variant,
+        body_style,
+        color,
+        registration_number,
+        vin,
+        odometer_reading,
+        engine_details,
+        specifications,
+        attachments,
+        quote_price,
+        quote_notes
+      } = vehicleData;
 
-    // Update quote information
-    if (quote_price !== undefined) tenderVehicle.quote_price = quote_price;
-    if (quote_notes !== undefined) tenderVehicle.quote_notes = quote_notes;
+      let tenderVehicle;
+      let isNewVehicle = false;
 
-    // Update status based on draft or submit
-    if (is_draft) {
-      tenderVehicle.quote_status = 'In Progress';
-    } else {
-      // Validate required fields for submission
-      if (!tenderVehicle.quote_price) {
-        return res.status(400).json({
-          success: false,
-          message: 'Quote price is required for submission',
-          errors: [
-            { field: 'quote_price', message: 'Quote price is required' }
-          ]
+      // If vehicle_id is provided, update existing vehicle
+      if (vehicle_id) {
+        tenderVehicle = await TenderVehicle.findOne({
+          _id: vehicle_id,
+          tender_id: tender._id,
+          tenderDealership_id: req.dealershipUser.tenderDealership_id
         });
+
+        if (!tenderVehicle) {
+          return res.status(404).json({
+            success: false,
+            message: `Vehicle record not found for ID: ${vehicle_id}`
+          });
+        }
+      } else {
+        // Creating new alternate vehicle
+        if (vehicle_type !== 'alternate_vehicle') {
+          return res.status(400).json({
+            success: false,
+            message: 'vehicle_id is required for sent_vehicle updates'
+          });
+        }
+
+        // Validate required fields for new alternate vehicle
+        if (!make || !model || !year) {
+          return res.status(400).json({
+            success: false,
+            message: 'Make, model, and year are required for alternate vehicles',
+            errors: [
+              { field: 'make', message: 'Make is required' },
+              { field: 'model', message: 'Model is required' },
+              { field: 'year', message: 'Year is required' }
+            ]
+          });
+        }
+
+        // Find the sent_vehicle for this dealership to link as parent
+        const sentVehicle = await TenderVehicle.findOne({
+          tender_id: tender._id,
+          tenderDealership_id: req.dealershipUser.tenderDealership_id,
+          vehicle_type: 'sent_vehicle'
+        });
+
+        if (!sentVehicle) {
+          return res.status(400).json({
+            success: false,
+            message: 'Sent vehicle not found. Cannot create alternate vehicle.'
+          });
+        }
+
+        // Create new alternate vehicle
+        tenderVehicle = new TenderVehicle({
+          tender_id: tender._id,
+          tenderDealership_id: req.dealershipUser.tenderDealership_id,
+          vehicle_type: 'alternate_vehicle',
+          parent_vehicle_id: sentVehicle._id,
+          make,
+          model,
+          year,
+          quote_status: 'Open',
+          created_by: req.dealershipUser.id
+        });
+        isNewVehicle = true;
       }
 
-      tenderVehicle.quote_status = 'Submitted';
-      tenderVehicle.submitted_at = new Date();
-    }
+      // Track old status for history
+      const oldStatus = tenderVehicle.quote_status;
 
-    // Set modified_by
-    tenderVehicle.modified_by = req.dealershipUser.id;
-
-    // Save the vehicle
-    await tenderVehicle.save();
-
-    // Update tender status if quote is submitted
-    if (!is_draft && tender.tender_status === 'Sent') {
-      tender.tender_status = 'Quote Received';
-      await tender.save();
-    }
-
-    // Create history record
-    const actionType = is_draft ? 'quote_saved_draft' : 'quote_submitted';
-    const newStatus = is_draft ? 'In Progress' : 'Submitted';
-    
-    await createTenderHistory({
-      tender_id: tender._id,
-      tenderDealership_id: req.dealershipUser.tenderDealership_id,
-      action_type: is_draft ? 'viewed' : 'quote_submitted',
-      old_status: oldStatus,
-      new_status: newStatus,
-      performed_by: req.dealershipUser.id,
-      performed_by_type: 'dealership_user',
-      notes: is_draft 
-        ? `Quote saved as draft by ${req.dealershipUser.username}` 
-        : `Quote submitted by ${req.dealershipUser.username}`,
-      metadata: {
-        vehicle_type: tenderVehicle.vehicle_type,
-        quote_price: tenderVehicle.quote_price,
-        vehicle_details: `${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}`
+      // Update vehicle details (only editable fields for sent_vehicle)
+      if (vehicle_type === 'sent_vehicle') {
+        // For sent_vehicle, make/model/year/variant are read-only
+        // Update other fields
+        if (body_style !== undefined) tenderVehicle.body_style = body_style;
+        if (color !== undefined) tenderVehicle.color = color;
+        if (registration_number !== undefined) tenderVehicle.registration_number = registration_number;
+        if (vin !== undefined) tenderVehicle.vin = vin;
+        if (odometer_reading !== undefined) tenderVehicle.odometer_reading = odometer_reading;
+        if (engine_details !== undefined) tenderVehicle.engine_details = engine_details;
+        if (specifications !== undefined) tenderVehicle.specifications = specifications;
+        if (attachments !== undefined) tenderVehicle.attachments = attachments;
+      } else {
+        // For alternate_vehicle, all fields are editable
+        if (make !== undefined) tenderVehicle.make = make;
+        if (model !== undefined) tenderVehicle.model = model;
+        if (year !== undefined) tenderVehicle.year = year;
+        if (variant !== undefined) tenderVehicle.variant = variant;
+        if (body_style !== undefined) tenderVehicle.body_style = body_style;
+        if (color !== undefined) tenderVehicle.color = color;
+        if (registration_number !== undefined) tenderVehicle.registration_number = registration_number;
+        if (vin !== undefined) tenderVehicle.vin = vin;
+        if (odometer_reading !== undefined) tenderVehicle.odometer_reading = odometer_reading;
+        if (engine_details !== undefined) tenderVehicle.engine_details = engine_details;
+        if (specifications !== undefined) tenderVehicle.specifications = specifications;
+        if (attachments !== undefined) tenderVehicle.attachments = attachments;
       }
-    }, req.getModel);
 
-    // Send notification to admin if quote is submitted (not draft)
+      // Update quote information
+      if (quote_price !== undefined) tenderVehicle.quote_price = quote_price;
+      if (quote_notes !== undefined) tenderVehicle.quote_notes = quote_notes;
+
+      // Update status based on draft or submit
+      if (is_draft) {
+        tenderVehicle.quote_status = 'In Progress';
+      } else {
+        // Validate required fields for submission
+        if (!tenderVehicle.quote_price) {
+          return res.status(400).json({
+            success: false,
+            message: `Quote price is required for submission (${vehicle_type})`,
+            errors: [
+              { field: 'quote_price', message: 'Quote price is required' }
+            ]
+          });
+        }
+
+        tenderVehicle.quote_status = 'Submitted';
+        tenderVehicle.submitted_at = new Date();
+      }
+
+      // Set modified_by
+      tenderVehicle.modified_by = req.dealershipUser.id;
+
+      // Save the vehicle
+      await tenderVehicle.save();
+      savedVehicles.push(tenderVehicle);
+
+      // Update tender status if quote is submitted (do this only once per tender)
+      if (!is_draft && !tenderUpdated && tender.tender_status === 'Sent') {
+        tender.tender_status = 'Quote Received';
+        await tender.save();
+        tenderUpdated = true;
+      }
+
+      // Create history record
+      const newStatus = is_draft ? 'In Progress' : 'Submitted';
+      
+      await createTenderHistory({
+        tender_id: tender._id,
+        tenderDealership_id: req.dealershipUser.tenderDealership_id,
+        action_type: is_draft ? 'viewed' : 'quote_submitted',
+        old_status: oldStatus,
+        new_status: newStatus,
+        performed_by: req.dealershipUser.id,
+        performed_by_type: 'dealership_user',
+        notes: is_draft 
+          ? `Quote saved as draft for ${vehicle_type} by ${req.dealershipUser.username}` 
+          : `Quote submitted for ${vehicle_type} by ${req.dealershipUser.username}`,
+        metadata: {
+          vehicle_type: tenderVehicle.vehicle_type,
+          quote_price: tenderVehicle.quote_price,
+          vehicle_details: `${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}`
+        }
+      }, req.getModel);
+    }
+
+    // Send notification to admin if quotes are submitted (not draft) - once per tender
     if (!is_draft) {
       // Get company admin users
       const adminUsers = await User.find({
@@ -555,7 +609,7 @@ const submitQuote = async (req, res) => {
           recipient_type: 'admin',
           tender_id: tender._id,
           notification_type: 'quote_submitted',
-          message: `Quote submitted for tender ${tender.tender_id} by dealership`
+          message: `Quotes submitted for tender ${tender.tender_id} - ${savedVehicles.length} vehicle(s)`
         });
 
         // Send email notification
@@ -596,14 +650,14 @@ const submitQuote = async (req, res) => {
 
               <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">Hello ${admin.first_name || admin.email},</p>
               <p style="margin:0 0 30px;font-size:14px;color:#6b7280;line-height:1.75;">
-                A dealership has submitted a <strong style="color:#111827;">quote</strong> for the following tender. Please review the details below.
+                A dealership has submitted <strong style="color:#111827;">${savedVehicles.length} quote(s)</strong> for the following tender. Please review the details below.
               </p>
 
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
                 <tr>
                   <td style="background:linear-gradient(180deg,#22c55e,#16a34a);width:4px;border-radius:4px 0 0 4px;"></td>
                   <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;border-radius:0 14px 14px 0;padding:26px 26px 22px;">
-                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">📋 Quote Details</p>
+                    <p style="margin:0 0 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">📋 Tender Details</p>
 
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;"><tr>
                       <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Tender ID</td>
@@ -621,9 +675,9 @@ const submitQuote = async (req, res) => {
                     </tr></table>
 
                     <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Quote Price</td>
+                      <td style="font-size:11px;color:#6b7280;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;width:130px;vertical-align:middle;">Quotes Submitted</td>
                       <td>
-                        <span style="display:inline-block;background:#fff;border:1px solid #d1fae5;color:#111827;font-size:13px;font-weight:700;padding:6px 14px;border-radius:8px;">${tenderVehicle.quote_price ? ('$' + tenderVehicle.quote_price.toLocaleString()) : 'N/A'}</span>
+                        <span style="display:inline-block;background:#fff;border:1px solid #d1fae5;color:#111827;font-size:13px;font-weight:700;padding:6px 14px;border-radius:8px;">${savedVehicles.length}</span>
                       </td>
                     </tr></table>
 
@@ -633,7 +687,7 @@ const submitQuote = async (req, res) => {
 
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:40px;">
                 <tr><td align="center">
-                  <a href="${frontendUrl}login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">📝 &nbsp; View Tender &amp; Review Quote</a>
+                  <a href="${frontendUrl}/login" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:17px 52px;border-radius:100px;letter-spacing:0.3px;box-shadow:0 8px 20px rgba(34,197,94,0.35);">📝 &nbsp; View Tender &amp; Review Quotes</a>
                 </td></tr>
               </table>
 
@@ -668,7 +722,7 @@ const submitQuote = async (req, res) => {
 
           await mailService.sendEmail({
             to: admin.email,
-            subject: `Quote Received for Tender ${tender.tender_id}`,
+            subject: `Quotes Received for Tender ${tender.tender_id} (${savedVehicles.length} vehicle(s))`,
             html: emailHtml
           });
         } catch (emailError) {
@@ -679,8 +733,8 @@ const submitQuote = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: is_draft ? 'Quote saved as draft successfully' : 'Quote submitted successfully',
-      data: tenderVehicle
+      message: is_draft ? `${savedVehicles.length} quote(s) saved as draft successfully` : `${savedVehicles.length} quote(s) submitted successfully`,
+      data: savedVehicles
     });
 
   } catch (error) {
@@ -702,7 +756,7 @@ const submitQuote = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Error submitting quote'
+      message: 'Error submitting quotes'
     });
   }
 };

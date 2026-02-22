@@ -220,38 +220,35 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
 
   const validateForm = (isDraft: boolean = false) => {
     const newErrors: any = {};
-    const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
 
-    // For submission, all fields are required
+    // Validate sent vehicle
     if (!isDraft) {
-      if (!data.quote_price || parseFloat(data.quote_price) <= 0) {
-        newErrors.quote_price = "Quote price is required and must be greater than 0";
-      }
-
-      // For alternate vehicle, all vehicle fields are required
-      if (activeTab === "alternate") {
-        if (!data.make) newErrors.make = "Make is required";
-        if (!data.model) newErrors.model = "Model is required";
-        if (!data.year) newErrors.year = "Year is required";
+      if (!sentVehicleData.quote_price || parseFloat(sentVehicleData.quote_price) <= 0) {
+        newErrors.sent_quote_price = "Sent vehicle quote price is required and must be greater than 0";
       }
     }
+
+    // Validate all alternate vehicles
+    alternateVehiclesData.forEach((alt, idx) => {
+      if (!isDraft) {
+        if (!alt.quote_price || parseFloat(alt.quote_price) <= 0) {
+          newErrors[`alt_${idx}_quote_price`] = "Alternate vehicle quote price is required and must be greater than 0";
+        }
+      }
+      if (alt.make || alt.model || alt.year) {
+        // If any field is filled, require all
+        if (!alt.make) newErrors[`alt_${idx}_make`] = "Make is required";
+        if (!alt.model) newErrors[`alt_${idx}_model`] = "Model is required";
+        if (!alt.year) newErrors[`alt_${idx}_year`] = "Year is required";
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSaveDraft = async () => {
-    if (isExpired()) {
-      toast.error("This tender has expired. You cannot save a draft.");
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
-      
-      // Build engine_details object
+  const buildUnifiedPayload = (isDraft: boolean = false) => {
+    const buildVehiclePayload = (data: any, vehicleType: string) => {
       const engineDetails = {
         engine_type: data.engine_type || undefined,
         engine_capacity: data.engine_capacity || undefined,
@@ -259,7 +256,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         transmission: data.transmission || undefined,
       };
 
-      // Build specifications object
       const specifications = {
         doors: data.doors ? parseInt(data.doors) : undefined,
         seats: data.seats ? parseInt(data.seats) : undefined,
@@ -267,8 +263,8 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         features: data.features ? data.features.split(",").map((f: string) => f.trim()).filter(Boolean) : [],
       };
 
-      const payload = {
-        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
+      return {
+        vehicle_type: vehicleType,
         vehicle_id: data.vehicle_id || undefined,
         make: data.make,
         model: data.model,
@@ -283,29 +279,61 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         specifications: specifications,
         quote_price: data.quote_price ? parseFloat(data.quote_price) : undefined,
         quote_notes: data.quote_notes || undefined,
-        is_draft: true,
       };
+    };
+
+    // Build vehicles array with sent vehicle + all alternates
+    const vehicles = [
+      buildVehiclePayload(sentVehicleData, "sent_vehicle"),
+      ...alternateVehiclesData.map((alt) => buildVehiclePayload(alt, "alternate_vehicle"))
+    ];
+
+    return {
+      is_draft: isDraft,
+      vehicles: vehicles,
+    };
+  };
+
+  const handleSaveDraft = async () => {
+    if (isExpired()) {
+      toast.error("This tender has expired. You cannot save a draft.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const payload = buildUnifiedPayload(true);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
       
-      // Update the vehicle_id if it was a new alternate vehicle
-      if (activeTab === "alternate" && !data.vehicle_id && response.data?.data?._id) {
-        setAlternateVehiclesData((prev) => {
-          const updated = [...prev];
-          updated[selectedAlternateIndex] = {
-            ...updated[selectedAlternateIndex],
-            vehicle_id: response.data.data._id
-          };
-          return updated;
+      // Update vehicle IDs from response if they were new
+      if (response.data?.data) {
+        const savedVehicles = Array.isArray(response.data.data) ? response.data.data : [response.data.data];
+        
+        savedVehicles.forEach((vehicle: any) => {
+          if (vehicle.vehicle_type === "sent_vehicle" && !sentVehicleData.vehicle_id && vehicle._id) {
+            setSentVehicleData((prev) => ({
+              ...prev,
+              vehicle_id: vehicle._id
+            }));
+          } else if (vehicle.vehicle_type === "alternate_vehicle") {
+            const altIndex = alternateVehiclesData.findIndex((alt) => alt === vehicle);
+            if (altIndex !== -1 && !alternateVehiclesData[altIndex].vehicle_id && vehicle._id) {
+              setAlternateVehiclesData((prev) => {
+                const updated = [...prev];
+                updated[altIndex] = {
+                  ...updated[altIndex],
+                  vehicle_id: vehicle._id
+                };
+                return updated;
+              });
+            }
+          }
         });
-      } else if (activeTab === "sent" && !data.vehicle_id && response.data?.data?._id) {
-        setSentVehicleData((prev) => ({
-          ...prev,
-          vehicle_id: response.data.data._id
-        }));
       }
       
-      toast.success("Draft saved successfully");
+      toast.success("All quotes saved as draft successfully");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to save draft");
     } finally {
@@ -327,67 +355,41 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const data = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
-      
-      // Build engine_details object
-      const engineDetails = {
-        engine_type: data.engine_type || undefined,
-        engine_capacity: data.engine_capacity || undefined,
-        fuel_type: data.fuel_type || undefined,
-        transmission: data.transmission || undefined,
-      };
-
-      // Build specifications object
-      const specifications = {
-        doors: data.doors ? parseInt(data.doors) : undefined,
-        seats: data.seats ? parseInt(data.seats) : undefined,
-        drive_type: data.drive_type || undefined,
-        features: data.features ? data.features.split(",").map((f: string) => f.trim()).filter(Boolean) : [],
-      };
-
-      const payload = {
-        vehicle_type: activeTab === "sent" ? "sent_vehicle" : "alternate_vehicle",
-        vehicle_id: data.vehicle_id || undefined,
-        make: data.make,
-        model: data.model,
-        year: data.year,
-        variant: data.variant || undefined,
-        body_style: data.body_style || undefined,
-        color: data.color || undefined,
-        registration_number: data.registration_number || undefined,
-        vin: data.vin || undefined,
-        odometer_reading: data.odometer_reading ? parseInt(data.odometer_reading) : undefined,
-        engine_details: engineDetails,
-        specifications: specifications,
-        quote_price: parseFloat(data.quote_price),
-        quote_notes: data.quote_notes || undefined,
-        is_draft: false,
-      };
+      const payload = buildUnifiedPayload(false);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
       
-      // Update the vehicle_id if it was a new alternate vehicle
-      if (activeTab === "alternate" && !data.vehicle_id && response.data?.data?._id) {
-        setAlternateVehiclesData((prev) => {
-          const updated = [...prev];
-          updated[selectedAlternateIndex] = {
-            ...updated[selectedAlternateIndex],
-            vehicle_id: response.data.data._id
-          };
-          return updated;
+      // Update vehicle IDs from response if they were new
+      if (response.data?.data) {
+        const savedVehicles = Array.isArray(response.data.data) ? response.data.data : [response.data.data];
+        
+        savedVehicles.forEach((vehicle: any) => {
+          if (vehicle.vehicle_type === "sent_vehicle" && !sentVehicleData.vehicle_id && vehicle._id) {
+            setSentVehicleData((prev) => ({
+              ...prev,
+              vehicle_id: vehicle._id
+            }));
+          } else if (vehicle.vehicle_type === "alternate_vehicle") {
+            const altIndex = alternateVehiclesData.findIndex((alt) => alt === vehicle);
+            if (altIndex !== -1 && !alternateVehiclesData[altIndex].vehicle_id && vehicle._id) {
+              setAlternateVehiclesData((prev) => {
+                const updated = [...prev];
+                updated[altIndex] = {
+                  ...updated[altIndex],
+                  vehicle_id: vehicle._id
+                };
+                return updated;
+              });
+            }
+          }
         });
-      } else if (activeTab === "sent" && !data.vehicle_id && response.data?.data?._id) {
-        setSentVehicleData((prev) => ({
-          ...prev,
-          vehicle_id: response.data.data._id
-        }));
       }
       
-      toast.success("Quote submitted successfully");
+      toast.success("All quotes submitted successfully");
       setShowSubmitDialog(false);
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to submit quote");
+      toast.error(error.response?.data?.message || "Failed to submit quotes");
     } finally {
       setIsSubmitting(false);
     }
