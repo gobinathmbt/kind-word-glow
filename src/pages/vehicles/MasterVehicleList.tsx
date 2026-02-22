@@ -325,9 +325,7 @@ const MasterVehicleList = () => {
 
   const handleRestoreVehicle = async (vehicleId: string) => {
     try {
-      console.log("Attempting to restore master vehicle:", vehicleId);
       await masterVehicleServices.restoreMasterVehicle(vehicleId);
-      console.log("Restore successful");
       toast.success("Vehicle restored successfully");
       refetch();
     } catch (error) {

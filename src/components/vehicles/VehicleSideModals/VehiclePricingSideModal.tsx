@@ -123,23 +123,17 @@ const VehiclePricingSideModal: React.FC<VehiclePricingSideModalProps> = ({
       if (!pendingAction) return;
 
       if (pendingAction.type === "soft_delete") {
-        console.log("Attempting to soft delete vehicle:", vehicle._id, vehicle.vehicle_type);
-        console.log("Full vehicle object:", vehicle);
 
         // Route to the correct service based on vehicle type
         if (vehicle.vehicle_type === "master") {
-          console.log("Using master vehicle service");
           await masterVehicleServices.softDeleteMasterVehicle(vehicle._id);
         } else if (vehicle.vehicle_type === "advertisement") {
-          console.log("Using advertisement vehicle service");
           await adPublishingServices.softDeleteAdVehicle(vehicle._id);
         } else {
           // For inspection, tradein, and other types, use the main vehicle service
-          console.log("Using main vehicle service for type:", vehicle.vehicle_type);
           await vehicleServices.softDeleteVehicle(vehicle._id, vehicle.vehicle_type);
         }
 
-        console.log("Soft delete successful");
         toast.success("Vehicle deleted successfully");
 
         // First refresh the list to remove the deleted vehicle

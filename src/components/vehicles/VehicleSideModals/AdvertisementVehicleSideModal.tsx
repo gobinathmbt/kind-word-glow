@@ -177,9 +177,7 @@ const AdvertisementVehicleSideModal: React.FC<
       }
 
       if (pendingAction.type === "soft_delete") {
-        console.log("Attempting to soft delete advertisement vehicle:", vehicle._id);
         await adPublishingServices.softDeleteAdVehicle(vehicle._id);
-        console.log("Soft delete successful");
         toast.success("Vehicle deleted successfully");
 
         // First refresh the list to remove the deleted vehicle

@@ -205,9 +205,7 @@ const MasterVehicleSideModal: React.FC<MasterVehicleSideModalProps> = ({
       }
 
       if (pendingAction.type === "soft_delete") {
-        console.log("Attempting to soft delete master vehicle:", vehicle._id);
         await masterVehicleServices.softDeleteMasterVehicle(vehicle._id);
-        console.log("Soft delete successful");
         toast.success("Vehicle deleted successfully");
 
         // First refresh the list to remove the deleted vehicle

@@ -112,12 +112,7 @@ const CompanySettings = () => {
     try {
       const response = await apiClient.get("/api/payment-settings/public");
       if (response.data.success) {
-        console.log("=== Payment Gateway Keys (from Database) ===");
-        console.log("Stripe Publishable Key:", response.data.data.stripe_publishable_key);
-        console.log("PayPal Client ID:", response.data.data.paypal_client_id);
-        console.log("Razorpay Key ID:", response.data.data.razorpay_key_id);
-        console.log("Google Maps API Key:", response.data.data.google_maps_api_key);
-        console.log("===========================================");
+
       }
     } catch (error) {
       console.error("Failed to fetch payment settings:", error);

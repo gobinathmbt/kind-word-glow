@@ -295,9 +295,7 @@ const VehicleTradeSideModal: React.FC<VehicleTradeSideModalProps> = ({
 
       if (pendingAction.type === "soft_delete") {
         try {
-          console.log("Attempting to soft delete vehicle:", vehicle._id, vehicleType);
           await vehicleServices.softDeleteVehicle(vehicle._id, vehicleType);
-          console.log("Soft delete successful");
           toast.success("Vehicle deleted successfully");
 
           // First refresh the list to remove the deleted vehicle

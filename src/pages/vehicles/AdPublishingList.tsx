@@ -323,9 +323,7 @@ const AdPublishingList = () => {
 
   const handleRestoreVehicle = async (vehicleId: string) => {
     try {
-      console.log("Attempting to restore advertisement vehicle:", vehicleId);
       await adPublishingServices.restoreAdVehicle(vehicleId);
-      console.log("Restore successful");
       toast.success("Vehicle restored successfully");
       refetch();
     } catch (error) {

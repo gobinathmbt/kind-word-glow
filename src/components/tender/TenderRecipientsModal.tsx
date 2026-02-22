@@ -42,7 +42,6 @@ const TenderRecipientsModal: React.FC<TenderRecipientsModalProps> = ({
   });
 
   const recipients = recipientsData?.data || [];
-  console.log(recipients)
   // Get status badge color
   const getStatusBadgeColor = (status: string) => {
     switch (status) {

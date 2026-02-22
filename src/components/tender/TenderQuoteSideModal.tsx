@@ -119,7 +119,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   // Initialize form data when tender changes
   useEffect(() => {
     if (tender && open) {
-      console.log('🔄 Initializing form with tender data:', tender);
       
       // Fetch existing quotes for this tender
       const fetchExistingQuotes = async () => {
@@ -151,7 +150,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
             quote_notes: tender.quote_notes || "",
           };
           
-          console.log('📝 Sent vehicle initialized:', sentVehicleInitial);
           setSentVehicleData(sentVehicleInitial);
 
           // Check if tender has alternate vehicles loaded
@@ -178,11 +176,9 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
               quote_price: av.quote_price || "",
               quote_notes: av.quote_notes || "",
             }));
-            console.log('📝 Alternate vehicles loaded:', alternates);
             setAlternateVehiclesData(alternates);
           } else {
             // Reset to single empty alternate vehicle
-            console.log('📝 No alternate vehicles, initializing empty array');
             setAlternateVehiclesData([{
               vehicle_id: null,
               make: "",
@@ -225,11 +221,7 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
   };
 
   const validateForm = (isDraft: boolean = false) => {
-    console.log('🔍 Validating form...');
-    console.log('Sent vehicle data:', sentVehicleData);
-    console.log('Alternate vehicles data:', alternateVehiclesData);
-    console.log('Is draft:', isDraft);
-    
+
     const newErrors: any = {};
 
     // Validate sent vehicle
@@ -260,7 +252,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       }
     });
 
-    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -306,7 +297,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       alt.color || alt.registration_number || alt.vin
     );
 
-    console.log('📦 Building payload with valid alternates:', validAlternates.length);
 
     // Build vehicles array with sent vehicle + valid alternates only
     const vehicles = [
@@ -398,7 +388,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       
       // If quote was withdrawn and now saved as draft, close modal and refresh list
       if (tender.quote_status === "Withdrawn") {
-        console.log('✅ Quote status changed from Withdrawn to In Progress, closing modal and refreshing...');
         setTimeout(() => {
           onClose(); // This will trigger the refetch in the parent component
         }, 500); // Small delay to let user see the success message
@@ -504,12 +493,9 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     let payload: any = null;
 
     try {
-      console.log('🚀 Submitting quote to backend...');
       payload = buildUnifiedPayload(false);
-      console.log('📦 Payload:', payload);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
-      console.log('✅ Response received from backend:', response);
       
       // Update vehicle IDs from response if they were new
       if (response.data?.data) {
@@ -537,7 +523,6 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
         });
       }
       
-      console.log('🎉 Showing success toast');
       toast.success("All quotes submitted successfully");
       setShowSubmitDialog(false);
       onClose();

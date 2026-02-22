@@ -13,22 +13,18 @@ const DynamicDashboard = () => {
     queryKey: ['user-module'],
     queryFn: async () => {
       const response = await authServices.getCurrentUserModule();
-      console.log("User module response:", response.data);
       return response.data;
     },
     enabled: !!user && !authLoading
   });
 
   useEffect(() => {
-    console.log("DynamicDashboard - authLoading:", authLoading, "moduleLoading:", moduleLoading);
-    console.log("DynamicDashboard - user:", user);
-    console.log("DynamicDashboard - userModule:", userModule);
+
 
     if (authLoading || moduleLoading) return;
 
     // Master admin always goes to master dashboard
     if (user?.role === "master_admin") {
-      console.log("Redirecting master_admin to /master/dashboard");
       navigate("/master/dashboard", { replace: true });
       return;
     }
@@ -36,17 +32,14 @@ const DynamicDashboard = () => {
     // For company users, find the first _main_dashboard module they have access to
     if (user?.role === "company_super_admin" || user?.role === "company_admin") {
       const modules = userModule?.data?.module || [];
-      console.log("User modules:", modules);
       
       // Find all main dashboard modules
       const mainDashboardModules = modules.filter((module: string) => 
         module.endsWith("_main_dashboard")
       );
-      console.log("Main dashboard modules found:", mainDashboardModules);
 
       if (mainDashboardModules.length === 0) {
         // No dashboard access, redirect to no-access page
-        console.log("No dashboard modules found, redirecting to /no-access");
         navigate("/no-access", { replace: true });
         return;
       }
@@ -61,9 +54,7 @@ const DynamicDashboard = () => {
       // Find the first available dashboard route
       for (const module of mainDashboardModules) {
         const route = dashboardRoutes[module];
-        console.log(`Checking module ${module}, route: ${route}`);
         if (route) {
-          console.log(`Navigating to ${route}`);
           navigate(route, { replace: true });
           return;
         }
@@ -73,7 +64,6 @@ const DynamicDashboard = () => {
       // and construct a generic route
       const firstDashboard = mainDashboardModules[0];
       const dashboardType = firstDashboard.replace("_main_dashboard", "");
-      console.log("No matching route, constructing from module:", firstDashboard, "type:", dashboardType);
       
       if (dashboardType === "vehicle") {
         navigate("/dashboard", { replace: true });

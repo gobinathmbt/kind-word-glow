@@ -203,7 +203,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         custom: enhancedCustomModules,
       };
 
-      console.log("Final categorized modules:", categorizedModules);
 
       setModuleCategories(categorizedModules);
 

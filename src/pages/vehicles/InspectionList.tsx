@@ -346,9 +346,7 @@ const InspectionList = () => {
 
   const handleRestoreVehicle = async (vehicleId: string) => {
     try {
-      console.log("Attempting to restore vehicle:", vehicleId, "inspection");
       await vehicleServices.restoreVehicle(vehicleId, "inspection");
-      console.log("Restore successful");
       toast.success("Vehicle restored successfully");
       refetch();
     } catch (error) {

@@ -320,9 +320,7 @@ const TradeinList = () => {
 
   const handleRestoreVehicle = async (vehicleId: string) => {
     try {
-      console.log("Attempting to restore vehicle:", vehicleId, "tradein");
       await vehicleServices.restoreVehicle(vehicleId, "tradein");
-      console.log("Restore successful");
       toast.success("Vehicle restored successfully");
       refetch();
     } catch (error) {

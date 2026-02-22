@@ -45,7 +45,6 @@ const MasterPlans = () => {
         });
         if (response.data.success) {
           const data = response.data.data;
-          console.log('Loaded dropdown data:', data);
           
           // Separate superadmin, integration, and custom modules
           const superadminModule = data.find(item => item.dropdown_name === "company_superadmin_modules");

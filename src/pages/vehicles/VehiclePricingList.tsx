@@ -311,7 +311,6 @@ const VehiclePricingList = () => {
 
   const handleRestoreVehicle = async (vehicleId: string, vehicleType: string) => {
     try {
-      console.log("Attempting to restore vehicle:", vehicleId, vehicleType);
       
       // Route to the correct service based on vehicle type
       if (vehicleType === "master") {
@@ -323,7 +322,6 @@ const VehiclePricingList = () => {
         await vehicleServices.restoreVehicle(vehicleId, vehicleType);
       }
       
-      console.log("Restore successful");
       toast.success("Vehicle restored successfully");
       refetch();
     } catch (error) {
