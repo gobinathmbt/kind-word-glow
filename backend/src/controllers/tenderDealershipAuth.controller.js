@@ -415,6 +415,13 @@ const submitQuote = async (req, res) => {
     // Process all vehicles in a single transaction
     const savedVehicles = [];
     let tenderUpdated = false;
+    
+    // Get all existing vehicle IDs from the request
+    const submittedVehicleIds = vehiclesToProcess
+      .map(v => v.vehicle_id)
+      .filter(id => id); // Filter out null/undefined IDs
+    
+    console.log('📋 Submitted vehicle IDs:', submittedVehicleIds);
 
     for (const vehicleData of vehiclesToProcess) {
       const {
@@ -592,6 +599,66 @@ const submitQuote = async (req, res) => {
           vehicle_details: `${tenderVehicle.make} ${tenderVehicle.model} ${tenderVehicle.year}`
         }
       }, req.getModel);
+    }
+
+    // Delete vehicles that exist in DB but were not included in the submission
+    // This handles the case where user removes alternate vehicles from the frontend
+    console.log('🗑️ Checking for vehicles to delete...');
+    
+    // Find all existing vehicles for this tender and dealership
+    const existingVehicles = await TenderVehicle.find({
+      tender_id: tender._id,
+      tenderDealership_id: req.dealershipUser.tenderDealership_id
+    });
+    
+    console.log(`Found ${existingVehicles.length} existing vehicles in database`);
+    
+    // Identify vehicles to delete (exist in DB but not in submitted list)
+    const vehiclesToDelete = existingVehicles.filter(existingVehicle => {
+      // Don't delete if this vehicle was just saved
+      if (savedVehicles.some(saved => saved._id.toString() === existingVehicle._id.toString())) {
+        return false;
+      }
+      
+      // Don't delete if this vehicle ID is in the submitted list
+      if (submittedVehicleIds.some(id => id && id.toString() === existingVehicle._id.toString())) {
+        return false;
+      }
+      
+      // This vehicle should be deleted
+      return true;
+    });
+    
+    if (vehiclesToDelete.length > 0) {
+      console.log(`🗑️ Deleting ${vehiclesToDelete.length} removed vehicle(s)...`);
+      
+      for (const vehicleToDelete of vehiclesToDelete) {
+        console.log(`Deleting vehicle: ${vehicleToDelete._id} (${vehicleToDelete.vehicle_type})`);
+        
+        // Create history record for deletion
+        await createTenderHistory({
+          tender_id: tender._id,
+          tenderDealership_id: req.dealershipUser.tenderDealership_id,
+          action_type: 'updated',
+          old_status: vehicleToDelete.quote_status,
+          new_status: 'Deleted',
+          performed_by: req.dealershipUser.id,
+          performed_by_type: 'dealership_user',
+          notes: `${vehicleToDelete.vehicle_type} removed by ${req.dealershipUser.username}`,
+          metadata: {
+            vehicle_type: vehicleToDelete.vehicle_type,
+            vehicle_details: `${vehicleToDelete.make} ${vehicleToDelete.model} ${vehicleToDelete.year}`,
+            action: 'deleted'
+          }
+        }, req.getModel);
+        
+        // Delete the vehicle
+        await TenderVehicle.deleteOne({ _id: vehicleToDelete._id });
+      }
+      
+      console.log('✅ Vehicle deletion completed');
+    } else {
+      console.log('✅ No vehicles to delete');
     }
 
     // Send notification to admin if quotes are submitted (not draft) - once per tender

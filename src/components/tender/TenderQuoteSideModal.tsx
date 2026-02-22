@@ -326,10 +326,45 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       return;
     }
 
+    // Validate alternate vehicles before saving draft
+    const draftErrors: string[] = [];
+    
+    alternateVehiclesData.forEach((alt, idx) => {
+      // Check if this alternate vehicle has any meaningful data
+      const hasAnyData = alt.make || alt.model || alt.year || alt.quote_price || 
+                         alt.color || alt.registration_number || alt.vin || 
+                         alt.odometer_reading || alt.engine_type || alt.fuel_type;
+      
+      if (hasAnyData) {
+        // If any field is filled, require make, model, year
+        const vehicleLabel = `Alternate Vehicle ${idx + 1}`;
+        if (!alt.make) draftErrors.push(`❌ ${vehicleLabel}: Make is required`);
+        if (!alt.model) draftErrors.push(`❌ ${vehicleLabel}: Model is required`);
+        if (!alt.year) draftErrors.push(`❌ ${vehicleLabel}: Year is required`);
+      }
+    });
+
+    // Show validation errors if any
+    if (draftErrors.length > 0) {
+      toast.error(
+        <div className="space-y-1">
+          <div className="font-semibold">Cannot save draft - Please fix the following:</div>
+          <div className="text-sm space-y-1">
+            {draftErrors.map((msg, idx) => (
+              <div key={idx}>{msg}</div>
+            ))}
+          </div>
+        </div>,
+        { duration: 6000 }
+      );
+      return;
+    }
+
     setIsSaving(true);
+    let payload: any = null;
 
     try {
-      const payload = buildUnifiedPayload(true);
+      payload = buildUnifiedPayload(true);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
       
@@ -361,19 +396,47 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       
       toast.success("All quotes saved as draft successfully");
     } catch (error: any) {
+      console.error('❌ Error saving draft:', error);
+      
       const errorMsg = error.response?.data?.message || "Failed to save draft";
       
       // Check if error response contains specific field errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        // Build detailed error messages with vehicle identification
+        const errorMessages: string[] = [];
+        
+        error.response.data.errors.forEach((err: any) => {
+          const field = err.field || '';
+          let vehicleLabel = '';
+          
+          // Identify which vehicle has the error
+          if (field.includes('vehicle_id') || field.includes('make') || field.includes('model')) {
+            // Try to determine if it's sent vehicle or alternate
+            const vehicleIndex = payload.vehicles?.findIndex((v: any) => {
+              return field.includes(v.vehicle_id) || 
+                     (err.message && err.message.includes(v.make));
+            });
+            
+            if (vehicleIndex === 0) {
+              vehicleLabel = '🚗 Sent Vehicle: ';
+            } else if (vehicleIndex > 0) {
+              vehicleLabel = `🔄 Alternate Vehicle ${vehicleIndex}: `;
+            }
+          }
+          
+          errorMessages.push(`${vehicleLabel}${err.message || err}`);
+        });
+        
         toast.error(
           <div className="space-y-1">
-            <div className="font-semibold">Save failed:</div>
+            <div className="font-semibold">Save failed - Please fix the following:</div>
             <div className="text-sm space-y-1">
-              {error.response.data.errors.map((err: any, idx: number) => (
-                <div key={idx}>{err.message || err}</div>
+              {errorMessages.map((msg, idx) => (
+                <div key={idx}>{msg}</div>
               ))}
             </div>
-          </div>
+          </div>,
+          { duration: 6000 }
         );
       } else {
         toast.error(errorMsg);
@@ -430,10 +493,11 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     }
 
     setIsSubmitting(true);
+    let payload: any = null;
 
     try {
       console.log('🚀 Submitting quote to backend...');
-      const payload = buildUnifiedPayload(false);
+      payload = buildUnifiedPayload(false);
       console.log('📦 Payload:', payload);
 
       const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
@@ -477,15 +541,41 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       
       // Check if error response contains specific field errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        // Build detailed error messages with vehicle identification
+        const errorMessages: string[] = [];
+        
+        error.response.data.errors.forEach((err: any) => {
+          const field = err.field || '';
+          let vehicleLabel = '';
+          
+          // Identify which vehicle has the error
+          if (field.includes('vehicle_id') || field.includes('make') || field.includes('model')) {
+            // Try to determine if it's sent vehicle or alternate
+            const vehicleIndex = payload.vehicles?.findIndex((v: any) => {
+              return field.includes(v.vehicle_id) || 
+                     (err.message && err.message.includes(v.make));
+            });
+            
+            if (vehicleIndex === 0) {
+              vehicleLabel = '🚗 Sent Vehicle: ';
+            } else if (vehicleIndex > 0) {
+              vehicleLabel = `🔄 Alternate Vehicle ${vehicleIndex}: `;
+            }
+          }
+          
+          errorMessages.push(`${vehicleLabel}${err.message || err}`);
+        });
+        
         toast.error(
           <div className="space-y-1">
-            <div className="font-semibold">Submission failed:</div>
+            <div className="font-semibold">Submission failed - Please fix the following:</div>
             <div className="text-sm space-y-1">
-              {error.response.data.errors.map((err: any, idx: number) => (
-                <div key={idx}>{err.message || err}</div>
+              {errorMessages.map((msg, idx) => (
+                <div key={idx}>{msg}</div>
               ))}
             </div>
-          </div>
+          </div>,
+          { duration: 6000 }
         );
       } else {
         toast.error(errorMsg);
@@ -544,11 +634,22 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       toast.error("You must have at least one alternate vehicle slot");
       return;
     }
+    
+    // Remove the vehicle at the specified index
     const updatedAlternates = alternateVehiclesData.filter((_, i) => i !== index);
     setAlternateVehiclesData(updatedAlternates);
-    if (selectedAlternateIndex >= updatedAlternates.length) {
-      setSelectedAlternateIndex(updatedAlternates.length - 1);
+    
+    // Adjust selected index if needed
+    if (selectedAlternateIndex === index) {
+      // If removing the currently selected vehicle, select the previous one (or 0 if removing first)
+      setSelectedAlternateIndex(Math.max(0, index - 1));
+    } else if (selectedAlternateIndex > index) {
+      // If removing a vehicle before the selected one, adjust the index
+      setSelectedAlternateIndex(selectedAlternateIndex - 1);
     }
+    // If removing a vehicle after the selected one, no adjustment needed
+    
+    toast.success(`Alternate Vehicle ${index + 1} removed`);
   };
 
   const currentData = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
