@@ -1477,13 +1477,15 @@ const approveQuote = async (req, res) => {
     const TenderDealership = req.getModel('TenderDealership');
     const TenderDealershipUser = req.getModel('TenderDealershipUser');
     
-    const { vehicle_id } = req.body;
+    // Accept both vehicle_id and tenderVehicle_id for backward compatibility
+    const { vehicle_id, tenderVehicle_id, dealership_id } = req.body;
+    const vehicleId = vehicle_id || tenderVehicle_id;
 
     // Validate vehicle_id
-    if (!vehicle_id) {
+    if (!vehicleId) {
       return res.status(400).json({
         success: false,
-        message: 'vehicle_id is required',
+        message: 'vehicle_id or tenderVehicle_id is required',
         errors: [
           { field: 'vehicle_id', message: 'Vehicle ID is required' }
         ]
@@ -1505,7 +1507,7 @@ const approveQuote = async (req, res) => {
 
     // Find the vehicle/quote to approve
     const approvedVehicle = await TenderVehicle.findOne({
-      _id: vehicle_id,
+      _id: vehicleId,
       tender_id: tender._id
     });
 
@@ -1513,6 +1515,17 @@ const approveQuote = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Quote not found'
+      });
+    }
+
+    // If dealership_id is provided, verify it matches the vehicle's dealership
+    if (dealership_id && dealership_id !== approvedVehicle.tenderDealership_id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dealership ID does not match the quote',
+        errors: [
+          { field: 'dealership_id', message: 'The provided dealership_id does not match the quote owner' }
+        ]
       });
     }
 
@@ -1536,10 +1549,11 @@ const approveQuote = async (req, res) => {
     await tender.save();
 
     // Update all other quotes for this tender to "Closed"
+    // This includes quotes from other dealerships
     await TenderVehicle.updateMany(
       {
         tender_id: tender._id,
-        _id: { $ne: vehicle_id }
+        _id: { $ne: vehicleId }
       },
       {
         $set: { quote_status: 'Closed' }
@@ -1883,8 +1897,21 @@ const approveQuote = async (req, res) => {
       data: {
         tender_id: tender._id,
         tender_status: tender.tender_status,
-        approved_vehicle: approvedVehicle,
-        winning_dealership: winningDealership?.dealership_name
+        approved_vehicle: {
+          _id: approvedVehicle._id,
+          quote_status: approvedVehicle.quote_status,
+          quote_price: approvedVehicle.quote_price,
+          vehicle_details: {
+            make: approvedVehicle.make,
+            model: approvedVehicle.model,
+            year: approvedVehicle.year
+          }
+        },
+        approved_dealership: {
+          _id: winningDealership?._id,
+          name: winningDealership?.dealership_name,
+          tenderDealership_id: approvedVehicle.tenderDealership_id
+        }
       }
     });
 

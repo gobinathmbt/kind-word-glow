@@ -2017,7 +2017,9 @@ export const tenderService = {
 
   // Approve a quote
   approveQuote: (id: string, data: any) =>
-    apiClient.post(`/api/tender/${id}/approve-quote`, data),
+    apiClient.post(`/api/tender/${id}/approve-quote`, data, {
+      timeout: 60000, // 60 seconds timeout for approve quote (sends emails to multiple dealerships)
+    }),
 
   // Close tender
   closeTender: (id: string, data?: any) =>
