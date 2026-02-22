@@ -395,6 +395,14 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
       }
       
       toast.success("All quotes saved as draft successfully");
+      
+      // If quote was withdrawn and now saved as draft, close modal and refresh list
+      if (tender.quote_status === "Withdrawn") {
+        console.log('✅ Quote status changed from Withdrawn to In Progress, closing modal and refreshing...');
+        setTimeout(() => {
+          onClose(); // This will trigger the refetch in the parent component
+        }, 500); // Small delay to let user see the success message
+      }
     } catch (error: any) {
       console.error('❌ Error saving draft:', error);
       
@@ -654,7 +662,12 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
 
   const currentData = activeTab === "sent" ? sentVehicleData : alternateVehiclesData[selectedAlternateIndex];
   const expired = isExpired();
-  const canEdit = !readOnly && !expired && (tender.quote_status === "Open" || tender.quote_status === "In Progress");
+  
+  const canEdit = !readOnly && !expired && (
+    tender.quote_status === "Open" || 
+    tender.quote_status === "In Progress" || 
+    tender.quote_status === "Withdrawn"
+  );
 
   return (
     <>
@@ -696,6 +709,14 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                     </Badge>
                   )}
                 </div>
+                {tender.quote_status === "Withdrawn" && (
+                  <div className="flex items-center gap-2 text-sm pt-2">
+                    <span className="font-medium">Status:</span>
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      Withdrawn
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               {expired && (
@@ -704,6 +725,17 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                     <AlertCircle className="h-5 w-5" />
                     <span className="font-medium">
                       This tender has expired. You cannot submit or save quotes.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {!expired && tender.quote_status === "Withdrawn" && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <AlertCircle className="h-5 w-5" />
+                    <span className="font-medium">
+                      This quote was withdrawn. You can edit and resubmit your quote.
                     </span>
                   </div>
                 </div>
@@ -1299,10 +1331,10 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
                   <Button
                     onClick={() => setShowSubmitDialog(true)}
                     disabled={isSaving || isSubmitting}
-                    className="bg-green-600 hover:bg-green-700"
+                    className={tender.quote_status === "Withdrawn" ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    Submit Quote
+                    {tender.quote_status === "Withdrawn" ? "Resubmit Quote" : "Submit Quote"}
                   </Button>
                 </>
               )}
@@ -1317,10 +1349,13 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
-              Submit All Quotes
+              {tender.quote_status === "Withdrawn" ? "Resubmit All Quotes" : "Submit All Quotes"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to submit all quotes? Once submitted, you cannot edit them.
+              {tender.quote_status === "Withdrawn" 
+                ? "Are you sure you want to resubmit all quotes? Your previous submission was withdrawn."
+                : "Are you sure you want to submit all quotes? Once submitted, you cannot edit them."
+              }
               <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
                 {/* Sent Vehicle */}
                 <div className="p-3 bg-muted rounded-lg border-l-4 border-green-600">
@@ -1375,9 +1410,12 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
             <AlertDialogAction
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700"
+              className={tender.quote_status === "Withdrawn" ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"}
             >
-              {isSubmitting ? "Submitting..." : "Submit All Quotes"}
+              {isSubmitting 
+                ? (tender.quote_status === "Withdrawn" ? "Resubmitting..." : "Submitting...") 
+                : (tender.quote_status === "Withdrawn" ? "Resubmit All Quotes" : "Submit All Quotes")
+              }
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -535,7 +535,7 @@ const QuotesByStatus = () => {
             setSelectedQuote(null);
             refetch();
           }}
-          readOnly={status === "Submitted" || status === "Withdrawn" || status === "Closed"}
+          readOnly={status === "Submitted" || status === "Closed"}
         />
       )}
 
