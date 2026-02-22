@@ -190,7 +190,7 @@ const QuotesByStatus = () => {
   const withdrawQuoteMutation = useMutation({
     mutationFn: async (quote: any) => {
       const response = await tenderDealershipAuthService.withdrawQuote(
-        quote.tender_id,
+        quote.tender_object_id || quote.tender_id, // Use tender_object_id for API calls, fallback to tender_id for backward compatibility
         { vehicle_id: quote._id }
       );
       return response.data;

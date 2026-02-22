@@ -1871,7 +1871,8 @@ const getQuotesByStatus = async (req, res) => {
           ...tender,
           ...sv,
           _id: sv._id,
-          tender_id: tender._id,// Use the tender_id string for display
+          tender_id: tender.tender_id, // Use the actual tender_id string for display (e.g., TND-123456-7890)
+          tender_object_id: tender._id, // Keep the MongoDB ObjectId for API calls
           vehicle_id: sv._id,
           alternate_vehicles: alternates
         };
@@ -1991,7 +1992,8 @@ const getOrdersByStatus = async (req, res) => {
           ...tender,
           ...tv,
           _id: tv._id,
-          tender_id: tender._id, // Keep the actual tender ID for API calls
+          tender_id: tender.tender_id, // Use the actual tender_id string for display (e.g., TND-123456-7890)
+          tender_object_id: tender._id, // Keep the MongoDB ObjectId for API calls
           vehicle_id: tv._id,
         };
       })

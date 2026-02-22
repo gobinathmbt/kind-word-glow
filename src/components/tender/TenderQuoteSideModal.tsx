@@ -356,7 +356,10 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     try {
       payload = buildUnifiedPayload(true);
 
-      const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      const response = await tenderDealershipAuthService.submitQuote(
+        tender.tender_object_id || tender.tender_id, // Use tender_object_id for API calls
+        payload
+      );
       
       // Update vehicle IDs from response if they were new
       if (response.data?.data) {
@@ -495,7 +498,10 @@ const TenderQuoteSideModal: React.FC<TenderQuoteSideModalProps> = ({
     try {
       payload = buildUnifiedPayload(false);
 
-      const response = await tenderDealershipAuthService.submitQuote(tender.tender_id, payload);
+      const response = await tenderDealershipAuthService.submitQuote(
+        tender.tender_object_id || tender.tender_id, // Use tender_object_id for API calls
+        payload
+      );
       
       // Update vehicle IDs from response if they were new
       if (response.data?.data) {
