@@ -65,4 +65,4 @@ SupplierSchema.index({ tags: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Supplier', SupplierSchema, 'company');
 
-module.exports = mongoose.model('Supplier', SupplierSchema);
+module.exports = {};

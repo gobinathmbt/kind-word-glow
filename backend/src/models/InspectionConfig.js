@@ -224,4 +224,4 @@ InspectionConfigSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('InspectionConfig', InspectionConfigSchema, 'company');
 
-module.exports = mongoose.model('InspectionConfig', InspectionConfigSchema);
+module.exports = {};

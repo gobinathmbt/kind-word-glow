@@ -111,4 +111,4 @@ ServiceBaySchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('ServiceBay', ServiceBaySchema, 'company');
 
-module.exports = mongoose.model('ServiceBay', ServiceBaySchema);
+module.exports = {};

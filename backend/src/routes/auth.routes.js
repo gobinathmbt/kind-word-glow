@@ -102,8 +102,7 @@ router.get("/me/permissions", protect, async (req, res) => {
     }
 
     const user = await User.findById(req.user.id)
-      .select("permissions group_permissions role is_primary_admin")
-      .populate("group_permissions", "permissions");
+      .select("permissions group_permissions role is_primary_admin company_id");
 
     if (!user) {
       return res.status(404).json({
@@ -123,14 +122,26 @@ router.get("/me/permissions", protect, async (req, res) => {
       });
     }
 
+    // Manually populate group_permissions from company DB
+    let groupPermissions = null;
+    if (user.group_permissions && req.getModel) {
+      try {
+        const GroupPermission = req.getModel('GroupPermission');
+        groupPermissions = await GroupPermission.findById(user.group_permissions)
+          .select('permissions');
+      } catch (error) {
+        console.error('Error fetching group permissions:', error);
+      }
+    }
+
     // Combine permissions from user and group
     let allPermissionStrings = [...(user.permissions || [])];
     
     // Add permissions from group if exists
-    if (user.group_permissions && user.group_permissions.permissions) {
+    if (groupPermissions && groupPermissions.permissions) {
       allPermissionStrings = [
         ...allPermissionStrings,
-        ...user.group_permissions.permissions,
+        ...groupPermissions.permissions,
       ];
     }
 

@@ -329,4 +329,4 @@ WorkshopReportSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('WorkshopReport', WorkshopReportSchema, 'company');
 
-module.exports = mongoose.model('WorkshopReport', WorkshopReportSchema);
+module.exports = {};

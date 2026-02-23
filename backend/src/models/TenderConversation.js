@@ -92,4 +92,4 @@ TenderConversationSchema.index({ tenderDealership_id: 1, is_archived_dealership:
 // Register with ModelRegistry as company database model
 ModelRegistry.registerModel('TenderConversation', TenderConversationSchema, 'company');
 
-module.exports = mongoose.model("TenderConversation", TenderConversationSchema);
+module.exports = {};

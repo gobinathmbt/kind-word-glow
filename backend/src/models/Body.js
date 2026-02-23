@@ -30,4 +30,4 @@ bodySchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel("Body", bodySchema, "main");
 
-module.exports = mongoose.model("Body", bodySchema);
+module.exports = mongoose.model('Body', bodySchema);

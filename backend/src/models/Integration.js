@@ -90,4 +90,4 @@ IntegrationSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('Integration', IntegrationSchema, 'company');
 
-module.exports = mongoose.model('Integration', IntegrationSchema);
+module.exports = {};

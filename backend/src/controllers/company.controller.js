@@ -759,11 +759,40 @@ const getUsers = async (req, res) => {
 
     const users = await User.find(filter)
       .populate("company_id")
-      .populate('dealership_ids', 'dealership_id dealership_name dealership_address')
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select("-password");
+      .select("-password")
+      .lean();
+
+    // Manually populate dealership_ids from company DB
+    const dealershipIds = users
+      .flatMap(u => u.dealership_ids || [])
+      .filter(id => id);
+
+    let dealershipsMap = {};
+    if (dealershipIds.length > 0) {
+      try {
+        const Dealership = req.getModel('Dealership');
+        const dealerships = await Dealership.find({
+          _id: { $in: dealershipIds }
+        }).select('dealership_id dealership_name dealership_address').lean();
+
+        dealerships.forEach(d => {
+          dealershipsMap[d._id.toString()] = d;
+        });
+      } catch (error) {
+        console.error('Error fetching dealerships:', error);
+      }
+    }
+
+    // Attach dealerships to users
+    const usersWithDealerships = users.map(user => ({
+      ...user,
+      dealership_ids: (user.dealership_ids || []).map(id => 
+        dealershipsMap[id.toString()] || id
+      )
+    }));
 
     const totalRecords = await User.countDocuments(filter);
     const totalPages = Math.ceil(totalRecords / limit);
@@ -800,7 +829,7 @@ const getUsers = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: users,
+      data: usersWithDealerships,
       stats,
       pagination: {
         current_page: parseInt(page),
@@ -942,13 +971,34 @@ const updateUser = async (req, res) => {
       { _id: req.params.id, company_id: updatingUser.company_id },
       finalUpdateData,
       { new: true, runValidators: true }
-    ).select("-password").populate('dealership_ids', 'dealership_id dealership_name');
+    ).select("-password").lean();
 
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
+    }
+
+    // Manually populate dealership_ids from company DB
+    if (user.dealership_ids && user.dealership_ids.length > 0) {
+      try {
+        const Dealership = req.getModel('Dealership');
+        const dealerships = await Dealership.find({
+          _id: { $in: user.dealership_ids }
+        }).select('dealership_id dealership_name').lean();
+
+        const dealershipsMap = {};
+        dealerships.forEach(d => {
+          dealershipsMap[d._id.toString()] = d;
+        });
+
+        user.dealership_ids = user.dealership_ids.map(id => 
+          dealershipsMap[id.toString()] || id
+        );
+      } catch (error) {
+        console.error('Error populating dealerships:', error);
+      }
     }
 
     await logEvent({

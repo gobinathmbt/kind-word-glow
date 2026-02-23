@@ -102,4 +102,4 @@ ConversationSchema.index({ 'supplier_id': 1, 'is_archived_supplier': 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Conversation', ConversationSchema, 'company');
 
-module.exports = mongoose.model("Conversation", ConversationSchema);
+module.exports = {};

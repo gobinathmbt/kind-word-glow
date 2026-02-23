@@ -187,4 +187,4 @@ notificationSchema.statics.cleanupOldNotifications = function(daysOld = 2) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('Notification', notificationSchema, 'company');
 
-module.exports = mongoose.model('Notification', notificationSchema);
+module.exports = {};

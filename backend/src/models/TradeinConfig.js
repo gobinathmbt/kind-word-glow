@@ -222,4 +222,4 @@ TradeinConfigSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('TradeinConfig', TradeinConfigSchema, 'company');
 
-module.exports = mongoose.model('TradeinConfig', TradeinConfigSchema);
+module.exports = {};

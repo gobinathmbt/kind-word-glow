@@ -91,4 +91,4 @@ TenderDealershipUserSchema.index({ company_id: 1, isActive: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderDealershipUser', TenderDealershipUserSchema, 'company');
 
-module.exports = mongoose.model('TenderDealershipUser', TenderDealershipUserSchema);
+module.exports = {};

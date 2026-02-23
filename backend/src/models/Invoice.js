@@ -131,4 +131,4 @@ InvoiceSchema.index({ payment_status: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Invoice', InvoiceSchema, 'company');
 
-module.exports = mongoose.model('Invoice', InvoiceSchema);
+module.exports = {};

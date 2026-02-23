@@ -25,22 +25,44 @@ const getGroupPermissions = async (req, res) => {
     }
 
     const groupPermissions = await GroupPermission.find(filter)
-      .populate('created_by', 'first_name last_name email')
       .sort({ created_at: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // Manually populate created_by from main DB
+    const createdByIds = groupPermissions
+      .map(gp => gp.created_by)
+      .filter(id => id);
+
+    let usersMap = {};
+    if (createdByIds.length > 0) {
+      const users = await User.find({
+        _id: { $in: createdByIds }
+      }).select('first_name last_name email').lean();
+
+      users.forEach(u => {
+        usersMap[u._id.toString()] = u;
+      });
+    }
+
+    // Attach user data to group permissions
+    const groupPermissionsWithUsers = groupPermissions.map(gp => ({
+      ...gp,
+      created_by: gp.created_by ? usersMap[gp.created_by.toString()] || gp.created_by : null
+    }));
 
     const total = await GroupPermission.countDocuments(filter);
 
     // Get user count for each group permission
     const groupPermissionsWithCount = await Promise.all(
-      groupPermissions.map(async (gp) => {
+      groupPermissionsWithUsers.map(async (gp) => {
         const userCount = await User.countDocuments({
           group_permissions: gp._id,
           company_id: req.user.company_id
         });
         return {
-          ...gp.toObject(),
+          ...gp,
           user_count: userCount
         };
       })
@@ -76,13 +98,23 @@ const getGroupPermission = async (req, res) => {
     const groupPermission = await GroupPermission.findOne({
       _id: req.params.id,
       company_id: req.user.company_id
-    }).populate('created_by', 'first_name last_name email');
+    }).lean();
 
     if (!groupPermission) {
       return res.status(404).json({
         success: false,
         message: 'Group permission not found'
       });
+    }
+
+    // Manually populate created_by from main DB
+    if (groupPermission.created_by) {
+      const user = await User.findById(groupPermission.created_by)
+        .select('first_name last_name email')
+        .lean();
+      if (user) {
+        groupPermission.created_by = user;
+      }
     }
 
     res.status(200).json({

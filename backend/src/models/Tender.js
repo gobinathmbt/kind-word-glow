@@ -110,4 +110,4 @@ TenderSchema.index({ tender_id: 1 }, { unique: true });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Tender', TenderSchema, 'company');
 
-module.exports = mongoose.model('Tender', TenderSchema);
+module.exports = {};

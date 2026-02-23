@@ -37,4 +37,4 @@ modelSchema.index({ make: 1, displayValue: 1 }, { unique: true });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Model', modelSchema, 'main');
 
-module.exports = mongoose.model("Model", modelSchema);
+module.exports = mongoose.model('Model', modelSchema);

@@ -254,16 +254,45 @@ const getUsersWithPermissions = async (req, res) => {
 
     const users = await User.find(filter)
       .select('_id username email first_name last_name role is_active permissions module_access is_primary_admin dealership_ids group_permissions')
-      .populate('group_permissions', 'name description permissions')
       .sort({ created_at: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // Manually populate group_permissions from company DB
+    const groupPermissionIds = users
+      .map(u => u.group_permissions)
+      .filter(id => id);
+
+    let groupPermissionsMap = {};
+    if (groupPermissionIds.length > 0) {
+      try {
+        const GroupPermission = req.getModel('GroupPermission');
+        const groupPermissions = await GroupPermission.find({
+          _id: { $in: groupPermissionIds }
+        }).select('name description permissions').lean();
+
+        groupPermissions.forEach(gp => {
+          groupPermissionsMap[gp._id.toString()] = gp;
+        });
+      } catch (error) {
+        console.error('Error fetching group permissions:', error);
+      }
+    }
+
+    // Attach group permissions to users
+    const usersWithPopulated = users.map(user => ({
+      ...user,
+      group_permissions: user.group_permissions 
+        ? groupPermissionsMap[user.group_permissions.toString()] || user.group_permissions
+        : null
+    }));
 
     const total = await User.countDocuments(filter);
 
     res.status(200).json({
       success: true,
-      data: users,
+      data: usersWithPopulated,
       pagination: {
         current_page: parseInt(page),
         total_pages: Math.ceil(total / limit),

@@ -54,4 +54,4 @@ TenderNotificationSchema.index({ tender_id: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderNotification', TenderNotificationSchema, 'company');
 
-module.exports = mongoose.model('TenderNotification', TenderNotificationSchema);
+module.exports = {};

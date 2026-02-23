@@ -67,4 +67,4 @@ TenderHistorySchema.index({ tenderDealership_id: 1, created_at: -1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderHistory', TenderHistorySchema, 'company');
 
-module.exports = mongoose.model('TenderHistory', TenderHistorySchema);
+module.exports = {};

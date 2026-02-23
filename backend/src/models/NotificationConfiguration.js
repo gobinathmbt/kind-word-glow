@@ -194,4 +194,4 @@ notificationConfigurationSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('NotificationConfiguration', notificationConfigurationSchema, 'company');
 
-module.exports = mongoose.model('NotificationConfiguration', notificationConfigurationSchema);
+module.exports = {};

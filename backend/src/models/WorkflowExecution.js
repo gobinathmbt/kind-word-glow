@@ -126,4 +126,4 @@ WorkflowExecutionSchema.index({ created_at: 1 }); // For cleanup cron
 // Register with ModelRegistry
 ModelRegistry.registerModel('WorkflowExecution', WorkflowExecutionSchema, 'company');
 
-module.exports = mongoose.model('WorkflowExecution', WorkflowExecutionSchema);
+module.exports = {};

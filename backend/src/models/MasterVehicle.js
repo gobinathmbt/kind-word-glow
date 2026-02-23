@@ -335,4 +335,4 @@ MasterVehicleSchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('MasterVehicle', MasterVehicleSchema, 'company');
 
-module.exports = mongoose.model("MasterVehicle", MasterVehicleSchema);
+module.exports = {};

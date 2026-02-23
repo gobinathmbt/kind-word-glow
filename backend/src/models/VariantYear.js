@@ -50,4 +50,4 @@ variantYearSchema.index(
 // Register with ModelRegistry
 ModelRegistry.registerModel('VariantYear', variantYearSchema, 'main');
 
-module.exports = mongoose.model("VariantYear", variantYearSchema);
+module.exports = mongoose.model('VariantYear', variantYearSchema);

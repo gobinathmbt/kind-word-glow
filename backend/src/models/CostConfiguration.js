@@ -102,4 +102,4 @@ CostConfigurationSchema.index({ company_id: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('CostConfiguration', CostConfigurationSchema, 'company');
 
-module.exports = mongoose.model('CostConfiguration', CostConfigurationSchema);
+module.exports = {};

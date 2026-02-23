@@ -350,4 +350,4 @@ WorkshopQuoteSchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('WorkshopQuote', WorkshopQuoteSchema, 'company');
 
-module.exports = mongoose.model("WorkshopQuote", WorkshopQuoteSchema);
+module.exports = {};

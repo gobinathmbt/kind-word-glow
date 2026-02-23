@@ -105,4 +105,4 @@ SubscriptionSchema.virtual('days_remaining').get(function() {
 // Register with ModelRegistry
 ModelRegistry.registerModel('Subscriptions', SubscriptionSchema, 'company');
 
-module.exports = mongoose.model('Subscription', SubscriptionSchema);
+module.exports = {};

@@ -82,4 +82,4 @@ CurrencySchema.index({ company_id: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Currency', CurrencySchema, 'company');
 
-module.exports = mongoose.model('Currency', CurrencySchema);
+module.exports = {};

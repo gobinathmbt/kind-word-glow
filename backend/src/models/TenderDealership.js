@@ -128,4 +128,4 @@ TenderDealershipSchema.index({ tenderDealership_id: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderDealership', TenderDealershipSchema, 'company');
 
-module.exports = mongoose.model('TenderDealership', TenderDealershipSchema);
+module.exports = {};

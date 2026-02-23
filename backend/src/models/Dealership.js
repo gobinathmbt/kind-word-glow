@@ -82,4 +82,4 @@ DealershipSchema.index({ dealership_name: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('Dealership', DealershipSchema, 'company');
 
-module.exports = mongoose.model('Dealership', DealershipSchema);
+module.exports = {};

@@ -238,4 +238,4 @@ WorkflowSchema.virtual("workflow_age").get(function () {
 // Register with ModelRegistry
 ModelRegistry.registerModel('Workflow', WorkflowSchema, 'company');
 
-module.exports = mongoose.model("Workflow", WorkflowSchema);
+module.exports = {};

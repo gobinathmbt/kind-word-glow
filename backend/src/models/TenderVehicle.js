@@ -168,4 +168,4 @@ TenderVehicleSchema.index({ parent_vehicle_id: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('TenderVehicle', TenderVehicleSchema, 'company');
 
-module.exports = mongoose.model('TenderVehicle', TenderVehicleSchema);
+module.exports = {};

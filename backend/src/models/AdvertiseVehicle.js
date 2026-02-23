@@ -373,4 +373,4 @@ VehicleSchema.pre("save", function (next) {
 });
 
 ModelRegistry.registerModel('AdvertiseVehicle', VehicleSchema, 'company');
-module.exports = mongoose.model("AdvertiseVehicle", VehicleSchema);
+module.exports = {};

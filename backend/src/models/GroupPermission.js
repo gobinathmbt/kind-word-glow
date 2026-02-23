@@ -54,4 +54,4 @@ GroupPermissionSchema.pre('save', function(next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('GroupPermission', GroupPermissionSchema, 'company');
 
-module.exports = mongoose.model('GroupPermission', GroupPermissionSchema);
+module.exports = {};

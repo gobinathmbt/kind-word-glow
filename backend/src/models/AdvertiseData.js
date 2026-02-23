@@ -102,4 +102,4 @@ AdvertiseDataSchema.pre("save", function (next) {
 
 
 ModelRegistry.registerModel('AdvertiseData', AdvertiseDataSchema, 'company');
-module.exports = mongoose.model("AdvertiseData", AdvertiseDataSchema);
+module.exports = {};

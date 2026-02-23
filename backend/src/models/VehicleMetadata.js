@@ -67,4 +67,4 @@ vehicleMetadataSchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('VehicleMetadata', vehicleMetadataSchema, 'main');
 
-module.exports = mongoose.model("VehicleMetadata", vehicleMetadataSchema);
+module.exports = mongoose.model('VehicleMetadata', vehicleMetadataSchema);

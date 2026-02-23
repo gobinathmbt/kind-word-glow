@@ -30,4 +30,4 @@ makeSchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('Make', makeSchema, 'main');
 
-module.exports = mongoose.model("Make", makeSchema);
+module.exports = mongoose.model('Make', makeSchema);

@@ -106,4 +106,4 @@ DropdownMasterSchema.index({ is_active: 1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('DropdownMaster', DropdownMasterSchema, 'company');
 
-module.exports = mongoose.model('DropdownMaster', DropdownMasterSchema);
+module.exports = {};

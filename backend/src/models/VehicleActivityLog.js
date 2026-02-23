@@ -74,4 +74,4 @@ VehicleActivityLogSchema.index({ company_id: 1, timestamp: -1 });
 // Register with ModelRegistry
 ModelRegistry.registerModel('VehicleActivityLog', VehicleActivityLogSchema, 'company');
 
-module.exports = mongoose.model('VehicleActivityLog', VehicleActivityLogSchema);
+module.exports = {};

@@ -65,4 +65,4 @@ trademeMetadataSchema.pre("save", function (next) {
 // Register with ModelRegistry
 ModelRegistry.registerModel('TrademeMetadata', trademeMetadataSchema, 'main');
 
-module.exports = mongoose.model("TrademeMetadata", trademeMetadataSchema);  
+module.exports = mongoose.model('TrademeMetadata', trademeMetadataSchema);  
