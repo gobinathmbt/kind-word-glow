@@ -363,157 +363,189 @@ const TenderDealershipDashboard = () => {
 
   return (
     <TenderDealershipLayout title="Dashboard">
-      <div className="h-full overflow-auto p-4 lg:p-6">
-        <div className="space-y-6">
-          {/* Header */}
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your quotes and orders efficiently
-            </p>
-          </div>
+      <div className="h-full overflow-auto bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="p-4 lg:p-8 space-y-8">
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="quotes" className="gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Quotes</span>
-                <Badge variant="secondary" className="ml-2 hidden sm:inline">
-                  {totalQuotesCount}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="orders" className="gap-2">
-                <Package className="h-4 w-4" />
-                <span className="hidden sm:inline">Orders</span>
-                <Badge variant="secondary" className="ml-2 hidden sm:inline">
-                  {totalOrdersCount}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="expiring" className="gap-2">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Expiring Soon</span>
-              </TabsTrigger>
-            </TabsList>
+          {/* Modern Tabs with Enhanced Styling */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl p-1.5 border border-border/50 shadow-sm">
+              <TabsList className="grid w-full grid-cols-3 bg-transparent gap-1">
+                <TabsTrigger 
+                  value="quotes" 
+                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-200"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Quotes</span>
+                  <Badge 
+                    variant="secondary" 
+                    className="ml-2 hidden sm:inline bg-primary/20 text-primary border-0 hover:bg-primary/30"
+                  >
+                    {totalQuotesCount}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="orders" 
+                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-200"
+                >
+                  <Package className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Orders</span>
+                  <Badge 
+                    variant="secondary" 
+                    className="ml-2 hidden sm:inline bg-primary/20 text-primary border-0 hover:bg-primary/30"
+                  >
+                    {totalOrdersCount}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="expiring" 
+                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-200"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Expiring Soon</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Quotes Tab */}
-            <TabsContent value="quotes" className="w-full space-y-6">
-              {/* Quote Stats Cards */}
+            <TabsContent value="quotes" className="w-full space-y-6 mt-0">
+              {/* Modern Quote Stats Cards with Gradient Accents */}
               {!quotesLoading && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Open
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span>Open</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {quoteStats.open}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Active quotes</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        In Progress
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <span>In Progress</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {quoteStats.inProgress}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Being processed</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Submitted
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <span>Submitted</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {quoteStats.submitted}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Completed</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Withdrawn
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <span>Withdrawn</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {quoteStats.withdrawn}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Cancelled</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Closed
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-slate-500/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        </div>
+                        <span>Closed</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {quoteStats.closed}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Archived</p>
                     </CardContent>
                   </Card>
                 </div>
               )}
 
-              {/* Kanban Board with Filter */}
-              <div className="space-y-3">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              {/* Kanban Board with Modern Filter */}
+              <div className="space-y-4">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-card/30 backdrop-blur-sm rounded-xl p-4 border border-border/50">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                       Quote Status Board
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Total: {totalQuotesCount} quotes
+                      Total: <span className="font-medium text-foreground">{totalQuotesCount}</span> quotes
                     </p>
                   </div>
 
-                  {/* Date Range Filter */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto">
-                    <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+                  {/* Enhanced Date Range Filter */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto bg-background/50 rounded-lg p-2 border border-border/50">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Filter className="h-4 w-4" />
+                      <span className="text-xs font-medium">Filter:</span>
+                    </div>
                     <Input
                       type="date"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
-                      className="h-9 w-full sm:w-32"
+                      className="h-9 w-full sm:w-36 bg-background border-border/50"
                     />
                     <span className="hidden sm:inline text-muted-foreground text-xs">to</span>
                     <Input
                       type="date"
                       value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
-                      className="h-9 w-full sm:w-32"
+                      className="h-9 w-full sm:w-36 bg-background border-border/50"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        refetchQuotes();
-                      }}
-                      className="w-full sm:w-auto"
+                      onClick={() => refetchQuotes()}
+                      className="w-full sm:w-auto hover:bg-primary/10 hover:text-primary"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <Card className="w-full border">
+                <Card className="w-full border-border/50 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
                   <CardContent className="p-0">
                     <KanbanBoard
                       statuses={quoteStatuses}
@@ -527,109 +559,127 @@ const TenderDealershipDashboard = () => {
             </TabsContent>
 
             {/* Orders Tab */}
-            <TabsContent value="orders" className="w-full space-y-6">
-              {/* Order Stats Cards */}
+            <TabsContent value="orders" className="w-full space-y-6 mt-0">
+              {/* Modern Order Stats Cards with Gradient Accents */}
               {!ordersLoading && (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Approved
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span>Approved</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {orderStats.approved}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Pending acceptance</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Accepted
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <span>Accepted</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {orderStats.accepted}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">In progress</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Delivered
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <span>Delivered</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {orderStats.delivered}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Completed</p>
                     </CardContent>
                   </Card>
 
-                  <Card className="hover:shadow-sm transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Aborted
+                  <Card className="group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <span>Aborted</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
+                    <CardContent className="relative z-10">
+                      <div className="text-2xl sm:text-3xl font-bold text-foreground">
                         {orderStats.aborted}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Cancelled</p>
                     </CardContent>
                   </Card>
                 </div>
               )}
 
-              {/* Kanban Board with Filter */}
-              <div className="space-y-3">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              {/* Kanban Board with Modern Filter */}
+              <div className="space-y-4">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-card/30 backdrop-blur-sm rounded-xl p-4 border border-border/50">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                       Order Status Board
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Total: {totalOrdersCount} orders
+                      Total: <span className="font-medium text-foreground">{totalOrdersCount}</span> orders
                     </p>
                   </div>
 
-                  {/* Date Range Filter */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto">
-                    <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+                  {/* Enhanced Date Range Filter */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto bg-background/50 rounded-lg p-2 border border-border/50">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Filter className="h-4 w-4" />
+                      <span className="text-xs font-medium">Filter:</span>
+                    </div>
                     <Input
                       type="date"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
-                      className="h-9 w-full sm:w-32"
+                      className="h-9 w-full sm:w-36 bg-background border-border/50"
                     />
                     <span className="hidden sm:inline text-muted-foreground text-xs">to</span>
                     <Input
                       type="date"
                       value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
-                      className="h-9 w-full sm:w-32"
+                      className="h-9 w-full sm:w-36 bg-background border-border/50"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        refetchOrders();
-                      }}
-                      className="w-full sm:w-auto"
+                      onClick={() => refetchOrders()}
+                      className="w-full sm:w-auto hover:bg-primary/10 hover:text-primary"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <Card className="w-full border">
+                <Card className="w-full border-border/50 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
                   <CardContent className="p-0">
                     <KanbanBoard
                       statuses={orderStatuses}
@@ -643,11 +693,12 @@ const TenderDealershipDashboard = () => {
             </TabsContent>
 
             {/* Expiring Soon Tab */}
-            <TabsContent value="expiring" className="w-full space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+            <TabsContent value="expiring" className="w-full space-y-6 mt-0">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-card/30 backdrop-blur-sm rounded-xl p-4 border border-border/50">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                       Expiring Soon (Next 7 Days)
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -657,62 +708,70 @@ const TenderDealershipDashboard = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      refetchExpiring();
-                    }}
+                    onClick={() => refetchExpiring()}
+                    className="hover:bg-primary/10 hover:text-primary"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </div>
 
-                <Card className="w-full border">
+                <Card className="w-full border-border/50 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm overflow-hidden">
                   <CardContent className="p-0">
                     {expiringLoading ? (
                       <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent"></div>
+                          <p className="text-sm text-muted-foreground">Loading expiring quotes...</p>
+                        </div>
                       </div>
                     ) : expiringData && expiringData.length > 0 ? (
                       <div className="overflow-x-auto">
                         <Table>
-                          <TableHeader className="bg-muted/50">
-                            <TableRow>
-                              <TableHead>Tender ID</TableHead>
-                              <TableHead>Customer</TableHead>
-                              <TableHead>Vehicle</TableHead>
-                              <TableHead>Quote Status</TableHead>
-                              <TableHead>Amount</TableHead>
-                              <TableHead>Expiry Date</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Action</TableHead>
+                          <TableHeader className="bg-muted/30 backdrop-blur-sm">
+                            <TableRow className="hover:bg-transparent border-border/50">
+                              <TableHead className="font-semibold">Tender ID</TableHead>
+                              <TableHead className="font-semibold">Customer</TableHead>
+                              <TableHead className="font-semibold">Vehicle</TableHead>
+                              <TableHead className="font-semibold">Quote Status</TableHead>
+                              <TableHead className="font-semibold">Amount</TableHead>
+                              <TableHead className="font-semibold">Expiry Date</TableHead>
+                              <TableHead className="font-semibold">Status</TableHead>
+                              <TableHead className="font-semibold">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {expiringData.map((quote: QuoteItem) => {
                               const expiryStatus = getExpiryStatus(quote.tender_expiry_time || "");
                               return (
-                                <TableRow key={quote._id}>
+                                <TableRow 
+                                  key={quote._id}
+                                  className="hover:bg-muted/30 transition-colors border-border/50"
+                                >
                                   <TableCell className="font-medium text-sm">
-                                    {quote.tender_id}
+                                    <span className="text-primary">{quote.tender_id}</span>
                                   </TableCell>
                                   <TableCell className="text-sm">
                                     {quote.customer_info?.name || "N/A"}
                                   </TableCell>
                                   <TableCell className="text-sm">
-                                    {quote.basic_vehicle_info?.make} {quote.basic_vehicle_info?.model}
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{quote.basic_vehicle_info?.make}</span>
+                                      <span className="text-xs text-muted-foreground">{quote.basic_vehicle_info?.model}</span>
+                                    </div>
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5">
                                       {quote.quote_status}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-sm font-medium">
+                                  <TableCell className="text-sm font-semibold">
                                     ₹{quote.price?.toLocaleString() || "0"}
                                   </TableCell>
                                   <TableCell className="text-sm">
                                     {new Date(quote.tender_expiry_time || "").toLocaleDateString()}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge className={`${expiryStatus.color} text-xs`}>
+                                    <Badge className={`${expiryStatus.color} text-xs font-medium border-0`}>
                                       {expiryStatus.label}
                                     </Badge>
                                   </TableCell>
@@ -721,6 +780,7 @@ const TenderDealershipDashboard = () => {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleQuoteClick(quote)}
+                                      className="hover:bg-primary/10 hover:text-primary"
                                     >
                                       View
                                     </Button>
@@ -733,8 +793,11 @@ const TenderDealershipDashboard = () => {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <Calendar className="h-12 w-12 mb-4 opacity-50" />
-                        <p className="text-center">No quotes expiring soon</p>
+                        <div className="h-16 w-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+                          <Calendar className="h-8 w-8 opacity-50" />
+                        </div>
+                        <p className="text-center font-medium">No quotes expiring soon</p>
+                        <p className="text-xs text-center mt-1">All quotes are within safe expiry dates</p>
                       </div>
                     )}
                   </CardContent>
