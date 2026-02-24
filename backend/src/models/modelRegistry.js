@@ -209,8 +209,18 @@ class ModelRegistry {
           }
         }
 
-        // Ensure collection exists by creating indexes
-        await model.createIndexes();
+        // Sync indexes - this will drop conflicting indexes and create new ones
+        try {
+          await model.syncIndexes();
+        } catch (indexError) {
+          // If syncIndexes fails, try createIndexes as fallback
+          console.warn(`  ⚠️  syncIndexes failed for ${modelName}, trying createIndexes...`);
+          try {
+            await model.createIndexes();
+          } catch (createError) {
+            console.warn(`  ⚠️  Index creation warning for ${modelName}:`, createError.message);
+          }
+        }
         
         initializedModels[modelName] = model;
         console.log(`  ✓ ${modelName} initialized`);

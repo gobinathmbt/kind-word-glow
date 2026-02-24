@@ -96,8 +96,7 @@ CostConfigurationSchema.pre('save', function(next) {
   next();
 });
 
-// Index for efficient queries
-CostConfigurationSchema.index({ company_id: 1 });
+// Note: No need for additional index on company_id since unique: true already creates one
 
 // Register with ModelRegistry
 ModelRegistry.registerModel('CostConfiguration', CostConfigurationSchema, 'company');

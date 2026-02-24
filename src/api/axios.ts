@@ -14,7 +14,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Start loading
-    loadingStateManager.startLoading();
+    // loadingStateManager.startLoading();
     
     const token = sessionStorage.getItem('token') || sessionStorage.getItem('supplier_token') || sessionStorage.getItem('tender_dealership_token') ;
     if (token) {
@@ -24,7 +24,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     // Stop loading on error
-    loadingStateManager.stopLoading();
+    // loadingStateManager.stopLoading();
     return Promise.reject(error);
   }
 );
@@ -33,12 +33,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     // Stop loading on success
-    loadingStateManager.stopLoading();
+    // loadingStateManager.stopLoading();
     return response;
   },
   (error) => {
     // Stop loading on error
-    loadingStateManager.stopLoading();
+    // loadingStateManager.stopLoading();
     
     if (error.response?.status === 401) {
       sessionStorage.removeItem('token');
