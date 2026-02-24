@@ -100,14 +100,6 @@ const TenderDealershipDashboard = () => {
   return (
     <TenderDealershipLayout title="Dashboard">
       <div className="h-full overflow-auto p-4 lg:p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2">
-            Welcome back, {dealershipUser.username}!
-          </h2>
-          <p className="text-muted-foreground">
-            {dealershipUser.email}
-          </p>
-        </div>
 
         {/* Statistics Cards */}
         {isLoading ? (
@@ -230,43 +222,6 @@ const TenderDealershipDashboard = () => {
                     </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Link to="/tender-dealership/quotes/Open">
-                    <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
-                      <ClipboardList className="h-6 w-6" />
-                      <span className="text-sm font-medium">My Quotes</span>
-                    </Button>
-                  </Link>
-                  <Link to="/tender-dealership/orders/Order%20-%20Approved">
-                    <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
-                      <Package className="h-6 w-6" />
-                      <span className="text-sm font-medium">My Orders</span>
-                    </Button>
-                  </Link>
-                  <Link to="/tender-dealership/profile">
-                    <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
-                      <TrendingUp className="h-6 w-6" />
-                      <span className="text-sm font-medium">My Profile</span>
-                    </Button>
-                  </Link>
-                  {(dealershipUser.role === "primary_tender_dealership_user") && (
-                    <Link to="/tender-dealership/users">
-                      <Button variant="outline" className="w-full h-auto py-4 flex flex-col items-center gap-2">
-                        <Users className="h-6 w-6" />
-                        <span className="text-sm font-medium">Manage Users</span>
-                      </Button>
-                    </Link>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </>

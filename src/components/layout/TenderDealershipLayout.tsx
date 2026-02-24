@@ -107,13 +107,13 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
       path: '/tender-dealership/dashboard',
       description: 'Overview and statistics',
     },
-    {
-      icon: Users,
-      label: 'Users',
-      path: '/tender-dealership/users',
-      description: 'Manage dealership users',
-      roleRequired: ['primary_tender_dealership_user'],
-    },
+    // {
+    //   icon: Users,
+    //   label: 'Users',
+    //   path: '/tender-dealership/users',
+    //   description: 'Manage dealership users',
+    //   roleRequired: ['primary_tender_dealership_user'],
+    // },
     {
       icon: FileText,
       label: 'Quotes',
