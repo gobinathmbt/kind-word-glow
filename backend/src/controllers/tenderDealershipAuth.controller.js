@@ -1768,14 +1768,28 @@ const getQuotesByStatus = async (req, res) => {
   try {
     const Tender = req.getModel('Tender');
     const TenderVehicle = req.getModel('TenderVehicle');
-    const { page = 1, limit = 20, search, status } = req.query;
-    const skip = (page - 1) * limit;
+    const { limit = 10, search, status, dateFrom, dateTo } = req.query;
 
     // Build filter for sent_vehicle only (main quotes)
     let vehicleFilter = {
       tenderDealership_id: req.dealershipUser.tenderDealership_id,
       vehicle_type: 'sent_vehicle' // Only get sent vehicles for main list
     };
+
+    // Add date range filter if provided
+    if (dateFrom || dateTo) {
+      vehicleFilter.created_at = {};
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        vehicleFilter.created_at.$gte = fromDate;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        vehicleFilter.created_at.$lte = toDate;
+      }
+    }
 
     // Filter by quote status if provided
     if (status && status !== 'all') {
@@ -1787,13 +1801,9 @@ const getQuotesByStatus = async (req, res) => {
       };
     }
 
-    // Get total count for pagination (only sent vehicles)
-    const total = await TenderVehicle.countDocuments(vehicleFilter);
-
     // Get sent vehicle records
     const sentVehicles = await TenderVehicle.find(vehicleFilter)
       .sort({ created_at: -1 })
-      .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
@@ -1801,15 +1811,7 @@ const getQuotesByStatus = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: [],
-        total: 0,
-        pagination: {
-          current_page: parseInt(page),
-          total_pages: 0,
-          total_records: 0,
-          per_page: parseInt(limit),
-          has_next_page: false,
-          has_prev_page: false
-        }
+        total: 0
       });
     }
 
@@ -1882,15 +1884,7 @@ const getQuotesByStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       data: results,
-      total: total,
-      pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(total / limit),
-        total_records: total,
-        per_page: parseInt(limit),
-        has_next_page: page < Math.ceil(total / limit),
-        has_prev_page: page > 1
-      }
+      total: results.length
     });
 
   } catch (error) {
@@ -1909,13 +1903,27 @@ const getOrdersByStatus = async (req, res) => {
   try {
     const Tender = req.getModel('Tender');
     const TenderVehicle = req.getModel('TenderVehicle');
-    const { page = 1, limit = 20, search, status } = req.query;
-    const skip = (page - 1) * limit;
+    const { limit = 10, search, status, dateFrom, dateTo } = req.query;
 
     // Build filter for TenderVehicle
     let vehicleFilter = {
       tenderDealership_id: req.dealershipUser.tenderDealership_id,
     };
+
+    // Add date range filter if provided
+    if (dateFrom || dateTo) {
+      vehicleFilter.created_at = {};
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        vehicleFilter.created_at.$gte = fromDate;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        vehicleFilter.created_at.$lte = toDate;
+      }
+    }
 
     // Filter by order status if provided
     if (status && status !== 'all') {
@@ -1927,13 +1935,9 @@ const getOrdersByStatus = async (req, res) => {
       };
     }
 
-    // Get total count for pagination
-    const total = await TenderVehicle.countDocuments(vehicleFilter);
-
     // Get TenderVehicle records
     const tenderVehicles = await TenderVehicle.find(vehicleFilter)
       .sort({ created_at: -1 })
-      .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
@@ -1941,15 +1945,7 @@ const getOrdersByStatus = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: [],
-        total: 0,
-        pagination: {
-          current_page: parseInt(page),
-          total_pages: 0,
-          total_records: 0,
-          per_page: parseInt(limit),
-          has_next_page: false,
-          has_prev_page: false
-        }
+        total: 0
       });
     }
 
@@ -2002,15 +1998,7 @@ const getOrdersByStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       data: results,
-      total: total,
-      pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(total / limit),
-        total_records: total,
-        per_page: parseInt(limit),
-        has_next_page: page < Math.ceil(total / limit),
-        has_prev_page: page > 1
-      }
+      total: results.length
     });
 
   } catch (error) {
@@ -2018,6 +2006,110 @@ const getOrdersByStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error retrieving orders'
+    });
+  }
+};
+
+// @desc    Get expiring soon quotes (within 7 days) for dealership
+// @route   GET /api/tender-dealership-auth/quotes/expiring-soon
+// @access  Private (Dealership User)
+const getExpiringQuotes = async (req, res) => {
+  try {
+    const Tender = req.getModel('Tender');
+    const TenderVehicle = req.getModel('TenderVehicle');
+    const { search } = req.query;
+
+    // Calculate date range: today to 7 days from now
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysLater = new Date(today);
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    sevenDaysLater.setHours(23, 59, 59, 999);
+
+    // Build filter for sent_vehicle only (main quotes)
+    let vehicleFilter = {
+      tenderDealership_id: req.dealershipUser.tenderDealership_id,
+      vehicle_type: 'sent_vehicle',
+      quote_status: { 
+        $in: ['Open', 'In Progress', 'Submitted'] 
+      }
+    };
+
+    // Get sent vehicle records
+    const sentVehicles = await TenderVehicle.find(vehicleFilter)
+      .sort({ created_at: -1 })
+      .limit(100)
+      .lean();
+
+    if (sentVehicles.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        total: 0
+      });
+    }
+
+    // Get tender IDs
+    const tenderIds = sentVehicles.map(tv => tv.tender_id);
+
+    // Build tender filter with expiry date range
+    let tenderFilter = {
+      _id: { $in: tenderIds },
+      company_id: req.dealershipUser.company_id,
+      tender_expiry_time: {
+        $gte: today,
+        $lte: sevenDaysLater
+      }
+    };
+
+    // Add search filter if provided
+    if (search) {
+      tenderFilter.$or = [
+        { tender_id: { $regex: search, $options: 'i' } },
+        { 'customer_info.name': { $regex: search, $options: 'i' } },
+        { 'customer_info.email': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.make': { $regex: search, $options: 'i' } },
+        { 'basic_vehicle_info.model': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Get tenders
+    const tenders = await Tender.find(tenderFilter)
+      .sort({ tender_expiry_time: 1 })
+      .lean();
+
+    // Create a map of tender_id to tender data
+    const tenderMap = {};
+    tenders.forEach(tender => {
+      tenderMap[tender._id.toString()] = tender;
+    });
+
+    // Combine tender and vehicle data
+    const results = sentVehicles
+      .filter(sv => tenderMap[sv.tender_id.toString()])
+      .map(sv => {
+        const tender = tenderMap[sv.tender_id.toString()];
+        return {
+          ...tender,
+          ...sv,
+          _id: sv._id,
+          tender_id: tender.tender_id,
+          tender_object_id: tender._id,
+          vehicle_id: sv._id,
+        };
+      });
+
+    res.status(200).json({
+      success: true,
+      data: results,
+      total: results.length
+    });
+
+  } catch (error) {
+    console.error('Get expiring quotes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving expiring quotes'
     });
   }
 };
@@ -2030,6 +2122,7 @@ module.exports = {
   withdrawQuote,
   getQuotesByStatus,
   getOrdersByStatus,
+  getExpiringQuotes,
   acceptOrder,
   deliverOrder,
   abortOrder,

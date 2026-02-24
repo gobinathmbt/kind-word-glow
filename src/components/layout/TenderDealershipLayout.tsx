@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ThemeToggleDropdown } from "@/components/theme/ThemeToggleDropdown";
 import {
   Tooltip,
   TooltipContent,
@@ -433,6 +434,8 @@ const TenderDealershipLayout: React.FC<TenderDealershipLayoutProps> = ({
                   0
                 </Badge>
               </Button>
+
+              <ThemeToggleDropdown />
 
               {dealershipInfo?.dealership_id && (
                 <Badge variant="outline" className="text-xs">

@@ -2069,6 +2069,10 @@ export const tenderDealershipAuthService = {
   getQuotesByStatus: (params?: any) =>
     apiClient.get("/api/tender-dealership-auth/quotes", { params }),
 
+  // Get expiring soon quotes (within 7 days)
+  getExpiringQuotes: (params?: any) =>
+    apiClient.get("/api/tender-dealership-auth/quotes/expiring-soon", { params }),
+
   // Get orders by status
   getOrdersByStatus: (params?: any) =>
     apiClient.get("/api/tender-dealership-auth/orders", { params }),

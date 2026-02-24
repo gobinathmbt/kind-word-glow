@@ -7,6 +7,7 @@ const {
   withdrawQuote,
   getQuotesByStatus,
   getOrdersByStatus,
+  getExpiringQuotes,
   acceptOrder,
   deliverOrder,
   abortOrder,
@@ -28,6 +29,7 @@ router.get('/tenders', getDealershipTenders);
 router.get('/tenders/:id', getDealershipTender);
 
 // Quote and Order viewing routes
+router.get('/quotes/expiring-soon', getExpiringQuotes);
 router.get('/quotes', getQuotesByStatus);
 router.get('/orders', getOrdersByStatus);
 
