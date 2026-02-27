@@ -102,6 +102,8 @@ import SigningPage from "./pages/esign/public/SigningPage";
 import SigningComplete from "./pages/esign/public/SigningComplete";
 import SigningError from "./pages/esign/public/SigningError";
 import SigningDeclined from "./pages/esign/public/SigningDeclined";
+import SigningDelegated from "./pages/esign/public/SigningDelegated";
+import KioskSigningPage from "./pages/esign/public/KioskSigningPage";
 
 const queryClient = new QueryClient();
 
@@ -142,8 +144,10 @@ const App = () => {
 
       {/* E-Sign Public Routes - No authentication required */}
       <Route path="/esign/public/sign/:token" element={<SigningPage />} />
+      <Route path="/esign/public/kiosk/:token" element={<KioskSigningPage />} />
       <Route path="/esign/public/complete/:token" element={<SigningComplete />} />
       <Route path="/esign/public/declined/:token" element={<SigningDeclined />} />
+      <Route path="/esign/public/delegated/:token" element={<SigningDelegated />} />
       <Route path="/esign/public/error/:message?" element={<SigningError />} />
 
       {/* Dynamic Dashboard Route - redirects to appropriate dashboard based on user's modules */}

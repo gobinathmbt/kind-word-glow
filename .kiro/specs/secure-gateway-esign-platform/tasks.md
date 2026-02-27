@@ -452,8 +452,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all signature submissions to audit log
     - _Requirements: 10.10, 10.11, 10.12, 10.13, 10.14_
 
-- [ ] 11. Public Signing Page Module - Advanced Features
-  - [ ] 11.1 Implement document rejection/decline
+- [x] 11. Public Signing Page Module - Advanced Features
+  - [x] 11.1 Implement document rejection/decline
     - Display decline button with confirmation dialog
     - Update recipient status to "rejected" on confirmation
     - Update document status to "rejected"
@@ -462,7 +462,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log rejection events to audit log with reason if provided
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
   
-  - [ ] 11.2 Implement signing delegation
+  - [x] 11.2 Implement signing delegation
     - Implement POST /sign/:token/delegate endpoint
     - Accept delegate email, name, and optional reason
     - Validate recipient email and phone
@@ -473,7 +473,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 80.1, 80.2, 80.3, 80.4, 80.5, 80.6, 80.7, 80.8_
 
 
-  - [ ] 11.3 Implement signing groups with atomic slot claiming
+  - [x] 11.3 Implement signing groups with atomic slot claiming
     - When recipient_type is "group", allow any group member to sign
     - Use MongoDB distributed lock to ensure only one group member can claim slot
     - Invalidate tokens for all other group members atomically when one signs
@@ -481,7 +481,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log signing group events to audit log
     - _Requirements: 79.1, 79.2, 79.3, 79.4, 79.5, 79.6, 79.7_
   
-  - [ ] 11.4 Implement kiosk/in-person signing
+  - [x] 11.4 Implement kiosk/in-person signing
     - Create backend/src/routes/esignKiosk.routes.js
     - Implement GET /kiosk/:token (kiosk signing page)
     - Implement POST /kiosk/:token/authenticate-host (host authentication)
@@ -491,14 +491,14 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Implement session timeout (default 5 minutes) with host re-authentication
     - _Requirements: 82.1, 82.2, 82.3, 82.4, 82.5, 82.6, 82.7, 82.8_
   
-  - [ ] 11.5 Implement grace period handling
+  - [x] 11.5 Implement grace period handling
     - Check if current time is within grace period (expires_at < now < expires_at + grace_period_hours)
     - Allow token access during grace period with warning message
     - Invalidate token after grace period ends
     - Display warning "This link has expired but is still accessible during grace period"
     - _Requirements: 84.1, 84.2, 84.3, 84.4, 84.5_
   
-  - [ ] 11.6 Create public signing page frontend
+  - [x] 11.6 Create public signing page frontend
     - Create src/pages/esign/public/SigningPage.tsx (no auth required)
     - Create src/pages/esign/public/KioskSigningPage.tsx
     - Create src/pages/esign/public/SigningComplete.tsx

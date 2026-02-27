@@ -66,6 +66,7 @@ const esignSigningGroupRoutes = require("./routes/esignSigningGroup.routes");
 const esignAPIRoutes = require("./routes/esignAPI.routes");
 const esignDocumentRoutes = require("./routes/esignDocument.routes");
 const esignPublicRoutes = require("./routes/esignPublic.routes");
+const esignKioskRoutes = require("./routes/esignKiosk.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -230,6 +231,7 @@ app.use("/api/company/esign/signing-groups", esignSigningGroupRoutes);
 app.use("/api/company/esign/documents", esignDocumentRoutes);
 app.use("/api/v1/esign", esignAPIRoutes);
 app.use("/api/esign/public", esignPublicRoutes);
+app.use("/api/esign/kiosk", esignKioskRoutes);
 
 
 app.get("/api/health", async (req, res) => {

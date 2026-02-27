@@ -18,19 +18,73 @@ const accessSigningPage = async (req, res) => {
     
     // Validate token
     let decoded;
+    let isInGracePeriod = false;
+    let gracePeriodMessage = null;
+    
     try {
       decoded = tokenService.validateToken(token);
     } catch (error) {
       if (error.message.includes('expired')) {
+        // Check if we're in grace period
+        try {
+          decoded = tokenService.decodeToken(token); // Decode without validation
+          
+          if (decoded && decoded.documentId && decoded.recipientId) {
+            // Get document to check grace period
+            const EsignDocument = req.getModel('EsignDocument');
+            const document = await EsignDocument.findById(decoded.documentId);
+            
+            if (document) {
+              const template = document.template_snapshot;
+              const gracePeriodHours = template.link_expiry?.grace_period_hours;
+              
+              if (gracePeriodHours && gracePeriodHours > 0) {
+                const expiresAt = new Date(document.expires_at);
+                const gracePeriodEnd = new Date(expiresAt.getTime() + gracePeriodHours * 60 * 60 * 1000);
+                const now = new Date();
+                
+                if (now < gracePeriodEnd) {
+                  // We're in grace period - allow access with warning
+                  isInGracePeriod = true;
+                  gracePeriodMessage = `This link expired on ${expiresAt.toLocaleString()}. You are in a grace period that ends on ${gracePeriodEnd.toLocaleString()}.`;
+                } else {
+                  // Grace period has ended
+                  return res.status(401).json({ 
+                    error: 'This link has expired',
+                    code: 'TOKEN_EXPIRED'
+                  });
+                }
+              } else {
+                // No grace period configured
+                return res.status(401).json({ 
+                  error: 'This link has expired',
+                  code: 'TOKEN_EXPIRED'
+                });
+              }
+            } else {
+              return res.status(401).json({ 
+                error: 'This link has expired',
+                code: 'TOKEN_EXPIRED'
+              });
+            }
+          } else {
+            return res.status(401).json({ 
+              error: 'This link has expired',
+              code: 'TOKEN_EXPIRED'
+            });
+          }
+        } catch (decodeError) {
+          return res.status(401).json({ 
+            error: 'This link has expired',
+            code: 'TOKEN_EXPIRED'
+          });
+        }
+      } else {
         return res.status(401).json({ 
-          error: 'This link has expired',
-          code: 'TOKEN_EXPIRED'
+          error: 'Invalid or expired link',
+          code: 'INVALID_TOKEN'
         });
       }
-      return res.status(401).json({ 
-        error: 'Invalid or expired link',
-        code: 'INVALID_TOKEN'
-      });
     }
     
     const { documentId, recipientId } = decoded;
@@ -141,7 +195,7 @@ const accessSigningPage = async (req, res) => {
     
     // Log token validation attempt
     await auditService.logEvent(req, {
-      event_type: 'token.validated',
+      event_type: isInGracePeriod ? 'token.validated_grace_period' : 'token.validated',
       actor: {
         type: 'signer',
         email: recipient.email,
@@ -150,12 +204,13 @@ const accessSigningPage = async (req, res) => {
         type: 'document',
         id: documentId,
       },
-      action: 'Token validated successfully',
+      action: isInGracePeriod ? 'Token validated during grace period' : 'Token validated successfully',
       metadata: {
         recipient_id: recipientId,
         ip_address,
         user_agent,
         geo_location,
+        grace_period_active: isInGracePeriod,
       },
     });
     
@@ -188,6 +243,10 @@ const accessSigningPage = async (req, res) => {
         require_scroll_completion: template.require_scroll_completion,
         delimiters: template.delimiters.filter(d => d.assigned_to === recipient.signature_order),
       },
+      grace_period: isInGracePeriod ? {
+        active: true,
+        message: gracePeriodMessage,
+      } : null,
     });
     
   } catch (error) {
@@ -439,6 +498,45 @@ const submitSignature = async (req, res) => {
       });
     }
     
+    // Handle signing groups with atomic slot claiming
+    if (recipient.group_id) {
+      const lockService = require('../services/esign/lock.service');
+      const lockKey = `group_signing:${document._id}:${recipient.signature_order}`;
+      
+      // Try to acquire distributed lock for this signing slot
+      const lockAcquired = await lockService.acquireLock(req, lockKey, 30); // 30 second lock
+      
+      if (!lockAcquired) {
+        return res.status(409).json({ 
+          error: 'Another group member is currently signing this slot',
+          code: 'SLOT_CLAIMED'
+        });
+      }
+      
+      try {
+        // Double-check that slot hasn't been claimed while acquiring lock
+        const freshDocument = await EsignDocument.findById(documentId);
+        const freshRecipient = freshDocument.recipients.id(recipientId);
+        
+        if (freshRecipient.status === 'signed') {
+          await lockService.releaseLock(req, lockKey);
+          return res.status(409).json({ 
+            error: 'This signing slot has already been claimed by another group member',
+            code: 'SLOT_ALREADY_CLAIMED'
+          });
+        }
+        
+        // Store which group member signed
+        recipient.group_member_email = decoded.email;
+        
+        // Continue with normal signature submission...
+      } catch (error) {
+        // Release lock on error
+        await lockService.releaseLock(req, lockKey);
+        throw error;
+      }
+    }
+    
     // Capture IP address, user agent, and geo location
     const geoLocationService = require('../services/esign/geoLocation.service');
     const ip_address = geoLocationService.extractIPAddress(req);
@@ -551,12 +649,58 @@ const submitSignature = async (req, res) => {
     
     await document.save();
     
+    // If this was a group signing, invalidate tokens for all other group members
+    if (recipient.group_id) {
+      const lockService = require('../services/esign/lock.service');
+      const lockKey = `group_signing:${document._id}:${recipient.signature_order}`;
+      
+      // Find all other recipients in the same group for this signature order
+      const groupRecipients = document.recipients.filter(r => 
+        r.group_id && 
+        r.group_id.toString() === recipient.group_id.toString() &&
+        r.signature_order === recipient.signature_order &&
+        r._id.toString() !== recipientId
+      );
+      
+      // Invalidate their tokens
+      for (const groupRecipient of groupRecipients) {
+        groupRecipient.token = null;
+        groupRecipient.token_expires_at = null;
+        groupRecipient.status = 'skipped';
+      }
+      
+      await document.save();
+      
+      // Release the distributed lock
+      await lockService.releaseLock(req, lockKey);
+      
+      // Send notifications to other group members
+      try {
+        for (const groupRecipient of groupRecipients) {
+          await notificationService.sendEsignNotification(
+            req.companyDb,
+            document.company_id,
+            'esign.document.group_slot_claimed',
+            {
+              document,
+              recipient: groupRecipient,
+              claimedBy: recipient.group_member_email || recipient.email,
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Failed to send group slot claimed notifications:', error);
+      }
+    }
+    
     // Log signature submission
     await auditService.logRecipientEvent(req, 'signature.submitted', document, recipient, {
       signature_type,
       ip_address,
       user_agent,
       geo_location,
+      group_id: recipient.group_id,
+      group_member_email: recipient.group_member_email,
     });
     
     res.json({

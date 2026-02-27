@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, AlertCircle, CheckCircle2, X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import SignatureCapture from "@/components/esign/SignatureCapture";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -49,6 +50,10 @@ interface SigningPageData {
   document: DocumentData;
   recipient: RecipientData;
   template: TemplateData;
+  grace_period?: {
+    active: boolean;
+    message: string;
+  } | null;
 }
 
 const SigningPage = () => {
@@ -64,6 +69,11 @@ const SigningPage = () => {
   const [fieldData, setFieldData] = useState<Record<string, string>>({});
   const [scrollCompleted, setScrollCompleted] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [showDelegateDialog, setShowDelegateDialog] = useState(false);
+  const [delegateEmail, setDelegateEmail] = useState('');
+  const [delegateName, setDelegateName] = useState('');
+  const [delegatePhone, setDelegatePhone] = useState('');
+  const [delegateReason, setDelegateReason] = useState('');
   
   const scrollAreaRef = useState<HTMLDivElement | null>(null);
 
@@ -165,6 +175,27 @@ const SigningPage = () => {
     },
   });
 
+  // Delegate signing mutation
+  const delegateSigningMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.post(`/api/esign/public/sign/${token}/delegate`, {
+        delegate_email: delegateEmail,
+        delegate_name: delegateName,
+        delegate_phone: delegatePhone || undefined,
+        reason: delegateReason || undefined,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Signing delegated successfully');
+      setShowDelegateDialog(false);
+      navigate(`/esign/public/delegated/${token}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to delegate signing');
+    },
+  });
+
   // Mark scroll completion mutation
   const markScrollCompleteMutation = useMutation({
     mutationFn: async () => {
@@ -243,6 +274,23 @@ const SigningPage = () => {
     if (window.confirm('Are you sure you want to decline this document?')) {
       declineSignatureMutation.mutate(undefined);
     }
+  };
+
+  // Handle delegate
+  const handleDelegate = () => {
+    if (!delegateEmail || !delegateName) {
+      toast.error('Please provide delegate email and name');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(delegateEmail)) {
+      toast.error('Please provide a valid email address');
+      return;
+    }
+
+    delegateSigningMutation.mutate();
   };
 
   // Loading state
@@ -368,6 +416,16 @@ const SigningPage = () => {
           </CardHeader>
         </Card>
 
+        {/* Grace period warning */}
+        {data.grace_period?.active && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {data.grace_period.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Scroll progress indicator */}
         {data.template.require_scroll_completion && !scrollCompleted && (
           <Alert>
@@ -469,6 +527,14 @@ const SigningPage = () => {
           </Button>
           <Button
             variant="outline"
+            onClick={() => setShowDelegateDialog(true)}
+            disabled={delegateSigningMutation.isPending}
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Delegate
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleDecline}
             disabled={declineSignatureMutation.isPending}
           >
@@ -479,6 +545,86 @@ const SigningPage = () => {
             Decline
           </Button>
         </div>
+
+        {/* Delegate Dialog */}
+        <Dialog open={showDelegateDialog} onOpenChange={setShowDelegateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delegate Signing</DialogTitle>
+              <DialogDescription>
+                Transfer this signing responsibility to another person. They will receive a new signing link.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="delegate-email">
+                  Delegate Email <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="delegate-email"
+                  type="email"
+                  placeholder="delegate@example.com"
+                  value={delegateEmail}
+                  onChange={(e) => setDelegateEmail(e.target.value)}
+                  disabled={delegateSigningMutation.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delegate-name">
+                  Delegate Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="delegate-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={delegateName}
+                  onChange={(e) => setDelegateName(e.target.value)}
+                  disabled={delegateSigningMutation.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delegate-phone">Delegate Phone (Optional)</Label>
+                <Input
+                  id="delegate-phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={delegatePhone}
+                  onChange={(e) => setDelegatePhone(e.target.value)}
+                  disabled={delegateSigningMutation.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delegate-reason">Reason (Optional)</Label>
+                <Input
+                  id="delegate-reason"
+                  type="text"
+                  placeholder="Out of office"
+                  value={delegateReason}
+                  onChange={(e) => setDelegateReason(e.target.value)}
+                  disabled={delegateSigningMutation.isPending}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDelegateDialog(false)}
+                disabled={delegateSigningMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDelegate}
+                disabled={!delegateEmail || !delegateName || delegateSigningMutation.isPending}
+              >
+                {delegateSigningMutation.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Delegate Signing
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
