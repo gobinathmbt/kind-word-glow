@@ -61,6 +61,8 @@ const esignDocumentSchema = new mongoose.Schema({
   callback_last_attempt: Date,
   idempotency_key: { type: String, sparse: true },
   bulk_job_id: { type: mongoose.Schema.Types.ObjectId, ref: 'EsignBulkJob' },
+  is_archived: { type: Boolean, default: false },
+  archived_at: Date,
   created_by: {
     type: { type: String, enum: ['api', 'user'], required: true },
     id: { type: String, required: true }
@@ -75,6 +77,7 @@ esignDocumentSchema.index({ company_id: 1, status: 1 });
 esignDocumentSchema.index({ company_id: 1, template_id: 1 });
 esignDocumentSchema.index({ company_id: 1, createdAt: -1 });
 esignDocumentSchema.index({ company_id: 1, expires_at: 1 });
+esignDocumentSchema.index({ company_id: 1, status: 1, completed_at: 1, is_archived: 1 }); // For retention cleanup
 esignDocumentSchema.index({ 'recipients.email': 1 });
 esignDocumentSchema.index({ 'recipients.token': 1 });
 esignDocumentSchema.index({ idempotency_key: 1 }, { unique: true, sparse: true });

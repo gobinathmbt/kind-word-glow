@@ -13,6 +13,7 @@ const { startSubscriptionCronJob } = require("./jobs/subscriptionCron");
 const { startGlobalLogCleanupCron } = require("./jobs/globalLogsCron");
 const { startNotificationCleanupCron } = require("./jobs/notificationCleanupCron");
 const { startWorkflowExecutionCleanupCron } = require("./jobs/workflowExecutionCleanupCron");
+const { startRetentionCronJob } = require("./jobs/esignRetentionCron");
 const { startQueueConsumer } = require('./controllers/sqs.controller');
 const { startWorkshopQueueConsumer } = require('./controllers/workshopReportSqs.controller');
 const mongoose = require("mongoose");
@@ -65,6 +66,7 @@ const esignTemplateRoutes = require("./routes/esignTemplate.routes");
 const esignSigningGroupRoutes = require("./routes/esignSigningGroup.routes");
 const esignAPIRoutes = require("./routes/esignAPI.routes");
 const esignDocumentRoutes = require("./routes/esignDocument.routes");
+const esignAuditRoutes = require("./routes/esignAudit.routes");
 const esignPublicRoutes = require("./routes/esignPublic.routes");
 const esignKioskRoutes = require("./routes/esignKiosk.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
@@ -93,6 +95,7 @@ startSubscriptionCronJob();
 startGlobalLogCleanupCron();
 startNotificationCleanupCron();
 startWorkflowExecutionCleanupCron();
+startRetentionCronJob();
 // Start main vehicle processing queue consumer
 // startQueueConsumer();
 
@@ -229,6 +232,7 @@ app.use("/api/company/esign/settings", esignSettingsRoutes);
 app.use("/api/company/esign/templates", esignTemplateRoutes);
 app.use("/api/company/esign/signing-groups", esignSigningGroupRoutes);
 app.use("/api/company/esign/documents", esignDocumentRoutes);
+app.use("/api/company/esign/audit-logs", esignAuditRoutes);
 app.use("/api/v1/esign", esignAPIRoutes);
 app.use("/api/esign/public", esignPublicRoutes);
 app.use("/api/esign/kiosk", esignKioskRoutes);

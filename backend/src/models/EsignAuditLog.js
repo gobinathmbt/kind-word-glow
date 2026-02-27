@@ -60,7 +60,11 @@ const esignAuditLogSchema = new mongoose.Schema({
       // Signing group events
       'signing_group.created', 'signing_group.updated', 'signing_group.deleted',
       // Bulk job events
-      'bulk_job.created', 'bulk_job.started', 'bulk_job.completed', 'bulk_job.failed'
+      'bulk_job.created', 'bulk_job.started', 'bulk_job.completed', 'bulk_job.failed',
+      // Audit log events
+      'audit_log.exported', 'audit_log.queried',
+      // Retention events
+      'retention.cleanup_started', 'retention.document_archived', 'retention.pdf_deleted', 'retention.cleanup_completed'
     ]
   },
   actor: actorSchema,

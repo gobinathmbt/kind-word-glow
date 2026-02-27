@@ -5,6 +5,8 @@
  * Integrates with EsignAuditLog model for immutable audit trails
  */
 
+const geoLocationService = require('./geoLocation.service');
+
 /**
  * Log an audit event
  * @param {Object} req - Express request object (for company context)
@@ -26,7 +28,7 @@ const logEvent = async (req, eventData) => {
     }
     
     // Get company ID from request
-    const company_id = req.company?._id || req.user?.company_id;
+    const company_id = req.company?._id || req.user?.company_id || req.api_key?.company_id;
     
     if (!company_id) {
       throw new Error('Company ID not found in request context');
@@ -36,8 +38,11 @@ const logEvent = async (req, eventData) => {
     const EsignAuditLog = req.getModel('EsignAuditLog');
     
     // Extract request metadata
-    const ip_address = req.ip || req.connection?.remoteAddress;
+    const ip_address = geoLocationService.extractIPAddress(req);
     const user_agent = req.get('user-agent');
+    
+    // Capture geo location (with 1-second timeout, non-blocking)
+    const geo_location = await geoLocationService.captureGeoLocationFromRequest(req, 1000);
     
     // Create audit log entry
     const auditLog = await EsignAuditLog.create({
@@ -49,6 +54,7 @@ const logEvent = async (req, eventData) => {
       metadata,
       ip_address,
       user_agent,
+      geo_location,
       timestamp: new Date(),
     });
     
