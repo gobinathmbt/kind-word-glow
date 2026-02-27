@@ -16,6 +16,11 @@ const EsignShortLinkSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    index: true,
+  },
   documentId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
@@ -39,7 +44,7 @@ const EsignShortLinkSchema = new mongoose.Schema({
 // TTL index to automatically delete expired short links
 EsignShortLinkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// Register with ModelRegistry
-ModelRegistry.registerModel('EsignShortLink', EsignShortLinkSchema, 'company');
+// Register with ModelRegistry as Main DB model (not company-specific)
+ModelRegistry.registerModel('EsignShortLink', EsignShortLinkSchema, 'main');
 
 module.exports = {};

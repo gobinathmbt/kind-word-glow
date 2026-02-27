@@ -24,13 +24,14 @@ const generateShortCode = () => {
 /**
  * Create a short link for a recipient token
  * @param {Object} req - Express request object
+ * @param {string} companyId - Company ID
  * @param {string} documentId - Document ID
  * @param {string} recipientId - Recipient ID
  * @param {string} fullToken - Full JWT token
  * @param {Date} expiresAt - Expiration date
  * @returns {Promise<string>} Short code
  */
-const createShortLink = async (req, documentId, recipientId, fullToken, expiresAt) => {
+const createShortLink = async (req, companyId, documentId, recipientId, fullToken, expiresAt) => {
   try {
     const EsignShortLink = req.getModel('EsignShortLink');
     
@@ -57,10 +58,11 @@ const createShortLink = async (req, documentId, recipientId, fullToken, expiresA
       throw new Error('Failed to generate unique short code after maximum attempts');
     }
     
-    // Create short link record
+    // Create short link record in Main DB
     await EsignShortLink.create({
       shortCode,
       fullToken,
+      companyId,
       documentId,
       recipientId,
       expiresAt,

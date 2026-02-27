@@ -19,7 +19,7 @@ const publicTenantContext = async (req, res, next) => {
     // Always attach main database connection
     req.mainDb = connectionManager.getMainConnection();
     
-    // Extract company from token
+    // Extract company from token or short code
     const { token, shortCode } = req.params;
     
     if (token) {
@@ -33,9 +33,15 @@ const publicTenantContext = async (req, res, next) => {
         req.companyId = decoded.companyId;
       }
     } else if (shortCode) {
-      // For short links, we need to look up the short code first
-      // We'll handle this in the controller since we need to query the database
-      // For now, just set up the main DB
+      // For short links, look up in Main DB to get company ID
+      const EsignShortLink = getModel('EsignShortLink', req.mainDb);
+      const shortLink = await EsignShortLink.findOne({ shortCode });
+      
+      if (shortLink && shortLink.companyId) {
+        // Get company database connection
+        req.companyDb = await connectionManager.getCompanyConnection(shortLink.companyId);
+        req.companyId = shortLink.companyId;
+      }
     }
     
     // Attach req.getModel helper function

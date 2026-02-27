@@ -811,29 +811,15 @@ const shortLinkRedirect = async (req, res) => {
   try {
     const { shortCode } = req.params;
     
-    // For short links, we need to search across all company databases
-    // since we don't know which company the link belongs to
-    // This is a limitation of the current architecture
-    
-    // Option 1: Store short links in main database with company_id
-    // Option 2: Search across all company databases (not scalable)
-    // Option 3: Include company identifier in short code format
-    
-    // For now, let's assume short links are stored in company databases
-    // and we need the company context to be set up first
-    
-    // Since we don't have company context yet, we need to handle this differently
-    // Let's return an error for now and document that short links need company context
-    
+    // Company context is now set up by middleware
     if (!req.companyDb) {
-      return res.status(400).json({ 
-        error: 'Company context required for short link lookup',
-        code: 'COMPANY_CONTEXT_REQUIRED',
-        message: 'Short links require company context. Please use the full signing URL.'
+      return res.status(404).json({ 
+        error: 'Short link not found',
+        code: 'SHORT_LINK_NOT_FOUND'
       });
     }
     
-    // Look up short link
+    // Look up short link in Main DB
     const shortLinkService = require('../services/esign/shortLink.service');
     const result = await shortLinkService.getShortLink(req, shortCode);
     
@@ -851,12 +837,9 @@ const shortLinkRedirect = async (req, res) => {
       });
     }
     
-    // Return full token for redirect
-    res.json({
-      success: true,
-      token: result.shortLink.fullToken,
-      redirect_url: `/sign/${result.shortLink.fullToken}`,
-    });
+    // Redirect to full signing URL
+    const fullUrl = `/api/esign/public/sign/${result.shortLink.fullToken}`;
+    res.redirect(fullUrl);
     
   } catch (error) {
     console.error('Short link redirect error:', error);

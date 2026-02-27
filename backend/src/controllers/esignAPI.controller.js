@@ -204,6 +204,7 @@ exports.initiateDocument = async (req, res) => {
           try {
             const shortCode = await shortLinkService.createShortLink(
               req,
+              req.companyId,
               document._id.toString(),
               recipient._id.toString(),
               recipient.token,
