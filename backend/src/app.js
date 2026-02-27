@@ -7,6 +7,7 @@ const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
+const { initializeRedis } = require("./config/redis");
 const { startSubscriptionCronJob } = require("./jobs/subscriptionCron");
 const { startGlobalLogCleanupCron } = require("./jobs/globalLogsCron");
 const { startNotificationCleanupCron } = require("./jobs/notificationCleanupCron");
@@ -72,6 +73,12 @@ require("./models");
 
 // Connect to database
 connectDB();
+
+// Initialize Redis
+initializeRedis().catch(err => {
+  console.error('Failed to initialize Redis:', err);
+  console.log('Application will continue without Redis. E-sign features may be limited.');
+});
 
 // Start CRON jobs
 startSubscriptionCronJob();
@@ -241,14 +248,27 @@ app.get("/api/health", async (req, res) => {
       };
     }
 
+    // Check Redis connection
+    try {
+      const { checkRedisHealth } = require("./config/redis");
+      const redisHealth = await checkRedisHealth();
+      healthCheck.services.redis = redisHealth;
+    } catch (redisError) {
+      healthCheck.services.redis = {
+        status: "error",
+        error: redisError.message,
+      };
+    }
+
     // Add other service checks
-    healthCheck.services.redis = { status: "not_implemented" };
     healthCheck.services.sqs = { status: "not_implemented" };
 
     // Overall status
     const allServicesHealthy = Object.values(healthCheck.services).every(
       (service) =>
-        service.status === "connected" || service.status === "not_implemented"
+        service.status === "connected" || 
+        service.status === "healthy" || 
+        service.status === "not_implemented"
     );
 
     if (!allServicesHealthy) {

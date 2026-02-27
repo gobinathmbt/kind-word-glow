@@ -8,21 +8,22 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
 
 ## Tasks
 
-- [ ] 1. Foundation & Infrastructure Setup
-  - [ ] 1.1 Set up Redis infrastructure and configuration
-    - Add Redis connection configuration in backend/src/config/redis.js
-    - Configure Redis client with connection pooling and error handling
-    - Add Redis health check endpoint
+- [x] 1. Foundation & Infrastructure Setup
+  - [x] 1.1 Set up AWS SQS infrastructure and MongoDB models
+    - Add SQS connection configuration in backend/src/config/sqs.js
+    - Configure SQS client with AWS credentials from master admin settings
+    - Create MongoDB models for OTP storage, distributed locks, rate limiting, idempotency, and short links
+    - Add SQS health check endpoint
     - _Requirements: 31.7, 27.6, 39.4_
   
-  - [ ] 1.2 Create PDF service infrastructure
+  - [x] 1.2 Create PDF service infrastructure
     - Set up Node.js service with Puppeteer or Python service with WeasyPrint
     - Implement HTML-to-PDF conversion endpoint
     - Implement PDF-to-HTML conversion endpoint for template editing
     - Add timeout and retry configuration (30s timeout, 2 retries)
     - _Requirements: 3.1, 3.2, 41.1, 41.2, 41.3, 51.3, 51.4, 51.6_
   
-  - [ ] 1.3 Create Mongoose model schemas for e-sign collections
+  - [x] 1.3 Create Mongoose model schemas for e-sign collections
     - Create backend/src/models/EsignTemplate.js with all fields and indexes
     - Create backend/src/models/EsignDocument.js with recipient schema and indexes
     - Create backend/src/models/EsignProviderConfig.js with encryption fields
@@ -34,21 +35,21 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 1.1, 1.2, 1.3, 2.1, 3.1, 4.1, 5.1_
 
 
-  - [ ] 1.4 Create core service modules
+  - [x] 1.4 Create core service modules
     - Implement backend/src/services/esign/encryption.service.js for AES-256 credential encryption/decryption
     - Implement backend/src/services/esign/token.service.js for JWT generation, validation, and rotation
-    - Implement backend/src/services/esign/otp.service.js for OTP generation, hashing, verification with Redis storage
-    - Implement backend/src/services/esign/lock.service.js for distributed locks using Redis
+    - Implement backend/src/services/esign/otp.service.js for OTP generation, hashing, verification with MongoDB storage
+    - Implement backend/src/services/esign/lock.service.js for distributed locks using MongoDB
     - Implement backend/src/services/esign/audit.service.js for centralized audit logging
     - _Requirements: 1.4, 1.5, 1.6, 8.1, 8.2, 9.5, 9.6, 9.7, 28.1, 28.2, 31.1, 31.2, 31.7, 49.1, 49.2_
   
-  - [ ] 1.5 Create authentication and rate limiting middleware
+  - [x] 1.5 Create authentication and rate limiting middleware
     - Create backend/src/middleware/esignAPIAuth.js for API key validation
-    - Create backend/src/middleware/esignRateLimit.js for Redis-based rate limiting (100 req/min)
-    - Create backend/src/middleware/esignIdempotency.js for idempotency key handling with Redis
+    - Create backend/src/middleware/esignRateLimit.js for MongoDB-based rate limiting (100 req/min)
+    - Create backend/src/middleware/esignIdempotency.js for idempotency key handling with MongoDB
     - _Requirements: 2.7, 6.1, 6.2, 6.3, 6.4, 6.5, 27.1, 27.2, 27.3, 39.1, 39.2, 39.3, 39.4_
   
-  - [ ] 1.6 Add e-sign module to existing system
+  - [x] 1.6 Add e-sign module to existing system
     - Create migration script to add 'esign_documents' module to CustomModuleConfig for all companies
     - Update existing moduleAccess.js middleware to recognize 'esign_documents' module
     - Add e-sign navigation menu items to src/components/layout/DashboardLayout.tsx
@@ -282,7 +283,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
   
   - [ ] 7.3 Implement idempotency handling
     - Check Idempotency_Key header in document initiation requests
-    - Store idempotency key in Redis with 24-hour TTL
+    - Store idempotency key in MongoDB with 24-hour TTL
     - Return existing document if matching key found within 24 hours
     - Return HTTP 200 with existing document data
     - Allow new document creation if key is older than 24 hours
@@ -359,7 +360,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
   - [ ] 8.3 Implement short link generation and redirect
     - Generate 8-character alphanumeric short code for each recipient token
     - Ensure short code is unique across all documents
-    - Store mapping in Redis with expiration matching token expiry
+    - Store mapping in MongoDB with expiration matching token expiry
     - Implement GET /s/:shortCode endpoint
     - Redirect to full signing URL /sign/:token
     - _Requirements: 37.1, 37.2, 37.3, 37.4, 37.5_
@@ -375,16 +376,16 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
 - [ ] 9. Public Signing Page Module - Multi-Factor Authentication
   - [ ] 9.1 Implement OTP generation and delivery
     - Generate 6-digit OTP when MFA is enabled
-    - Hash OTP with bcrypt before storing in Redis
+    - Hash OTP with bcrypt before storing in MongoDB
     - Set OTP expiration based on template otp_expiry_min configuration
     - Send OTP via email if channel is "email"
     - Send OTP via SMS if channel is "sms"
     - Send OTP via both email and SMS if channel is "both"
-    - Store OTP in Redis with recipient_id as key
+    - Store OTP in MongoDB with recipient_id as key
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
   
   - [ ] 9.2 Implement OTP verification with lockout
-    - Verify submitted OTP against hashed value in Redis
+    - Verify submitted OTP against hashed value in MongoDB
     - Increment attempt counter on incorrect OTP
     - Lock recipient for 30 minutes after 5 failed attempts
     - Return error "Too many attempts. Try again in 30 minutes" when locked
@@ -402,7 +403,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 28.1, 28.2, 28.3, 28.4, 28.5_
   
   - [ ] 9.4 Implement OTP resend throttling
-    - Track OTP send attempts in Redis
+    - Track OTP send attempts in MongoDB
     - Limit to 3 OTP sends per 15-minute window per recipient
     - Return error "Too many OTP requests. Try again later" if limit exceeded
     - Reset counter after 15 minutes
@@ -473,7 +474,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
 
   - [ ] 11.3 Implement signing groups with atomic slot claiming
     - When recipient_type is "group", allow any group member to sign
-    - Use Redis distributed lock to ensure only one group member can claim slot
+    - Use MongoDB distributed lock to ensure only one group member can claim slot
     - Invalidate tokens for all other group members atomically when one signs
     - Store which group member signed in recipient.group_member_email
     - Log signing group events to audit log
@@ -729,7 +730,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
   
   - [ ] 16.3 Implement async PDF generation job queue
     - Option 1: Use existing cron job pattern
-    - Option 2: Implement Bull/Redis job queue for better scalability
+    - Option 2: Implement AWS SQS job queue for better scalability
     - Create PDF generation jobs when all recipients sign
     - Process jobs asynchronously
     - Handle job failures with retry logic
@@ -1143,8 +1144,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
 
 - [ ] 21. Deployment & Documentation
   - [ ] 21.1 Create deployment configuration
-    - Update Docker Compose with Redis and PDF service
-    - Configure environment variables (Redis URL, PDF service URL, encryption keys)
+    - Update Docker Compose with PDF service
+    - Configure environment variables (AWS credentials, SQS queue names, PDF service URL, encryption keys)
     - Update backend package.json with new dependencies
     - Update frontend package.json with new dependencies
     - Create database migration script for e-sign module
@@ -1168,7 +1169,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: All user-facing requirements_
   
   - [ ] 21.4 Deploy to staging environment
-    - Deploy Redis instance
+    - Deploy AWS SQS queues
     - Deploy PDF service
     - Deploy backend with new routes and models
     - Deploy frontend with new pages and components
@@ -1205,7 +1206,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
 - All tasks build incrementally - each phase completes functional components before moving to next
 - Implementation uses TypeScript for frontend (React) and JavaScript/TypeScript for backend (Node.js/Express)
 - System integrates with existing MERN SaaS application infrastructure
-- Redis is required for distributed locks, OTP storage, rate limiting, and idempotency keys
+- AWS SQS is used for async job queuing (PDF generation, notifications, webhooks)
+- MongoDB is used for state storage (OTP, locks, rate limits, idempotency) with TTL indexes
 - PDF service can be Node.js with Puppeteer or Python with WeasyPrint
 - All e-sign data stored in per-company databases using model registry pattern
 - Module access control gates all e-sign features with 'esign_documents' module
