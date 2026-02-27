@@ -509,8 +509,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Display document HTML with delimiter values injected
     - _Requirements: 8.9, 9.1, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 12. Document Engine Module - PDF Generation & Storage
-  - [ ] 12.1 Implement PDF generation workflow
+- [x] 12. Document Engine Module - PDF Generation & Storage
+  - [x] 12.1 Implement PDF generation workflow
     - Create backend/src/services/esign/pdf.service.js
     - Acquire distributed lock on document before PDF generation
     - Inject all signature images into HTML at designated delimiter positions
@@ -522,7 +522,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Release distributed lock after completion or failure
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.13, 12.14, 31.1-31.7, 41.1-41.6_
   
-  - [ ] 12.2 Implement PDF hash computation and integrity verification
+  - [x] 12.2 Implement PDF hash computation and integrity verification
     - Compute SHA_256_Hash of generated PDF buffer
     - Store hash in document record with algorithm name "SHA-256"
     - Implement GET /api/company/esign/documents/:id/verify endpoint
@@ -532,7 +532,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all verification attempts to audit log
     - _Requirements: 12.7, 12.8, 30.1, 30.2, 30.3, 30.4, 30.5, 30.6, 30.7_
   
-  - [ ] 12.3 Implement storage upload with retry logic
+  - [x] 12.3 Implement storage upload with retry logic
     - Upload PDF to active storage provider
     - Retry up to 3 times with exponential backoff (2s, 4s, 8s) on failure
     - Store storage URL in document record on success
@@ -542,7 +542,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Complete PDF generation and storage within 60 seconds for documents up to 50 pages
     - _Requirements: 12.9, 12.10, 12.11, 12.12, 12.13, 12.14, 12.15, 32.1-32.6_
   
-  - [ ] 12.4 Implement certificate of completion generation
+  - [x] 12.4 Implement certificate of completion generation
     - Create backend/src/services/esign/certificate.service.js
     - Generate certificate PDF with document metadata
     - Include all signer information (name, email, signed_at, IP, geo location)
@@ -553,7 +553,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 85.1, 85.2, 85.3, 85.4, 85.5, 85.6_
 
 
-  - [ ] 12.5 Implement evidence package generation
+  - [x] 12.5 Implement evidence package generation
     - Create backend/src/services/esign/evidencePackage.service.js
     - Generate ZIP file containing: signed PDF, certificate, audit trail CSV, verification JSON
     - Include complete audit trail for document in CSV format

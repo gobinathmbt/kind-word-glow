@@ -60,3 +60,57 @@ router.post('/:id/approve', esignDocumentController.approveDocument);
 router.post('/:id/reject', esignDocumentController.rejectDocument);
 
 module.exports = router;
+
+/**
+ * Verify PDF Integrity
+ * GET /api/company/esign/documents/:id/verify
+ * 
+ * Verifies that the signed PDF has not been tampered with
+ */
+router.get('/:id/verify', esignDocumentController.verifyDocument);
+
+/**
+ * Download Evidence Package
+ * GET /api/company/esign/documents/:id/evidence-package
+ * 
+ * Downloads a ZIP file containing:
+ * - Signed PDF
+ * - Certificate of completion
+ * - Audit trail CSV
+ * - Verification JSON
+ */
+router.get('/:id/evidence-package', esignDocumentController.downloadEvidencePackage);
+
+/**
+ * Resend Document
+ * POST /api/company/esign/documents/:id/resend
+ * 
+ * Generates new token and resends notification to a specific recipient
+ * Body: { recipient_id: string }
+ */
+router.post('/:id/resend', esignDocumentController.resendDocument);
+
+/**
+ * Send Reminder
+ * POST /api/company/esign/documents/:id/remind
+ * 
+ * Sends reminder notifications to all pending recipients
+ */
+router.post('/:id/remind', esignDocumentController.remindDocument);
+
+/**
+ * Cancel Document
+ * POST /api/company/esign/documents/:id/cancel
+ * 
+ * Cancels a document and invalidates all recipient tokens
+ * Body: { reason: string }
+ */
+router.post('/:id/cancel', esignDocumentController.cancelDocument);
+
+/**
+ * Download Signed PDF
+ * GET /api/company/esign/documents/:id/download
+ * 
+ * Generates a presigned URL and redirects to download the signed PDF
+ */
+router.get('/:id/download', esignDocumentController.downloadDocument);
