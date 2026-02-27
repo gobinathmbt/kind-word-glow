@@ -374,8 +374,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Do not block document access if geo lookup fails
     - _Requirements: 35.1, 35.2, 35.3, 35.4, 35.5, 35.6_
 
-- [ ] 9. Public Signing Page Module - Multi-Factor Authentication
-  - [ ] 9.1 Implement OTP generation and delivery
+- [x] 9. Public Signing Page Module - Multi-Factor Authentication
+  - [x] 9.1 Implement OTP generation and delivery
     - Generate 6-digit OTP when MFA is enabled
     - Hash OTP with bcrypt before storing in MongoDB
     - Set OTP expiration based on template otp_expiry_min configuration
@@ -385,7 +385,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Store OTP in MongoDB with recipient_id as key
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
   
-  - [ ] 9.2 Implement OTP verification with lockout
+  - [x] 9.2 Implement OTP verification with lockout
     - Verify submitted OTP against hashed value in MongoDB
     - Increment attempt counter on incorrect OTP
     - Lock recipient for 30 minutes after 5 failed attempts
@@ -396,14 +396,14 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 9.7, 9.8, 9.9, 9.10, 9.11, 9.12, 29.1, 29.2, 29.3, 29.4, 29.5, 29.6_
 
 
-  - [ ] 9.3 Implement token rotation after OTP verification
+  - [x] 9.3 Implement token rotation after OTP verification
     - Generate new short-lived token (1 hour expiration) after successful OTP verification
     - Invalidate previous token
     - Return new token to client
     - Log token rotation events to audit log
     - _Requirements: 28.1, 28.2, 28.3, 28.4, 28.5_
   
-  - [ ] 9.4 Implement OTP resend throttling
+  - [x] 9.4 Implement OTP resend throttling
     - Track OTP send attempts in MongoDB
     - Limit to 3 OTP sends per 15-minute window per recipient
     - Return error "Too many OTP requests. Try again later" if limit exceeded

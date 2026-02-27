@@ -33,7 +33,7 @@ const accessSigningPage = async (req, res) => {
       });
     }
     
-    const { documentId, recipientId, email } = decoded;
+    const { documentId, recipientId } = decoded;
     
     // Get document from database
     const EsignDocument = req.getModel('EsignDocument');
@@ -254,9 +254,17 @@ const sendOTP = async (req, res) => {
     );
     
     if (!result.success) {
+      // Log failed OTP generation
+      await auditService.logOTPEvent(req, 'otp.generation_failed', recipientId, {
+        channel: template.mfa_config.channel,
+        email: recipient.email,
+        phone: recipient.phone,
+        error: result.error,
+      });
+      
       return res.status(500).json({ 
-        error: 'Failed to send OTP',
-        message: result.error 
+        error: result.error || 'Failed to send OTP',
+        code: result.code || 'SEND_FAILED'
       });
     }
     
@@ -265,6 +273,8 @@ const sendOTP = async (req, res) => {
       channel: template.mfa_config.channel,
       email: recipient.email,
       phone: recipient.phone,
+      emailSent: result.emailSent,
+      smsSent: result.smsSent,
     });
     
     res.json({
@@ -310,13 +320,13 @@ const verifyOTP = async (req, res) => {
     const { documentId, recipientId } = decoded;
     
     // Verify OTP
-    const result = await otpService.verifyOTP(req, recipientId, otp);
+    const result = await otpService.verifyOTP(recipientId, otp, req);
     
     if (!result.success) {
       // Log failed verification
       await auditService.logOTPEvent(req, 'otp.verification_failed', recipientId, {
         reason: result.error,
-        attempts: result.attempts,
+        code: result.code,
       });
       
       return res.status(400).json({ 
@@ -508,11 +518,15 @@ const submitSignature = async (req, res) => {
           
           // Send notification to next recipient
           try {
-            await notificationService.sendSigningNotification(
-              req,
-              document,
-              nextRecipient,
-              nextToken
+            await notificationService.sendEsignNotification(
+              req.companyDb,
+              document.company_id,
+              'esign.document.recipient_activated',
+              {
+                document,
+                recipient: nextRecipient,
+                token: nextToken,
+              }
             );
           } catch (error) {
             console.error('Failed to send notification to next recipient:', error);
@@ -618,7 +632,16 @@ const declineSignature = async (req, res) => {
     const template = document.template_snapshot;
     if (template.notification_config.send_on_reject) {
       try {
-        await notificationService.sendRejectionNotification(req, document, recipient, reason);
+        await notificationService.sendEsignNotification(
+          req.companyDb,
+          document.company_id,
+          'esign.document.rejected',
+          {
+            document,
+            recipient,
+            reason: reason || 'No reason provided',
+          }
+        );
       } catch (error) {
         console.error('Failed to send rejection notification:', error);
       }
@@ -726,11 +749,16 @@ const delegateSigning = async (req, res) => {
     
     // Send notification to delegate
     try {
-      await notificationService.sendSigningNotification(
-        req,
-        document,
-        recipient,
-        delegateToken
+      await notificationService.sendEsignNotification(
+        req.companyDb,
+        document.company_id,
+        'esign.document.delegated',
+        {
+          document,
+          recipient,
+          token: delegateToken,
+          original_email: originalEmail,
+        }
       );
     } catch (error) {
       console.error('Failed to send notification to delegate:', error);
