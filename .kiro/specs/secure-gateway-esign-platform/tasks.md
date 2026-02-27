@@ -580,8 +580,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log routing decisions to audit log
     - _Requirements: 78.1, 78.2, 78.3, 78.4, 78.5, 78.6, 78.7, 78.8, 78.9, 78.10_
 
-- [ ] 14. Message Center Module - Document Tracking & Management
-  - [ ] 14.1 Create message center backend routes and controllers
+- [x] 14. Message Center Module - Document Tracking & Management
+  - [x] 14.1 Create message center backend routes and controllers
     - Create backend/src/routes/esignDocument.routes.js
     - Create backend/src/controllers/esignDocument.controller.js
     - Implement GET /api/company/esign/documents (list with pagination)
@@ -594,7 +594,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Apply auth, tenantContext, and moduleAccess('esign_documents') middleware
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 16.1-16.6, 17.1-17.5, 18.1-18.7_
   
-  - [ ] 14.2 Implement document search and filtering
+  - [x] 14.2 Implement document search and filtering
     - Filter by status (multiple statuses supported)
     - Filter by template_id
     - Filter by recipient email
@@ -604,7 +604,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Return results within 2 seconds for up to 10,000 documents
     - _Requirements: 54.1, 54.2, 54.3, 54.4, 54.5, 54.6, 54.7_
   
-  - [ ] 14.3 Implement document resend and reminder
+  - [x] 14.3 Implement document resend and reminder
     - Generate new token respecting original expiry when resending
     - Invalidate previous token
     - Send notification to recipient via configured channels
@@ -613,7 +613,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all resend and reminder actions to audit log
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6_
   
-  - [ ] 14.4 Implement document cancellation
+  - [x] 14.4 Implement document cancellation
     - Update document status to "cancelled"
     - Invalidate all recipient tokens
     - Send cancellation notifications to all pending recipients
@@ -621,14 +621,14 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log cancellation actions to audit log with cancelling user and reason
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
   
-  - [ ] 14.5 Implement PDF download with presigned URLs
+  - [x] 14.5 Implement PDF download with presigned URLs
     - Generate presigned URL from storage provider with 1-hour expiration
     - Prevent download if document status is not "completed"
     - Log all download requests to audit log
     - _Requirements: 18.1, 18.2, 18.6, 18.7_
 
 
-  - [ ] 14.6 Implement document timeline generation
+  - [x] 14.6 Implement document timeline generation
     - Query all audit log entries for document
     - Generate timeline events in chronological order
     - Include event type, timestamp, actor, and metadata
@@ -636,7 +636,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Display most recent events at top
     - _Requirements: 58.1, 58.2, 58.3, 58.4, 58.5_
   
-  - [ ] 14.7 Implement bulk operations
+  - [x] 14.7 Implement bulk operations
     - Implement POST /api/company/esign/documents/bulk endpoint
     - Support actions: cancel, download, resend, delete
     - Process selected document IDs
@@ -645,7 +645,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all bulk operations to audit log
     - _Requirements: 55.1, 55.2, 55.3, 55.4, 55.5, 55.6_
   
-  - [ ] 14.8 Create message center frontend pages
+  - [x] 14.8 Create message center frontend pages
     - Create src/pages/company/esign/EsignDocuments.tsx with DataTableLayout
     - Create src/pages/company/esign/DocumentDetail.tsx
     - Implement document list with filters (status, template, date range, recipient)
@@ -654,7 +654,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Add document services to src/api/services.ts esignServices
     - _Requirements: 15.1-15.9, 54.1-54.7, 55.1-55.6, 58.1-58.5_
   
-  - [ ] 14.9 Create dashboard page with statistics
+  - [x] 14.9 Create dashboard page with statistics
     - Create src/pages/company/esign/EsignDashboard.tsx
     - Display document statistics (total, pending, completed, expired)
     - Display recent documents list

@@ -105,6 +105,15 @@ import SigningDeclined from "./pages/esign/public/SigningDeclined";
 import SigningDelegated from "./pages/esign/public/SigningDelegated";
 import KioskSigningPage from "./pages/esign/public/KioskSigningPage";
 
+// E-Sign Company Pages
+import EsignDashboard from "./pages/company/esign/EsignDashboard";
+import EsignTemplates from "./pages/company/esign/EsignTemplates";
+import TemplateEditor from "./pages/company/esign/TemplateEditor";
+import EsignDocuments from "./pages/company/esign/EsignDocuments";
+import DocumentDetail from "./pages/company/esign/DocumentDetail";
+import EsignSettings from "./pages/company/esign/EsignSettings";
+import EsignAPIKeys from "./pages/company/esign/EsignAPIKeys";
+
 const queryClient = new QueryClient();
 
 const handleRefresh = async () => {
@@ -240,6 +249,44 @@ const App = () => {
           <Dealerships />
         </ProtectedRoute>
       } />
+      
+      {/* E-Sign Company Routes */}
+      <Route path="/company/esign/dashboard" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="esign_documents">
+          <EsignDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/templates" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="esign_documents">
+          <EsignTemplates />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/templates/:id" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="esign_documents">
+          <TemplateEditor />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/documents" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="esign_documents">
+          <EsignDocuments />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/documents/:id" element={
+        <ProtectedRoute allowedRoles={['company_super_admin', 'company_admin']} requiredModule="esign_documents">
+          <DocumentDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/settings" element={
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="esign_documents">
+          <EsignSettings />
+        </ProtectedRoute>
+      } />
+      <Route path="/company/esign/api-keys" element={
+        <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="esign_documents">
+          <EsignAPIKeys />
+        </ProtectedRoute>
+      } />
+      
       <Route path="/company/users" element={
         <ProtectedRoute allowedRoles={['company_super_admin']} requiredModule="vehicle_user">
           <CompanyUsers />

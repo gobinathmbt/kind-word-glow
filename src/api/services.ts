@@ -2143,6 +2143,43 @@ export const esignServices = {
   
   getTemplateSchema: (id: string) =>
     apiClient.get(`/api/company/esign/templates/${id}/schema`),
+  
+  // Document Management
+  getDocuments: (params?: any) =>
+    apiClient.get("/api/company/esign/documents", { params }),
+  
+  getDocument: (id: string) =>
+    apiClient.get(`/api/company/esign/documents/${id}`),
+  
+  approveDocument: (id: string) =>
+    apiClient.post(`/api/company/esign/documents/${id}/approve`),
+  
+  rejectDocument: (id: string, data: { reason?: string }) =>
+    apiClient.post(`/api/company/esign/documents/${id}/reject`, data),
+  
+  resendDocument: (id: string, data: { recipient_id: string }) =>
+    apiClient.post(`/api/company/esign/documents/${id}/resend`, data),
+  
+  remindDocument: (id: string) =>
+    apiClient.post(`/api/company/esign/documents/${id}/remind`),
+  
+  cancelDocument: (id: string, data?: { reason?: string }) =>
+    apiClient.post(`/api/company/esign/documents/${id}/cancel`, data),
+  
+  downloadDocument: (id: string) =>
+    apiClient.get(`/api/company/esign/documents/${id}/download`, { responseType: 'blob' }),
+  
+  verifyDocument: (id: string) =>
+    apiClient.get(`/api/company/esign/documents/${id}/verify`),
+  
+  getDocumentTimeline: (id: string) =>
+    apiClient.get(`/api/company/esign/documents/${id}/timeline`),
+  
+  downloadEvidencePackage: (id: string) =>
+    apiClient.get(`/api/company/esign/documents/${id}/evidence-package`, { responseType: 'blob' }),
+  
+  bulkOperation: (data: { action: 'cancel' | 'download' | 'resend' | 'delete', document_ids: string[] }) =>
+    apiClient.post("/api/company/esign/documents/bulk", data),
 };
 
 export default {

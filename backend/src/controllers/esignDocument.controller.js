@@ -833,3 +833,323 @@ exports.downloadDocument = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get Document Timeline
+ * GET /api/company/esign/documents/:id/timeline
+ * 
+ * Requirements: 58.1-58.5
+ */
+exports.getDocumentTimeline = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const EsignDocument = req.getModel('EsignDocument');
+    const EsignAuditLog = req.getModel('EsignAuditLog');
+    
+    // Find document
+    const document = await EsignDocument.findOne({
+      _id: id,
+      company_id: req.user.company_id,
+    });
+    
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found',
+      });
+    }
+    
+    // Query audit log entries for this document
+    const auditEntries = await EsignAuditLog.find({
+      company_id: req.user.company_id,
+      'resource.type': 'document',
+      'resource.id': id,
+    })
+      .sort({ timestamp: -1 }) // Most recent first
+      .lean();
+    
+    // Transform audit entries into timeline events
+    const timeline = auditEntries.map(entry => {
+      const event = {
+        type: entry.event_type,
+        timestamp: entry.timestamp,
+        actor: entry.actor.email || entry.actor.type,
+        metadata: entry.metadata,
+        icon: getEventIcon(entry.event_type),
+        color: getEventColor(entry.event_type),
+        description: getEventDescription(entry),
+      };
+      
+      return event;
+    });
+    
+    return res.status(200).json({
+      success: true,
+      timeline,
+    });
+  } catch (error) {
+    console.error('Get document timeline error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve document timeline',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Bulk Operations
+ * POST /api/company/esign/documents/bulk
+ * 
+ * Requirements: 55.1-55.6
+ */
+exports.bulkOperation = async (req, res) => {
+  try {
+    const { action, document_ids } = req.body;
+    
+    if (!action || !document_ids || !Array.isArray(document_ids)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request',
+        message: 'action and document_ids array are required',
+      });
+    }
+    
+    if (!['cancel', 'download', 'resend', 'delete'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid action',
+        message: 'action must be one of: cancel, download, resend, delete',
+      });
+    }
+    
+    const results = {
+      total: document_ids.length,
+      succeeded: 0,
+      failed: 0,
+      errors: [],
+    };
+    
+    // Process each document
+    for (const docId of document_ids) {
+      try {
+        switch (action) {
+          case 'cancel':
+            await cancelDocumentById(docId, req);
+            results.succeeded++;
+            break;
+          case 'resend':
+            await resendDocumentById(docId, req);
+            results.succeeded++;
+            break;
+          case 'delete':
+            await deleteDocumentById(docId, req);
+            results.succeeded++;
+            break;
+          case 'download':
+            // Download is handled client-side, just validate
+            results.succeeded++;
+            break;
+          default:
+            throw new Error('Unsupported action');
+        }
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          document_id: docId,
+          error: error.message,
+        });
+      }
+    }
+    
+    // Log bulk operation
+    await auditService.logEvent(req, 'document.bulk_operation', {
+      action,
+      total: results.total,
+      succeeded: results.succeeded,
+      failed: results.failed,
+      performed_by: req.user.email,
+    });
+    
+    return res.status(200).json({
+      success: true,
+      results,
+    });
+  } catch (error) {
+    console.error('Bulk operation error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to perform bulk operation',
+      message: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Helper Functions for Timeline
+// ============================================================================
+
+function getEventIcon(eventType) {
+  const iconMap = {
+    'document.created': 'file-plus',
+    'document.distributed': 'send',
+    'document.opened': 'eye',
+    'document.signed': 'check-circle',
+    'document.completed': 'check-circle-2',
+    'document.rejected': 'x-circle',
+    'document.cancelled': 'ban',
+    'document.expired': 'clock',
+    'document.resent': 'refresh-cw',
+    'document.reminded': 'bell',
+    'recipient.token_generated': 'key',
+    'recipient.otp_sent': 'mail',
+    'recipient.otp_verified': 'shield-check',
+    'recipient.signature_submitted': 'pen-tool',
+    'pdf.generated': 'file-text',
+    'pdf.uploaded': 'upload',
+    'pdf.downloaded': 'download',
+  };
+  
+  return iconMap[eventType] || 'circle';
+}
+
+function getEventColor(eventType) {
+  if (eventType.includes('completed') || eventType.includes('signed') || eventType.includes('verified')) {
+    return 'green';
+  }
+  if (eventType.includes('rejected') || eventType.includes('cancelled') || eventType.includes('expired')) {
+    return 'red';
+  }
+  if (eventType.includes('opened') || eventType.includes('sent') || eventType.includes('distributed')) {
+    return 'blue';
+  }
+  return 'gray';
+}
+
+function getEventDescription(entry) {
+  const { event_type, actor, metadata } = entry;
+  
+  const descriptions = {
+    'document.created': `Document created by ${actor.email || 'system'}`,
+    'document.distributed': `Document distributed to recipients`,
+    'document.opened': `Document opened by ${metadata.recipient_email || 'recipient'}`,
+    'document.signed': `Document signed by ${metadata.recipient_email || 'recipient'}`,
+    'document.completed': `All signatures completed`,
+    'document.rejected': `Document rejected by ${metadata.recipient_email || 'recipient'}`,
+    'document.cancelled': `Document cancelled by ${actor.email || 'admin'}`,
+    'document.expired': `Document expired`,
+    'document.resent': `Document resent to ${metadata.recipient_email || 'recipient'}`,
+    'document.reminded': `Reminder sent to ${metadata.recipient_count || 0} recipients`,
+    'recipient.token_generated': `Access token generated for ${metadata.recipient_email || 'recipient'}`,
+    'recipient.otp_sent': `OTP sent to ${metadata.recipient_email || 'recipient'}`,
+    'recipient.otp_verified': `OTP verified for ${metadata.recipient_email || 'recipient'}`,
+    'recipient.signature_submitted': `Signature submitted by ${metadata.recipient_email || 'recipient'}`,
+    'pdf.generated': `PDF generated successfully`,
+    'pdf.uploaded': `PDF uploaded to storage`,
+    'pdf.downloaded': `PDF downloaded by ${actor.email || 'user'}`,
+  };
+  
+  return descriptions[event_type] || event_type;
+}
+
+// ============================================================================
+// Helper Functions for Bulk Operations
+// ============================================================================
+
+async function cancelDocumentById(docId, req) {
+  const EsignDocument = req.getModel('EsignDocument');
+  
+  const document = await EsignDocument.findOne({
+    _id: docId,
+    company_id: req.user.company_id,
+  });
+  
+  if (!document) {
+    throw new Error('Document not found');
+  }
+  
+  if (document.status === 'completed') {
+    throw new Error('Cannot cancel completed document');
+  }
+  
+  document.status = 'cancelled';
+  document.error_reason = 'Cancelled via bulk operation';
+  
+  document.recipients.forEach(recipient => {
+    recipient.token = null;
+    recipient.token_expires_at = null;
+  });
+  
+  await document.save();
+  
+  await auditService.logDocumentEvent(req, 'document.cancelled', document, {
+    cancelled_by: req.user.email,
+    bulk_operation: true,
+  });
+}
+
+async function resendDocumentById(docId, req) {
+  const EsignDocument = req.getModel('EsignDocument');
+  
+  const document = await EsignDocument.findOne({
+    _id: docId,
+    company_id: req.user.company_id,
+  });
+  
+  if (!document) {
+    throw new Error('Document not found');
+  }
+  
+  if (['completed', 'cancelled', 'expired'].includes(document.status)) {
+    throw new Error(`Cannot resend document with status: ${document.status}`);
+  }
+  
+  // Resend to all pending recipients
+  const pendingRecipients = document.recipients.filter(r => 
+    ['pending', 'active', 'opened'].includes(r.status)
+  );
+  
+  for (const recipient of pendingRecipients) {
+    const newToken = tokenService.generateToken({
+      documentId: document._id.toString(),
+      recipientId: recipient._id.toString(),
+      email: recipient.email,
+    });
+    
+    recipient.token = newToken;
+    recipient.token_expires_at = document.expires_at;
+  }
+  
+  await document.save();
+  
+  await auditService.logDocumentEvent(req, 'document.resent', document, {
+    resent_by: req.user.email,
+    bulk_operation: true,
+    recipient_count: pendingRecipients.length,
+  });
+}
+
+async function deleteDocumentById(docId, req) {
+  const EsignDocument = req.getModel('EsignDocument');
+  
+  const document = await EsignDocument.findOne({
+    _id: docId,
+    company_id: req.user.company_id,
+  });
+  
+  if (!document) {
+    throw new Error('Document not found');
+  }
+  
+  // Soft delete by setting a flag
+  document.is_deleted = true;
+  await document.save();
+  
+  await auditService.logDocumentEvent(req, 'document.deleted', document, {
+    deleted_by: req.user.email,
+    bulk_operation: true,
+  });
+}

@@ -59,8 +59,6 @@ router.post('/:id/approve', esignDocumentController.approveDocument);
  */
 router.post('/:id/reject', esignDocumentController.rejectDocument);
 
-module.exports = router;
-
 /**
  * Verify PDF Integrity
  * GET /api/company/esign/documents/:id/verify
@@ -114,3 +112,22 @@ router.post('/:id/cancel', esignDocumentController.cancelDocument);
  * Generates a presigned URL and redirects to download the signed PDF
  */
 router.get('/:id/download', esignDocumentController.downloadDocument);
+
+/**
+ * Get Document Timeline
+ * GET /api/company/esign/documents/:id/timeline
+ * 
+ * Returns chronological timeline of all events for a document
+ */
+router.get('/:id/timeline', esignDocumentController.getDocumentTimeline);
+
+/**
+ * Bulk Operations
+ * POST /api/company/esign/documents/bulk
+ * 
+ * Performs bulk operations on multiple documents
+ * Body: { action: 'cancel' | 'download' | 'resend' | 'delete', document_ids: string[] }
+ */
+router.post('/bulk', esignDocumentController.bulkOperation);
+
+module.exports = router;
