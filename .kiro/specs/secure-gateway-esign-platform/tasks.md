@@ -56,7 +56,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Configure routes in src/App.tsx with requiredModule="esign_documents"
     - _Requirements: All requirements depend on module access control_
 
-- [ ] 2. Settings Module - Provider Configuration
+- [-] 2. Settings Module - Provider Configuration
   - [ ] 2.1 Create provider configuration backend routes and controllers
     - Create backend/src/routes/esignSettings.routes.js with provider CRUD endpoints
     - Create backend/src/controllers/esignSettings.controller.js

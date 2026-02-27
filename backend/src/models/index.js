@@ -24,7 +24,7 @@ require('./Variant');
 require('./VariantYear');
 require('./VehicleMetadata');
 
-// Company DB Models (40 models)
+// Company DB Models (45 models)
 require('./AdvertiseData');
 require('./AdvertiseVehicle');
 require('./Conversation');
@@ -36,7 +36,12 @@ require('./EsignAPIKey');
 require('./EsignAuditLog');
 require('./EsignBulkJob');
 require('./EsignDocument');
+require('./EsignIdempotency');
+require('./EsignLock');
+require('./EsignOTP');
 require('./EsignProviderConfig');
+require('./EsignRateLimit');
+require('./EsignShortLink');
 require('./EsignSigningGroup');
 require('./EsignTemplate');
 require('./GroupPermission');

@@ -16,11 +16,16 @@ const LOCK_CONFIG = {
  * @param {string} lockKey - Lock key (e.g., 'document:123:pdf-generation')
  * @param {number} ttl - Lock TTL in seconds (default: 60)
  * @param {string} lockId - Unique lock identifier (default: random)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object>} { acquired, lockId } or { acquired: false }
  */
-const acquireLock = async (lockKey, ttl = LOCK_CONFIG.defaultTTL, lockId = null) => {
+const acquireLock = async (lockKey, ttl = LOCK_CONFIG.defaultTTL, lockId = null, req) => {
   try {
-    const EsignLock = require('../../models/EsignLock');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignLock = req.getModel('EsignLock');
     
     const id = lockId || generateLockId();
     const expiresAt = new Date(Date.now() + ttl * 1000);
@@ -46,7 +51,7 @@ const acquireLock = async (lockKey, ttl = LOCK_CONFIG.defaultTTL, lockId = null)
         if (existingLock && existingLock.expiresAt < new Date()) {
           // Lock expired, delete and retry
           await EsignLock.deleteOne({ lockKey });
-          return await acquireLock(lockKey, ttl, lockId);
+          return await acquireLock(lockKey, ttl, lockId, req);
         }
         return { acquired: false };
       }
@@ -62,11 +67,16 @@ const acquireLock = async (lockKey, ttl = LOCK_CONFIG.defaultTTL, lockId = null)
  * Release a distributed lock
  * @param {string} lockKey - Lock key
  * @param {string} lockId - Lock identifier (must match the one used to acquire)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<boolean>} True if lock was released
  */
-const releaseLock = async (lockKey, lockId) => {
+const releaseLock = async (lockKey, lockId, req) => {
   try {
-    const EsignLock = require('../../models/EsignLock');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignLock = req.getModel('EsignLock');
     
     // Only delete if lock ID matches
     const result = await EsignLock.deleteOne({ lockKey, lockId });
@@ -84,19 +94,25 @@ const releaseLock = async (lockKey, lockId) => {
  * @param {number} ttl - Lock TTL in seconds
  * @param {number} maxRetries - Maximum retry attempts (default: 3)
  * @param {number} retryDelay - Delay between retries in ms (default: 1000)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object>} { acquired, lockId } or throws error after max retries
  */
 const acquireLockWithRetry = async (
   lockKey,
   ttl = LOCK_CONFIG.defaultTTL,
   maxRetries = LOCK_CONFIG.maxRetries,
-  retryDelay = LOCK_CONFIG.retryDelay
+  retryDelay = LOCK_CONFIG.retryDelay,
+  req
 ) => {
+  if (!req || !req.getModel) {
+    throw new Error('Request object with getModel method is required');
+  }
+  
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const result = await acquireLock(lockKey, ttl);
+      const result = await acquireLock(lockKey, ttl, null, req);
       
       if (result.acquired) {
         console.log(`Lock acquired on attempt ${attempt}: ${lockKey}`);
@@ -124,11 +140,16 @@ const acquireLockWithRetry = async (
 /**
  * Check if lock exists
  * @param {string} lockKey - Lock key
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<boolean>} True if lock exists
  */
-const isLocked = async (lockKey) => {
+const isLocked = async (lockKey, req) => {
   try {
-    const EsignLock = require('../../models/EsignLock');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignLock = req.getModel('EsignLock');
     
     const lock = await EsignLock.findOne({ lockKey });
     
@@ -155,11 +176,16 @@ const isLocked = async (lockKey) => {
  * @param {string} lockKey - Lock key
  * @param {string} lockId - Lock identifier (must match)
  * @param {number} additionalTTL - Additional TTL in seconds
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<boolean>} True if lock was extended
  */
-const extendLock = async (lockKey, lockId, additionalTTL) => {
+const extendLock = async (lockKey, lockId, additionalTTL, req) => {
   try {
-    const EsignLock = require('../../models/EsignLock');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignLock = req.getModel('EsignLock');
     
     const lock = await EsignLock.findOne({ lockKey, lockId });
     
@@ -186,14 +212,19 @@ const extendLock = async (lockKey, lockId, additionalTTL) => {
  * @param {string} lockKey - Lock key
  * @param {Function} fn - Function to execute while holding lock
  * @param {number} ttl - Lock TTL in seconds
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<any>} Result of function execution
  */
-const withLock = async (lockKey, fn, ttl = LOCK_CONFIG.defaultTTL) => {
+const withLock = async (lockKey, fn, ttl = LOCK_CONFIG.defaultTTL, req) => {
+  if (!req || !req.getModel) {
+    throw new Error('Request object with getModel method is required');
+  }
+  
   let lockResult;
   
   try {
     // Acquire lock with retry
-    lockResult = await acquireLockWithRetry(lockKey, ttl);
+    lockResult = await acquireLockWithRetry(lockKey, ttl, LOCK_CONFIG.maxRetries, LOCK_CONFIG.retryDelay, req);
     
     // Execute function
     const result = await fn();
@@ -203,7 +234,7 @@ const withLock = async (lockKey, fn, ttl = LOCK_CONFIG.defaultTTL) => {
     // Always release lock, even if function throws
     if (lockResult && lockResult.acquired) {
       try {
-        await releaseLock(lockKey, lockResult.lockId);
+        await releaseLock(lockKey, lockResult.lockId, req);
         console.log(`Lock released: ${lockKey}`);
       } catch (error) {
         console.error(`Failed to release lock ${lockKey}:`, error);
@@ -223,11 +254,16 @@ const generateLockId = () => {
 /**
  * Get lock info
  * @param {string} lockKey - Lock key
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object|null>} Lock info or null if not locked
  */
-const getLockInfo = async (lockKey) => {
+const getLockInfo = async (lockKey, req) => {
   try {
-    const EsignLock = require('../../models/EsignLock');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignLock = req.getModel('EsignLock');
     
     const lock = await EsignLock.findOne({ lockKey });
     

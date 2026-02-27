@@ -66,11 +66,16 @@ const verifyOTP = async (otp, hashedOTP) => {
  * @param {string} recipientId - Recipient ID
  * @param {string} hashedOTP - Hashed OTP
  * @param {number} expiryMinutes - Expiry in minutes (default: 10)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<void>}
  */
-const storeOTP = async (recipientId, hashedOTP, expiryMinutes = OTP_CONFIG.expiryMinutes) => {
+const storeOTP = async (recipientId, hashedOTP, expiryMinutes = OTP_CONFIG.expiryMinutes, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
     
@@ -96,11 +101,16 @@ const storeOTP = async (recipientId, hashedOTP, expiryMinutes = OTP_CONFIG.expir
 /**
  * Get OTP data from MongoDB
  * @param {string} recipientId - Recipient ID
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object|null>} OTP data or null if not found
  */
-const getOTPData = async (recipientId) => {
+const getOTPData = async (recipientId, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     
     const otpRecord = await EsignOTP.findOne({ recipientId });
     
@@ -124,11 +134,16 @@ const getOTPData = async (recipientId) => {
 /**
  * Increment OTP attempt counter
  * @param {string} recipientId - Recipient ID
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<number>} New attempt count
  */
-const incrementAttempts = async (recipientId) => {
+const incrementAttempts = async (recipientId, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     
     const otpRecord = await EsignOTP.findOneAndUpdate(
       { recipientId },
@@ -150,11 +165,16 @@ const incrementAttempts = async (recipientId) => {
 /**
  * Check if recipient is locked out
  * @param {string} recipientId - Recipient ID
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object>} Lockout status { isLocked, remainingTime }
  */
-const checkLockout = async (recipientId) => {
+const checkLockout = async (recipientId, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     
     const otpRecord = await EsignOTP.findOne({ recipientId });
     
@@ -190,11 +210,16 @@ const checkLockout = async (recipientId) => {
  * Lock out recipient after max attempts
  * @param {string} recipientId - Recipient ID
  * @param {number} lockoutMinutes - Lockout duration in minutes (default: 30)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<void>}
  */
-const lockoutRecipient = async (recipientId, lockoutMinutes = OTP_CONFIG.lockoutMinutes) => {
+const lockoutRecipient = async (recipientId, lockoutMinutes = OTP_CONFIG.lockoutMinutes, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     
     const lockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
     
@@ -212,11 +237,16 @@ const lockoutRecipient = async (recipientId, lockoutMinutes = OTP_CONFIG.lockout
 /**
  * Delete OTP data from MongoDB
  * @param {string} recipientId - Recipient ID
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<void>}
  */
-const deleteOTP = async (recipientId) => {
+const deleteOTP = async (recipientId, req) => {
   try {
-    const EsignOTP = require('../../models/EsignOTP');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignOTP = req.getModel('EsignOTP');
     await EsignOTP.deleteOne({ recipientId });
   } catch (error) {
     console.error('OTP deletion error:', error);
@@ -228,12 +258,17 @@ const deleteOTP = async (recipientId) => {
  * Generate and store OTP for recipient
  * @param {string} recipientId - Recipient ID
  * @param {number} expiryMinutes - Expiry in minutes (default: 10)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object>} { otp, expiresAt }
  */
-const generateAndStoreOTP = async (recipientId, expiryMinutes = OTP_CONFIG.expiryMinutes) => {
+const generateAndStoreOTP = async (recipientId, expiryMinutes = OTP_CONFIG.expiryMinutes, req) => {
   try {
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
     // Check if recipient is locked out
-    const lockout = await checkLockout(recipientId);
+    const lockout = await checkLockout(recipientId, req);
     if (lockout.isLocked) {
       throw new Error(`Recipient is locked out. Try again in ${Math.ceil(lockout.remainingTime / 60)} minutes.`);
     }
@@ -244,8 +279,8 @@ const generateAndStoreOTP = async (recipientId, expiryMinutes = OTP_CONFIG.expir
     // Hash OTP
     const hashedOTP = await hashOTP(otp);
     
-    // Store in Redis
-    await storeOTP(recipientId, hashedOTP, expiryMinutes);
+    // Store in MongoDB
+    await storeOTP(recipientId, hashedOTP, expiryMinutes, req);
     
     // Calculate expiry time
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
@@ -264,12 +299,17 @@ const generateAndStoreOTP = async (recipientId, expiryMinutes = OTP_CONFIG.expir
  * Verify OTP for recipient
  * @param {string} recipientId - Recipient ID
  * @param {string} otp - OTP to verify
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object>} { valid, message }
  */
-const verifyRecipientOTP = async (recipientId, otp) => {
+const verifyRecipientOTP = async (recipientId, otp, req) => {
   try {
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
     // Check if recipient is locked out
-    const lockout = await checkLockout(recipientId);
+    const lockout = await checkLockout(recipientId, req);
     if (lockout.isLocked) {
       return {
         valid: false,
@@ -278,7 +318,7 @@ const verifyRecipientOTP = async (recipientId, otp) => {
     }
     
     // Get OTP data
-    const otpData = await getOTPData(recipientId);
+    const otpData = await getOTPData(recipientId, req);
     
     if (!otpData) {
       return {
@@ -292,11 +332,11 @@ const verifyRecipientOTP = async (recipientId, otp) => {
     
     if (!isValid) {
       // Increment attempts
-      const attempts = await incrementAttempts(recipientId);
+      const attempts = await incrementAttempts(recipientId, req);
       
       // Check if max attempts reached
       if (attempts >= OTP_CONFIG.maxAttempts) {
-        await lockoutRecipient(recipientId);
+        await lockoutRecipient(recipientId, OTP_CONFIG.lockoutMinutes, req);
         return {
           valid: false,
           message: `Maximum attempts exceeded. Account locked for ${OTP_CONFIG.lockoutMinutes} minutes.`,
@@ -311,7 +351,7 @@ const verifyRecipientOTP = async (recipientId, otp) => {
     }
     
     // OTP is valid, delete it
-    await deleteOTP(recipientId);
+    await deleteOTP(recipientId, req);
     
     return {
       valid: true,

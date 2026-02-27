@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 /**
  * E-Sign OTP Model
@@ -37,4 +38,7 @@ const EsignOTPSchema = new mongoose.Schema({
 // TTL index to automatically delete expired OTPs
 EsignOTPSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('EsignOTP', EsignOTPSchema);
+// Register with ModelRegistry
+ModelRegistry.registerModel('EsignOTP', EsignOTPSchema, 'company');
+
+module.exports = {};

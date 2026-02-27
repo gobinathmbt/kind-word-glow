@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 /**
  * E-Sign Distributed Lock Model
@@ -29,4 +30,7 @@ const EsignLockSchema = new mongoose.Schema({
 // TTL index to automatically delete expired locks
 EsignLockSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('EsignLock', EsignLockSchema);
+// Register with ModelRegistry
+ModelRegistry.registerModel('EsignLock', EsignLockSchema, 'company');
+
+module.exports = {};

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 /**
  * E-Sign Idempotency Model
@@ -33,4 +34,7 @@ const EsignIdempotencySchema = new mongoose.Schema({
 // TTL index to automatically delete expired idempotency records (24 hours)
 EsignIdempotencySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('EsignIdempotency', EsignIdempotencySchema);
+// Register with ModelRegistry
+ModelRegistry.registerModel('EsignIdempotency', EsignIdempotencySchema, 'company');
+
+module.exports = {};

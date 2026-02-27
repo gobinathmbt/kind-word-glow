@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 /**
  * E-Sign Rate Limit Model
@@ -33,4 +34,7 @@ const EsignRateLimitSchema = new mongoose.Schema({
 // TTL index to automatically delete expired rate limit records
 EsignRateLimitSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('EsignRateLimit', EsignRateLimitSchema);
+// Register with ModelRegistry
+ModelRegistry.registerModel('EsignRateLimit', EsignRateLimitSchema, 'company');
+
+module.exports = {};

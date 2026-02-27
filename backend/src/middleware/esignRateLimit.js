@@ -27,7 +27,13 @@ const esignRateLimit = (options = {}) => {
   
   return async (req, res, next) => {
     try {
-      const EsignRateLimit = require('../models/EsignRateLimit');
+      // Ensure req.getModel is available
+      if (!req.getModel) {
+        console.error('req.getModel not available - rate limiting disabled');
+        return next();
+      }
+      
+      const EsignRateLimit = req.getModel('EsignRateLimit');
       
       // Get identifier for rate limiting
       // Use API key prefix if available, otherwise use IP address

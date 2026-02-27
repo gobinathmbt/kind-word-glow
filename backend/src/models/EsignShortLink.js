@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ModelRegistry = require('./modelRegistry');
 
 /**
  * E-Sign Short Link Model
@@ -38,4 +39,7 @@ const EsignShortLinkSchema = new mongoose.Schema({
 // TTL index to automatically delete expired short links
 EsignShortLinkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('EsignShortLink', EsignShortLinkSchema);
+// Register with ModelRegistry
+ModelRegistry.registerModel('EsignShortLink', EsignShortLinkSchema, 'company');
+
+module.exports = {};

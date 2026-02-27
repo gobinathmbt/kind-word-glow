@@ -42,6 +42,12 @@ const esignIdempotency = async (req, res, next) => {
       });
     }
     
+    // Ensure req.getModel is available
+    if (!req.getModel) {
+      console.error('req.getModel not available - idempotency check disabled');
+      return next();
+    }
+    
     // Get company/API key identifier
     const identifier = req.api_key?.key_prefix || req.company_id || 'unknown';
     
@@ -49,7 +55,7 @@ const esignIdempotency = async (req, res, next) => {
     const fullIdempotencyKey = `${identifier}:${idempotencyKey}`;
     
     // Check if request with this idempotency key was already processed
-    const EsignIdempotency = require('../models/EsignIdempotency');
+    const EsignIdempotency = req.getModel('EsignIdempotency');
     const cachedResponse = await EsignIdempotency.findOne({ idempotencyKey: fullIdempotencyKey });
     
     if (cachedResponse) {
@@ -136,11 +142,16 @@ const generateIdempotencyKey = () => {
  * @param {string} identifier - Company/API key identifier
  * @param {Object} response - Response data
  * @param {number} ttl - TTL in seconds (optional)
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<void>}
  */
-const storeIdempotentResponse = async (idempotencyKey, identifier, response, ttl = IDEMPOTENCY_CONFIG.ttl) => {
+const storeIdempotentResponse = async (idempotencyKey, identifier, response, ttl = IDEMPOTENCY_CONFIG.ttl, req) => {
   try {
-    const EsignIdempotency = require('../models/EsignIdempotency');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignIdempotency = req.getModel('EsignIdempotency');
     
     const key = `${identifier}:${idempotencyKey}`;
     const expiresAt = new Date(Date.now() + ttl * 1000);
@@ -161,11 +172,16 @@ const storeIdempotentResponse = async (idempotencyKey, identifier, response, ttl
  * Get idempotent response from cache
  * @param {string} idempotencyKey - Idempotency key
  * @param {string} identifier - Company/API key identifier
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<Object|null>} Cached response or null
  */
-const getIdempotentResponse = async (idempotencyKey, identifier) => {
+const getIdempotentResponse = async (idempotencyKey, identifier, req) => {
   try {
-    const EsignIdempotency = require('../models/EsignIdempotency');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignIdempotency = req.getModel('EsignIdempotency');
     
     const key = `${identifier}:${idempotencyKey}`;
     const record = await EsignIdempotency.findOne({ idempotencyKey: key });
@@ -191,11 +207,16 @@ const getIdempotentResponse = async (idempotencyKey, identifier) => {
  * Delete idempotent response from cache
  * @param {string} idempotencyKey - Idempotency key
  * @param {string} identifier - Company/API key identifier
+ * @param {Object} req - Express request object (for getModel)
  * @returns {Promise<void>}
  */
-const deleteIdempotentResponse = async (idempotencyKey, identifier) => {
+const deleteIdempotentResponse = async (idempotencyKey, identifier, req) => {
   try {
-    const EsignIdempotency = require('../models/EsignIdempotency');
+    if (!req || !req.getModel) {
+      throw new Error('Request object with getModel method is required');
+    }
+    
+    const EsignIdempotency = req.getModel('EsignIdempotency');
     
     const key = `${identifier}:${idempotencyKey}`;
     await EsignIdempotency.deleteOne({ idempotencyKey: key });
