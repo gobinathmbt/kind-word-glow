@@ -43,7 +43,9 @@ const notificationConfigSchema = new mongoose.Schema({
   send_on_complete: { type: Boolean, default: true },
   send_on_reject: { type: Boolean, default: true },
   send_on_expire: { type: Boolean, default: true },
-  custom_email_template: String,
+  custom_email_subject: String,  // Req 46.1
+  custom_email_template: String,  // Req 46.1
+  custom_sms_template: String,  // Req 46.2
   cc_emails: [String]
 }, { _id: false });
 

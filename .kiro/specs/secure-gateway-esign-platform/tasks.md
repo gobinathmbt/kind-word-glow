@@ -214,8 +214,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Include example values for each delimiter
     - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5_
 
-- [-] 6. Templates Module - Workflow Configuration
-  - [ ] 6.1 Implement template workflow configuration
+- [x] 6. Templates Module - Workflow Configuration
+  - [x] 6.1 Implement template workflow configuration
     - Configure signature type (single, multiple, hierarchy, send_to_all)
     - Validate recipient count based on signature type (single=1, others>=2)
     - Configure recipient details (email, phone, name, signature_order)
@@ -225,7 +225,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Configure notification settings (send_on_create, send_on_complete, etc.)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 4.11, 4.12, 4.13_
   
-  - [ ] 6.2 Implement conditional routing rules configuration
+  - [x] 6.2 Implement conditional routing rules configuration
     - Configure routing rules with triggered_by (recipient signature_order)
     - Configure condition (delimiter_key, operator, value)
     - Support operators: equals, not_equals, greater_than, less_than, contains, is_empty
@@ -234,7 +234,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Validate routing rules reference valid delimiters and recipients
     - _Requirements: 78.1, 78.2, 78.3, 78.4, 78.5, 78.6, 78.7, 78.8, 78.9, 78.10_
   
-  - [ ] 6.3 Implement signing groups configuration
+  - [x] 6.3 Implement signing groups configuration
     - Create backend/src/routes/esignSigningGroup.routes.js
     - Implement signing group CRUD operations
     - Configure group members (email, name)
@@ -243,7 +243,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 79.1, 79.2, 79.3_
 
 
-  - [ ] 6.4 Implement notification template customization
+  - [x] 6.4 Implement notification template customization
     - Allow custom email subject and body in template configuration
     - Allow custom SMS message body
     - Support delimiter replacement in notification content
@@ -251,7 +251,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Validate SMS content does not exceed 160 characters
     - _Requirements: 46.1, 46.2, 46.3, 46.4, 46.5_
   
-  - [ ] 6.5 Implement HTML sanitization
+  - [x] 6.5 Implement HTML sanitization
     - Sanitize HTML content on save to remove script tags
     - Remove event handlers (onclick, onload, etc.)
     - Remove iframe tags

@@ -122,22 +122,7 @@ const validateNotificationDelimiters = (notificationConfig, htmlDelimiters) => {
     return { valid: true, errors: [] };
   }
 
-  // Validate custom email template
-  if (notificationConfig.custom_email_template) {
-    const emailValidation = validateEmailTemplateDelimiters(
-      notificationConfig.custom_email_template,
-      htmlDelimiters
-    );
-
-    if (!emailValidation.valid) {
-      errors.push({
-        field: 'custom_email_template',
-        message: `Email template references undefined delimiters: ${emailValidation.missingDelimiters.join(', ')}`
-      });
-    }
-  }
-
-  // Validate custom email subject
+  // Validate custom email subject (Req 46.1, 46.3, 46.4)
   if (notificationConfig.custom_email_subject) {
     const subjectValidation = validateEmailTemplateDelimiters(
       notificationConfig.custom_email_subject,
@@ -152,7 +137,22 @@ const validateNotificationDelimiters = (notificationConfig, htmlDelimiters) => {
     }
   }
 
-  // Validate custom SMS template
+  // Validate custom email template (Req 46.1, 46.3, 46.4)
+  if (notificationConfig.custom_email_template) {
+    const emailValidation = validateEmailTemplateDelimiters(
+      notificationConfig.custom_email_template,
+      htmlDelimiters
+    );
+
+    if (!emailValidation.valid) {
+      errors.push({
+        field: 'custom_email_template',
+        message: `Email template references undefined delimiters: ${emailValidation.missingDelimiters.join(', ')}`
+      });
+    }
+  }
+
+  // Validate custom SMS template (Req 46.2, 46.3, 46.4)
   if (notificationConfig.custom_sms_template) {
     const smsValidation = validateEmailTemplateDelimiters(
       notificationConfig.custom_sms_template,

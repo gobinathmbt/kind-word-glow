@@ -62,6 +62,7 @@ const paymentSettingsRoutes = require("./routes/paymentSettings.routes");
 const vehicleActivityLogRoutes = require("./routes/vehicleActivityLog.routes");
 const esignSettingsRoutes = require("./routes/esignSettings.routes");
 const esignTemplateRoutes = require("./routes/esignTemplate.routes");
+const esignSigningGroupRoutes = require("./routes/esignSigningGroup.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -222,6 +223,7 @@ app.use("/api/payment-settings", paymentSettingsRoutes);
 app.use("/api/vehicle-activity", vehicleActivityLogRoutes);
 app.use("/api/company/esign/settings", esignSettingsRoutes);
 app.use("/api/company/esign/templates", esignTemplateRoutes);
+app.use("/api/company/esign/signing-groups", esignSigningGroupRoutes);
 
 
 app.get("/api/health", async (req, res) => {

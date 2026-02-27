@@ -1,5 +1,6 @@
 const auditService = require('../services/esign/audit.service');
 const delimiterService = require('../services/esign/delimiter.service');
+const sanitizationService = require('../services/esign/sanitization.service');
 
 /**
  * Create new template
@@ -44,12 +45,21 @@ const createTemplate = async (req, res) => {
       });
     }
 
+    // Sanitize HTML content (Req 50.1-50.6)
+    const sanitizationResult = sanitizationService.sanitizeAndValidate(html_content);
+    const sanitizedHtml = sanitizationResult.sanitized;
+    
+    // Log if HTML was modified during sanitization
+    if (sanitizationResult.changed) {
+      console.log('HTML content was sanitized:', sanitizationResult.validation.issues);
+    }
+
     // Create template
     const template = await EsignTemplate.create({
       company_id: companyId,
       name,
       description,
-      html_content,
+      html_content: sanitizedHtml,  // Use sanitized HTML
       signature_type,
       delimiters: delimiters || [],
       recipients: recipients || [],
@@ -248,6 +258,17 @@ const updateTemplate = async (req, res) => {
       'require_scroll_completion',
       'short_link_enabled'
     ];
+
+    // Sanitize HTML content if provided (Req 50.1-50.6)
+    if (req.body.html_content !== undefined) {
+      const sanitizationResult = sanitizationService.sanitizeAndValidate(req.body.html_content);
+      req.body.html_content = sanitizationResult.sanitized;
+      
+      // Log if HTML was modified during sanitization
+      if (sanitizationResult.changed) {
+        console.log('HTML content was sanitized during update:', sanitizationResult.validation.issues);
+      }
+    }
 
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
@@ -531,7 +552,7 @@ function validateTemplate(template) {
     errors.push('At least one recipient is required');
   }
 
-  // Validate recipient count based on signature type
+  // Validate recipient count based on signature type (Req 4.1, 4.2, 4.3, 4.4)
   if (template.signature_type === 'single' && template.recipients.length !== 1) {
     errors.push('Single signature type requires exactly one recipient');
   }
@@ -540,14 +561,100 @@ function validateTemplate(template) {
     errors.push(`${template.signature_type} signature type requires at least two recipients`);
   }
 
-  // Validate at least one required delimiter is defined
-  const requiredDelimiters = template.delimiters.filter(d => d.required);
-  if (requiredDelimiters.length === 0) {
-    errors.push('At least one required delimiter should be defined');
+  // Validate recipient details (Req 4.1, 4.2, 4.3)
+  template.recipients.forEach((recipient, index) => {
+    if (!recipient.label || recipient.label.trim().length === 0) {
+      errors.push(`Recipient at position ${index + 1} must have a label`);
+    }
+    
+    if (recipient.signature_order === undefined || recipient.signature_order === null) {
+      errors.push(`Recipient at position ${index + 1} must have a signature_order`);
+    }
+    
+    if (!recipient.recipient_type || !['individual', 'group'].includes(recipient.recipient_type)) {
+      errors.push(`Recipient at position ${index + 1} must have a valid recipient_type (individual or group)`);
+    }
+    
+    if (!recipient.signature_type || !['remote', 'in_person'].includes(recipient.signature_type)) {
+      errors.push(`Recipient at position ${index + 1} must have a valid signature_type (remote or in_person)`);
+    }
+    
+    // Validate signing_group_id is provided when recipient_type is 'group'
+    if (recipient.recipient_type === 'group' && !recipient.signing_group_id) {
+      errors.push(`Recipient at position ${index + 1} with type 'group' must have a signing_group_id`);
+    }
+  });
+
+  // Validate MFA configuration (Req 4.5, 4.6, 4.7, 4.8)
+  if (template.mfa_config) {
+    if (template.mfa_config.enabled) {
+      if (!template.mfa_config.channel || !['email', 'sms', 'both'].includes(template.mfa_config.channel)) {
+        errors.push('MFA channel must be one of: email, sms, both');
+      }
+      
+      if (!template.mfa_config.otp_expiry_min || template.mfa_config.otp_expiry_min < 1) {
+        errors.push('MFA OTP expiry must be at least 1 minute');
+      }
+      
+      if (template.mfa_config.otp_expiry_min > 60) {
+        errors.push('MFA OTP expiry cannot exceed 60 minutes');
+      }
+    }
   }
 
-  // Validate notification config delimiters
+  // Validate link expiry configuration (Req 4.9)
+  if (!template.link_expiry || !template.link_expiry.value || !template.link_expiry.unit) {
+    errors.push('Link expiry configuration is required (value and unit)');
+  } else {
+    if (!['hours', 'days', 'weeks'].includes(template.link_expiry.unit)) {
+      errors.push('Link expiry unit must be one of: hours, days, weeks');
+    }
+    
+    if (template.link_expiry.value < 1) {
+      errors.push('Link expiry value must be at least 1');
+    }
+    
+    // Validate grace period if provided
+    if (template.link_expiry.grace_period_hours !== undefined && template.link_expiry.grace_period_hours !== null) {
+      if (template.link_expiry.grace_period_hours < 0) {
+        errors.push('Grace period hours cannot be negative');
+      }
+      
+      if (template.link_expiry.grace_period_hours > 168) { // 7 days
+        errors.push('Grace period hours cannot exceed 168 hours (7 days)');
+      }
+    }
+  }
+
+  // Validate notification configuration (Req 4.11, 4.12, 4.13, 46.1-46.5)
   if (template.notification_config) {
+    // Validate cc_emails format if provided
+    if (template.notification_config.cc_emails && Array.isArray(template.notification_config.cc_emails)) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      template.notification_config.cc_emails.forEach((email, index) => {
+        if (!emailRegex.test(email)) {
+          errors.push(`CC email at position ${index + 1} is not a valid email address: ${email}`);
+        }
+      });
+    }
+    
+    // Validate SMS content does not exceed 160 characters (Req 46.5)
+    if (template.notification_config.custom_sms_template) {
+      // Count characters after delimiter replacement (worst case: replace with empty string)
+      const smsContent = template.notification_config.custom_sms_template;
+      const contentWithoutDelimiters = smsContent.replace(/\{\{[a-zA-Z0-9_]+\}\}/g, '');
+      
+      if (contentWithoutDelimiters.length > 160) {
+        errors.push(`SMS template content exceeds 160 characters (${contentWithoutDelimiters.length} characters without delimiters). Please shorten the message.`);
+      }
+      
+      // Also check the full length with delimiters
+      if (smsContent.length > 160) {
+        errors.push(`SMS template exceeds 160 characters (${smsContent.length} characters). Consider using shorter delimiter names or reducing message length.`);
+      }
+    }
+    
+    // Validate notification config delimiters (Req 46.3, 46.4)
     const notificationValidation = delimiterService.validateNotificationDelimiters(
       template.notification_config,
       template.delimiters
@@ -558,6 +665,85 @@ function validateTemplate(template) {
         errors.push(error.message);
       });
     }
+  }
+
+  // Validate at least one required delimiter is defined
+  const requiredDelimiters = template.delimiters.filter(d => d.required);
+  if (requiredDelimiters.length === 0) {
+    errors.push('At least one required delimiter should be defined');
+  }
+
+  // Validate routing rules (Req 78.1-78.10)
+  if (template.routing_rules && template.routing_rules.length > 0) {
+    const delimiterKeys = template.delimiters.map(d => d.key);
+    const recipientOrders = template.recipients.map(r => r.signature_order);
+    
+    template.routing_rules.forEach((rule, index) => {
+      // Validate triggered_by references valid recipient (Req 78.4)
+      if (rule.triggered_by === undefined || rule.triggered_by === null) {
+        errors.push(`Routing rule ${index + 1}: triggered_by is required`);
+      } else if (!recipientOrders.includes(rule.triggered_by)) {
+        errors.push(`Routing rule ${index + 1}: triggered_by (${rule.triggered_by}) does not reference a valid recipient signature_order`);
+      }
+      
+      // Validate condition (Req 78.2)
+      if (!rule.condition) {
+        errors.push(`Routing rule ${index + 1}: condition is required`);
+      } else {
+        // Validate delimiter_key references valid delimiter (Req 78.6)
+        if (!rule.condition.delimiter_key) {
+          errors.push(`Routing rule ${index + 1}: condition.delimiter_key is required`);
+        } else if (!delimiterKeys.includes(rule.condition.delimiter_key)) {
+          errors.push(`Routing rule ${index + 1}: condition.delimiter_key (${rule.condition.delimiter_key}) does not reference a valid delimiter`);
+        }
+        
+        // Validate operator (Req 78.2)
+        const validOperators = ['equals', 'not_equals', 'greater_than', 'less_than', 'contains', 'is_empty'];
+        if (!rule.condition.operator) {
+          errors.push(`Routing rule ${index + 1}: condition.operator is required`);
+        } else if (!validOperators.includes(rule.condition.operator)) {
+          errors.push(`Routing rule ${index + 1}: condition.operator must be one of: ${validOperators.join(', ')}`);
+        }
+        
+        // Validate value is provided for operators that need it
+        if (rule.condition.operator !== 'is_empty' && rule.condition.value === undefined) {
+          errors.push(`Routing rule ${index + 1}: condition.value is required for operator '${rule.condition.operator}'`);
+        }
+      }
+      
+      // Validate action (Req 78.3)
+      if (!rule.action) {
+        errors.push(`Routing rule ${index + 1}: action is required`);
+      } else {
+        const validActionTypes = ['activate_signer', 'skip_signer', 'add_signer', 'complete'];
+        if (!rule.action.type) {
+          errors.push(`Routing rule ${index + 1}: action.type is required`);
+        } else if (!validActionTypes.includes(rule.action.type)) {
+          errors.push(`Routing rule ${index + 1}: action.type must be one of: ${validActionTypes.join(', ')}`);
+        }
+        
+        // Validate target_order for activate_signer and skip_signer (Req 78.7)
+        if (['activate_signer', 'skip_signer'].includes(rule.action.type)) {
+          if (rule.action.target_order === undefined || rule.action.target_order === null) {
+            errors.push(`Routing rule ${index + 1}: action.target_order is required for action type '${rule.action.type}'`);
+          } else if (!recipientOrders.includes(rule.action.target_order)) {
+            errors.push(`Routing rule ${index + 1}: action.target_order (${rule.action.target_order}) does not reference a valid recipient signature_order`);
+          }
+        }
+        
+        // Validate email for add_signer (Req 78.8)
+        if (rule.action.type === 'add_signer') {
+          if (!rule.action.email) {
+            errors.push(`Routing rule ${index + 1}: action.email is required for action type 'add_signer'`);
+          } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(rule.action.email)) {
+              errors.push(`Routing rule ${index + 1}: action.email is not a valid email address`);
+            }
+          }
+        }
+      }
+    });
   }
 
   return errors;
@@ -620,8 +806,17 @@ const uploadPDF = async (req, res) => {
     try {
       const htmlContent = await pdfService.convertPdfToHtml(pdfFile.data);
 
-      // Store converted HTML in template
-      template.html_content = htmlContent;
+      // Sanitize converted HTML (Req 50.1-50.6)
+      const sanitizationResult = sanitizationService.sanitizeAndValidate(htmlContent);
+      const sanitizedHtml = sanitizationResult.sanitized;
+      
+      // Log if HTML was modified during sanitization
+      if (sanitizationResult.changed) {
+        console.log('Converted PDF HTML was sanitized:', sanitizationResult.validation.issues);
+      }
+
+      // Store sanitized HTML in template
+      template.html_content = sanitizedHtml;
       await template.save();
 
       // Log to audit
@@ -647,7 +842,11 @@ const uploadPDF = async (req, res) => {
         success: true,
         data: {
           template_id: template._id,
-          html_content: htmlContent
+          html_content: sanitizedHtml,
+          sanitization: sanitizationResult.changed ? {
+            changed: true,
+            issues: sanitizationResult.validation.issues
+          } : { changed: false }
         },
         message: 'PDF uploaded and converted successfully'
       });
