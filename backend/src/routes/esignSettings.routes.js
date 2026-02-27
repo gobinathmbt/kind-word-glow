@@ -38,4 +38,19 @@ router.post('/providers/:id/test',
   esignSettingsController.testProviderConnection
 );
 
+// API Key Management Routes
+router.post('/api-keys', 
+  authorize('company_super_admin'), 
+  esignSettingsController.generateAPIKey
+);
+
+router.get('/api-keys', 
+  esignSettingsController.listAPIKeys
+);
+
+router.delete('/api-keys/:id', 
+  authorize('company_super_admin'), 
+  esignSettingsController.revokeAPIKey
+);
+
 module.exports = router;

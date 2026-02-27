@@ -103,8 +103,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Add provider configuration to src/api/services.ts esignServices
     - _Requirements: 1.1, 1.2, 1.3, 1.7, 1.8, 1.9, 1.10_
 
-- [ ] 3. Settings Module - API Key Management
-  - [ ] 3.1 Create API key management backend routes and controllers
+- [x] 3. Settings Module - API Key Management
+  - [x] 3.1 Create API key management backend routes and controllers
     - Add API key endpoints to backend/src/routes/esignSettings.routes.js
     - Implement POST /api/company/esign/settings/api-keys (generate key)
     - Implement GET /api/company/esign/settings/api-keys (list keys)
@@ -114,7 +114,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Display plain API_Secret only once in response
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
   
-  - [ ] 3.2 Create API key management frontend page
+  - [x] 3.2 Create API key management frontend page
     - Create src/pages/company/esign/EsignAPIKeys.tsx
     - Use existing DataTableLayout for API keys list
     - Implement key generation dialog with scope selection

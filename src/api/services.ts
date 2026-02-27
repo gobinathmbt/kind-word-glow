@@ -2092,6 +2092,16 @@ export const esignServices = {
   
   testProvider: (id: string, data?: any) =>
     apiClient.post(`/api/company/esign/settings/providers/${id}/test`, data),
+  
+  // API Key Management
+  getAPIKeys: (params?: any) =>
+    apiClient.get("/api/company/esign/settings/api-keys", { params }),
+  
+  generateAPIKey: (data: any) =>
+    apiClient.post("/api/company/esign/settings/api-keys", data),
+  
+  revokeAPIKey: (id: string, data?: any) =>
+    apiClient.delete(`/api/company/esign/settings/api-keys/${id}`, { data }),
 };
 
 export default {

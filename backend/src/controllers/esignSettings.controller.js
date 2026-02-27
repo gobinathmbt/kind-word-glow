@@ -525,3 +525,210 @@ module.exports = {
   deleteProvider,
   testProviderConnection
 };
+
+/**
+ * Generate new API key
+ * POST /api/company/esign/settings/api-keys
+ */
+const generateAPIKey = async (req, res) => {
+  try {
+    const EsignAPIKey = req.getModel('EsignAPIKey');
+    const { name, scopes } = req.body;
+    const companyId = req.user.company_id;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!name || !scopes || !Array.isArray(scopes) || scopes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'name and scopes (array) are required'
+      });
+    }
+
+    // Validate scopes
+    const validScopes = ['esign:create', 'esign:status', 'esign:download', 'esign:cancel', 'template:read'];
+    const invalidScopes = scopes.filter(scope => !validScopes.includes(scope));
+    if (invalidScopes.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid scopes: ${invalidScopes.join(', ')}. Valid scopes are: ${validScopes.join(', ')}`
+      });
+    }
+
+    // Generate unique API key pair using crypto
+    const crypto = require('crypto');
+    const apiKey = `esign_${crypto.randomBytes(32).toString('hex')}`; // 64 character hex string + prefix
+    const apiSecret = crypto.randomBytes(32).toString('hex'); // 64 character hex string
+
+    // Extract key prefix (first 8 characters after prefix)
+    const keyPrefix = apiKey.substring(0, 14); // "esign_" + 8 chars
+
+    // Hash the full API key (not just secret) with bcrypt for storage
+    const bcrypt = require('bcrypt');
+    const hashedSecret = await bcrypt.hash(apiKey, 10);
+
+    // Create API key record
+    const apiKeyDoc = await EsignAPIKey.create({
+      company_id: companyId,
+      name,
+      key_prefix: keyPrefix,
+      hashed_secret: hashedSecret,
+      scopes,
+      is_active: true,
+      created_by: userId
+    });
+
+    // Log to audit
+    await auditService.logEsignEvent({
+      company_id: companyId,
+      user_id: userId,
+      action: 'api_key.generated',
+      event_type: 'api_key.generated',
+      resource: {
+        type: 'api_key',
+        id: apiKeyDoc._id.toString()
+      },
+      metadata: {
+        name,
+        scopes,
+        key_prefix: keyPrefix
+      },
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent']
+    });
+
+    // Return response with plain API key and secret (only shown once)
+    res.status(201).json({
+      success: true,
+      data: {
+        id: apiKeyDoc._id,
+        name: apiKeyDoc.name,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        key_prefix: keyPrefix,
+        scopes: apiKeyDoc.scopes,
+        is_active: apiKeyDoc.is_active,
+        created_at: apiKeyDoc.createdAt
+      },
+      message: 'API key generated successfully. Please save the API key and secret securely. They will not be shown again.'
+    });
+  } catch (error) {
+    console.error('Error generating API key:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating API key',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * List all API keys
+ * GET /api/company/esign/settings/api-keys
+ */
+const listAPIKeys = async (req, res) => {
+  try {
+    const EsignAPIKey = req.getModel('EsignAPIKey');
+    const companyId = req.user.company_id;
+    const { is_active } = req.query;
+
+    // Build query
+    const query = { company_id: companyId };
+    if (is_active !== undefined) query.is_active = is_active === 'true';
+
+    const apiKeys = await EsignAPIKey.find(query)
+      .sort({ createdAt: -1 })
+      .select('-hashed_secret') // Exclude hashed secret from response
+      .lean();
+
+    res.json({
+      success: true,
+      data: apiKeys
+    });
+  } catch (error) {
+    console.error('Error listing API keys:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error listing API keys',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Revoke API key
+ * DELETE /api/company/esign/settings/api-keys/:id
+ */
+const revokeAPIKey = async (req, res) => {
+  try {
+    const EsignAPIKey = req.getModel('EsignAPIKey');
+    const { id } = req.params;
+    const companyId = req.user.company_id;
+    const userId = req.user.id;
+    const { reason } = req.body;
+
+    const apiKey = await EsignAPIKey.findOne({
+      _id: id,
+      company_id: companyId
+    });
+
+    if (!apiKey) {
+      return res.status(404).json({
+        success: false,
+        message: 'API key not found'
+      });
+    }
+
+    // Mark as inactive (soft delete)
+    apiKey.is_active = false;
+    apiKey.revoked_at = new Date();
+    apiKey.revoked_by = userId;
+    if (reason) {
+      apiKey.revoke_reason = reason;
+    }
+    await apiKey.save();
+
+    // Log to audit
+    await auditService.logEsignEvent({
+      company_id: companyId,
+      user_id: userId,
+      action: 'api_key.revoked',
+      event_type: 'api_key.revoked',
+      resource: {
+        type: 'api_key',
+        id: apiKey._id.toString()
+      },
+      metadata: {
+        name: apiKey.name,
+        key_prefix: apiKey.key_prefix,
+        reason: reason || 'No reason provided'
+      },
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent']
+    });
+
+    res.json({
+      success: true,
+      message: 'API key revoked successfully'
+    });
+  } catch (error) {
+    console.error('Error revoking API key:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error revoking API key',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  createProvider,
+  listProviders,
+  getProvider,
+  updateProvider,
+  deleteProvider,
+  testProviderConnection,
+  generateAPIKey,
+  listAPIKeys,
+  revokeAPIKey
+};
