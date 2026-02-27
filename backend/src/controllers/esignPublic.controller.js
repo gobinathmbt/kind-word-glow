@@ -649,6 +649,33 @@ const submitSignature = async (req, res) => {
     
     await document.save();
     
+    // Evaluate conditional routing rules after signature (Req 78.1-78.10)
+    const routingService = require('../services/esign/routing.service');
+    try {
+      const routingResult = await routingService.evaluateRoutingRules(req, document, recipient);
+      
+      if (routingResult.evaluated && routingResult.actions_taken.length > 0) {
+        console.log(`Routing evaluation completed: ${routingResult.actions_taken.length} actions taken`);
+        
+        // Reload document to get updated state after routing actions
+        const updatedDocument = await EsignDocument.findById(documentId);
+        if (updatedDocument) {
+          // Update document reference for subsequent operations
+          Object.assign(document, updatedDocument.toObject());
+        }
+      }
+    } catch (error) {
+      console.error('Routing evaluation error:', error);
+      // Log error but don't fail the signature submission
+      await auditService.logEvent(req, {
+        event_type: 'routing.evaluation_error',
+        actor: { type: 'system' },
+        resource: { type: 'document', id: document._id.toString() },
+        action: 'Routing evaluation failed',
+        metadata: { error: error.message },
+      });
+    }
+    
     // If this was a group signing, invalidate tokens for all other group members
     if (recipient.group_id) {
       const lockService = require('../services/esign/lock.service');

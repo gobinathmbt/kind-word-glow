@@ -49,6 +49,8 @@ const esignAuditLogSchema = new mongoose.Schema({
       'otp.generated', 'otp.verified', 'otp.failed', 'otp.locked',
       // Signature events
       'signature.submitted', 'signature.rejected', 'signature.delegated',
+      // Routing events
+      'routing.rule_evaluated', 'routing.action_executed', 'routing.rule_error', 'routing.evaluation_error',
       // PDF events
       'pdf.generated', 'pdf.stored', 'pdf.downloaded', 'pdf.verified',
       // Notification events

@@ -486,6 +486,18 @@ const generateSignedPdf = async (documentId, req) => {
     
     console.log(`PDF generation completed for document ${documentId}`);
     
+    // Step 10: Execute post-signature actions asynchronously (Req 13.9)
+    // This runs without blocking the response to the signer
+    const postSignatureService = require('./postSignature.service');
+    setImmediate(async () => {
+      try {
+        await postSignatureService.executePostSignatureActions(req, document);
+      } catch (error) {
+        console.error('Post-signature processing error:', error);
+        // Error is already logged in the service, no need to throw
+      }
+    });
+    
     return {
       pdf_url: uploadResult.url,
       pdf_hash: pdfHash,
