@@ -97,6 +97,12 @@ import MasterInspection from "./components/inspection/MasterInspection";
 import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 
+// E-Sign Public Pages
+import SigningPage from "./pages/esign/public/SigningPage";
+import SigningComplete from "./pages/esign/public/SigningComplete";
+import SigningError from "./pages/esign/public/SigningError";
+import SigningDeclined from "./pages/esign/public/SigningDeclined";
+
 const queryClient = new QueryClient();
 
 const handleRefresh = async () => {
@@ -133,6 +139,12 @@ const App = () => {
       <Route path="/register-company" element={<RegisterCompany />} />
       <Route path="/no-access" element={<NoAccess />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
+
+      {/* E-Sign Public Routes - No authentication required */}
+      <Route path="/esign/public/sign/:token" element={<SigningPage />} />
+      <Route path="/esign/public/complete/:token" element={<SigningComplete />} />
+      <Route path="/esign/public/declined/:token" element={<SigningDeclined />} />
+      <Route path="/esign/public/error/:message?" element={<SigningError />} />
 
       {/* Dynamic Dashboard Route - redirects to appropriate dashboard based on user's modules */}
       <Route path="/dashboard" element={

@@ -410,8 +410,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Reset counter after 15 minutes
     - _Requirements: 83.1, 83.2, 83.3, 83.4_
 
-- [ ] 10. Public Signing Page Module - Signature Capture & Submission
-  - [ ] 10.1 Create signature capture frontend component
+- [x] 10. Public Signing Page Module - Signature Capture & Submission
+  - [x] 10.1 Create signature capture frontend component
     - Create src/components/esign/SignatureCapture.tsx
     - Implement draw signature with canvas (capture as base64 PNG)
     - Implement type signature (render in signature font, convert to base64 PNG)
@@ -420,7 +420,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Convert all signatures to base64-encoded PNG
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 53.1, 53.2, 53.3, 53.4, 53.5, 53.6_
   
-  - [ ] 10.2 Implement signature submission with intent confirmation
+  - [x] 10.2 Implement signature submission with intent confirmation
     - Display intent confirmation checkbox with text "I agree that this is my legal signature..."
     - Prevent submission if checkbox is not checked
     - Store intent confirmation text in recipient record
@@ -429,21 +429,21 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Update recipient status to "signed"
     - _Requirements: 10.6, 10.7, 10.8, 10.9, 48.1, 48.2, 48.3, 48.4, 48.5_
   
-  - [ ] 10.3 Implement recipient field isolation
+  - [x] 10.3 Implement recipient field isolation
     - Disable all fields not assigned to current recipient
     - Visually indicate which fields are assigned to current recipient
     - Validate on backend that submitted field data matches recipient's assigned fields
     - Reject submission if recipient attempts to modify other recipients' fields
     - _Requirements: 43.1, 43.2, 43.3, 43.4_
   
-  - [ ] 10.4 Implement scroll completion enforcement
+  - [x] 10.4 Implement scroll completion enforcement
     - Track scroll position on signing page
     - Require scroll to within 50 pixels of document bottom if require_scroll_completion enabled
     - Block signature submission until scroll requirement met
     - Store scroll_completed_at timestamp in recipient record
     - _Requirements: 75.1, 75.2, 75.3, 75.4_
   
-  - [ ] 10.5 Implement document status updates after signature
+  - [x] 10.5 Implement document status updates after signature
     - For single signature type: update document status to "signed" immediately
     - For multiple/hierarchy: update to "partially_signed" until all recipients sign
     - Update to "signed" when all recipients have signed
