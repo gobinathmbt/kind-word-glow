@@ -765,6 +765,191 @@ const extractDelimiters = async (req, res) => {
   }
 };
 
+/**
+ * Preview template with sample data
+ * GET /api/company/esign/templates/:id/preview
+ */
+const previewTemplate = async (req, res) => {
+  try {
+    const EsignTemplate = req.getModel('EsignTemplate');
+    const { id } = req.params;
+    const companyId = req.user.company_id;
+
+    const template = await EsignTemplate.findOne({
+      _id: id,
+      company_id: companyId,
+      is_deleted: false
+    }).lean();
+
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template not found'
+      });
+    }
+
+    // Get sample values from query params or use defaults
+    const sampleValues = req.query.sample_values 
+      ? JSON.parse(req.query.sample_values) 
+      : {};
+
+    // Render HTML with sample delimiter values
+    let previewHtml = template.html_content;
+
+    // Replace each delimiter with sample value, default value, or placeholder
+    template.delimiters.forEach(delimiter => {
+      const delimiterPattern = new RegExp(`{{${delimiter.key}}}`, 'g');
+      
+      let replacementValue;
+      
+      // Priority: custom sample value > default value > placeholder
+      if (sampleValues[delimiter.key] !== undefined) {
+        replacementValue = sampleValues[delimiter.key];
+      } else if (delimiter.default_value) {
+        replacementValue = delimiter.default_value;
+      } else {
+        replacementValue = `[${delimiter.key}]`;
+      }
+
+      previewHtml = previewHtml.replace(delimiterPattern, replacementValue);
+    });
+
+    res.json({
+      success: true,
+      data: {
+        html: previewHtml,
+        template_name: template.name,
+        delimiters: template.delimiters
+      }
+    });
+  } catch (error) {
+    console.error('Error previewing template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error previewing template',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get template payload schema for API integration
+ * GET /api/company/esign/templates/:id/schema
+ */
+const getTemplateSchema = async (req, res) => {
+  try {
+    const EsignTemplate = req.getModel('EsignTemplate');
+    const { id } = req.params;
+    const companyId = req.user.company_id;
+
+    const template = await EsignTemplate.findOne({
+      _id: id,
+      company_id: companyId,
+      is_deleted: false
+    }).lean();
+
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template not found'
+      });
+    }
+
+    // Generate JSON schema for payload
+    const schema = {
+      template_id: template._id.toString(),
+      template_name: template.name,
+      signature_type: template.signature_type,
+      fields: {},
+      required_fields: []
+    };
+
+    // Build schema from delimiters
+    template.delimiters.forEach(delimiter => {
+      // Skip unused delimiters
+      if (delimiter.unused) return;
+
+      const fieldSchema = {
+        type: delimiter.type,
+        required: delimiter.required,
+        description: `Field for ${delimiter.key}`
+      };
+
+      // Add default value if exists
+      if (delimiter.default_value) {
+        fieldSchema.default = delimiter.default_value;
+      }
+
+      // Add example value based on type
+      switch (delimiter.type) {
+        case 'email':
+          fieldSchema.example = 'user@example.com';
+          fieldSchema.format = 'email';
+          break;
+        case 'phone':
+          fieldSchema.example = '+1234567890';
+          fieldSchema.format = 'phone';
+          break;
+        case 'date':
+          fieldSchema.example = '2024-01-01';
+          fieldSchema.format = 'date';
+          break;
+        case 'number':
+          fieldSchema.example = 123;
+          fieldSchema.format = 'number';
+          break;
+        case 'signature':
+          fieldSchema.example = 'base64-encoded-signature-image';
+          fieldSchema.format = 'base64';
+          break;
+        case 'initial':
+          fieldSchema.example = 'base64-encoded-initial-image';
+          fieldSchema.format = 'base64';
+          break;
+        default:
+          fieldSchema.example = 'Sample text value';
+          break;
+      }
+
+      // Add assigned recipient info if exists
+      if (delimiter.assigned_to) {
+        fieldSchema.assigned_to = delimiter.assigned_to;
+        const recipient = template.recipients.find(r => r.signature_order === delimiter.assigned_to);
+        if (recipient) {
+          fieldSchema.recipient_label = recipient.label;
+        }
+      }
+
+      schema.fields[delimiter.key] = fieldSchema;
+
+      // Add to required fields list
+      if (delimiter.required) {
+        schema.required_fields.push(delimiter.key);
+      }
+    });
+
+    // Add recipient configuration
+    schema.recipients = template.recipients.map(recipient => ({
+      signature_order: recipient.signature_order,
+      label: recipient.label,
+      recipient_type: recipient.recipient_type,
+      signature_type: recipient.signature_type
+    }));
+
+    res.json({
+      success: true,
+      data: schema
+    });
+  } catch (error) {
+    console.error('Error generating template schema:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating template schema',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createTemplate,
   listTemplates,
@@ -774,5 +959,7 @@ module.exports = {
   duplicateTemplate,
   activateTemplate,
   uploadPDF,
-  extractDelimiters
+  extractDelimiters,
+  previewTemplate,
+  getTemplateSchema
 };

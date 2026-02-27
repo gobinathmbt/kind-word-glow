@@ -2135,6 +2135,14 @@ export const esignServices = {
   
   extractDelimiters: (id: string) =>
     apiClient.post(`/api/company/esign/templates/${id}/extract-delimiters`),
+  
+  previewTemplate: (id: string, sampleValues?: Record<string, any>) =>
+    apiClient.get(`/api/company/esign/templates/${id}/preview`, {
+      params: sampleValues ? { sample_values: JSON.stringify(sampleValues) } : {}
+    }),
+  
+  getTemplateSchema: (id: string) =>
+    apiClient.get(`/api/company/esign/templates/${id}/schema`),
 };
 
 export default {

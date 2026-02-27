@@ -49,4 +49,12 @@ router.post('/:id/extract-delimiters',
   esignTemplateController.extractDelimiters
 );
 
+router.get('/:id/preview', 
+  esignTemplateController.previewTemplate
+);
+
+router.get('/:id/schema', 
+  esignTemplateController.getTemplateSchema
+);
+
 module.exports = router;

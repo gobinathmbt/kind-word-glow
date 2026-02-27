@@ -184,8 +184,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Use React Hook Form for form handling
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 4.11, 4.12, 4.13, 4.14_
 
-- [ ] 5. Templates Module - Visual Editor & Field Placement
-  - [ ] 5.1 Create visual field placement editor component
+- [x] 5. Templates Module - Visual Editor & Field Placement
+  - [x] 5.1 Create visual field placement editor component
     - Create src/components/esign/FieldPlacer.tsx
     - Render HTML content in canvas with drag-and-drop zones
     - Implement field palette (signature, text, date, email, phone fields)
@@ -196,7 +196,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Remove delimiter when field is removed from canvas
     - _Requirements: 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12_
   
-  - [ ] 5.2 Implement template preview with sample data
+  - [x] 5.2 Implement template preview with sample data
     - Implement GET /api/company/esign/templates/:id/preview endpoint
     - Render HTML with sample delimiter values
     - Use default values from delimiter configuration if no sample provided
@@ -205,7 +205,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Render preview in read-only view
     - _Requirements: 44.1, 44.2, 44.3, 44.4, 44.5_
   
-  - [ ] 5.3 Implement template payload schema generation
+  - [x] 5.3 Implement template payload schema generation
     - Implement GET /api/company/esign/templates/:id/schema endpoint
     - Return JSON structure with all delimiter definitions
     - Mark required delimiters in schema
@@ -214,7 +214,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Include example values for each delimiter
     - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5_
 
-- [ ] 6. Templates Module - Workflow Configuration
+- [-] 6. Templates Module - Workflow Configuration
   - [ ] 6.1 Implement template workflow configuration
     - Configure signature type (single, multiple, hierarchy, send_to_all)
     - Validate recipient count based on signature type (single=1, others>=2)

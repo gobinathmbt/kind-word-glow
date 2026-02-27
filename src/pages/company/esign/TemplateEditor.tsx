@@ -24,13 +24,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { esignServices } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, Upload, FileText, Settings, Users } from "lucide-react";
+import { Loader2, Save, Upload, FileText, Settings, Users, Layout } from "lucide-react";
+import FieldPlacer from "@/components/esign/FieldPlacer";
+import TemplatePreviewDialog from "@/components/esign/TemplatePreviewDialog";
+import TemplateSchemaViewer from "@/components/esign/TemplateSchemaViewer";
 
 interface TemplateFormData {
   name: string;
   description?: string;
   html_content: string;
   signature_type: string;
+  delimiters?: any[];
+  recipients?: any[];
 }
 
 const TemplateEditor = () => {
@@ -48,6 +53,8 @@ const TemplateEditor = () => {
       description: "",
       html_content: "",
       signature_type: "single",
+      delimiters: [],
+      recipients: [],
     },
   });
 
@@ -67,6 +74,8 @@ const TemplateEditor = () => {
       setValue("description", template.description || "");
       setValue("html_content", template.html_content);
       setValue("signature_type", template.signature_type);
+      setValue("delimiters", template.delimiters || []);
+      setValue("recipients", template.recipients || []);
     }
   }, [template, setValue]);
 
@@ -152,6 +161,15 @@ const TemplateEditor = () => {
             <Button variant="outline" onClick={() => navigate("/company/esign/templates")}>
               Cancel
             </Button>
+            {!isNew && watch("delimiters")?.length > 0 && (
+              <>
+                <TemplatePreviewDialog
+                  templateId={id!}
+                  delimiters={watch("delimiters") || []}
+                />
+                <TemplateSchemaViewer templateId={id!} />
+              </>
+            )}
             <Button onClick={handleSubmit(onSubmit)} disabled={saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Save className="mr-2 h-4 w-4" />
@@ -169,6 +187,10 @@ const TemplateEditor = () => {
             <TabsTrigger value="content">
               <Upload className="w-4 h-4 mr-2" />
               Content
+            </TabsTrigger>
+            <TabsTrigger value="fields">
+              <Layout className="w-4 h-4 mr-2" />
+              Field Placement
             </TabsTrigger>
             <TabsTrigger value="workflow">
               <Users className="w-4 h-4 mr-2" />
@@ -281,6 +303,37 @@ const TemplateEditor = () => {
                     Use delimiters like {`{{client_name}}`} for dynamic content
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="fields">
+            <Card>
+              <CardHeader>
+                <CardTitle>Field Placement</CardTitle>
+                <CardDescription>
+                  Drag and drop fields onto the document canvas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!isNew && watch("html_content") && watch("recipients")?.length > 0 ? (
+                  <FieldPlacer
+                    htmlContent={watch("html_content")}
+                    delimiters={watch("delimiters") || []}
+                    recipients={watch("recipients") || []}
+                    onDelimitersChange={(delimiters) => setValue("delimiters", delimiters)}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    {isNew ? (
+                      <p>Please save the template first before placing fields</p>
+                    ) : !watch("html_content") ? (
+                      <p>Please add HTML content or upload a PDF first</p>
+                    ) : (
+                      <p>Please configure recipients in the Workflow tab first</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
