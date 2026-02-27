@@ -1881,34 +1881,6 @@ export const dashboardAnalyticsServices = {
     }),
 };
 
-export default {
-  auth: authServices,
-  subscription: subscriptionServices,
-  master: masterServices,
-  company: companyServices,
-  dealership: dealershipServices,
-  dropdown: dropdownServices,
-  masterDropdown: masterDropdownServices,
-  config: configServices,
-  vehicle: vehicleServices,
-  inspection: inspectionServices,
-  tradein: tradeinServices,
-  logs: logServices,
-  supplier: supplierServices,
-  workshop: workshopServices,
-  supplierAuth: supplierAuthServices,
-  supplierDashboard: supplierDashboardServices,
-  masterInspectionServices: masterInspectionServices,
-  masterVehicle: masterVehicleServices,
-  adPublishing: adPublishingServices,
-  commonVehicle: commonVehicleServices,
-  serviceBayServices: serviceBayServices,
-  bayQuoteServices: bayQuoteServices,
-  dashboardReportServices: dashboardReportServices,
-  dashboardAnalytics: dashboardAnalyticsServices,
-};
-
-
 // Tender Module Services
 export const tenderDealershipService = {
   // Get all tender dealerships with pagination and search
@@ -2099,3 +2071,38 @@ export const tenderConversationService = {
   markAsRead: (tenderId: string, dealershipId: string, data?: any) =>
     apiClient.patch(`/api/tender-conversation/${tenderId}/${dealershipId}/read`, data),
 };
+
+
+export default {
+  auth: authServices,
+  subscription: subscriptionServices,
+  master: masterServices,
+  company: companyServices,
+  dealership: dealershipServices,
+  dropdown: dropdownServices,
+  masterDropdown: masterDropdownServices,
+  config: configServices,
+  vehicle: vehicleServices,
+  inspection: inspectionServices,
+  tradein: tradeinServices,
+  logs: logServices,
+  supplier: supplierServices,
+  workshop: workshopServices,
+  supplierAuth: supplierAuthServices,
+  supplierDashboard: supplierDashboardServices,
+  masterInspectionServices: masterInspectionServices,
+  masterVehicle: masterVehicleServices,
+  adPublishing: adPublishingServices,
+  commonVehicle: commonVehicleServices,
+  serviceBayServices: serviceBayServices,
+  bayQuoteServices: bayQuoteServices,
+  dashboardReportServices: dashboardReportServices,
+  dashboardAnalytics: dashboardAnalyticsServices,
+  tenderDealershipService: tenderDealershipService,
+  tenderDealershipUserService: tenderDealershipUserService,
+  tenderService: tenderService,
+  tenderDealershipAuthService: tenderDealershipAuthService,
+  tenderConversationService: tenderConversationService,
+};
+
+
