@@ -126,6 +126,16 @@ const pdfToHtml = async (pdfBuffer, options = {}) => {
 };
 
 /**
+ * Convert PDF to HTML (alias for pdfToHtml)
+ * @param {Buffer} pdfBuffer - PDF buffer to convert
+ * @param {Object} options - Conversion options
+ * @returns {Promise<string>} HTML content
+ */
+const convertPdfToHtml = async (pdfBuffer, options = {}) => {
+  return pdfToHtml(pdfBuffer, options);
+};
+
+/**
  * Generate PDF with retry logic
  * @param {string} htmlContent - HTML content to convert
  * @param {Object} options - Conversion options
@@ -198,6 +208,7 @@ const checkPdfServiceHealth = async () => {
 module.exports = {
   htmlToPdf,
   pdfToHtml,
+  convertPdfToHtml,
   generatePdfWithRetry,
   validateHtmlContent,
   checkPdfServiceHealth,

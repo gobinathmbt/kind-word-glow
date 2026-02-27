@@ -124,8 +124,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Add API key services to src/api/services.ts esignServices
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
 
-- [ ] 4. Templates Module - Core Template Management
-  - [ ] 4.1 Create template backend routes and controllers
+- [x] 4. Templates Module - Core Template Management
+  - [x] 4.1 Create template backend routes and controllers
     - Create backend/src/routes/esignTemplate.routes.js
     - Create backend/src/controllers/esignTemplate.controller.js
     - Implement POST /api/company/esign/templates (create template)
@@ -137,7 +137,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Implement POST /api/company/esign/templates/:id/activate (activate template)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 4.11, 4.12, 4.13, 4.14, 36.1-36.5_
   
-  - [ ] 4.2 Implement PDF upload and conversion
+  - [x] 4.2 Implement PDF upload and conversion
     - Implement POST /api/company/esign/templates/:id/upload-pdf endpoint
     - Validate PDF file type and size (max 10MB)
     - Send PDF to PDF_Service for HTML conversion
@@ -146,7 +146,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Complete conversion within 30 seconds for PDFs up to 50 pages
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 51.1-51.6_
   
-  - [ ] 4.3 Implement delimiter extraction and validation
+  - [x] 4.3 Implement delimiter extraction and validation
     - Create backend/src/services/esign/delimiter.service.js
     - Scan HTML for delimiter patterns matching {{key_name}}
     - Extract delimiter keys and populate delimiters array with default type "text"
@@ -155,7 +155,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Mark unused delimiters but don't delete them
     - _Requirements: 33.1, 33.2, 33.3, 33.4, 33.5, 33.6, 52.1, 52.2, 52.3, 52.4, 52.5_
   
-  - [ ] 4.4 Implement template validation before activation
+  - [x] 4.4 Implement template validation before activation
     - Validate HTML content is not empty
     - Validate at least one delimiter exists
     - Validate signature configuration is complete
@@ -166,7 +166,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 34.1, 34.2, 34.3, 34.4, 34.5, 34.6, 34.7_
 
 
-  - [ ] 4.5 Implement template deletion protection
+  - [x] 4.5 Implement template deletion protection
     - Check for active documents (status "distributed", "opened", "partially_signed") before deletion
     - Return error "Cannot delete template with active documents" if active documents exist
     - Soft-delete template by setting isDeleted=true if no active documents
@@ -175,7 +175,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log deletion attempts to audit log
     - _Requirements: 38.1, 38.2, 38.3, 38.4, 38.5, 38.6_
   
-  - [ ] 4.6 Create template frontend pages
+  - [x] 4.6 Create template frontend pages
     - Create src/pages/company/esign/EsignTemplates.tsx with DataTableLayout
     - Create src/pages/company/esign/TemplateEditor.tsx
     - Implement template list with filters (status, created date)

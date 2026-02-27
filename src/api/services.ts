@@ -2102,6 +2102,39 @@ export const esignServices = {
   
   revokeAPIKey: (id: string, data?: any) =>
     apiClient.delete(`/api/company/esign/settings/api-keys/${id}`, { data }),
+  
+  // Template Management
+  getTemplates: (params?: any) =>
+    apiClient.get("/api/company/esign/templates", { params }),
+  
+  getTemplate: (id: string) =>
+    apiClient.get(`/api/company/esign/templates/${id}`),
+  
+  createTemplate: (data: any) =>
+    apiClient.post("/api/company/esign/templates", data),
+  
+  updateTemplate: (id: string, data: any) =>
+    apiClient.put(`/api/company/esign/templates/${id}`, data),
+  
+  deleteTemplate: (id: string) =>
+    apiClient.delete(`/api/company/esign/templates/${id}`),
+  
+  duplicateTemplate: (id: string) =>
+    apiClient.post(`/api/company/esign/templates/${id}/duplicate`),
+  
+  activateTemplate: (id: string) =>
+    apiClient.post(`/api/company/esign/templates/${id}/activate`),
+  
+  uploadPDF: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('pdf', file);
+    return apiClient.post(`/api/company/esign/templates/${id}/upload-pdf`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  extractDelimiters: (id: string) =>
+    apiClient.post(`/api/company/esign/templates/${id}/extract-delimiters`),
 };
 
 export default {

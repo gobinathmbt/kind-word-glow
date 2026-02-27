@@ -6,6 +6,7 @@ const compression = require("compression");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
 const rateLimit = require("express-rate-limit");
+const fileUpload = require("express-fileupload");
 const connectDB = require("./config/db");
 const { initializeRedis } = require("./config/redis");
 const { startSubscriptionCronJob } = require("./jobs/subscriptionCron");
@@ -60,6 +61,7 @@ const googleMapsRoutes = require("./routes/googlemaps.routes");
 const paymentSettingsRoutes = require("./routes/paymentSettings.routes");
 const vehicleActivityLogRoutes = require("./routes/vehicleActivityLog.routes");
 const esignSettingsRoutes = require("./routes/esignSettings.routes");
+const esignTemplateRoutes = require("./routes/esignTemplate.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -117,6 +119,13 @@ app.use(cors());
 // Body parsing middleware
 app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// File upload middleware
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+  abortOnLimit: true,
+  createParentPath: true
+}));
 
 // Data sanitization
 app.use(mongoSanitize());
@@ -212,6 +221,7 @@ app.use("/api/googlemaps", googleMapsRoutes);
 app.use("/api/payment-settings", paymentSettingsRoutes);
 app.use("/api/vehicle-activity", vehicleActivityLogRoutes);
 app.use("/api/company/esign/settings", esignSettingsRoutes);
+app.use("/api/company/esign/templates", esignTemplateRoutes);
 
 
 app.get("/api/health", async (req, res) => {
