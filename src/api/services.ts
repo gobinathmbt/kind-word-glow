@@ -2072,6 +2072,27 @@ export const tenderConversationService = {
     apiClient.patch(`/api/tender-conversation/${tenderId}/${dealershipId}/read`, data),
 };
 
+// E-Sign Services
+export const esignServices = {
+  // Provider Configuration
+  getProviders: (params?: any) =>
+    apiClient.get("/api/company/esign/settings/providers", { params }),
+  
+  getProvider: (id: string) =>
+    apiClient.get(`/api/company/esign/settings/providers/${id}`),
+  
+  createProvider: (data: any) =>
+    apiClient.post("/api/company/esign/settings/providers", data),
+  
+  updateProvider: (id: string, data: any) =>
+    apiClient.put(`/api/company/esign/settings/providers/${id}`, data),
+  
+  deleteProvider: (id: string) =>
+    apiClient.delete(`/api/company/esign/settings/providers/${id}`),
+  
+  testProvider: (id: string, data?: any) =>
+    apiClient.post(`/api/company/esign/settings/providers/${id}/test`, data),
+};
 
 export default {
   auth: authServices,

@@ -59,6 +59,7 @@ const dashboardReportRoutes = require("./routes/dashboardReport.routes");
 const googleMapsRoutes = require("./routes/googlemaps.routes");
 const paymentSettingsRoutes = require("./routes/paymentSettings.routes");
 const vehicleActivityLogRoutes = require("./routes/vehicleActivityLog.routes");
+const esignSettingsRoutes = require("./routes/esignSettings.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -210,6 +211,7 @@ app.use("/api/dashboard-report", dashboardReportRoutes);
 app.use("/api/googlemaps", googleMapsRoutes);
 app.use("/api/payment-settings", paymentSettingsRoutes);
 app.use("/api/vehicle-activity", vehicleActivityLogRoutes);
+app.use("/api/company/esign/settings", esignSettingsRoutes);
 
 
 app.get("/api/health", async (req, res) => {
