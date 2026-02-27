@@ -333,8 +333,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Send webhook notification when bulk job completes
     - _Requirements: 81.1, 81.2, 81.3, 81.4, 81.5, 81.6, 81.7, 81.8, 81.9, 81.10_
 
-- [ ] 8. Public Signing Page Module - Token Validation & Access Control
-  - [ ] 8.1 Create public signing page routes
+- [x] 8. Public Signing Page Module - Token Validation & Access Control
+  - [x] 8.1 Create public signing page routes
     - Create backend/src/routes/esignPublic.routes.js at /esign/public/*
     - Create backend/src/controllers/esignPublic.controller.js
     - No auth middleware (public access via token)
@@ -347,7 +347,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Implement GET /sign/:token/scroll-complete (mark scroll completion)
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 8.10_
   
-  - [ ] 8.2 Implement token validation and access control
+  - [x] 8.2 Implement token validation and access control
     - Validate token is valid JWT and not expired
     - Return error "Invalid or expired link" if token is invalid
     - Return error "This link has expired" if token is expired
@@ -358,7 +358,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all token validation attempts to audit log with IP, user agent, timestamp
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 8.10_
   
-  - [ ] 8.3 Implement short link generation and redirect
+  - [x] 8.3 Implement short link generation and redirect
     - Generate 8-character alphanumeric short code for each recipient token
     - Ensure short code is unique across all documents
     - Store mapping in MongoDB with expiration matching token expiry
@@ -366,7 +366,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Redirect to full signing URL /sign/:token
     - _Requirements: 37.1, 37.2, 37.3, 37.4, 37.5_
   
-  - [ ] 8.4 Implement geo location capture
+  - [x] 8.4 Implement geo location capture
     - Capture IP address from request
     - Perform geo lookup to determine country, region, city (1-second timeout)
     - Store location data in audit log entry

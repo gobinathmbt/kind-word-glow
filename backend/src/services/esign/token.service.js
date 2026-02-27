@@ -22,13 +22,14 @@ const TOKEN_EXPIRY = {
  * @param {string} payload.documentId - Document ID
  * @param {string} payload.recipientId - Recipient ID
  * @param {string} payload.email - Recipient email
+ * @param {string} payload.companyId - Company ID (optional but recommended)
  * @param {string} type - Token type ('signing', 'session', 'preview')
  * @param {string|number} customExpiry - Custom expiry (optional)
  * @returns {string} JWT token
  */
 const generateToken = (payload, type = 'signing', customExpiry = null) => {
   try {
-    const { documentId, recipientId, email } = payload;
+    const { documentId, recipientId, email, companyId } = payload;
     
     if (!documentId || !recipientId || !email) {
       throw new Error('Missing required payload fields: documentId, recipientId, email');
@@ -42,6 +43,11 @@ const generateToken = (payload, type = 'signing', customExpiry = null) => {
       tokenId: crypto.randomBytes(16).toString('hex'), // Unique token ID for tracking
       iat: Math.floor(Date.now() / 1000),
     };
+    
+    // Include company ID if provided
+    if (companyId) {
+      tokenPayload.companyId = companyId;
+    }
     
     const options = {
       expiresIn: customExpiry || TOKEN_EXPIRY[type] || TOKEN_EXPIRY.signing,
@@ -97,6 +103,7 @@ const rotateToken = (oldToken, newType = 'session', customExpiry = null) => {
         documentId: decoded.documentId,
         recipientId: decoded.recipientId,
         email: decoded.email,
+        companyId: decoded.companyId, // Preserve company ID
       },
       newType,
       customExpiry

@@ -129,6 +129,7 @@ exports.initiateDocument = async (req, res) => {
           documentId: document._id.toString(),
           recipientId: recipient._id.toString(),
           email: recipient.email,
+          companyId: req.company_id.toString(), // Include company ID in token
         },
         'signing',
         `${template.link_expiry.value}${template.link_expiry.unit.charAt(0)}`
@@ -187,15 +188,36 @@ exports.initiateDocument = async (req, res) => {
         console.error('Error sending notifications:', error);
       });
       
-      // Build recipient URLs (Req 7.11)
-      const recipientUrls = document.recipients.map(recipient => ({
-        email: recipient.email,
-        name: recipient.name,
-        signing_url: `${process.env.FRONTEND_URL}/sign/${recipient.token}`,
-        short_url: template.short_link_enabled 
-          ? `${process.env.FRONTEND_URL}/s/${generateShortCode()}` 
-          : undefined,
-      }));
+      // Generate short links if enabled
+      const shortLinkService = require('../services/esign/shortLink.service');
+      const recipientUrls = [];
+      
+      for (const recipient of document.recipients) {
+        const recipientUrl = {
+          email: recipient.email,
+          name: recipient.name,
+          signing_url: `${process.env.FRONTEND_URL}/sign/${recipient.token}`,
+        };
+        
+        // Generate short link if enabled
+        if (template.short_link_enabled) {
+          try {
+            const shortCode = await shortLinkService.createShortLink(
+              req,
+              document._id.toString(),
+              recipient._id.toString(),
+              recipient.token,
+              expiresAt
+            );
+            recipientUrl.short_url = `${process.env.FRONTEND_URL}/s/${shortCode}`;
+          } catch (error) {
+            console.error('Failed to generate short link:', error);
+            // Continue without short link
+          }
+        }
+        
+        recipientUrls.push(recipientUrl);
+      }
       
       const response = {
         success: true,
