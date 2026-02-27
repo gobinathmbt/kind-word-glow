@@ -63,6 +63,8 @@ const vehicleActivityLogRoutes = require("./routes/vehicleActivityLog.routes");
 const esignSettingsRoutes = require("./routes/esignSettings.routes");
 const esignTemplateRoutes = require("./routes/esignTemplate.routes");
 const esignSigningGroupRoutes = require("./routes/esignSigningGroup.routes");
+const esignAPIRoutes = require("./routes/esignAPI.routes");
+const esignDocumentRoutes = require("./routes/esignDocument.routes");
 // Bay booking now handled through workshop routes using WorkshopQuote model
 
 const errorHandler = require("./middleware/error");
@@ -224,6 +226,8 @@ app.use("/api/vehicle-activity", vehicleActivityLogRoutes);
 app.use("/api/company/esign/settings", esignSettingsRoutes);
 app.use("/api/company/esign/templates", esignTemplateRoutes);
 app.use("/api/company/esign/signing-groups", esignSigningGroupRoutes);
+app.use("/api/company/esign/documents", esignDocumentRoutes);
+app.use("/api/v1/esign", esignAPIRoutes);
 
 
 app.get("/api/health", async (req, res) => {

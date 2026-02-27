@@ -260,8 +260,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Render only sanitized HTML to signers
     - _Requirements: 50.1, 50.2, 50.3, 50.4, 50.5, 50.6_
 
-- [ ] 7. External API Module - Authentication & Document Initiation
-  - [ ] 7.1 Create external API routes with API key authentication
+- [x] 7. External API Module - Authentication & Document Initiation
+  - [x] 7.1 Create external API routes with API key authentication
     - Create backend/src/routes/esignAPI.routes.js at /api/v1/esign/*
     - Create backend/src/controllers/esignAPI.controller.js
     - Apply esignAPIAuth middleware (no auth/tenantContext middleware)
@@ -269,7 +269,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Apply esignIdempotency middleware for document creation
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
   
-  - [ ] 7.2 Implement document initiation endpoint
+  - [x] 7.2 Implement document initiation endpoint
     - Implement POST /api/v1/esign/documents/initiate
     - Validate API_Key and identify company
     - Validate template exists and status is "active"
@@ -282,7 +282,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Complete within 5 seconds for documents with up to 10 recipients
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10, 7.11, 7.12, 42.1-42.6_
   
-  - [ ] 7.3 Implement idempotency handling
+  - [x] 7.3 Implement idempotency handling
     - Check Idempotency_Key header in document initiation requests
     - Store idempotency key in MongoDB with 24-hour TTL
     - Return existing document if matching key found within 24 hours
@@ -290,7 +290,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Allow new document creation if key is older than 24 hours
     - _Requirements: 27.1, 27.2, 27.3, 27.4, 27.5, 27.6_
   
-  - [ ] 7.4 Implement preview mode and distribution logic
+  - [x] 7.4 Implement preview mode and distribution logic
     - If preview_mode disabled: send notifications immediately, set status to "distributed"
     - If preview_mode enabled: return preview URL, set status to "draft_preview"
     - Do not send notifications to recipients when status is "draft_preview"
@@ -300,7 +300,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - On rejection: update status to "cancelled"
     - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6_
   
-  - [ ] 7.5 Implement document status polling endpoint
+  - [x] 7.5 Implement document status polling endpoint
     - Implement GET /api/v1/esign/documents/:id/status
     - Return current document status
     - Return status of all recipients with timestamps
@@ -309,7 +309,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Return within 500 milliseconds
     - _Requirements: 47.1, 47.2, 47.3, 47.4, 47.5_
   
-  - [ ] 7.6 Implement webhook delivery with signature verification
+  - [x] 7.6 Implement webhook delivery with signature verification
     - Send HTTP POST to callback_url when document is completed
     - Include event type, document_id, timestamp, and data in payload
     - Compute HMAC-SHA256 signature of request body using API_Secret
@@ -321,7 +321,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 40.1, 40.2, 40.3, 40.4, 40.5_
 
 
-  - [ ] 7.7 Implement bulk document initiation from CSV
+  - [x] 7.7 Implement bulk document initiation from CSV
     - Implement POST /api/v1/esign/bulk/initiate endpoint
     - Accept CSV file upload with column mapping to delimiters
     - Create EsignBulkJob record with status "queued"
