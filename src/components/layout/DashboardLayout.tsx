@@ -40,6 +40,9 @@ import {
   HardHat,
   CalendarCheck,
   TreePalm,
+  FileSignature,
+  Mail,
+  Key,
 } from "lucide-react";
 import { authServices, subscriptionServices } from "@/api/services";
 import { Badge } from "../ui/badge";
@@ -438,6 +441,38 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           label: "Settings",
           path: "/tender/settings",
           module: "tender_company_settings",
+        },
+        {
+          icon: FileSignature,
+          label: "E-Sign",
+          module: "esign_documents",
+          children: [
+            {
+              icon: Home,
+              label: "Dashboard",
+              path: "/company/esign/dashboard",
+            },
+            {
+              icon: FileText,
+              label: "Templates",
+              path: "/company/esign/templates",
+            },
+            {
+              icon: Mail,
+              label: "Documents",
+              path: "/company/esign/documents",
+            },
+            {
+              icon: Settings,
+              label: "Settings",
+              path: "/company/esign/settings",
+            },
+            {
+              icon: Key,
+              label: "API Keys",
+              path: "/company/esign/api-keys",
+            },
+          ],
         },
       ];
     }
