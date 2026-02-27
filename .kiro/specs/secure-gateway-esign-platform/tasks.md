@@ -56,8 +56,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Configure routes in src/App.tsx with requiredModule="esign_documents"
     - _Requirements: All requirements depend on module access control_
 
-- [ ] 2. Settings Module - Provider Configuration
-  - [-] 2.1 Create provider configuration backend routes and controllers
+- [-] 2. Settings Module - Provider Configuration
+  - [ ] 2.1 Create provider configuration backend routes and controllers
     - Create backend/src/routes/esignSettings.routes.js with provider CRUD endpoints
     - Create backend/src/controllers/esignSettings.controller.js
     - Implement POST /api/company/esign/settings/providers (create/update provider)
@@ -71,6 +71,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Implement S3StorageAdapter.js (reuse existing Company.s3_config)
     - Implement AzureBlobStorageAdapter.js
     - Implement GoogleDriveStorageAdapter.js
+    - Implement SharePointStorageAdapter.js
     - Implement DropboxStorageAdapter.js
     - Each adapter: upload(), download(), generatePresignedUrl(), testConnection()
     - _Requirements: 1.8, 1.9, 12.9, 12.10, 12.11, 18.1, 18.2, 32.1, 32.2, 32.3, 32.4, 32.5_
