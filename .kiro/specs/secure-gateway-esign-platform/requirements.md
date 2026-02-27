@@ -194,7 +194,7 @@ The Secure Gateway E-Sign Platform is a MERN-stack electronic signature system d
 2. WHEN MFA channel is "email", THE System SHALL send a 6-digit OTP to the Recipient's email address
 3. WHEN MFA channel is "sms", THE System SHALL send a 6-digit OTP to the Recipient's phone number
 4. WHEN MFA channel is "both", THE System SHALL send a 6-digit OTP to both email and phone
-5. WHEN an OTP is generated, THE System SHALL hash the OTP using bcrypt before storing in Company_DB
+5. WHEN an OTP is generated, THE System SHALL hash the OTP using bcrypt before storing in MongoDB EsignOTP collection
 6. WHEN an OTP is generated, THE System SHALL set expiration to the configured otp_expiry_min value
 7. WHEN a Signer submits an OTP, THE System SHALL verify it against the hashed value
 8. WHEN an OTP is incorrect, THE System SHALL increment the attempt counter
@@ -471,7 +471,7 @@ The Secure Gateway E-Sign Platform is a MERN-stack electronic signature system d
 3. WHEN a matching Idempotency_Key is found, THE System SHALL return HTTP 200 with the existing Document data
 4. WHEN no matching Idempotency_Key is found, THE System SHALL create a new Document and store the Idempotency_Key
 5. WHEN an Idempotency_Key is older than 24 hours, THE System SHALL allow creation of a new Document with the same key
-6. THE System SHALL store Idempotency_Keys in Redis with 24-hour TTL
+6. THE System SHALL store Idempotency_Keys in MongoDB EsignIdempotency collection with 24-hour TTL using MongoDB TTL index for automatic expiration
 
 ### Requirement 28: Token Rotation on Security Events
 
@@ -525,7 +525,7 @@ The Secure Gateway E-Sign Platform is a MERN-stack electronic signature system d
 4. WHEN the lock is held by another process, THE System SHALL not proceed with PDF generation
 5. WHEN PDF generation completes, THE System SHALL release the distributed lock
 6. WHEN PDF generation fails, THE System SHALL release the distributed lock
-7. THE System SHALL store distributed locks in Redis with 5-minute TTL
+7. THE System SHALL store distributed locks in MongoDB EsignLock collection with 5-minute TTL using MongoDB TTL index for automatic expiration
 
 ### Requirement 32: Storage Provider Failover
 
@@ -604,7 +604,7 @@ The Secure Gateway E-Sign Platform is a MERN-stack electronic signature system d
 2. WHEN a short code is generated, THE System SHALL ensure it is unique across all Documents
 3. WHEN a short code is generated, THE System SHALL be 8 characters long using alphanumeric characters
 4. WHEN a Signer accesses a short link, THE System SHALL redirect to the full signing URL
-5. THE System SHALL store the mapping between short codes and full Tokens in Redis with expiration matching Token expiry
+5. THE System SHALL store the mapping between short codes and full Tokens in MongoDB EsignShortLink collection with expiration matching Token expiry using MongoDB TTL index for automatic expiration
 
 ### Requirement 38: Template Deletion Protection
 
@@ -628,7 +628,7 @@ The Secure Gateway E-Sign Platform is a MERN-stack electronic signature system d
 1. THE System SHALL limit API requests to 100 requests per minute per API_Key
 2. WHEN the rate limit is exceeded, THE System SHALL return HTTP 429 with error message "Rate limit exceeded"
 3. WHEN the rate limit is exceeded, THE System SHALL include a Retry-After header indicating seconds until reset
-4. THE System SHALL store rate limit counters in Redis with 1-minute TTL
+4. THE System SHALL store rate limit counters in MongoDB EsignRateLimit collection with 1-minute TTL using MongoDB TTL index for automatic expiration
 5. THE System SHALL log all rate limit violations to the Audit_Log
 
 ### Requirement 40: Webhook Signature Verification

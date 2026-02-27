@@ -24,12 +24,11 @@ The e-sign module extends the existing architecture with:
 
 - **Frontend (React):** New pages under `/company/esign/*` for templates, documents, settings, and API keys, plus public signing pages at `/esign/public/*`
 - **Backend (Node.js/Express):** New routes under `/api/company/esign/*` and `/api/esign/public/*` using existing middleware
-- **Database (MongoDB):** 7 new collections in Company DB (EsignTemplate, EsignDocument, EsignProviderConfig, EsignAPIKey, EsignSigningGroup, EsignBulkJob, EsignAuditLog)
-- **Cache Layer (Redis):** Distributed locks, rate limiting, idempotency keys, OTP storage, short links
+- **Database (MongoDB):** 7 new collections in Company DB (EsignTemplate, EsignDocument, EsignProviderConfig, EsignAPIKey, EsignSigningGroup, EsignBulkJob, EsignAuditLog) plus 5 state management collections (EsignOTP, EsignLock, EsignRateLimit, EsignIdempotency, EsignShortLink) with TTL indexes for automatic expiration
 - **PDF Service:** Separate Node.js service using Puppeteer/Playwright or Python microservice using WeasyPrint
 - **Storage:** Uses existing S3 config pattern or creates provider adapters for Azure Blob, Google Drive, Dropbox
 - **Notifications:** Integrates with existing NotificationConfiguration model
-- **Job Queue:** Uses existing cron job pattern or adds Bull/Redis for async processing
+- **Job Queue:** SQS for async job queuing (PDF generation, notifications, webhooks)
 
 ### Key Design Decisions
 
@@ -38,10 +37,10 @@ The e-sign module extends the existing architecture with:
 3. **Company DB Collections:** All e-sign data stored in per-company databases using model registry pattern
 4. **Template Snapshotting:** Complete template configuration captured at document creation for consistency
 5. **Token-Based Signing Access:** JWT tokens with short expiration for secure, stateless signing page access
-6. **Distributed Locking:** Redis-based locks prevent concurrent PDF generation
+6. **Distributed Locking:** MongoDB-based locks prevent concurrent PDF generation using EsignLock collection with TTL indexes
 7. **Pluggable Providers:** Adapter pattern for storage and notification services
 8. **Audit Integration:** Uses existing GlobalLog or creates EsignAuditLog for e-sign specific events
-9. **Asynchronous Processing:** Job queues handle PDF generation and notifications without blocking requests
+9. **Asynchronous Processing:** SQS job queues handle PDF generation and notifications without blocking requests
 
 
 ## Architecture
@@ -62,9 +61,8 @@ graph TB
     Frontend --> Backend
     
     Backend --> MasterDB[(Master DB<br/>EXISTING: Company, User, Permission)]
-    Backend --> CompanyDB[(Company DB<br/>NEW: 7 E-sign Collections)]
-    Backend --> Redis[(Redis<br/>Locks, OTP, Rate Limits)]
-    Backend --> Queue[Job Queue<br/>Cron or Bull/Redis]
+    Backend --> CompanyDB[(Company DB<br/>NEW: 12 E-sign Collections)]
+    Backend --> Queue[SQS Queue<br/>Async Jobs]
     Backend --> PDFService[PDF Service<br/>Node.js or Python]
     Backend --> Storage[Storage Providers<br/>Existing S3 or New Adapters]
     Backend --> Notify[Notification System<br/>EXISTING: NotificationConfiguration]
@@ -176,8 +174,9 @@ sequenceDiagram
 - MongoDB 7.0 with Mongoose ODM (EXISTING)
 - Multi-tenant architecture: Master DB + Company DB (EXISTING)
 - Model Registry pattern with `req.getModel()` (EXISTING)
-- NEW: Redis 7.0 for caching, locks, OTP storage, rate limiting
+- NEW: MongoDB TTL indexes for state management collections (OTP, locks, rate limits, idempotency, short links) - automatic expiration without external dependencies
 - NEW: MongoDB indexes for e-sign collections
+- NEW: SQS for async job queuing (PDF generation, notifications, webhooks)
 
 **PDF Service (New):**
 - Option 1: Node.js service with Puppeteer/Playwright
@@ -211,8 +210,8 @@ sequenceDiagram
 
 **New Middleware (Create):**
 - `esignAPIAuth.js`: API key validation for external API endpoints
-- `esignRateLimit.js`: Rate limiting for API endpoints using Redis
-- `esignIdempotency.js`: Idempotency key handling for document creation
+- `esignRateLimit.js`: Rate limiting for API endpoints using MongoDB EsignRateLimit collection
+- `esignIdempotency.js`: Idempotency key handling for document creation using MongoDB EsignIdempotency collection
 
 ### 1. Settings Module
 
@@ -587,14 +586,14 @@ export const EsignTemplates = () => {
 **Integration Points:**
 - Uses custom `esignAPIAuth.js` middleware for API key validation
 - Uses existing Company model for company identification
-- Uses Redis for idempotency keys and rate limiting
+- Uses MongoDB EsignIdempotency and EsignRateLimit collections for idempotency keys and rate limiting
 - Integrates with existing GlobalLog for API audit trails
 
 **Components:**
 - `APIAuthMiddleware`: Validates API keys and enforces scope-based permissions
 - `DocumentInitiationController`: Handles document creation via API
-- `IdempotencyService`: Prevents duplicate document creation using Redis
-- `RateLimitMiddleware`: Enforces rate limits per API key using Redis
+- `IdempotencyService`: Prevents duplicate document creation using MongoDB EsignIdempotency collection
+- `RateLimitMiddleware`: Enforces rate limits per API key using MongoDB EsignRateLimit collection
 - `WebhookService`: Sends signed webhooks to external systems
 
 **Key Interfaces:**
@@ -654,7 +653,7 @@ interface WebhookPayload {
 **Authentication:**
 - Header: `x-api-key: <api_key>`
 - Optional: `x-idempotency-key: <unique_key>`
-- Rate Limit: 100 requests/minute per API key (stored in Redis)
+- Rate Limit: 100 requests/minute per API key (stored in MongoDB EsignRateLimit collection)
 
 **Backend Implementation:**
 ```javascript
@@ -709,21 +708,28 @@ module.exports = esignAPIAuth;
 **Rate Limiting Middleware:**
 ```javascript
 // backend/src/middleware/esignRateLimit.js
-const redis = require('../config/redis'); // Assuming Redis is configured
-
+// Uses MongoDB for rate limiting with TTL indexes for automatic expiration
 const esignRateLimit = async (req, res, next) => {
   try {
+    const EsignRateLimit = req.getModel('EsignRateLimit');
     const keyPrefix = req.api_key.key_prefix;
     const minute = Math.floor(Date.now() / 60000);
-    const redisKey = `ratelimit:${keyPrefix}:${minute}`;
+    const rateLimitKey = `${keyPrefix}:${minute}`;
     
-    const count = await redis.incr(redisKey);
+    // Find or create rate limit record in MongoDB
+    const rateLimit = await EsignRateLimit.findOneAndUpdate(
+      { key: rateLimitKey },
+      { 
+        $inc: { count: 1 },
+        $setOnInsert: { 
+          key: rateLimitKey,
+          expires_at: new Date(Date.now() + 60000) // 1 minute TTL - MongoDB will auto-delete
+        }
+      },
+      { upsert: true, new: true }
+    );
     
-    if (count === 1) {
-      await redis.expire(redisKey, 60); // Expire after 1 minute
-    }
-    
-    if (count > 100) {
+    if (rateLimit.count > 100) {
       return res.status(429).json({ 
         error: 'Rate limit exceeded',
         retryAfter: 60 - (Date.now() / 1000 % 60)
@@ -733,7 +739,7 @@ const esignRateLimit = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Rate limit error:', error);
-    next(); // Fail open on Redis errors
+    next(); // Fail open on database errors
   }
 };
 
@@ -823,7 +829,7 @@ interface DelegationRequest {
 - `SignatureInjector`: Injects signature images into HTML at delimiter positions
 - `AuditFooterGenerator`: Appends audit information to PDF
 - `StorageAdapter`: Abstract interface for storage providers
-- `DistributedLockService`: Manages Redis-based locks
+- `DistributedLockService`: Manages MongoDB-based locks using EsignLock collection
 - `CertificateGenerator`: Creates certificate of completion PDFs
 - `EvidencePackageService`: Generates ZIP files with all signing materials
 
@@ -1708,59 +1714,130 @@ const modelRegistry = {
 // const EsignTemplate = req.getModel('EsignTemplate');
 ```
 
-### Redis Data Structures (New)
+### MongoDB State Management Collections (NEW)
 
-**OTP Records (Redis):**
-```typescript
-interface OTPRecord {
-  key: `otp:${recipient_id}`;
-  value: {
-    hashed_otp: string;
-    expires_at: number; // Unix timestamp
-    attempts: number;
-    locked_until?: number;
-  };
-  ttl: number; // Seconds
-}
+These collections use MongoDB TTL indexes for automatic expiration and are stored in the Company DB. MongoDB's TTL index feature automatically deletes documents after the specified time, eliminating the need for Redis or external cache systems:
+
+**EsignOTP Collection:**
+```javascript
+// backend/src/models/EsignOTP.js
+const mongoose = require('mongoose');
+
+const esignOTPSchema = new mongoose.Schema({
+  company_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Company' },
+  recipient_id: { type: mongoose.Schema.Types.ObjectId, required: true },
+  document_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'EsignDocument' },
+  hashed_otp: { type: String, required: true },
+  attempts: { type: Number, default: 0 },
+  locked_until: Date,
+  expires_at: { type: Date, required: true },
+  created_at: { type: Date, default: Date.now }
+}, {
+  timestamps: false,
+  collection: 'esign_otps'
+});
+
+// TTL index - MongoDB automatically deletes expired documents
+esignOTPSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+esignOTPSchema.index({ company_id: 1, recipient_id: 1, document_id: 1 });
+
+module.exports = esignOTPSchema;
 ```
 
-**Idempotency Keys (Redis):**
-```typescript
-interface IdempotencyRecord {
-  key: `idempotency:${company_id}:${idempotency_key}`;
-  value: {
-    document_id: string;
-    created_at: number;
-  };
-  ttl: 86400; // 24 hours
-}
+**EsignIdempotency Collection:**
+```javascript
+// backend/src/models/EsignIdempotency.js
+const mongoose = require('mongoose');
+
+const esignIdempotencySchema = new mongoose.Schema({
+  company_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Company' },
+  idempotency_key: { type: String, required: true },
+  document_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'EsignDocument' },
+  created_at: { type: Date, default: Date.now },
+  expires_at: { type: Date, required: true } // 24 hours from creation
+}, {
+  timestamps: false,
+  collection: 'esign_idempotency'
+});
+
+// TTL index - MongoDB automatically deletes after 24 hours
+esignIdempotencySchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+esignIdempotencySchema.index({ company_id: 1, idempotency_key: 1 }, { unique: true });
+
+module.exports = esignIdempotencySchema;
 ```
 
-**Distributed Locks (Redis):**
-```typescript
-interface DistributedLock {
-  key: `lock:document:${document_id}`;
-  value: string; // Lock holder ID
-  ttl: 300; // 5 minutes
-}
+**EsignLock Collection:**
+```javascript
+// backend/src/models/EsignLock.js
+const mongoose = require('mongoose');
+
+const esignLockSchema = new mongoose.Schema({
+  company_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Company' },
+  resource_type: { type: String, required: true }, // 'document', 'signing_group', etc.
+  resource_id: { type: String, required: true },
+  lock_holder: { type: String, required: true }, // Process/worker ID
+  acquired_at: { type: Date, default: Date.now },
+  expires_at: { type: Date, required: true } // 5 minutes from acquisition
+}, {
+  timestamps: false,
+  collection: 'esign_locks'
+});
+
+// TTL index - MongoDB automatically deletes expired locks
+esignLockSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+esignLockSchema.index({ company_id: 1, resource_type: 1, resource_id: 1 }, { unique: true });
+
+module.exports = esignLockSchema;
 ```
 
-**Rate Limit Counters (Redis):**
-```typescript
-interface RateLimitCounter {
-  key: `ratelimit:${api_key_prefix}:${minute}`;
-  value: number; // Request count
-  ttl: 60; // 1 minute
-}
+**EsignRateLimit Collection:**
+```javascript
+// backend/src/models/EsignRateLimit.js
+const mongoose = require('mongoose');
+
+const esignRateLimitSchema = new mongoose.Schema({
+  company_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Company' },
+  key: { type: String, required: true }, // Format: "api_key_prefix:minute_timestamp"
+  count: { type: Number, default: 0 },
+  created_at: { type: Date, default: Date.now },
+  expires_at: { type: Date, required: true } // 1 minute from creation
+}, {
+  timestamps: false,
+  collection: 'esign_rate_limits'
+});
+
+// TTL index - MongoDB automatically deletes after 1 minute
+esignRateLimitSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+esignRateLimitSchema.index({ company_id: 1, key: 1 }, { unique: true });
+
+module.exports = esignRateLimitSchema;
 ```
 
-**Short Links (Redis):**
-```typescript
-interface ShortLink {
-  key: `shortlink:${short_code}`;
-  value: string; // Full token
-  ttl: number; // Matches token expiry
-}
+**EsignShortLink Collection:**
+```javascript
+// backend/src/models/EsignShortLink.js
+const mongoose = require('mongoose');
+
+const esignShortLinkSchema = new mongoose.Schema({
+  company_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Company' },
+  short_code: { type: String, required: true }, // 8-character alphanumeric code
+  token: { type: String, required: true }, // Full recipient token
+  document_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'EsignDocument' },
+  recipient_id: { type: mongoose.Schema.Types.ObjectId, required: true },
+  created_at: { type: Date, default: Date.now },
+  expires_at: { type: Date, required: true } // Matches token expiry
+}, {
+  timestamps: false,
+  collection: 'esign_short_links'
+});
+
+// TTL index - MongoDB automatically deletes expired short links
+esignShortLinkSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+esignShortLinkSchema.index({ short_code: 1 }, { unique: true });
+esignShortLinkSchema.index({ company_id: 1, document_id: 1, recipient_id: 1 });
+
+module.exports = esignShortLinkSchema;
 ```
 
 ### Database Indexes
@@ -2457,7 +2534,7 @@ const tokenArbitrary = () => fc.record({
 
 **Stress Testing:**
 - Database connection pool exhaustion
-- Redis connection limits
+- MongoDB connection limits and query performance
 - PDF service queue saturation
 - Storage provider rate limits
 
@@ -2519,7 +2596,7 @@ const tokenArbitrary = () => fc.record({
 - Request rate and latency (p50, p95, p99)
 - Error rate by endpoint and error type
 - Database query performance
-- Redis cache hit rate
+- MongoDB TTL index efficiency
 - PDF generation success rate
 - Storage upload success rate
 - Notification delivery rate
@@ -2532,7 +2609,7 @@ const tokenArbitrary = () => fc.record({
 - Storage upload failure rate > 10%
 - Queue depth > 1000 jobs
 - Database connection pool exhaustion
-- Redis memory usage > 80%
+- MongoDB memory usage > 80%
 
 **Logging:**
 - Structured JSON logs
@@ -2554,13 +2631,13 @@ const tokenArbitrary = () => fc.record({
 ### Phase 1: Foundation & Integration (Weeks 1-3)
 
 **Infrastructure Setup:**
-- Add Redis to existing infrastructure for caching, locks, and queues
+- Set up SQS for async job queuing (PDF generation, notifications, webhooks)
 - Set up PDF service (Node.js with Puppeteer or Python with WeasyPrint)
-- Configure Redis connection in backend/src/config/redis.js
+- Configure SQS connection in backend/src/config/sqs.js
 - Add 'esign_documents' module to CustomModuleConfig for module access control
 
 **Database Setup:**
-- Create 7 new Mongoose model schemas in backend/src/models/:
+- Create 12 new Mongoose model schemas in backend/src/models/:
   - EsignTemplate.js
   - EsignDocument.js
   - EsignProviderConfig.js
@@ -2568,21 +2645,27 @@ const tokenArbitrary = () => fc.record({
   - EsignSigningGroup.js
   - EsignBulkJob.js
   - EsignAuditLog.js (optional - or use existing GlobalLog)
+  - EsignOTP.js (state management with TTL)
+  - EsignLock.js (distributed locks with TTL)
+  - EsignRateLimit.js (rate limiting with TTL)
+  - EsignIdempotency.js (idempotency keys with TTL)
+  - EsignShortLink.js (short links with TTL)
 - Register models in backend/src/models/modelRegistry.js
-- Add indexes for performance (defined in model schemas)
+- Add TTL indexes for automatic expiration (defined in model schemas)
+- Add performance indexes (defined in model schemas)
 - Create migration script to add 'esign_documents' module to existing companies
 
 **Core Services:**
 - Implement backend/src/services/esign/encryption.service.js (AES-256 credential encryption)
 - Implement backend/src/services/esign/token.service.js (JWT generation and validation)
-- Implement backend/src/services/esign/otp.service.js (OTP with Redis storage)
-- Implement backend/src/services/esign/lock.service.js (distributed locks with Redis)
+- Implement backend/src/services/esign/otp.service.js (OTP with MongoDB EsignOTP storage)
+- Implement backend/src/services/esign/lock.service.js (distributed locks with MongoDB EsignLock)
 - Integrate with existing backend/src/services/activityLogging.service.js for audit trails
 
 **Middleware:**
 - Create backend/src/middleware/esignAPIAuth.js for API key validation
-- Create backend/src/middleware/esignRateLimit.js for rate limiting
-- Create backend/src/middleware/esignIdempotency.js for idempotency handling
+- Create backend/src/middleware/esignRateLimit.js for rate limiting using MongoDB EsignRateLimit
+- Create backend/src/middleware/esignIdempotency.js for idempotency handling using MongoDB EsignIdempotency
 - Reuse existing auth.js, tenantContext.js, moduleAccess.js
 
 ### Phase 2: Settings & Templates (Weeks 4-6)
@@ -2634,7 +2717,7 @@ const tokenArbitrary = () => fc.record({
 - Create backend/src/routes/esignAPI.routes.js (external API v1 at /api/v1/esign/*)
 - Create backend/src/controllers/esignAPI.controller.js
 - Implement document initiation endpoint with template snapshot
-- Implement idempotency handling with Redis
+- Implement idempotency handling with MongoDB EsignIdempotency collection
 - Implement status polling endpoint
 - Implement webhook delivery with HMAC-SHA256 signature verification
 - Implement bulk send from CSV upload
@@ -2643,7 +2726,7 @@ const tokenArbitrary = () => fc.record({
 - Create backend/src/routes/esignPublic.routes.js (public routes at /esign/public/*)
 - Create backend/src/controllers/esignPublic.controller.js
 - Implement token validation and access control
-- Implement MFA with OTP generation and verification (Redis storage)
+- Implement MFA with OTP generation and verification (MongoDB EsignOTP storage)
 - Implement signature submission with validation
 - Implement delegation functionality
 - Implement kiosk signing with host authentication
@@ -2654,7 +2737,7 @@ const tokenArbitrary = () => fc.record({
 - Create backend/src/services/esign/notification.service.js
 - Implement PDF generation workflow with Puppeteer/Playwright
 - Implement signature injection into HTML
-- Implement distributed locking for PDF generation (Redis)
+- Implement distributed locking for PDF generation (MongoDB EsignLock)
 - Implement storage upload with retry logic (use existing S3 or new adapters)
 - Implement certificate of completion generation
 - Implement evidence package creation (ZIP with PDF, certificate, audit trail)
@@ -2675,7 +2758,7 @@ const tokenArbitrary = () => fc.record({
 - Implement parallel signing (all recipients can sign simultaneously)
 - Implement broadcast signing (separate document instances per recipient)
 - Implement conditional routing with rule evaluation
-- Implement signing groups with atomic slot claiming (Redis locks)
+- Implement signing groups with atomic slot claiming (MongoDB EsignLock for atomicity)
 - Implement in-person/kiosk signing with host authentication
 
 ### Phase 4: Message Center & Operations (Weeks 12-14)
@@ -2730,12 +2813,12 @@ const tokenArbitrary = () => fc.record({
 - Test audit logging
 
 **Deployment:**
-- Deploy Redis instance
+- Set up SQS for async job queuing
 - Deploy PDF service (Node.js or Python)
 - Update backend with new routes and models
 - Update frontend with new pages and components
 - Run database migrations to add e-sign module to companies
-- Configure environment variables (Redis URL, PDF service URL, encryption keys)
+- Configure environment variables (SQS URL, PDF service URL, encryption keys)
 - Deploy to staging for QA testing
 - Deploy to production with feature flag
 - Monitor logs and metrics
@@ -2754,8 +2837,7 @@ const tokenArbitrary = () => fc.record({
 - Create notification templates for e-sign events
 
 **Job Queue:**
-- Option 1: Use existing cron job pattern for async tasks
-- Option 2: Implement Bull/Redis job queue for better scalability
+- Implement SQS-based job queue for async tasks
 - Implement PDF generation jobs
 - Implement notification jobs
 - Implement bulk operation jobs
@@ -2787,7 +2869,7 @@ const tokenArbitrary = () => fc.record({
 ### Phase 6: Deployment & Launch (Weeks 19-20)
 
 **Deployment:**
-- Deploy Redis to production
+- Deploy SQS queue to production
 - Deploy PDF service to production
 - Deploy backend changes to production
 - Deploy frontend changes to production
@@ -2868,7 +2950,7 @@ The 35 correctness properties provide a solid foundation for property-based test
 - New backend routes and controllers for e-sign functionality
 - New frontend pages and components for e-sign UI
 - New middleware for API key auth, rate limiting, idempotency
-- Redis integration for caching, locks, OTP storage
+- MongoDB state management collections with TTL indexes for OTP, locks, rate limits, idempotency, short links
 - PDF service for document generation
 - Optional storage provider adapters
 
