@@ -46,7 +46,11 @@ const notificationConfigSchema = new mongoose.Schema({
   custom_email_subject: String,  // Req 46.1
   custom_email_template: String,  // Req 46.1
   custom_sms_template: String,  // Req 46.2
-  cc_emails: [String]
+  cc_emails: [String],
+  reminder_intervals: [{  // Req 61.1, 61.6 - Pre-expiry reminder intervals in hours
+    hours_before_expiry: { type: Number, required: true },
+    _id: false
+  }]
 }, { _id: false });
 
 const routingRuleSchema = new mongoose.Schema({

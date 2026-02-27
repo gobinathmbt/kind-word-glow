@@ -63,6 +63,11 @@ const esignDocumentSchema = new mongoose.Schema({
   bulk_job_id: { type: mongoose.Schema.Types.ObjectId, ref: 'EsignBulkJob' },
   is_archived: { type: Boolean, default: false },
   archived_at: Date,
+  reminders_sent: [{  // Track sent reminders to avoid duplicates (Req 61.5)
+    sent_at: { type: Date, required: true },
+    hours_before_expiry: { type: Number, required: true },
+    _id: false
+  }],
   created_by: {
     type: { type: String, enum: ['api', 'user'], required: true },
     id: { type: String, required: true }

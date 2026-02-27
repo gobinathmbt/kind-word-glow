@@ -707,8 +707,8 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - _Requirements: 76.1, 76.2, 76.3, 76.4, 76.5, 76.6, 76.7_
 
 
-- [ ] 16. Scheduled Jobs & Background Processing
-  - [ ] 16.1 Implement document expiry cron job
+- [x] 16. Scheduled Jobs & Background Processing
+  - [x] 16.1 Implement document expiry cron job
     - Create backend/src/jobs/esignExpiryCron.js
     - Run every 15 minutes
     - Query documents with status "distributed", "opened", or "partially_signed"
@@ -719,7 +719,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log all expiry events to audit log
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7_
   
-  - [ ] 16.2 Implement pre-expiry reminder cron job
+  - [x] 16.2 Implement pre-expiry reminder cron job
     - Create backend/src/jobs/esignReminderCron.js
     - Run every 15 minutes
     - Query documents with status "distributed", "opened", or "partially_signed"
@@ -729,7 +729,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Log reminder events to audit log
     - _Requirements: 61.1, 61.2, 61.3, 61.4, 61.5, 61.6_
   
-  - [ ] 16.3 Implement async PDF generation job queue
+  - [x] 16.3 Implement async PDF generation job queue
     - Option 1: Use existing cron job pattern
     - Option 2: Implement AWS SQS job queue for better scalability
     - Create PDF generation jobs when all recipients sign
@@ -738,7 +738,7 @@ The system consists of 7 core modules: Settings, Templates, External API, E-Sign
     - Update document status based on job result
     - _Requirements: 12.1-12.15_
   
-  - [ ] 16.4 Implement async notification job queue
+  - [x] 16.4 Implement async notification job queue
     - Create notification jobs for all notification events
     - Process jobs asynchronously
     - Handle delivery failures with retry logic
